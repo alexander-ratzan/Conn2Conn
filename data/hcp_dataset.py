@@ -1,4 +1,4 @@
-from dataset_utils import *
+from data.dataset_utils import *
 
 """
 Define HCP dataset class
@@ -57,11 +57,11 @@ class HCP_Dataset(Dataset):
         self.SC_test_avg = population_average(self.SC_test)
 
         self.FC_train = torch.tensor(self.fc_upper_triangles[fc_train_indices], dtype=torch.float32)
-        self.FC_train_avg = population_average(self.FC_train, apply_fisher_z=True)
+        self.FC_train_avg = population_average(self.FC_train, apply_fisher_z=False)
         self.FC_val = torch.tensor(self.fc_upper_triangles[fc_val_indices], dtype=torch.float32)
-        self.FC_val_avg = population_average(self.FC_val, apply_fisher_z=True)
+        self.FC_val_avg = population_average(self.FC_val, apply_fisher_z=False)
         self.FC_test = torch.tensor(self.fc_upper_triangles[fc_test_indices], dtype=torch.float32)
-        self.FC_test_avg = population_average(self.FC_test, apply_fisher_z=True)
+        self.FC_test_avg = population_average(self.FC_test, apply_fisher_z=False)
     
     @staticmethod
     def subject_indices_from_id(subject_list, target_subjects):
