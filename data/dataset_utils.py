@@ -7,6 +7,7 @@ from torch.utils.data import Dataset
 import scipy.io
 from data.data_utils import *
 from concurrent.futures import ThreadPoolExecutor
+from sklearn.decomposition import PCA
 
 
 def _load_single_fc_file(args):
@@ -186,7 +187,7 @@ def load_freesurfer_data():
     
     return freesurfer_df
 
-def load_metadata(shuffle_seed=0):
+def load_metadata(shuffle_seed=0, age_bin_size=2):
     """
     Loads and merges metadata from participants.tsv and HCP1200_RESTRICTED.csv.
     
@@ -194,12 +195,14 @@ def load_metadata(shuffle_seed=0):
         shuffle_seed: Random seed for train/val/test split generation. 
                       If shuffle_seed=0, uses the original split from participants.tsv.
                       If shuffle_seed != 0, generates a new family-preserving split using that seed.
+        age_bin_size: Bin size (years) for age windowing. If None, no bin column is added.
     
     Returns:
         metadata_df: DataFrame containing all subject metadata with columns:
             - subject: Subject ID as integer
             - train_val_test: Split assignment (train/val/test)
             - age: Age in years
+            - age_{age_bin_size}y_bin: Age bin label (if age_bin_size is provided; label is left edge of bin)
             - sex: Sex (M/F)
             - Race_Ethnicity: Combined race and ethnicity information
             - Family_Relation: Family relationship category (MZ, DZ, NotTwin, NoRelation)
@@ -208,6 +211,7 @@ def load_metadata(shuffle_seed=0):
                 - NotTwin: Siblings or other family members (share Family_ID with others)
                 - NoRelation: No family relation (unique Family_ID or missing data)
             - Family_ID: Family identifier
+        covariate_one_hot_tuple: Tuple of (age_bin_one_hot, sex_one_hot, race_ethnicity_one_hot) numpy arrays
     """
     participants_path = "/scratch/asr655/neuroinformatics/Conn2Conn/krakencoder/example_data/HCP-YA_dataset/participants.tsv"
     restricted_path = "/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/HCP1200_RESTRICTED.csv"
@@ -267,15 +271,40 @@ def load_metadata(shuffle_seed=0):
     )
     # Drop the original Race and Ethnicity columns
     metadata_df = metadata_df.drop(columns=["Race", "Ethnicity"])
-    
+
     # If random_seed != 0, generate a new family-preserving split
     if shuffle_seed != 0:
         metadata_df = generate_train_val_test(metadata_df, random_seed=shuffle_seed)
+
+    # Concise age-binning and column selection
+    if age_bin_size is not None:
+        bin_col = f"age_{age_bin_size}y_bin"
+        bins = np.arange(metadata_df['age'].min(), metadata_df['age'].max() + age_bin_size, age_bin_size)
+        labels = [f"{int(bins[i])}-{int(bins[i] + age_bin_size - 1)}" for i in range(len(bins)-1)]
+        metadata_df.insert(
+            metadata_df.columns.get_loc('age') + 1,
+            bin_col,
+            pd.cut(metadata_df["age"], bins=bins, labels=labels, right=False, include_lowest=True)
+        )
     
-    # Select only the required columns
-    metadata_df = metadata_df[['subject', 'train_val_test', 'age', 'sex', 'Race_Ethnicity', 'Family_Relation', 'Family_ID']]
-    
-    return metadata_df
+    cols = ['subject', 'train_val_test', 'age']
+    if age_bin_size is not None:
+        cols += [bin_col]
+    cols += ['sex', 'Race_Ethnicity', 'Family_Relation', 'Family_ID']
+    metadata_df = metadata_df[cols]
+
+    # --- Covariate one-hot tuple ---
+    # Only construct tuple if all needed columns are present
+    # See toy.ipynb for structure/intent of this code
+    if age_bin_size is not None:
+        age_bin_oh_np = pd.get_dummies(metadata_df[bin_col], dtype=np.float32).to_numpy()
+    else:
+        age_bin_oh_np = None
+    sex_oh_np = pd.get_dummies(metadata_df['sex'], dtype=np.float32).to_numpy()
+    race_eth_oh_np = pd.get_dummies(metadata_df['Race_Ethnicity'], dtype=np.float32).to_numpy()
+    covariate_one_hot_tuple = (age_bin_oh_np, sex_oh_np, race_eth_oh_np)
+
+    return metadata_df, covariate_one_hot_tuple
 
 def generate_train_val_test(metadata_df, random_seed=42):
     """
@@ -385,23 +414,36 @@ def generate_train_val_test(metadata_df, random_seed=42):
     
     return metadata_df
 
-def population_average(connectivity_tensor, apply_fisher_z=False):
+def population_mean_pca(connectivity_tensor, apply_fisher_z=False):
     """
-    Compute the population average connectivity across subjects.
-    
+    Compute the population mean connectivity across subjects, then perform PCA using sklearn.
+
     Args:
-        connectivity_tensor: torch.Tensor of shape (n_subjects, n_edges) containing connectivity values
-        apply_fisher_z: If True, apply Fisher z-transform before averaging. Fisher z-transform is 
-                        z = 0.5 * ln((1 + r) / (1 - r)) = atanh(r), where r is the correlation value.
-                        Values are clipped to [-1, 1] before transformation.
-    
+        connectivity_tensor: torch.Tensor or np.ndarray of shape (n_subjects, n_edges) containing connectivity values
+        apply_fisher_z: If True, apply Fisher z-transform before averaging.
+
     Returns:
-        avg_connectivity: torch.Tensor of shape (n_edges,) containing the population average
+        mean_connectivity: torch.Tensor of shape (n_edges,) containing the population mean.
+        scores: torch.Tensor of shape (n_subjects, n_components) - PCA scores (subject projections).
+        loadings: torch.Tensor of shape (n_edges, n_components) - PCA components (eigenvectors).
     """
+    # Optionally apply Fisher z-transform
     if apply_fisher_z:
-        connectivity_tensor = torch.clamp(connectivity_tensor, -1.0, 1.0) # Clip values to [-1, 1] range for Fisher z-transform (valid for correlations)
-        connectivity_tensor = torch.atanh(connectivity_tensor) # Apply Fisher z-transform: z = atanh(r) = 0.5 * ln((1+r)/(1-r))
+        connectivity_tensor = torch.clamp(connectivity_tensor, -1.0, 1.0)
+        connectivity_tensor = torch.atanh(connectivity_tensor)
     
-    # Compute mean across subjects (axis 0)
-    avg_connectivity = torch.mean(connectivity_tensor, dim=0)    
-    return avg_connectivity
+    # Compute mean across subjects
+    mean_connectivity = np.mean(connectivity_tensor, axis=0)
+
+    # Center the data by subtracting mean
+    conn_centered = connectivity_tensor - mean_connectivity
+
+    # Determine n_components for PCA
+    n_subjects, n_edges = conn_centered.shape
+    n_components_for_pca = min(n_subjects, n_edges)
+
+    pca = PCA(n_components=n_components_for_pca)
+    scores = pca.fit_transform(conn_centered)  # shape: (n_subjects, n_components)
+    loadings = pca.components_.T               # shape: (n_edges, n_components)
+
+    return mean_connectivity, scores, loadings
