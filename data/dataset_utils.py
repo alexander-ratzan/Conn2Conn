@@ -73,38 +73,52 @@ def load_fc(parcellation='Glasser', HCP_dir='/scratch/asr655/neuroinformatics/Ge
     return subject_ids, fc_matrices, fc_triangles
 
 def _load_single_sc_file(args):
-    """Helper function to load a single SC file - designed for parallel execution"""
+    """Helper function to load a single SC file and corresponding region2tract npy - designed for parallel execution"""
     HCP_dir, subj_folder, parcellation, metric_type, apply_log1p = args
     subject_id = subj_folder.replace("sub-", "")
-    
+
     # Path to .mat file
     struct_base = f"HCP1200_DTI/qsirecon/sub-{subject_id}/anat/"
     mat_path = os.path.join(HCP_dir, struct_base, f"sub-{subject_id}_space-T1w_connectivity.mat")
+
+    # Path to region2tract .npy file
+    r2t_path = os.path.join(
+        HCP_dir, "HCP1200_DTI/qsirecon", f"sub-{subject_id}", "anat", "tract-to-region",
+        f"sub-{subject_id}_region2tract_{parcellation}_n=66.npy"
+    )
     
+    # Note: 66 tracts based on common subset across subjects in original tract-to-region csvs
+    tract_list = ['AssociationArcuateFasciculusL', 'AssociationArcuateFasciculusR', 'AssociationCingulumL', 'AssociationCingulumR', 'AssociationExtremeCapsuleL', 'AssociationExtremeCapsuleR', 'AssociationFrontalAslantTractL', 'AssociationFrontalAslantTractR', 'AssociationHippocampusAlveusL', 'AssociationHippocampusAlveusR', 'AssociationInferiorFrontoOccipitalFasciculusL', 'AssociationInferiorFrontoOccipitalFasciculusR', 'AssociationInferiorLongitudinalFasciculusL', 'AssociationInferiorLongitudinalFasciculusR', 'AssociationMiddleLongitudinalFasciculusL', 'AssociationMiddleLongitudinalFasciculusR', 'AssociationParietalAslantTractL', 'AssociationParietalAslantTractR', 'AssociationSuperiorLongitudinalFasciculusL', 'AssociationSuperiorLongitudinalFasciculusR', 'AssociationUncinateFasciculusL', 'AssociationUncinateFasciculusR', 'AssociationVerticalOccipitalFasciculusL', 'AssociationVerticalOccipitalFasciculusR', 'CerebellumCerebellumL', 'CerebellumCerebellumR', 'CerebellumInferiorCerebellarPeduncleL', 'CerebellumInferiorCerebellarPeduncleR', 'CerebellumMiddleCerebellarPeduncle', 'CerebellumSuperiorCerebellarPeduncle', 'CerebellumVermis', 'CommissureCorpusCallosum', 'CranialNerveCNIIIL', 'CranialNerveCNIIIR', 'CranialNerveCNIIL', 'CranialNerveCNIIR', 'CranialNerveCNVIIIL', 'CranialNerveCNVIIIR', 'CranialNerveCNVL', 'CranialNerveCNVR', 'ProjectionBasalGangliaAcousticRadiationL', 'ProjectionBasalGangliaAcousticRadiationR', 'ProjectionBasalGangliaAnsaLenticularisL', 'ProjectionBasalGangliaAnsaLenticularisR', 'ProjectionBasalGangliaAnsaSubthalamicaL', 'ProjectionBasalGangliaAnsaSubthalamicaR', 'ProjectionBasalGangliaCorticostriatalTractL', 'ProjectionBasalGangliaCorticostriatalTractR', 'ProjectionBasalGangliaFasciculusLenticularisL', 'ProjectionBasalGangliaFasciculusLenticularisR', 'ProjectionBasalGangliaFasciculusSubthalamicusL', 'ProjectionBasalGangliaFasciculusSubthalamicusR', 'ProjectionBasalGangliaFornixL', 'ProjectionBasalGangliaFornixR', 'ProjectionBasalGangliaOpticRadiationL', 'ProjectionBasalGangliaOpticRadiationR', 'ProjectionBasalGangliaThalamicRadiationL', 'ProjectionBasalGangliaThalamicRadiationR', 'ProjectionBrainstemCorticopontineTractL', 'ProjectionBrainstemCorticopontineTractR', 'ProjectionBrainstemCorticospinalTractL', 'ProjectionBrainstemCorticospinalTractR', 'ProjectionBrainstemMedialForebrainBundleL', 'ProjectionBrainstemMedialForebrainBundleR', 'ProjectionBrainstemNonDecussatingDentatorubrothalamicTractL', 'ProjectionBrainstemNonDecussatingDentatorubrothalamicTractR']
+
     if not os.path.exists(mat_path):
-        return None, None
-    
+        return None, None, None
+
     try:
         # Load .mat file
         mat = scipy.io.loadmat(mat_path, simplify_cells=True)
-
         field_name = f"atlas_{parcellation}_{metric_type}"
-        
+
         if field_name not in mat:
-            return None, None
-        
+            return None, None, None
+
         # Extract matrix and squeeze to remove extra dimensions
         arr = np.array(mat[field_name])
         arr = np.squeeze(arr).astype(float)
-        
+
         # Apply log1p transformation if requested
         if apply_log1p:
             arr = np.log1p(np.maximum(arr, 0))
-        
-        return subject_id, arr
+
+        # Try to load the region2tract matrix
+        if os.path.exists(r2t_path):
+            r2t_mat = np.load(r2t_path)
+        else:
+            r2t_mat = None
+
+        return subject_id, arr, r2t_mat
     except Exception as e:
         print(f"[load_sc] Error loading file for subject {subject_id} at {mat_path}: {e}. Skipping.")
-        return None, None
+        return None, None, None
 
 def load_sc(parcellation='Glasser', metric_type='sift_invnodevol_radius2_count_connectivity', 
             HCP_dir='/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/', 
@@ -125,41 +139,49 @@ def load_sc(parcellation='Glasser', metric_type='sift_invnodevol_radius2_count_c
         subject_ids: List of subject IDs
         sc_matrices: Stacked SC matrices (n_subjects, n_roi, n_roi)
         sc_triangles: Upper triangle vectors (n_subjects, n_edges)
+        sc_r2t_matrices: Stacked region2tract matrices (n_subjects, region, t)
     """
     # Get subject folders from FC directory (same subjects for both FC and SC)
     subjects_dir = os.path.join(HCP_dir, "HCP1200_fMRI/xcpd-0-9-1/")
     subject_folders = [d for d in os.listdir(subjects_dir) if d.startswith("sub-")]
     subject_folders = sorted(subject_folders)
-    
+
     # Prepare arguments for parallel processing
     args_list = [(HCP_dir, subj_folder, parcellation, metric_type, apply_log1p) for subj_folder in subject_folders]
-    
+
     # Determine number of workers
     n_jobs = min(len(subject_folders), os.cpu_count() or 4) if n_jobs is None else n_jobs
-    
-    sc_matrices, subject_ids = [], []
-    
+
+    sc_matrices, subject_ids, sc_r2t_matrices = [], [], []
+
     # Parallel file loading (ThreadPoolExecutor is better for I/O-bound tasks)
     with ThreadPoolExecutor(max_workers=n_jobs) as executor:
         results = executor.map(_load_single_sc_file, args_list)
-    
+
     # Collect results
-    for subject_id, mat in results:
+    for subject_id, mat, r2t in results:
         if subject_id is not None:
             subject_ids.append(int(subject_id))
             sc_matrices.append(mat)
+            sc_r2t_matrices.append(r2t)
 
     if len(sc_matrices) == 0:
         raise RuntimeError("No subject files found or loaded. Check HCP_dir, parcellation, and metric_type parameters.")
-    
-    # Stack matrices first
+
+    # Stack matrices
     sc_matrices = np.stack(sc_matrices, axis=0)
-    
+
+    # Stack region2tract matrices; only if all loaded successfully, else set None
+    if all(x is not None for x in sc_r2t_matrices):
+        sc_r2t_matrices = np.stack(sc_r2t_matrices, axis=0)
+    else:
+        sc_r2t_matrices = None
+
     # Pre-compute tri_indices once (all matrices have same shape) and vectorize triangle extraction
     tri_indices = np.triu_indices(sc_matrices.shape[1], k=1)
     sc_triangles = sc_matrices[:, tri_indices[0], tri_indices[1]]
-    
-    return subject_ids, sc_matrices, sc_triangles
+
+    return subject_ids, sc_matrices, sc_triangles, sc_r2t_matrices
 
 def load_freesurfer_data():
     """

@@ -25,7 +25,7 @@ class HCP_Base():
     HCP_dir='/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/',
     parcellation='Glasser', source='SC', target='FC', shuffle_seed=0,
     sc_metric_type='sift_invnodevol_radius2_count_connectivity', sc_apply_log1p=True, 
-    pca_components_sc=256, pca_components_fc=256):
+    num_pca_components_sc=256, num_pca_components_fc=256):
         """
         Load in data for all HCP subjects
         Define features and targets
@@ -33,15 +33,15 @@ class HCP_Base():
         Compute averages and PCA transforms per partition
         """
         # Choose parcellation
-        self.parcellation = parcellation
+        self.parcellation = parcellation # Glasser or 4S456Parcels
         self.HCP_dir = HCP_dir
-        self.source = source
-        self.target = target
+        self.source = source # SC or FC
+        self.target = target # SC or FC
         self.sc_metric_type = sc_metric_type
         self.sc_apply_log1p = sc_apply_log1p
         self.shuffle_seed = shuffle_seed
-        self.pca_components_sc = pca_components_sc
-        self.pca_components_fc = pca_components_fc
+        self.num_pca_components_sc = num_pca_components_sc
+        self.num_pca_components_fc = num_pca_components_fc
 
         # Load basic covariates and train/val/test split
         self.metadata_df, self.covariate_one_hot_tuple = load_metadata(shuffle_seed=shuffle_seed, age_bin_size=3)
@@ -53,7 +53,7 @@ class HCP_Base():
             
         # Load fc and sc matrices
         self.fc_subject_ids, self.fc_matrices, self.fc_upper_triangles = load_fc(parcellation, HCP_dir)
-        self.sc_subject_ids, self.sc_matrices, self.sc_upper_triangles = load_sc(parcellation, sc_metric_type, HCP_dir, sc_apply_log1p)
+        self.sc_subject_ids, self.sc_matrices, self.sc_upper_triangles, self.sc_r2t_matrices = load_sc(parcellation, sc_metric_type, HCP_dir, sc_apply_log1p)
         
         # Include subjects that common to metadata, FC, SC, and freesurfer dataframes
         canonical_subject_ids = sorted(set(self.all_subject_ids) & set(self.fc_subject_ids) & set(self.sc_subject_ids) & set(self.freesurfer_df['subject']))
@@ -68,6 +68,7 @@ class HCP_Base():
         self.fc_upper_triangles = self.fc_upper_triangles[canonical_fc_indices]
         self.sc_matrices = self.sc_matrices[canonical_sc_indices]
         self.sc_upper_triangles = self.sc_upper_triangles[canonical_sc_indices]
+        self.sc_r2t_matrices = self.sc_r2t_matrices[canonical_sc_indices]
 
         self.trainvaltest_partition_indices = {
             "train": self.subject_indices_from_id(self.all_subject_ids, self.metadata_df[self.metadata_df["train_val_test"] == "train"]["subject"].tolist()),
