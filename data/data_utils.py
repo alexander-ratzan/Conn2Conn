@@ -5,6 +5,7 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 import scipy.io
+from scipy.stats import pearsonr
 from concurrent.futures import ThreadPoolExecutor
 
 def square2tri(C, tri_indices=None, k=1, return_indices=False):
@@ -28,6 +29,11 @@ def triu_indices_torch(n,k=0):
     """pytorch triu_indices doesn't work the same way so use custom function that will"""
     ia,ib=torch.triu_indices(n,n,offset=k)
     return ia,ib
+
+def tri_corr(mat1, mat2):
+    # extract upper triangle without diagonal, flatten and correlate
+    iu = np.triu_indices_from(mat1, k=1)
+    return pearsonr(mat1[iu], mat2[iu])[0]
 
 def tri2square(Ctri, tri_indices=None, numroi=None, k=1, diagval=0):
     """

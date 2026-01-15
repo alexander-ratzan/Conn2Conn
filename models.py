@@ -1,4 +1,5 @@
 """
+PCA + PCA^-1
 PLS
 Kraken
 Kraken + learnable PCA
@@ -6,14 +7,148 @@ non-linear Kraken
 cov-VAE/CLIP pretraining + MLP + Kraken learnable PCA
 GNN
 """
-
-from sklearn.metrics import r2_score
-from sklearn.decomposition import PCA
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.metrics import r2_score, mean_squared_error
+from scipy.stats import pearsonr, spearmanr
+from sklearn.decomposition import PCA
 from scipy import stats
+import torch
+import torch.nn as nn
 
-# has PCA wiped out the detailed signal we are trying to recover? evaluate in FC_train to start
+def predict_from_loader(model, data_loader, device=None):
+    model.eval()
+    all_preds = []
+    all_targets = []
+    with torch.no_grad():
+        for batch in data_loader:
+            x = batch["x"]
+            y = batch["y"]
+            if device is not None:
+                x = x.to(device)
+                y = y.to(device)
+            preds = model(x)
+            all_preds.append(preds.cpu())
+            all_targets.append(y.cpu())
+    all_preds = torch.cat(all_preds, dim=0)
+    all_targets = torch.cat(all_targets, dim=0)
+    return all_preds, all_targets
+
+def evaluate_predictions(preds, targets):
+    # Ensure tensors are detached, moved to cpu, and converted to numpy arrays (no flattening)
+    if isinstance(preds, torch.Tensor):
+        preds_np = preds.detach().cpu().numpy()
+    else:
+        preds_np = np.asarray(preds)
+    if isinstance(targets, torch.Tensor):
+        targets_np = targets.detach().cpu().numpy()
+    else:
+        targets_np = np.asarray(targets)
+
+    # preds_np, targets_np: shape (n_subjects, n_features)
+    assert preds_np.shape == targets_np.shape
+
+    # Compute vectorized MSE and R2 (per subject, then mean)
+    # mean_squared_error and r2_score can vectorize if multioutput="raw_values"
+    mse_values = mean_squared_error(targets_np, preds_np, multioutput='raw_values')
+    r2_values = r2_score(targets_np, preds_np, multioutput='raw_values')
+
+    # Compute (looped) pearson and spearman (no native vectorization in scipy/stats)
+    n_subjects = preds_np.shape[0]
+    pearson_list = []
+    spearman_list = []
+    for i in range(n_subjects):
+        pearson_list.append(pearsonr(preds_np[i], targets_np[i])[0])
+        spearman_list.append(spearmanr(preds_np[i], targets_np[i])[0])
+
+    metrics = {}
+    metrics['pearson'] = np.mean(pearson_list)
+    metrics['spearman'] = np.mean(spearman_list)
+    metrics['mse'] = np.mean(mse_values)
+    metrics['r2'] = np.mean(r2_values)
+    return metrics
+
+
+class CrossModalPCA(nn.Module):
+    """
+    Cross-modal PCA model implemented in PyTorch.
+    Maps source modality to target modality using PCA decomposition from training data.
+    Given a base data object (which provides population mean and loadings for each modality), 
+    it projects from source modality into source PCA space, truncates to num_components, 
+    then reconstructs (inverse transforms) via the target modality's PCA.
+
+    Typical intended use is for source and target in {'SC', 'FC'}.
+
+    Args:
+        base: Dataset base object (e.g., HCP_Base) providing PCA means/loadings for both modalities on train partition.
+        num_components: Number of components to use (int).
+        source: 'SC' or 'FC' (modality for input)
+        target: 'SC' or 'FC' (modality for output)
+    """
+    def __init__(self, base, num_components=256,device=None):
+        super().__init__()
+        self.base = base
+        self.num_components = num_components
+
+        if device is None:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = device
+
+        # Select appropriate means, loadings for source and target
+        if base.source == "SC":
+            self.source_mean = torch.tensor(base.sc_train_avg, dtype=torch.float32, device=self.device)
+            self.source_loadings = torch.tensor(base.sc_train_loadings, dtype=torch.float32, device=self.device)
+        elif base.source == "FC":
+            self.source_mean = torch.tensor(base.fc_train_avg, dtype=torch.float32, device=self.device)
+            self.source_loadings = torch.tensor(base.fc_train_loadings, dtype=torch.float32, device=self.device)
+
+        if base.target == "SC":
+            self.target_mean = torch.tensor(base.sc_train_avg, dtype=torch.float32, device=self.device)
+            self.target_loadings = torch.tensor(base.sc_train_loadings, dtype=torch.float32, device=self.device)
+        elif base.target == "FC":
+            self.target_mean = torch.tensor(base.fc_train_avg, dtype=torch.float32, device=self.device)
+            self.target_loadings = torch.tensor(base.fc_train_loadings, dtype=torch.float32, device=self.device)
+
+        print(f"Source mean shape: {self.source_mean.shape}")
+        print(f"Source loadings shape: {self.source_loadings.shape}")
+        print(f"Target mean shape: {self.target_mean.shape}")
+        print(f"Target loadings shape: {self.target_loadings.shape}")
+        
+        # Only keep first k components, and explicitly ensure float32 dtype to avoid matmul dtype mismatch
+        self.register_buffer('source_loadings_k', self.source_loadings[:, :self.num_components].to(torch.float32))
+        self.register_buffer('target_loadings_k', self.target_loadings[:, :self.num_components].to(torch.float32))
+        self.register_buffer('source_mean_', self.source_mean.to(torch.float32))
+        self.register_buffer('target_mean_', self.target_mean.to(torch.float32))
+
+    def forward(self, x):
+        """
+        Args:
+            x (torch.Tensor(batch_size, d)): source modality tensor.
+
+        Returns:
+            y_hat (torch.Tensor(batch_size, d)): predicted target modality.
+        """
+        x = x.to(self.device).to(torch.float32)
+
+        # 1. Center input
+        x_centered = x - self.source_mean_
+
+        # 2. Project into truncated source PCA space (batch @ (d, k)) => (batch, k)
+        z = torch.matmul(x_centered, self.source_loadings_k)
+
+        # 3. Reconstruct with target PCA (inverse transform): (batch, k) @ (k, d) => (batch, d)
+        y_hat = torch.matmul(z, self.target_loadings_k.t()) + self.target_mean_
+
+        return y_hat
+
+    def to(self, *args, **kwargs): # for device mismatch issues
+        super().to(*args, **kwargs)
+        self.source_mean_ = self.source_mean_.to(*args, **kwargs)
+        self.target_mean_ = self.target_mean_.to(*args, **kwargs)
+        self.source_loadings_k = self.source_loadings_k.to(*args, **kwargs)
+        self.target_loadings_k = self.target_loadings_k.to(*args, **kwargs)
+        return self
+
 
 def run_pca_and_plot(X_train, X_val=None, X_test=None, 
                      train_ids=None, val_ids=None, test_ids=None,

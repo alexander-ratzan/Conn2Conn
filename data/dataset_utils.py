@@ -468,4 +468,4 @@ def population_mean_pca(connectivity_tensor, apply_fisher_z=False):
     scores = pca.fit_transform(conn_centered)  # shape: (n_subjects, n_components)
     loadings = pca.components_.T               # shape: (n_edges, n_components)
 
-    return mean_connectivity, scores, loadings
+    return mean_connectivity, loadings, scores

@@ -77,11 +77,64 @@ class HCP_Base():
         }
         
         # Compute mean and PCA for training subjects for FC and SC
-        self.sc_train_avg, self.sc_train_scores, self.sc_train_loadings = population_mean_pca(self.sc_upper_triangles[self.trainvaltest_partition_indices["train"]])
-        self.fc_train_avg, self.fc_train_scores, self.fc_train_loadings = population_mean_pca(self.fc_upper_triangles[self.trainvaltest_partition_indices["train"]])
+        self.sc_train_avg,  self.sc_train_loadings, self.sc_train_scores = population_mean_pca(self.sc_upper_triangles[self.trainvaltest_partition_indices["train"]])
+        self.fc_train_avg, self.fc_train_loadings, self.fc_train_scores = population_mean_pca(self.fc_upper_triangles[self.trainvaltest_partition_indices["train"]])
         
     @staticmethod
     def subject_indices_from_id(subject_list, target_subjects):
         return [i for i, subj in enumerate(subject_list) if subj in target_subjects]
 
+class HCP_Partition(Dataset):
+    def __init__(self, base, partition):
+        """
+        Args:
+            base: An instance of the full dataset class that stores all data arrays and indices.
+            partition: One of ["train", "val", "test"] specifying which split for this dataset.
+        """
+        self.base = base
+        self.partition = partition
+        self.indices = base.trainvaltest_partition_indices[partition]
+        
+        self.source = base.source
+        self.target = base.target
 
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        self.sc_upper_triangles = torch.tensor(base.sc_upper_triangles, dtype=torch.float32, device=self.device)
+        self.fc_upper_triangles = torch.tensor(base.fc_upper_triangles, dtype=torch.float32, device=self.device)
+        
+        # self.sc_train_avg = torch.tensor(base.sc_train_avg, dtype=torch.float32, device=device)
+        # self.sc_train_loadings = torch.tensor(base.sc_train_loadings, dtype=torch.float32, device=device)
+        # self.sc_train_scores = torch.tensor(base.sc_train_scores, dtype=torch.float32, device=device)
+
+        # self.fc_train_avg = torch.tensor(base.fc_train_avg, dtype=torch.float32, device=device)
+        # self.fc_train_loadings = torch.tensor(base.fc_train_loadings, dtype=torch.float32, device=device)
+        # self.fc_train_scores = torch.tensor(base.fc_train_scores, dtype=torch.float32, device=device)
+
+
+    def __getitem__(self, idx):
+        """
+        By default, returns a dict with:
+            - 'source': upper triangle vector of the source modality
+            - 'target': upper triangle vector of the target modality
+        
+        Later, more keys can be added (covariates, freesurfer, tracts, etc)
+        """
+        global_idx = self.indices[idx]
+        if self.source == "SC":
+            source_data = self.sc_upper_triangles[global_idx]
+        elif self.source == "FC":
+            source_data = self.fc_upper_triangles[global_idx]
+            
+        if self.target == "SC":
+            target_data = self.sc_upper_triangles[global_idx]
+        elif self.target == "FC":
+            target_data = self.fc_upper_triangles[global_idx]
+        
+        return {
+            "x": source_data,
+            "y": target_data,
+        }
+    
+    def __len__(self):
+        return len(self.indices)
