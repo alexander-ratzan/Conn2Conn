@@ -28,12 +28,13 @@ def _load_single_fc_file(args):
         print(f"[load_fc] Error loading file for subject {subject_id} at {tsv_path}: {e}. Skipping.")
         return None, None
 
-def load_fc(parcellation='Glasser', HCP_dir='/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/', n_jobs=None):
+def load_fc(parcellation='Glasser', hemi='both', HCP_dir='/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/', n_jobs=None):
     """
     Load FC matrices with parallel file I/O for faster loading.
     
     Args:
         parcellation: Parcellation type (e.g., 'Glasser')
+        hemi: Hemisphere to subset to (e.g., 'left', 'right', 'both')
         HCP_dir: Base directory for HCP data
         n_jobs: Number of parallel workers (None = auto-detect, use all available CPUs)
     """
@@ -54,9 +55,24 @@ def load_fc(parcellation='Glasser', HCP_dir='/scratch/asr655/neuroinformatics/Ge
     with ThreadPoolExecutor(max_workers=n_jobs) as executor:
         results = executor.map(_load_single_fc_file, args_list)
     
-    # Collect results
+    # eventually make dynamic
+    roi_df = pd.read_csv(f'/scratch/asr655/neuroinformatics/Conn2Conn/data/atlas_info/{parcellation}_dseg_reformatted.csv')
+    
+    if hemi == 'left':
+        roi_mask = roi_df['hemisphere'].str.contains('L')
+    elif hemi == 'right':
+        roi_mask = roi_df['hemisphere'].str.contains('R')
+    elif hemi == 'both':
+        roi_mask = roi_df['hemisphere'].str.contains('L') | roi_df['hemisphere'].str.contains('R')
+    else:
+        roi_mask = np.ones(len(roi_df), dtype=bool)  # fallback: use all
+
+    roi_indices = np.where(roi_mask)[0]
+    
     for subject_id, mat in results:
         if subject_id is not None:
+            if roi_indices is not None: # Subset to desired hemisphere (square matrix of roi_indices)
+                mat = mat[np.ix_(roi_indices, roi_indices)]
             subject_ids.append(int(subject_id))
             fc_matrices.append(mat)
 
@@ -120,7 +136,7 @@ def _load_single_sc_file(args):
         print(f"[load_sc] Error loading file for subject {subject_id} at {mat_path}: {e}. Skipping.")
         return None, None, None
 
-def load_sc(parcellation='Glasser', metric_type='sift_invnodevol_radius2_count_connectivity', 
+def load_sc(parcellation='Glasser', hemi='both', metric_type='sift_invnodevol_radius2_count_connectivity', 
             HCP_dir='/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/', 
             apply_log1p=False, n_jobs=None):
     """
@@ -158,9 +174,27 @@ def load_sc(parcellation='Glasser', metric_type='sift_invnodevol_radius2_count_c
     with ThreadPoolExecutor(max_workers=n_jobs) as executor:
         results = executor.map(_load_single_sc_file, args_list)
 
-    # Collect results
+    # Load ROI info and construct hemisphere mask (mimic FC loading logic for subsetting)
+    roi_df = pd.read_csv(f'/scratch/asr655/neuroinformatics/Conn2Conn/data/atlas_info/{parcellation}_dseg_reformatted.csv')
+
+    if hemi == 'left':
+        roi_mask = roi_df['hemisphere'].str.contains('L')
+    elif hemi == 'right':
+        roi_mask = roi_df['hemisphere'].str.contains('R')
+    elif hemi == 'both':
+        roi_mask = roi_df['hemisphere'].str.contains('L') | roi_df['hemisphere'].str.contains('R')
+    else:
+        roi_mask = np.ones(len(roi_df), dtype=bool)  # fallback: use all
+
+    roi_indices = np.where(roi_mask)[0]
+
+    # Collect results robustly, skip if data not loaded correctly
     for subject_id, mat, r2t in results:
-        if subject_id is not None:
+        if subject_id is not None and mat is not None:
+            # Subset to desired hemisphere if possible (square matrix of roi_indices)
+            if roi_indices is not None:
+                mat = mat[np.ix_(roi_indices, roi_indices)]
+                r2t = r2t[roi_indices, :]
             subject_ids.append(int(subject_id))
             sc_matrices.append(mat)
             sc_r2t_matrices.append(r2t)

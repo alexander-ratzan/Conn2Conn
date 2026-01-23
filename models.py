@@ -1,5 +1,6 @@
 """
 PCA + PCA^-1
+PCA + PLS + PCA^-1
 PLS
 Kraken
 Kraken + learnable PCA

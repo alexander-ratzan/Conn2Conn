@@ -1,0 +1,361 @@
+id,label,cifti_label,community_yeo,community_mesulam,community_economo,hemisphere,structure,mni_x,mni_y,mni_z
+1,Right_V1,R_V1_ROI,visual,paralimbic,sensory 2,R,cortex,10.962783171521039,-80.38673139158576,3.1181229773462746
+2,Right_MST,R_MST_ROI,dorsal attention,unimodal,sensory 1,R,cortex,42.5,-65.0,3.5714285714285694
+3,Right_V6,R_V6_ROI,visual,unimodal,sensory 1,R,cortex,17.439560439560438,-74.80219780219781,30.769230769230774
+4,Right_V2,R_V2_ROI,visual,paralimbic,sensory 1,R,cortex,-6.285714285714292,-53.14285714285714,-5.714285714285708
+5,Right_V3,R_V3_ROI,visual,paralimbic,sensory 1,R,cortex,23.497120921305182,-82.45297504798464,-4.23800383877159
+6,Right_V4,R_V4_ROI,visual,unimodal,sensory 1,R,cortex,32.13753581661891,-82.68194842406876,-2.7621776504298055
+7,Right_V8,R_V8_ROI,visual,unimodal,association 1,R,cortex,30.80733944954129,-69.3211009174312,-15.981651376146786
+8,Right_4,R_4_ROI,somatosensory,paralimbic,motor,R,cortex,31.538283062645007,-16.53596287703016,50.95127610208817
+9,Right_3b,R_3b_ROI,somatosensory,paralimbic,sensory 2,R,cortex,23.831932773109244,-29.15966386554622,61.49579831932772
+10,Right_FEF,R_FEF_ROI,dorsal attention,paralimbic,motor,R,cortex,44.0,-1.7962962962962905,49.74074074074075
+11,Right_PEF,R_PEF_ROI,dorsal attention,paralimbic,motor,R,cortex,42.78787878787878,2.9242424242424363,34.92424242424242
+12,Right_55b,R_55b_ROI,somatosensory,paralimbic,motor,R,cortex,47.915492957746466,3.27699530516432,43.81220657276995
+13,Right_V3A,R_V3A_ROI,visual,unimodal,association 1,R,cortex,16.09442060085837,-87.45922746781116,29.45922746781116
+14,Right_RSC,R_RSC_ROI,default mode,idiotypic,limbic,R,cortex,6.936170212765958,-45.787234042553195,12.38297872340425
+15,Right_POS2,R_POS2_ROI,default mode,heteromodal,association 1,R,cortex,10.837320574162675,-69.14354066985646,34.35406698564593
+16,Right_V7,R_V7_ROI,visual,unimodal,association 1,R,cortex,29.315789473684205,-81.01754385964912,29.15789473684211
+17,Right_IPS1,R_IPS1_ROI,dorsal attention,unimodal,association 1,R,cortex,26.816901408450704,-69.85915492957747,39.83098591549296
+18,Right_FFC,R_FFC_ROI,visual,unimodal,association 1,R,cortex,41.772811918063326,-55.49348230912477,-19.73556797020484
+19,Right_V3B,R_V3B_ROI,visual,unimodal,association 1,R,cortex,28.700000000000003,-76.7,19.799999999999997
+20,Right_LO1,R_LO1_ROI,visual,unimodal,sensory 1,R,cortex,38.950354609929065,-81.97163120567376,7.815602836879435
+21,Right_LO2,R_LO2_ROI,visual,unimodal,sensory 1,R,cortex,45.69565217391303,-80.0,-5.434782608695656
+22,Right_PIT,R_PIT_ROI,visual,unimodal,sensory 1,R,cortex,42.80000000000001,-77.27058823529413,-14.964705882352938
+23,Right_MT,R_MT_ROI,visual,unimodal,sensory 1,R,cortex,50.52777777777777,-69.97222222222223,4.416666666666671
+24,Right_A1,R_A1_ROI,somatosensory,paralimbic,sensory 2,R,cortex,45.797101449275374,-21.507246376811594,10.956521739130437
+25,Right_PSL,R_PSL_ROI,ventral attention,unimodal,association 2,R,cortex,62.01574803149606,-38.96850393700787,20.99212598425197
+26,Right_SFL,R_SFL_ROI,default mode,unimodal,association 1,R,cortex,8.623376623376629,15.021645021645014,64.61471861471861
+27,Right_PCV,R_PCV_ROI,default mode,heteromodal,association 1,R,cortex,6.132653061224488,-50.316326530612244,45.95918367346938
+28,Right_STV,R_STV_ROI,default mode,unimodal,association 2,R,cortex,56.11387900355871,-43.943060498220646,13.266903914590742
+29,Right_7Pm,R_7Pm_ROI,frontoparietal,heteromodal,association 1,R,cortex,4.97014925373135,-64.61194029850746,47.44776119402985
+30,Right_7m,R_7m_ROI,default mode,heteromodal,association 1,R,cortex,4.82692307692308,-58.04807692307692,32.84615384615384
+31,Right_POS1,R_POS1_ROI,default mode,heteromodal,association 1,R,cortex,11.309090909090912,-58.21818181818182,14.400000000000006
+32,Right_23d,R_23d_ROI,default mode,idiotypic,limbic,R,cortex,3.167785234899327,-21.771812080536918,38.41610738255034
+33,Right_v23ab,R_v23ab_ROI,default mode,heteromodal,association 1,R,cortex,4.563636363636363,-53.018181818181816,19.36363636363636
+34,Right_d23ab,R_d23ab_ROI,default mode,idiotypic,limbic,R,cortex,3.1081081081081123,-39.75675675675676,31.675675675675677
+35,Right_31pv,R_31pv_ROI,default mode,heteromodal,association 1,R,cortex,8.725925925925921,-43.081481481481475,33.28888888888889
+36,Right_5m,R_5m_ROI,somatosensory,paralimbic,motor,R,cortex,5.74842767295597,-37.00628930817611,59.43396226415095
+37,Right_5mv,R_5mv_ROI,ventral attention,paralimbic,motor,R,cortex,12.5,-36.82954545454545,49.272727272727266
+38,Right_23c,R_23c_ROI,ventral attention,paralimbic,association 1,R,cortex,10.021739130434781,-28.717391304347828,41.5
+39,Right_5L,R_5L_ROI,somatosensory,unimodal,motor,R,cortex,14.29523809523809,-43.95238095238095,70.80000000000001
+40,Right_24dd,R_24dd_ROI,somatosensory,paralimbic,motor,R,cortex,6.5703125,-16.3671875,48.7109375
+41,Right_24dv,R_24dv_ROI,somatosensory,unimodal,association 1,R,cortex,10.356435643564353,-4.059405940594061,44.712871287128706
+42,Right_7AL,R_7AL_ROI,dorsal attention,heteromodal,association 1,R,cortex,23.21538461538462,-54.246153846153845,59.8153846153846
+43,Right_SCEF,R_SCEF_ROI,ventral attention,unimodal,association 1,R,cortex,5.376146788990823,3.385321100917423,56.669724770642205
+44,Right_6ma,R_6ma_ROI,ventral attention,unimodal,association 1,R,cortex,20.55737704918033,4.540983606557376,63.934426229508205
+45,Right_7Am,R_7Am_ROI,dorsal attention,heteromodal,association 1,R,cortex,7.625,-58.61029411764706,59.676470588235304
+46,Right_7PL,R_7PL_ROI,dorsal attention,heteromodal,association 1,R,cortex,13.233644859813083,-72.3177570093458,52.87850467289719
+47,Right_7PC,R_7PC_ROI,dorsal attention,heteromodal,association 1,R,cortex,36.7557603686636,-45.76036866359448,60.02764976958525
+48,Right_LIPv,R_LIPv_ROI,dorsal attention,heteromodal,association 1,R,cortex,30.16901408450704,-49.54929577464789,51.014084507042256
+49,Right_VIP,R_VIP_ROI,dorsal attention,heteromodal,association 1,R,cortex,20.66666666666667,-61.111111111111114,62.425925925925924
+50,Right_MIP,R_MIP_ROI,dorsal attention,heteromodal,association 1,R,cortex,24.14285714285714,-63.673469387755105,44.22448979591837
+51,Right_1,R_1_ROI,somatosensory,paralimbic,sensory 2,R,cortex,49.26977687626774,-21.529411764705884,51.46450304259635
+52,Right_2,R_2_ROI,somatosensory,unimodal,sensory 2,R,cortex,39.81566820276498,-29.94009216589862,47.216589861751146
+53,Right_3a,R_3a_ROI,somatosensory,paralimbic,sensory 2,R,cortex,11.777777777777771,-31.111111111111114,65.55555555555554
+54,Right_6d,R_6d_ROI,somatosensory,paralimbic,motor,R,cortex,35.986666666666665,-10.226666666666674,60.653333333333336
+55,Right_6mp,R_6mp_ROI,somatosensory,paralimbic,motor,R,cortex,14.979452054794521,-11.876712328767127,65.43835616438355
+56,Right_6v,R_6v_ROI,somatosensory,paralimbic,motor,R,cortex,58.0817610062893,5.603773584905667,30.03144654088051
+57,Right_p24pr,R_p24pr_ROI,ventral attention,idiotypic,limbic,R,cortex,4.3804347826087024,-1.6847826086956559,41.94565217391305
+58,Right_33pr,R_33pr_ROI,frontoparietal,idiotypic,limbic,R,cortex,2.7586206896551744,11.137931034482762,29.689655172413794
+59,Right_a24pr,R_a24pr_ROI,ventral attention,idiotypic,limbic,R,cortex,4.261538461538464,17.569230769230757,34.12307692307692
+60,Right_p32pr,R_p32pr_ROI,ventral attention,idiotypic,association 1,R,cortex,9.587786259541986,13.206106870229007,39.08396946564885
+61,Right_a24,R_a24_ROI,default mode,idiotypic,limbic,R,cortex,4.76444444444445,39.75999999999999,0.9333333333333371
+62,Right_d32,R_d32_ROI,default mode,heteromodal,association 1,R,cortex,8.3010752688172,36.98924731182797,26.376344086021504
+63,Right_8BM,R_8BM_ROI,frontoparietal,heteromodal,association 1,R,cortex,4.8542199488491065,26.414322250639373,45.66240409207161
+64,Right_p32,R_p32_ROI,default mode,idiotypic,sensory 1,R,cortex,11.298969072164951,44.86597938144331,-0.4123711340206171
+65,Right_10r,R_10r_ROI,default mode,heteromodal,sensory 1,R,cortex,5.788819875776397,45.37888198757764,-7.5031055900621055
+66,Right_47m,R_47m_ROI,default mode,idiotypic,sensory 1,R,cortex,35.46218487394958,30.974789915966397,-16.369747899159663
+67,Right_8Av,R_8Av_ROI,default mode,unimodal,association 1,R,cortex,38.82228116710874,22.472148541114052,46.93368700265252
+68,Right_8Ad,R_8Ad_ROI,default mode,heteromodal,association 1,R,cortex,22.98113207547169,26.8679245283019,45.15094339622641
+69,Right_9m,R_9m_ROI,default mode,heteromodal,association 1,R,cortex,6.716981132075475,51.83533447684391,22.57975986277873
+70,Right_8BL,R_8BL_ROI,default mode,heteromodal,association 1,R,cortex,11.889952153110045,37.8133971291866,51.43540669856459
+71,Right_9p,R_9p_ROI,default mode,heteromodal,association 1,R,cortex,20.01619433198381,46.647773279352236,35.88663967611336
+72,Right_10d,R_10d_ROI,default mode,heteromodal,association 1,R,cortex,10.260355029585796,64.12426035502958,7.272189349112423
+73,Right_8C,R_8C_ROI,frontoparietal,unimodal,association 1,R,cortex,39.15736040609136,17.776649746192902,32.852791878172596
+74,Right_44,R_44_ROI,default mode,unimodal,association 1,R,cortex,53.90201729106627,18.011527377521617,13.089337175792508
+75,Right_45,R_45_ROI,default mode,heteromodal,association 1,R,cortex,51.03067484662577,25.447852760736197,4.576687116564415
+76,Right_47l,R_47l_ROI,default mode,heteromodal,sensory 1,R,cortex,47.196506550218345,30.855895196506538,-9.64192139737991
+77,Right_a47r,R_a47r_ROI,default mode,heteromodal,sensory 1,R,cortex,41.41176470588235,49.06393861892582,-6.951406649616374
+78,Right_6r,R_6r_ROI,ventral attention,paralimbic,motor,R,cortex,50.60846560846562,8.931216931216937,15.407407407407405
+79,Right_IFJa,R_IFJa_ROI,frontoparietal,unimodal,association 1,R,cortex,46.14814814814815,22.074074074074076,22.148148148148152
+80,Right_IFJp,R_IFJp_ROI,dorsal attention,unimodal,association 1,R,cortex,36.33333333333333,8.666666666666657,26.70833333333333
+81,Right_IFSp,R_IFSp_ROI,frontoparietal,unimodal,association 1,R,cortex,47.04918032786884,26.26229508196721,20.622950819672127
+82,Right_IFSa,R_IFSa_ROI,frontoparietal,heteromodal,association 1,R,cortex,48.992907801418426,35.33333333333334,6.99290780141844
+83,Right_p9-46v,R_p9-46v_ROI,frontoparietal,heteromodal,association 2,R,cortex,45.05882352941177,31.54475703324809,27.42199488491049
+84,Right_46,R_46_ROI,frontoparietal,heteromodal,association 2,R,cortex,39.6036036036036,41.639639639639626,26.55855855855856
+85,Right_a9-46v,R_a9-46v_ROI,frontoparietal,heteromodal,association 2,R,cortex,41.837104072398176,47.53846153846155,12.787330316742086
+86,Right_9-46d,R_9-46d_ROI,frontoparietal,heteromodal,association 2,R,cortex,29.924418604651166,46.0,24.25
+87,Right_9a,R_9a_ROI,default mode,heteromodal,association 2,R,cortex,20.559782608695656,58.309782608695656,23.163043478260875
+88,Right_10v,R_10v_ROI,limbic,heteromodal,sensory 1,R,cortex,4.0,47.607427055702914,-15.46419098143236
+89,Right_a10p,R_a10p_ROI,default mode,heteromodal,association 2,R,cortex,26.035087719298247,59.692982456140356,-5.8596491228070136
+90,Right_10pp,R_10pp_ROI,limbic,heteromodal,association 2,R,cortex,12.689655172413794,58.8183908045977,-15.816091954022987
+91,Right_11l,R_11l_ROI,frontoparietal,heteromodal,sensory 1,R,cortex,26.21354166666667,42.69270833333334,-15.125
+92,Right_13l,R_13l_ROI,limbic,idiotypic,sensory 1,R,cortex,21.602564102564102,23.58974358974359,-19.653846153846153
+93,Right_OFC,R_OFC_ROI,limbic,idiotypic,sensory 1,R,cortex,8.664948453608247,29.051546391752566,-23.164948453608247
+94,Right_47s,R_47s_ROI,default mode,idiotypic,sensory 1,R,cortex,32.82511210762331,20.654708520179383,-16.573991031390136
+95,Right_LIPd,R_LIPd_ROI,dorsal attention,heteromodal,association 1,R,cortex,30.355555555555554,-47.91111111111111,43.15555555555555
+96,Right_6a,R_6a_ROI,dorsal attention,unimodal,motor,R,cortex,27.745019920318725,-1.7529880478087705,49.79282868525897
+97,Right_i6-8,R_i6-8_ROI,frontoparietal,unimodal,association 1,R,cortex,34.03125,10.46875,55.375
+98,Right_s6-8,R_s6-8_ROI,default mode,unimodal,association 1,R,cortex,23.319444444444443,18.75,55.34722222222223
+99,Right_43,R_43_ROI,ventral attention,unimodal,motor,R,cortex,57.43650793650792,-1.3174603174603163,9.087301587301582
+100,Right_OP4,R_OP4_ROI,somatosensory,unimodal,sensory 2,R,cortex,59.120000000000005,-14.276923076923083,14.239999999999995
+101,Right_OP1,R_OP1_ROI,somatosensory,heteromodal,association 2,R,cortex,44.0,-21.626168224299064,16.056074766355138
+102,Right_OP2-3,R_OP2-3_ROI,somatosensory,heteromodal,insula,R,cortex,38.74157303370785,-15.303370786516851,17.19101123595506
+103,Right_52,R_52_ROI,somatosensory,unimodal,insula,R,cortex,34.28571428571429,-24.285714285714292,9.714285714285708
+104,Right_RI,R_RI_ROI,somatosensory,unimodal,association 2,R,cortex,40.19354838709677,-30.129032258064512,17.38709677419355
+105,Right_PFcm,R_PFcm_ROI,ventral attention,unimodal,association 2,R,cortex,48.79746835443038,-26.55696202531645,18.9493670886076
+106,Right_PoI2,R_PoI2_ROI,ventral attention,idiotypic,insula,R,cortex,40.909803921568624,-5.733333333333334,0.6901960784313701
+107,Right_TA2,R_TA2_ROI,somatosensory,unimodal,association 2,R,cortex,52.131868131868146,1.318681318681314,-5.164835164835168
+108,Right_FOP4,R_FOP4_ROI,ventral attention,heteromodal,association 1,R,cortex,39.930635838150295,12.023121387283226,6.161849710982665
+109,Right_MI,R_MI_ROI,ventral attention,idiotypic,insula,R,cortex,38.68141592920355,8.256637168141594,2.407079646017692
+110,Right_Pir,R_Pir_ROI,limbic,idiotypic,insula,R,cortex,33.73118279569893,3.774193548387103,-17.494623655913976
+111,Right_AVI,R_AVI_ROI,frontoparietal,idiotypic,sensory 1,R,cortex,34.58928571428571,23.928571428571416,-1.7767857142857082
+112,Right_AAIC,R_AAIC_ROI,default mode,idiotypic,insula,R,cortex,36.121827411167516,14.294416243654808,-10.659898477157363
+113,Right_FOP1,R_FOP1_ROI,ventral attention,heteromodal,motor,R,cortex,47.970370370370375,2.2962962962963047,4.740740740740748
+114,Right_FOP3,R_FOP3_ROI,ventral attention,heteromodal,insula,R,cortex,34.77777777777777,5.629629629629619,11.925925925925924
+115,Right_FOP2,R_FOP2_ROI,somatosensory,unimodal,motor,R,cortex,40.9041095890411,-3.7808219178082254,13.945205479452056
+116,Right_PFt,R_PFt_ROI,dorsal attention,unimodal,association 2,R,cortex,54.821428571428584,-21.60714285714286,39.57142857142857
+117,Right_AIP,R_AIP_ROI,dorsal attention,heteromodal,association 1,R,cortex,35.7741935483871,-41.983870967741936,41.935483870967744
+118,Right_EC,R_EC_ROI,limbic,idiotypic,limbic,R,cortex,20.939393939393938,-12.717171717171723,-24.282828282828284
+119,Right_PreS,R_PreS_ROI,default mode,idiotypic,limbic,R,cortex,20.713178294573638,-30.961240310077514,-9.906976744186046
+120,Right_H,R_H_ROI,limbic,idiotypic,limbic,R,cortex,30.455172413793107,-22.027586206896558,-17.227586206896554
+121,Right_ProS,R_ProS_ROI,visual,paralimbic,sensory 1,R,cortex,20.52777777777777,-50.25,1.2916666666666714
+122,Right_PeEc,R_PeEc_ROI,limbic,idiotypic,limbic,R,cortex,27.87972508591065,-8.996563573883165,-32.02061855670103
+123,Right_STGa,R_STGa_ROI,default mode,idiotypic,association 2,R,cortex,52.19323671497585,10.550724637681157,-16.753623188405797
+124,Right_PBelt,R_PBelt_ROI,somatosensory,unimodal,association 2,R,cortex,56.73584905660377,-16.188679245283012,7.056603773584911
+125,Right_A5,R_A5_ROI,somatosensory,unimodal,association 2,R,cortex,61.97524752475246,-17.93564356435644,-3.28217821782178
+126,Right_PHA1,R_PHA1_ROI,default mode,idiotypic,limbic,R,cortex,22.00806451612904,-35.5,-16.943548387096776
+127,Right_PHA3,R_PHA3_ROI,visual,unimodal,association 1,R,cortex,31.66666666666667,-47.0,-10.833333333333336
+128,Right_STSda,R_STSda_ROI,default mode,unimodal,association 2,R,cortex,53.89726027397259,-6.321917808219183,-13.671232876712331
+129,Right_STSdp,R_STSdp_ROI,default mode,unimodal,association 2,R,cortex,48.928571428571416,-27.79761904761905,-3.297619047619051
+130,Right_STSvp,R_STSvp_ROI,default mode,unimodal,association 1,R,cortex,62.90109890109889,-24.21978021978022,-8.131868131868131
+131,Right_TGd,R_TGd_ROI,limbic,idiotypic,association 1,R,cortex,39.04925373134327,12.322388059701495,-32.66567164179104
+132,Right_TE1a,R_TE1a_ROI,default mode,heteromodal,association 1,R,cortex,61.23155216284988,-6.295165394402034,-23.25699745547074
+133,Right_TE1p,R_TE1p_ROI,default mode,heteromodal,association 1,R,cortex,61.88712522045856,-42.89594356261023,-12.54673721340388
+134,Right_TE2a,R_TE2a_ROI,limbic,unimodal,association 1,R,cortex,55.86194029850745,-17.675373134328353,-29.57462686567164
+135,Right_TF,R_TF_ROI,limbic,unimodal,association 1,R,cortex,41.76100628930817,-22.704402515723274,-27.471698113207545
+136,Right_TE2p,R_TE2p_ROI,dorsal attention,unimodal,association 1,R,cortex,48.54054054054055,-40.31831831831832,-19.405405405405403
+137,Right_PHT,R_PHT_ROI,dorsal attention,heteromodal,association 1,R,cortex,60.918149466192176,-52.23487544483986,-2.92526690391459
+138,Right_PH,R_PH_ROI,dorsal attention,unimodal,association 1,R,cortex,51.98455598455598,-61.521235521235525,-11.042471042471043
+139,Right_TPOJ1,R_TPOJ1_ROI,somatosensory,heteromodal,association 2,R,cortex,54.88321167883211,-39.32846715328468,6.34306569343066
+140,Right_TPOJ2,R_TPOJ2_ROI,dorsal attention,heteromodal,association 2,R,cortex,53.59344262295082,-59.61967213114754,6.531147540983611
+141,Right_TPOJ3,R_TPOJ3_ROI,dorsal attention,heteromodal,association 2,R,cortex,43.31578947368422,-65.63157894736841,15.026315789473685
+142,Right_DVT,R_DVT_ROI,visual,unimodal,association 1,R,cortex,20.613496932515332,-65.20245398773005,24.858895705521476
+143,Right_PGp,R_PGp_ROI,dorsal attention,unimodal,association 2,R,cortex,43.19999999999999,-77.24179104477612,22.847761194029857
+144,Right_IP2,R_IP2_ROI,frontoparietal,heteromodal,association 2,R,cortex,38.40740740740742,-48.55555555555556,39.592592592592595
+145,Right_IP1,R_IP1_ROI,frontoparietal,heteromodal,association 2,R,cortex,34.931407942238266,-65.07581227436823,42.808664259927795
+146,Right_IP0,R_IP0_ROI,dorsal attention,unimodal,association 2,R,cortex,34.04907975460122,-72.0122699386503,27.852760736196316
+147,Right_PFop,R_PFop_ROI,ventral attention,heteromodal,association 2,R,cortex,61.50259067357513,-20.549222797927456,25.233160621761655
+148,Right_PF,R_PF_ROI,ventral attention,heteromodal,association 2,R,cortex,59.80550458715595,-33.21834862385322,34.73761467889908
+149,Right_PFm,R_PFm_ROI,default mode,heteromodal,association 2,R,cortex,54.164623467600705,-50.84413309982487,34.872154115586696
+150,Right_PGi,R_PGi_ROI,default mode,heteromodal,association 2,R,cortex,48.95867768595042,-59.438016528925615,21.727272727272734
+151,Right_PGs,R_PGs_ROI,default mode,heteromodal,association 2,R,cortex,44.79754601226995,-66.88957055214723,39.95092024539878
+152,Right_V6A,R_V6A_ROI,visual,unimodal,association 1,R,cortex,23.21951219512195,-81.95121951219512,41.975609756097555
+153,Right_VMV1,R_VMV1_ROI,visual,paralimbic,sensory 1,R,cortex,18.11895910780669,-53.182156133829,-9.405204460966544
+154,Right_VMV3,R_VMV3_ROI,visual,unimodal,association 1,R,cortex,27.290322580645167,-58.17204301075269,-11.354838709677416
+155,Right_PHA2,R_PHA2_ROI,default mode,heteromodal,limbic,R,cortex,31.570093457943926,-34.915887850467286,-15.009345794392523
+156,Right_V4t,R_V4t_ROI,visual,unimodal,sensory 1,R,cortex,47.207547169811335,-75.47169811320754,-2.339622641509436
+157,Right_FST,R_FST_ROI,dorsal attention,unimodal,association 1,R,cortex,45.71052631578948,-64.73684210526315,-1.973684210526315
+158,Right_V3CD,R_V3CD_ROI,visual,unimodal,sensory 1,R,cortex,34.51851851851852,-83.11111111111111,18.33333333333333
+159,Right_LO3,R_LO3_ROI,visual,unimodal,sensory 1,R,cortex,46.36974789915968,-76.26890756302521,9.563025210084035
+160,Right_VMV2,R_VMV2_ROI,visual,paralimbic,sensory 1,R,cortex,28.372093023255815,-53.90697674418605,-6.534883720930239
+161,Right_31pd,R_31pd_ROI,default mode,heteromodal,association 1,R,cortex,12.701298701298697,-49.06493506493507,35.6103896103896
+162,Right_31a,R_31a_ROI,default mode,heteromodal,association 1,R,cortex,4.896551724137936,-40.712643678160916,40.0
+163,Right_VVC,R_VVC_ROI,visual,unimodal,association 1,R,cortex,29.970772442588725,-49.74530271398747,-19.135699373695196
+164,Right_25,R_25_ROI,limbic,idiotypic,sensory 1,R,cortex,3.9540229885057414,19.586206896551715,-13.333333333333336
+165,Right_s32,R_s32_ROI,limbic,idiotypic,sensory 1,R,cortex,4.421052631578945,31.18421052631578,-12.342105263157897
+166,Right_pOFC,R_pOFC_ROI,limbic,idiotypic,sensory 1,R,cortex,13.661538461538456,12.543589743589735,-18.04102564102564
+167,Right_PoI1,R_PoI1_ROI,ventral attention,idiotypic,insula,R,cortex,39.00662251655629,-14.2251655629139,-1.6291390728476784
+168,Right_Ig,R_Ig_ROI,somatosensory,idiotypic,insula,R,cortex,36.95454545454545,-14.295454545454547,13.590909090909093
+169,Right_FOP5,R_FOP5_ROI,ventral attention,heteromodal,association 1,R,cortex,36.85925925925926,25.851851851851848,5.792592592592598
+170,Right_p10p,R_p10p_ROI,default mode,heteromodal,association 2,R,cortex,27.106796116504853,58.02588996763754,6.673139158576049
+171,Right_p47r,R_p47r_ROI,frontoparietal,heteromodal,sensory 1,R,cortex,45.20187793427229,42.65727699530515,0.18779342723004788
+172,Right_TGv,R_TGv_ROI,limbic,idiotypic,association 1,R,cortex,36.49773755656109,-2.4660633484162844,-42.95475113122172
+173,Right_MBelt,R_MBelt_ROI,somatosensory,unimodal,sensory 2,R,cortex,45.53623188405797,-16.231884057971016,4.724637681159422
+174,Right_LBelt,R_LBelt_ROI,somatosensory,paralimbic,association 2,R,cortex,44.903225806451616,-27.677419354838705,11.548387096774192
+175,Right_A4,R_A4_ROI,somatosensory,unimodal,association 2,R,cortex,65.078125,-17.2734375,6.7109375
+176,Right_STSva,R_STSva_ROI,default mode,unimodal,association 1,R,cortex,60.61904761904762,-16.33333333333333,-10.785714285714285
+177,Right_TE1m,R_TE1m_ROI,default mode,heteromodal,association 1,R,cortex,63.69565217391303,-25.869565217391298,-16.530434782608694
+178,Right_PI,R_PI_ROI,ventral attention,unimodal,association 2,R,cortex,44.96000000000001,-3.5600000000000023,-11.840000000000003
+179,Right_a32pr,R_a32pr_ROI,frontoparietal,heteromodal,association 1,R,cortex,9.366197183098592,28.422535211267615,28.80281690140845
+180,Right_p24,R_p24_ROI,default mode,idiotypic,limbic,R,cortex,3.7872340425531945,36.42553191489361,17.234042553191486
+181,Left_V1,L_V1_ROI,visual,paralimbic,sensory 2,L,cortex,-9.291631445477606,-83.8647506339814,0.032121724429416076
+182,Left_MST,L_MST_ROI,visual,unimodal,sensory 1,L,cortex,-39.77142857142857,-66.97142857142856,3.885714285714286
+183,Left_V6,L_V6_ROI,visual,unimodal,sensory 1,L,cortex,-12.177215189873422,-76.87341772151899,28.367088607594937
+184,Left_V2,L_V2_ROI,visual,paralimbic,sensory 1,L,cortex,-10.360169491525426,-80.45338983050848,-1.3516949152542423
+185,Left_V3,L_V3_ROI,visual,paralimbic,sensory 1,L,cortex,-20.124137931034483,-75.37011494252874,-12.790804597701147
+186,Left_V4,L_V4_ROI,visual,unimodal,sensory 1,L,cortex,-28.949612403100772,-81.25581395348837,-7.333333333333329
+187,Left_V8,L_V8_ROI,visual,unimodal,association 1,L,cortex,-30.109756097560975,-69.1341463414634,-17.585365853658537
+188,Left_4,L_4_ROI,somatosensory,paralimbic,motor,L,cortex,-28.022871664548923,-18.76493011435832,50.54891994917408
+189,Left_3b,L_3b_ROI,somatosensory,paralimbic,sensory 2,L,cortex,-39.20841300191205,-21.135755258126196,48.52390057361377
+190,Left_FEF,L_FEF_ROI,dorsal attention,paralimbic,motor,L,cortex,-39.28395061728395,-8.222222222222229,51.08641975308642
+191,Left_PEF,L_PEF_ROI,dorsal attention,paralimbic,motor,L,cortex,-43.892857142857146,-1.0714285714285694,40.17857142857143
+192,Left_55b,L_55b_ROI,ventral attention,paralimbic,motor,L,cortex,-45.320132013201324,0.6798679867986834,47.57755775577557
+193,Left_V3A,L_V3A_ROI,visual,unimodal,association 1,L,cortex,-14.175438596491233,-90.24561403508773,23.017543859649123
+194,Left_RSC,L_RSC_ROI,default mode,idiotypic,limbic,L,cortex,-7.5,-49.68181818181819,5.5
+195,Left_POS2,L_POS2_ROI,frontoparietal,heteromodal,association 1,L,cortex,-8.888268156424587,-69.88826815642457,32.88826815642459
+196,Left_V7,L_V7_ROI,visual,unimodal,association 1,L,cortex,-24.16666666666667,-84.33333333333334,22.766666666666666
+197,Left_IPS1,L_IPS1_ROI,dorsal attention,heteromodal,association 1,L,cortex,-22.438356164383563,-72.76712328767124,37.31506849315069
+198,Left_FFC,L_FFC_ROI,visual,unimodal,association 1,L,cortex,-40.70984455958549,-57.59067357512953,-20.663212435233163
+199,Left_V3B,L_V3B_ROI,visual,unimodal,association 1,L,cortex,-25.599999999999994,-84.93333333333334,11.86666666666666
+200,Left_LO1,L_LO1_ROI,visual,unimodal,sensory 1,L,cortex,-40.266666666666666,-85.63333333333333,4.666666666666671
+201,Left_LO2,L_LO2_ROI,visual,unimodal,sensory 1,L,cortex,-43.859154929577464,-80.38028169014085,-6.211267605633807
+202,Left_PIT,L_PIT_ROI,visual,unimodal,sensory 1,L,cortex,-40.971014492753625,-78.17391304347825,-14.550724637681157
+203,Left_MT,L_MT_ROI,visual,unimodal,sensory 1,L,cortex,-46.1,-70.42857142857143,7.271428571428572
+204,Left_A1,L_A1_ROI,somatosensory,unimodal,sensory 2,L,cortex,-43.402061855670105,-24.10309278350516,10.103092783505161
+205,Left_PSL,L_PSL_ROI,ventral attention,unimodal,association 2,L,cortex,-57.7907949790795,-44.56066945606695,21.062761506276146
+206,Left_SFL,L_SFL_ROI,default mode,unimodal,association 1,L,cortex,-6.501628664495115,15.563517915309433,62.85342019543975
+207,Left_PCV,L_PCV_ROI,dorsal attention,heteromodal,association 1,L,cortex,-5.397435897435898,-48.3974358974359,46.17948717948718
+208,Left_STV,L_STV_ROI,ventral attention,unimodal,association 2,L,cortex,-58.59347181008902,-49.002967359050444,12.979228486646889
+209,Left_7Pm,L_7Pm_ROI,frontoparietal,heteromodal,association 1,L,cortex,-4.198019801980195,-63.227722772277225,47.584158415841586
+210,Left_7m,L_7m_ROI,default mode,heteromodal,association 1,L,cortex,-4.063829787234042,-58.54255319148936,33.59574468085107
+211,Left_POS1,L_POS1_ROI,default mode,heteromodal,association 1,L,cortex,-10.405315614617933,-59.289036544850504,12.033222591362133
+212,Left_23d,L_23d_ROI,default mode,idiotypic,limbic,L,cortex,-2.4935064935064872,-20.467532467532465,38.311688311688314
+213,Left_v23ab,L_v23ab_ROI,default mode,idiotypic,association 1,L,cortex,-4.0,-54.79611650485437,17.94174757281553
+214,Left_d23ab,L_d23ab_ROI,default mode,idiotypic,limbic,L,cortex,-2.5411764705882405,-39.78823529411764,30.54117647058824
+215,Left_31pv,L_31pv_ROI,default mode,idiotypic,association 1,L,cortex,-6.75,-45.361111111111114,32.111111111111114
+216,Left_5m,L_5m_ROI,somatosensory,paralimbic,motor,L,cortex,-6.030303030303031,-38.71212121212122,56.68181818181819
+217,Left_5mv,L_5mv_ROI,ventral attention,unimodal,motor,L,cortex,-12.837209302325576,-36.49612403100775,47.37984496124031
+218,Left_23c,L_23c_ROI,ventral attention,unimodal,association 1,L,cortex,-9.484716157205241,-26.33187772925764,41.135371179039296
+219,Left_5L,L_5L_ROI,somatosensory,unimodal,motor,L,cortex,-11.84049079754601,-46.52760736196319,69.30061349693253
+220,Left_24dd,L_24dd_ROI,somatosensory,paralimbic,motor,L,cortex,-6.303571428571431,-18.19642857142857,46.91071428571429
+221,Left_24dv,L_24dv_ROI,somatosensory,unimodal,association 1,L,cortex,-9.016949152542367,-2.7966101694915295,42.96610169491525
+222,Left_7AL,L_7AL_ROI,dorsal attention,heteromodal,association 1,L,cortex,-16.787878787878782,-52.651515151515156,65.68181818181819
+223,Left_SCEF,L_SCEF_ROI,ventral attention,unimodal,association 1,L,cortex,-4.615384615384613,2.0839160839160797,55.006993006993014
+224,Left_6ma,L_6ma_ROI,ventral attention,unimodal,association 1,L,cortex,-16.190789473684205,1.7434210526315752,66.67105263157896
+225,Left_7Am,L_7Am_ROI,dorsal attention,heteromodal,association 1,L,cortex,-5.913385826771659,-57.77165354330708,58.21259842519686
+226,Left_7PL,L_7PL_ROI,dorsal attention,heteromodal,association 1,L,cortex,-10.341085271317823,-71.92248062015504,51.13178294573643
+227,Left_7PC,L_7PC_ROI,dorsal attention,heteromodal,association 1,L,cortex,-34.20454545454545,-52.352272727272734,56.80681818181819
+228,Left_LIPv,L_LIPv_ROI,dorsal attention,heteromodal,association 1,L,cortex,-27.945454545454545,-54.654545454545456,48.8
+229,Left_VIP,L_VIP_ROI,dorsal attention,heteromodal,association 1,L,cortex,-18.47540983606558,-62.0,61.90163934426229
+230,Left_MIP,L_MIP_ROI,dorsal attention,heteromodal,association 1,L,cortex,-21.650000000000006,-64.225,42.349999999999994
+231,Left_1,L_1_ROI,somatosensory,paralimbic,sensory 2,L,cortex,-43.90408525754884,-25.829484902309062,54.0923623445826
+232,Left_2,L_2_ROI,somatosensory,unimodal,sensory 2,L,cortex,-34.66834170854271,-36.91959798994975,50.03015075376885
+233,Left_3a,L_3a_ROI,somatosensory,paralimbic,sensory 2,L,cortex,-60.57142857142857,-5.523809523809518,14.285714285714292
+234,Left_6d,L_6d_ROI,somatosensory,paralimbic,motor,L,cortex,-31.717041800643088,-12.765273311897104,62.958199356913184
+235,Left_6mp,L_6mp_ROI,somatosensory,paralimbic,motor,L,cortex,-10.5020920502092,-13.891213389121333,67.64016736401675
+236,Left_6v,L_6v_ROI,somatosensory,paralimbic,motor,L,cortex,-57.45641025641026,4.133333333333326,30.841025641025638
+237,Left_p24pr,L_p24pr_ROI,ventral attention,idiotypic,limbic,L,cortex,-2.8387096774193594,-1.655913978494624,40.0
+238,Left_33pr,L_33pr_ROI,ventral attention,idiotypic,limbic,L,cortex,-2.0,8.25,30.625
+239,Left_a24pr,L_a24pr_ROI,ventral attention,idiotypic,limbic,L,cortex,-3.872,18.75200000000001,32.08
+240,Left_p32pr,L_p32pr_ROI,ventral attention,unimodal,association 1,L,cortex,-8.647058823529406,12.955882352941188,37.147058823529406
+241,Left_a24,L_a24_ROI,default mode,idiotypic,limbic,L,cortex,-3.5,40.109375,0.609375
+242,Left_d32,L_d32_ROI,default mode,heteromodal,association 1,L,cortex,-6.989690721649481,40.63917525773195,24.24742268041237
+243,Left_8BM,L_8BM_ROI,frontoparietal,heteromodal,association 1,L,cortex,-4.142011834319533,28.15384615384616,44.30769230769231
+244,Left_p32,L_p32_ROI,default mode,heteromodal,sensory 1,L,cortex,-9.200000000000003,44.400000000000006,-1.8250000000000028
+245,Left_10r,L_10r_ROI,default mode,heteromodal,sensory 1,L,cortex,-5.933962264150949,45.65094339622641,-8.216981132075475
+246,Left_47m,L_47m_ROI,default mode,idiotypic,sensory 1,L,cortex,-33.56,31.379999999999995,-15.079999999999998
+247,Left_8Av,L_8Av_ROI,frontoparietal,unimodal,association 1,L,cortex,-34.927536231884055,18.57971014492753,50.39130434782609
+248,Left_8Ad,L_8Ad_ROI,default mode,heteromodal,association 1,L,cortex,-20.99242424242425,27.090909090909093,43.977272727272734
+249,Left_9m,L_9m_ROI,default mode,heteromodal,association 1,L,cortex,-5.394849785407729,50.94849785407726,22.304721030042913
+250,Left_8BL,L_8BL_ROI,default mode,heteromodal,association 1,L,cortex,-9.924686192468613,36.04184100418411,52.81171548117155
+251,Left_9p,L_9p_ROI,default mode,heteromodal,association 1,L,cortex,-15.931428571428569,45.98857142857142,40.21714285714286
+252,Left_10d,L_10d_ROI,default mode,heteromodal,association 1,L,cortex,-8.719298245614041,63.00877192982455,9.245614035087726
+253,Left_8C,L_8C_ROI,frontoparietal,heteromodal,association 1,L,cortex,-38.8125,18.17500000000001,35.150000000000006
+254,Left_44,L_44_ROI,frontoparietal,heteromodal,association 1,L,cortex,-50.599388379204896,16.256880733944968,11.993883792048933
+255,Left_45,L_45_ROI,default mode,heteromodal,association 1,L,cortex,-47.25694444444444,26.625,2.875
+256,Left_47l,L_47l_ROI,default mode,heteromodal,sensory 1,L,cortex,-44.308300395256914,29.367588932806314,-9.604743083003953
+257,Left_a47r,L_a47r_ROI,frontoparietal,heteromodal,sensory 1,L,cortex,-38.61538461538461,47.97606837606838,-8.133333333333333
+258,Left_6r,L_6r_ROI,ventral attention,paralimbic,motor,L,cortex,-50.58163265306123,6.877551020408163,17.984693877551024
+259,Left_IFJa,L_IFJa_ROI,frontoparietal,heteromodal,association 1,L,cortex,-39.95384615384615,11.723076923076917,25.630769230769232
+260,Left_IFJp,L_IFJp_ROI,dorsal attention,unimodal,association 1,L,cortex,-37.13253012048193,2.722891566265048,28.93975903614458
+261,Left_IFSp,L_IFSp_ROI,frontoparietal,heteromodal,association 1,L,cortex,-45.68205128205128,22.53333333333333,22.47179487179487
+262,Left_IFSa,L_IFSa_ROI,frontoparietal,heteromodal,association 1,L,cortex,-44.25242718446602,33.029126213592235,13.427184466019412
+263,Left_p9-46v,L_p9-46v_ROI,frontoparietal,heteromodal,association 2,L,cortex,-42.53409090909091,31.204545454545467,27.954545454545453
+264,Left_46,L_46_ROI,frontoparietal,heteromodal,association 2,L,cortex,-35.55223880597015,40.4402985074627,28.320895522388057
+265,Left_a9-46v,L_a9-46v_ROI,frontoparietal,heteromodal,association 2,L,cortex,-36.6497461928934,49.16751269035532,10.741116751269033
+266,Left_9-46d,L_9-46d_ROI,frontoparietal,heteromodal,association 2,L,cortex,-27.71084337349398,44.473895582329305,23.550200803212846
+267,Left_9a,L_9a_ROI,default mode,heteromodal,association 2,L,cortex,-20.015189873417725,53.488607594936695,25.711392405063293
+268,Left_10v,L_10v_ROI,limbic,heteromodal,sensory 1,L,cortex,-3.4147909967845607,50.45016077170419,-16.77170418006431
+269,Left_a10p,L_a10p_ROI,frontoparietal,heteromodal,association 2,L,cortex,-23.950000000000003,58.30000000000001,-3.0999999999999943
+270,Left_10pp,L_10pp_ROI,limbic,heteromodal,association 2,L,cortex,-10.940677966101688,59.30508474576271,-16.033898305084747
+271,Left_11l,L_11l_ROI,frontoparietal,heteromodal,sensory 1,L,cortex,-23.86577181208054,46.13422818791946,-14.053691275167786
+272,Left_13l,L_13l_ROI,limbic,idiotypic,sensory 1,L,cortex,-21.85470085470085,25.478632478632477,-19.53846153846154
+273,Left_OFC,L_OFC_ROI,limbic,idiotypic,sensory 1,L,cortex,-9.377410468319553,28.528925619834723,-23.06887052341598
+274,Left_47s,L_47s_ROI,default mode,idiotypic,sensory 1,L,cortex,-31.660550458715598,19.47706422018348,-18.165137614678898
+275,Left_LIPd,L_LIPd_ROI,dorsal attention,heteromodal,association 1,L,cortex,-28.91428571428571,-51.65714285714286,39.542857142857144
+276,Left_6a,L_6a_ROI,dorsal attention,paralimbic,motor,L,cortex,-24.13574660633485,-5.420814479638011,52.2081447963801
+277,Left_i6-8,L_i6-8_ROI,frontoparietal,unimodal,association 1,L,cortex,-24.954545454545453,6.5454545454545325,51.45454545454545
+278,Left_s6-8,L_s6-8_ROI,frontoparietal,unimodal,association 1,L,cortex,-21.92746113989638,20.4559585492228,55.35751295336787
+279,Left_43,L_43_ROI,somatosensory,unimodal,motor,L,cortex,-55.57575757575758,-1.3212121212121275,7.442424242424238
+280,Left_OP4,L_OP4_ROI,somatosensory,unimodal,sensory 2,L,cortex,-57.3,-13.700000000000003,12.650000000000006
+281,Left_OP1,L_OP1_ROI,somatosensory,heteromodal,association 2,L,cortex,-44.538922155688624,-21.976047904191617,16.059880239520965
+282,Left_OP2-3,L_OP2-3_ROI,somatosensory,heteromodal,insula,L,cortex,-38.75925925925926,-15.888888888888886,16.29629629629629
+283,Left_52,L_52_ROI,somatosensory,idiotypic,insula,L,cortex,-40.8,-17.400000000000006,-5.200000000000003
+284,Left_RI,L_RI_ROI,somatosensory,unimodal,association 2,L,cortex,-37.094339622641506,-33.20754716981132,16.73584905660377
+285,Left_PFcm,L_PFcm_ROI,somatosensory,unimodal,association 2,L,cortex,-49.11702127659574,-29.468085106382972,16.308510638297875
+286,Left_PoI2,L_PoI2_ROI,ventral attention,idiotypic,insula,L,cortex,-39.39622641509434,-4.709433962264157,-1.6905660377358487
+287,Left_TA2,L_TA2_ROI,somatosensory,unimodal,association 2,L,cortex,-49.888888888888886,1.1527777777777715,-6.194444444444443
+288,Left_FOP4,L_FOP4_ROI,ventral attention,heteromodal,association 1,L,cortex,-39.107296137339056,11.484978540772545,5.012875536480692
+289,Left_MI,L_MI_ROI,ventral attention,idiotypic,insula,L,cortex,-36.02390438247012,9.936254980079667,1.3864541832669346
+290,Left_Pir,L_Pir_ROI,ventral attention,idiotypic,insula,L,cortex,-30.288288288288285,4.234234234234236,-17.495495495495497
+291,Left_AVI,L_AVI_ROI,frontoparietal,idiotypic,sensory 1,L,cortex,-30.031007751937985,23.441860465116292,-2.7131782945736376
+292,Left_AAIC,L_AAIC_ROI,ventral attention,idiotypic,insula,L,cortex,-34.0,13.364161849710996,-11.225433526011564
+293,Left_FOP1,L_FOP1_ROI,ventral attention,unimodal,motor,L,cortex,-48.16,2.1200000000000045,3.280000000000001
+294,Left_FOP3,L_FOP3_ROI,ventral attention,idiotypic,insula,L,cortex,-34.48148148148148,2.074074074074076,12.18518518518519
+295,Left_FOP2,L_FOP2_ROI,somatosensory,unimodal,motor,L,cortex,-40.86046511627907,-4.232558139534888,12.930232558139537
+296,Left_PFt,L_PFt_ROI,dorsal attention,heteromodal,association 2,L,cortex,-47.30275229357798,-30.513761467889907,38.146788990825684
+297,Left_AIP,L_AIP_ROI,dorsal attention,heteromodal,association 1,L,cortex,-32.98,-45.5,40.120000000000005
+298,Left_EC,L_EC_ROI,limbic,idiotypic,limbic,L,cortex,-19.22916666666667,-10.3125,-26.802083333333336
+299,Left_PreS,L_PreS_ROI,visual,idiotypic,limbic,L,cortex,-18.94594594594595,-29.351351351351354,-12.851351351351354
+300,Left_H,L_H_ROI,limbic,idiotypic,limbic,L,cortex,-28.439999999999998,-23.83,-17.020000000000003
+301,Left_ProS,L_ProS_ROI,visual,paralimbic,sensory 1,L,cortex,-19.51304347826087,-53.860869565217385,1.4608695652173935
+302,Left_PeEc,L_PeEc_ROI,limbic,idiotypic,limbic,L,cortex,-26.185110663983906,-8.185110663983906,-33.03822937625755
+303,Left_STGa,L_STGa_ROI,default mode,idiotypic,association 2,L,cortex,-49.96595744680851,10.978723404255305,-16.680851063829785
+304,Left_PBelt,L_PBelt_ROI,somatosensory,unimodal,association 2,L,cortex,-52.853932584269664,-21.842696629213478,7.033707865168537
+305,Left_A5,L_A5_ROI,somatosensory,unimodal,association 2,L,cortex,-60.94857142857143,-17.834285714285713,-3.63428571428571
+306,Left_PHA1,L_PHA1_ROI,visual,idiotypic,limbic,L,cortex,-20.02448979591837,-36.7673469387755,-17.183673469387756
+307,Left_PHA3,L_PHA3_ROI,visual,heteromodal,association 1,L,cortex,-29.776315789473685,-37.881578947368425,-17.960526315789473
+308,Left_STSda,L_STSda_ROI,default mode,unimodal,association 2,L,cortex,-53.28185328185328,-7.498069498069498,-12.386100386100388
+309,Left_STSdp,L_STSdp_ROI,default mode,unimodal,association 2,L,cortex,-51.0,-32.46315789473684,-1.6421052631579016
+310,Left_STSvp,L_STSvp_ROI,default mode,heteromodal,association 1,L,cortex,-55.01538461538462,-43.07692307692308,1.3230769230769255
+311,Left_TGd,L_TGd_ROI,limbic,idiotypic,association 1,L,cortex,-38.2962962962963,10.506459948320412,-32.56158484065461
+312,Left_TE1a,L_TE1a_ROI,default mode,heteromodal,association 1,L,cortex,-59.66276346604215,-10.412177985948475,-20.91803278688525
+313,Left_TE1p,L_TE1p_ROI,frontoparietal,heteromodal,association 1,L,cortex,-59.90349417637271,-44.901830282861894,-12.838602329450914
+314,Left_TE2a,L_TE2a_ROI,limbic,unimodal,association 1,L,cortex,-53.17674418604651,-21.669767441860472,-29.190697674418608
+315,Left_TF,L_TF_ROI,limbic,unimodal,association 1,L,cortex,-38.572052401746724,-21.12663755458516,-28.864628820960696
+316,Left_TE2p,L_TE2p_ROI,dorsal attention,unimodal,association 1,L,cortex,-45.69934640522876,-41.882352941176464,-21.712418300653596
+317,Left_PHT,L_PHT_ROI,dorsal attention,heteromodal,association 1,L,cortex,-58.846361185983824,-56.118598382749326,-1.1752021563342367
+318,Left_PH,L_PH_ROI,dorsal attention,unimodal,association 1,L,cortex,-46.0,-59.42363112391931,-10.939481268011527
+319,Left_TPOJ1,L_TPOJ1_ROI,ventral attention,unimodal,association 2,L,cortex,-54.515337423312886,-42.26993865030674,6.4049079754601195
+320,Left_TPOJ2,L_TPOJ2_ROI,dorsal attention,heteromodal,association 2,L,cortex,-49.55263157894737,-61.21052631578948,11.10526315789474
+321,Left_TPOJ3,L_TPOJ3_ROI,dorsal attention,unimodal,association 2,L,cortex,-43.56962025316456,-66.58227848101265,17.77215189873418
+322,Left_DVT,L_DVT_ROI,visual,unimodal,association 1,L,cortex,-16.647887323943664,-70.70422535211267,28.267605633802816
+323,Left_PGp,L_PGp_ROI,dorsal attention,unimodal,association 2,L,cortex,-40.45528455284553,-79.27913279132791,22.883468834688344
+324,Left_IP2,L_IP2_ROI,frontoparietal,heteromodal,association 2,L,cortex,-39.06122448979592,-46.53061224489795,40.12244897959184
+325,Left_IP1,L_IP1_ROI,frontoparietal,heteromodal,association 2,L,cortex,-28.438247011952193,-68.70916334661354,38.15139442231076
+326,Left_IP0,L_IP0_ROI,dorsal attention,unimodal,association 2,L,cortex,-29.687943262411345,-78.99290780141844,22.737588652482273
+327,Left_PFop,L_PFop_ROI,ventral attention,unimodal,association 2,L,cortex,-60.9304347826087,-23.147826086956528,22.921739130434787
+328,Left_PF,L_PF_ROI,ventral attention,heteromodal,association 2,L,cortex,-55.87024608501119,-38.20134228187919,34.812080536912745
+329,Left_PFm,L_PFm_ROI,frontoparietal,heteromodal,association 2,L,cortex,-47.09207708779443,-58.73661670235546,40.10278372591006
+330,Left_PGi,L_PGi_ROI,default mode,heteromodal,association 2,L,cortex,-45.036437246963565,-55.80566801619433,21.78947368421052
+331,Left_PGs,L_PGs_ROI,default mode,heteromodal,association 2,L,cortex,-40.0616570327553,-72.10019267822736,36.786127167630056
+332,Left_V6A,L_V6A_ROI,visual,unimodal,association 1,L,cortex,-17.73584905660377,-85.66037735849056,37.716981132075475
+333,Left_VMV1,L_VMV1_ROI,visual,paralimbic,sensory 1,L,cortex,-16.526315789473685,-51.50526315789473,-9.021052631578947
+334,Left_VMV3,L_VMV3_ROI,visual,unimodal,association 1,L,cortex,-26.721311475409834,-57.606557377049185,-10.786885245901637
+335,Left_PHA2,L_PHA2_ROI,visual,heteromodal,limbic,L,cortex,-29.142857142857146,-35.57142857142857,-15.047619047619051
+336,Left_V4t,L_V4t_ROI,visual,unimodal,sensory 1,L,cortex,-44.71875,-75.3125,1.03125
+337,Left_FST,L_FST_ROI,dorsal attention,unimodal,association 1,L,cortex,-47.12230215827338,-63.92805755395683,-1.7122302158273328
+338,Left_V3CD,L_V3CD_ROI,visual,unimodal,sensory 1,L,cortex,-33.745098039215684,-86.58823529411765,10.549019607843135
+339,Left_LO3,L_LO3_ROI,visual,unimodal,sensory 1,L,cortex,-46.06622516556291,-78.37086092715231,11.271523178807954
+340,Left_VMV2,L_VMV2_ROI,visual,paralimbic,sensory 1,L,cortex,-26.973684210526315,-51.631578947368425,-6.5
+341,Left_31pd,L_31pd_ROI,default mode,heteromodal,association 1,L,cortex,-10.420168067226896,-49.71428571428571,34.0
+342,Left_31a,L_31a_ROI,frontoparietal,heteromodal,association 1,L,cortex,-3.9749999999999943,-36.900000000000006,41.675
+343,Left_VVC,L_VVC_ROI,visual,unimodal,association 1,L,cortex,-28.23061630218688,-52.258449304174945,-20.310139165009943
+344,Left_25,L_25_ROI,limbic,idiotypic,sensory 1,L,cortex,-3.9772727272727337,22.045454545454533,-12.545454545454547
+345,Left_s32,L_s32_ROI,default mode,idiotypic,sensory 1,L,cortex,-5.280898876404493,31.64044943820224,-13.033707865168537
+346,Left_pOFC,L_pOFC_ROI,limbic,idiotypic,sensory 1,L,cortex,-12.0625,12.260416666666657,-19.177083333333336
+347,Left_PoI1,L_PoI1_ROI,ventral attention,idiotypic,insula,L,cortex,-37.806451612903224,-13.74193548387096,-3.200000000000003
+348,Left_Ig,L_Ig_ROI,somatosensory,idiotypic,insula,L,cortex,-35.632183908045974,-16.06896551724138,12.666666666666671
+349,Left_FOP5,L_FOP5_ROI,ventral attention,idiotypic,association 1,L,cortex,-32.76923076923077,25.865384615384613,5.365384615384613
+350,Left_p10p,L_p10p_ROI,frontoparietal,heteromodal,association 2,L,cortex,-21.03030303030303,61.24848484848485,5.406060606060606
+351,Left_p47r,L_p47r_ROI,frontoparietal,heteromodal,sensory 1,L,cortex,-42.1021897810219,40.20437956204378,4.0145985401459825
+352,Left_TGv,L_TGv_ROI,limbic,idiotypic,association 1,L,cortex,-36.975247524752476,-2.1980198019801946,-43.257425742574256
+353,Left_MBelt,L_MBelt_ROI,somatosensory,unimodal,sensory 2,L,cortex,-43.833333333333336,-16.150000000000006,1.5166666666666657
+354,Left_LBelt,L_LBelt_ROI,somatosensory,paralimbic,association 2,L,cortex,-50.21052631578947,-20.15789473684211,5.94736842105263
+355,Left_A4,L_A4_ROI,somatosensory,unimodal,association 2,L,cortex,-62.86524822695036,-21.43971631205673,6.524822695035468
+356,Left_STSva,L_STSva_ROI,default mode,unimodal,association 1,L,cortex,-51.932203389830505,-19.966101694915253,-10.203389830508478
+357,Left_TE1m,L_TE1m_ROI,default mode,heteromodal,association 1,L,cortex,-61.980582524271846,-27.048543689320383,-17.106796116504853
+358,Left_PI,L_PI_ROI,ventral attention,idiotypic,association 2,L,cortex,-42.61764705882353,-2.852941176470594,-15.411764705882355
+359,Left_a32pr,L_a32pr_ROI,frontoparietal,heteromodal,association 1,L,cortex,-8.518518518518519,30.878306878306887,26.444444444444443
+360,Left_p24,L_p24_ROI,default mode,idiotypic,limbic,L,cortex,-3.4266666666666623,38.120000000000005,18.33333333333333

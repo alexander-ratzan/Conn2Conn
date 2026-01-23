@@ -201,7 +201,7 @@ def compute_normalized_sse_pc(Xobs, pca, pc_idx):
     sse_norm = sse_numer / sse_denom if sse_denom != 0 else np.nan
     return sse_norm
 
-def plot_pc_modes_comparison(pca_preds, pca_targets, preds, targets, numroi=360, num_pcs=5, diagval=0, show_sse=True):
+def plot_pc_modes_comparison(pca_preds, pca_targets, preds, targets, train_mean, numroi=360, num_pcs=5, diagval=0, show_sse=True):
     """
     Show the top num_pc PC component maps of targets (true) and preds (predicted) side-by-side as square matrices,
     along with correlation, variance explained, and SSE summary for each, with clear labeling.
@@ -219,6 +219,7 @@ def plot_pc_modes_comparison(pca_preds, pca_targets, preds, targets, numroi=360,
     """
     preds_np = preds.detach().cpu().numpy() if isinstance(preds, torch.Tensor) else np.asarray(preds)
     targets_np = targets.detach().cpu().numpy() if isinstance(targets, torch.Tensor) else np.asarray(targets)
+    train_mean_np = train_mean.detach().cpu().numpy() if isinstance(train_mean, torch.Tensor) else np.asarray(train_mean)
     explained_var_targets = pca_targets.explained_variance_ratio_
     
     # For plotting, use PCA components_ (PCs as vectors across subjects)
@@ -229,9 +230,12 @@ def plot_pc_modes_comparison(pca_preds, pca_targets, preds, targets, numroi=360,
     # for both targets and preds. 
     # Here, pca.transform gives the subject-mode PC scores: shape (n_features, n_components)
     # We extract columns by PC (i.e. across edges/ROIs for a given PC).
-    C_true_scores = pca_targets.transform(targets_np.T)   # (n_features, n_components)
-    C_pred_scores = pca_preds.transform(preds_np.T)       # (n_features, n_components)
-
+    # Project to same basis
+    C_true_scores = pca_targets.transform((targets_np - train_mean_np).T)   # (n_features, n_components)
+    C_pred_scores = pca_targets.transform((preds_np - train_mean_np).T)       # (n_features, n_components)
+    print('shape of C_true_scores: ', C_true_scores.shape)
+    print('shape of C_pred_scores: ', C_pred_scores.shape)
+    
     fig, axs = plt.subplots(num_pcs, 3, figsize=(10, num_pcs * 3))
     if num_pcs == 1:
         axs = axs[None, :]  # Always 2D even for 1 PC
@@ -265,8 +269,8 @@ def plot_pc_modes_comparison(pca_preds, pca_targets, preds, targets, numroi=360,
         axs[i, 1].set_yticks([])
         plt.colorbar(im1, ax=axs[i, 1], fraction=0.046, pad=0.04)
 
-        # Quantitative metrics & summary (as in original)
-        pc_corr = np.corrcoef(C_true_pc, C_pred_pc)[0, 1] if np.std(C_true_pc) > 0 and np.std(C_pred_pc) > 0 else float('nan')
+        # Quantitative metrics & summary
+        pc_corr = np.corrcoef(C_true_pc.ravel(), C_pred_pc.ravel())[0, 1] if np.std(C_true_pc) > 0 and np.std(C_pred_pc) > 0 else float('nan')
         var_exp = explained_var_targets[i] * 100
 
         label = f"PC{i+1}\nVariance explained (true): {var_exp:.1f}%\n"

@@ -23,7 +23,7 @@ Desired features:
 class HCP_Base():
     def __init__(self,
     HCP_dir='/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/',
-    parcellation='Glasser', source='SC', target='FC', shuffle_seed=0,
+    parcellation='Glasser', hemi='both', source='SC', target='FC', shuffle_seed=0,
     sc_metric_type='sift_invnodevol_radius2_count_connectivity', sc_apply_log1p=True, 
     num_pca_components_sc=256, num_pca_components_fc=256):
         """
@@ -34,6 +34,7 @@ class HCP_Base():
         """
         # Choose parcellation
         self.parcellation = parcellation # Glasser or 4S456Parcels
+        self.hemi = hemi # select whether to subset to a specific hemisphere or both
         self.HCP_dir = HCP_dir
         self.source = source # SC or FC
         self.target = target # SC or FC
@@ -52,8 +53,8 @@ class HCP_Base():
         self.freesurfer_df = self.freesurfer_df[self.freesurfer_df['subject'].isin(self.all_subject_ids)]       
             
         # Load fc and sc matrices
-        self.fc_subject_ids, self.fc_matrices, self.fc_upper_triangles = load_fc(parcellation, HCP_dir)
-        self.sc_subject_ids, self.sc_matrices, self.sc_upper_triangles, self.sc_r2t_matrices = load_sc(parcellation, sc_metric_type, HCP_dir, sc_apply_log1p)
+        self.fc_subject_ids, self.fc_matrices, self.fc_upper_triangles = load_fc(parcellation, hemi, HCP_dir)
+        self.sc_subject_ids, self.sc_matrices, self.sc_upper_triangles, self.sc_r2t_matrices = load_sc(parcellation, hemi, sc_metric_type, HCP_dir, sc_apply_log1p)
         
         # Include subjects that common to metadata, FC, SC, and freesurfer dataframes
         canonical_subject_ids = sorted(set(self.all_subject_ids) & set(self.fc_subject_ids) & set(self.sc_subject_ids) & set(self.freesurfer_df['subject']))
