@@ -64,6 +64,7 @@ class HCP_Base():
         canonical_sc_indices = self.subject_indices_from_id(self.sc_subject_ids, canonical_subject_ids)
         
         self.metadata_df = self.metadata_df.iloc[canonical_meta_indices]
+        self.covariate_one_hot_tuple = tuple(x[canonical_meta_indices] for x in self.covariate_one_hot_tuple)
         self.freesurfer_df = self.freesurfer_df.iloc[canonical_freesurfer_indices]
         self.fc_matrices = self.fc_matrices[canonical_fc_indices]
         self.fc_upper_triangles = self.fc_upper_triangles[canonical_fc_indices]
@@ -94,7 +95,7 @@ class HCP_Partition(Dataset):
         """
         self.base = base
         self.partition = partition
-        self.indices = base.trainvaltest_partition_indices[partition]
+        self.indices = base.trainvaltest_partition_indices[partition] # idx list like: [2, 4, 15, 19, 21, 24...]
         
         self.source = base.source
         self.target = base.target
@@ -116,12 +117,12 @@ class HCP_Partition(Dataset):
     def __getitem__(self, idx):
         """
         By default, returns a dict with:
-            - 'source': upper triangle vector of the source modality
-            - 'target': upper triangle vector of the target modality
+            - 'x': upper triangle vector of the source modality
+            - 'y': upper triangle vector of the target modality
         
         Later, more keys can be added (covariates, freesurfer, tracts, etc)
         """
-        global_idx = self.indices[idx]
+        global_idx = self.indices[idx] # retruns index of subject in global subject list
         if self.source == "SC":
             source_data = self.sc_upper_triangles[global_idx]
         elif self.source == "FC":

@@ -62,9 +62,7 @@ def load_fc(parcellation='Glasser', hemi='both', HCP_dir='/scratch/asr655/neuroi
         roi_mask = roi_df['hemisphere'].str.contains('L')
     elif hemi == 'right':
         roi_mask = roi_df['hemisphere'].str.contains('R')
-    elif hemi == 'both':
-        roi_mask = roi_df['hemisphere'].str.contains('L') | roi_df['hemisphere'].str.contains('R')
-    else:
+    else: #elif hemi == 'both': roi_mask = roi_df['hemisphere'].str.contains('L') | roi_df['hemisphere'].str.contains('R')
         roi_mask = np.ones(len(roi_df), dtype=bool)  # fallback: use all
 
     roi_indices = np.where(roi_mask)[0]
@@ -181,9 +179,7 @@ def load_sc(parcellation='Glasser', hemi='both', metric_type='sift_invnodevol_ra
         roi_mask = roi_df['hemisphere'].str.contains('L')
     elif hemi == 'right':
         roi_mask = roi_df['hemisphere'].str.contains('R')
-    elif hemi == 'both':
-        roi_mask = roi_df['hemisphere'].str.contains('L') | roi_df['hemisphere'].str.contains('R')
-    else:
+    else: #elif hemi == 'both': roi_mask = roi_df['hemisphere'].str.contains('L') | roi_df['hemisphere'].str.contains('R')
         roi_mask = np.ones(len(roi_df), dtype=bool)  # fallback: use all
 
     roi_indices = np.where(roi_mask)[0]
