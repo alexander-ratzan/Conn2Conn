@@ -9,372 +9,39 @@ import torch
 import torch.nn as nn
 from sklearn.decomposition import PCA
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib.lines import Line2D
+from matplotlib.gridspec import GridSpec
+import io
+from PIL import Image, ImageDraw, ImageFont
+import warnings
+
 from data.data_utils import *
+from eval_utils import *
 
+# ============================================================================
+# Global font configuration for better visibility
+# ============================================================================
+FONT_CONFIG = {
+    'title': 14,
+    'label': 12,
+    'tick': 11,
+    'legend': 11,
+    'annotation': 11,
+}
 
-def compute_corr_matrix(preds, targets, axis=1):
-    """
-    Compute correlation between all pairs of rows in preds and targets (or columns if axis=0).
-    Adapted from krakencoder loss.py
-    
-    Args:
-        preds: torch tensor or numpy array (Nsubj x M), generally the predicted data for N subjects
-        targets: torch tensor or numpy array (Nsubj x M), generally the measured/true data for N subjects
-        axis: int (optional, default=1), 1 for row-wise, 0 for column-wise
-    
-    Returns:
-        torch tensor or numpy array (Nsubj x Nsubj)
-    
-    Note: top1acc, which uses argmax(compute_corr_matrix(targets, preds), axis=1) is:
-    for every TRUE output, which subject's PREDICTED output is the best match
-    """
-    if torch.is_tensor(preds):
-        c_preds = preds - preds.mean(keepdims=True, axis=axis)
-        c_targets = targets - targets.mean(keepdims=True, axis=axis)
-        c_preds = c_preds / torch.sqrt(torch.sum(c_preds ** 2, keepdims=True, axis=axis))
-        c_targets = c_targets / torch.sqrt(torch.sum(c_targets ** 2, keepdims=True, axis=axis))
-        cc = torch.matmul(c_preds, c_targets.t())
-    else:
-        c_preds = preds - preds.mean(keepdims=True, axis=axis)
-        c_targets = targets - targets.mean(keepdims=True, axis=axis)
-        c_preds = c_preds / np.sqrt(np.sum(c_preds ** 2, keepdims=True, axis=axis))
-        c_targets = c_targets / np.sqrt(np.sum(c_targets ** 2, keepdims=True, axis=axis))
-        cc = np.matmul(c_preds, c_targets.T)
-    return cc
+def set_plot_defaults():
+    """Set global matplotlib defaults for better visibility."""
+    plt.rcParams.update({
+        'font.size': FONT_CONFIG['label'],
+        'axes.titlesize': FONT_CONFIG['title'],
+        'axes.labelsize': FONT_CONFIG['label'],
+        'xtick.labelsize': FONT_CONFIG['tick'],
+        'ytick.labelsize': FONT_CONFIG['tick'],
+        'legend.fontsize': FONT_CONFIG['legend'],
+    })
 
-
-def corr_topn_accuracy(preds=None, targets=None, cc=None, topn=1):
-    """
-    Compute top-N accuracy for compute_corr_matrix(preds, targets).
-    Adapted from krakencoder loss.py
-
-    Logical walkthrough:
-    - For each subject, compute the full similarity (correlation) matrix between true and predicted outputs.
-    - For each subject (row), identify the indices of the top-N most similar predicted subjects (highest correlation coefficients).
-    - For each subject, check if their correct match (diagonal entry, i.e., self-match) is included among those top-N indices.
-    - Collect the boolean result for all subjects, then compute the mean (proportion of correct self-matches in the top-N).
-
-    Args:
-        preds: torch tensor or numpy array (Nsubj x M), predicted data
-        targets: torch tensor or numpy array (Nsubj x M), target/true data
-        cc: precomputed correlation matrix (optional)
-        topn: int, number of top matches to consider
-
-    Returns:
-        The proportion of subjects whose true match (diagonal element) is among their top N most similar predictions.
-    """
-    if cc is None:
-        cc = compute_corr_matrix(preds, targets)
-    # For torch tensors
-    if torch.is_tensor(cc):
-        topidx = torch.argsort(cc, axis=1, descending=True)[:, :topn]
-        selfidx = torch.atleast_2d(torch.arange(cc.shape[0], device=topidx.device)).t()
-        ccmatch = torch.any(topidx == selfidx, axis=1).double()
-    # For numpy arrays
-    else:
-        topidx = np.argsort(cc, axis=1)[:, -topn:]
-        selfidx = np.atleast_2d(np.arange(cc.shape[0])).T
-        ccmatch = np.any(topidx == selfidx, axis=1)
-    return ccmatch.mean()
-
-
-def corr_avg_rank(preds=None, targets=None, cc=None, sort_descending=True, return_ranklist=False):
-    """
-    Compute average rank of each row in compute_corr_matrix(preds, targets).
-    Adapted from krakencoder loss.py
-    
-    Perfect match is 1.0, meaning every row i in preds has the best match with row i in targets.
-    Chance is roughly 0.5, meaning every row i in preds has a random match with row i in targets.
-    
-    Args:
-        preds: torch tensor or numpy array (Nsubj x M) (ignored if cc is provided)
-        targets: torch tensor or numpy array (Nsubj x M) (ignored if cc is provided)
-        cc: torch tensor or numpy array (Nsubj x Nsubj), (optional precomputed cc matrix) 
-        sort_descending: bool, (optional, default=True), use True for correlation, False for distance
-        return_ranklist: bool, whether to return the full ranklist
-    
-    Returns:
-        float (or FloatTensor), average rank percentile (0.0-1.0)
-        optionally: ranklist if return_ranklist=True
-    """
-    if cc is None:
-        cc = compute_corr_matrix(preds, targets)
-    if torch.is_tensor(cc):
-        sidx = torch.argsort(cc, axis=1, descending=sort_descending)
-        selfidx = torch.atleast_2d(torch.arange(cc.shape[0], device=sidx.device)).t()
-        srank = torch.argmax((sidx == selfidx).double(), axis=1).double()
-        ranklist = 1 - srank / cc.shape[0]
-        avgrank = 1 - torch.mean(srank) / cc.shape[0]  # percentile
-    else:
-        if sort_descending:
-            sidx = np.argsort(cc, axis=1)[:, ::-1]
-        else:
-            sidx = np.argsort(cc, axis=1)
-        selfidx = np.atleast_2d(np.arange(cc.shape[0])).T
-        srank = np.argmax(sidx == selfidx, axis=1)
-        ranklist = 1 - srank / cc.shape[0]
-        avgrank = 1 - np.mean(srank) / cc.shape[0]  # percentile
-    if return_ranklist:
-        return avgrank, ranklist
-    else:
-        return avgrank
-
-
-def compute_normalized_sse_pc(data, pca, pc_idx):
-    """
-    Compute normalized SSE of the rank-1 approximation for a given PC index,
-    using a fitted sklearn PCA object and data in shape (n_features, n_samples)
-    (matching subject-mode PCA: features x subjects).
-    
-    Args:
-        data: array-like (n_features, n_samples), data matrix in subject-mode format
-        pca: fitted sklearn PCA object
-        pc_idx: int, index of the principal component
-    
-    Returns:
-        float, normalized sum of squared errors
-    """
-    b_pc = pca.components_[pc_idx]  # shape: (n_samples,)
-    # Project data onto all PCs, then select current PC scores
-    # Note: in subject-mode, data is (features x subjects)
-    c_pc = pca.transform(data)[..., pc_idx]  # shape: (n_features,)
-    data_recon_pc = np.outer(c_pc, b_pc)  # (n_features, n_subjects)
-    sse_numer = np.sum((data - data_recon_pc) ** 2)
-    sse_denom = np.sum(data ** 2)
-    sse_norm = sse_numer / sse_denom if sse_denom != 0 else np.nan
-    return sse_norm
-
-
-def compute_identifiability(preds, targets, return_full=False):
-    """
-    Compute identifiability statistics using one-sample t-test.
-    
-    Tests whether each subject's predicted FC is more similar to their own 
-    empirical FC than to other subjects' empirical FCs.
-    
-    Args:
-        preds: np.ndarray (N x M), predicted connectomes (N subjects, M edges)
-        targets: np.ndarray (N x M), empirical/target connectomes
-        return_full: bool, if True return additional arrays for plotting
-    
-    Returns:
-        dict with:
-            - r_matrix: (N x N) correlation matrix between preds and targets
-            - r_intra: (N,) intraindividual correlations (diagonal)
-            - r_inter: (N,) mean interindividual correlations per subject
-            - d: (N,) per-subject differences d_i = r_intra(i) - r_inter(i)
-            - mean_r_intra: mean intraindividual correlation
-            - mean_r_inter: mean interindividual correlation
-            - mean_d: mean difference
-            - t_stat: t-statistic from one-sample t-test
-            - p_value: two-sided p-value
-            - cohen_d: effect size (Cohen's d)
-            - n_subjects: number of subjects
-            - df: degrees of freedom (N-1)
-    """
-    preds_np = preds.detach().cpu().numpy() if isinstance(preds, torch.Tensor) else np.asarray(preds)
-    targets_np = targets.detach().cpu().numpy() if isinstance(targets, torch.Tensor) else np.asarray(targets)
-    
-    n_subjects = preds_np.shape[0]
-    
-    # Step 1: Compute similarity matrix (N x N)
-    r_matrix = compute_corr_matrix(preds_np, targets_np)
-    
-    # Step 2: Extract intra- and inter-individual similarities
-    r_intra = np.diag(r_matrix)  # r[i,i] for each subject
-    
-    # r_inter(i) = mean of r[i,j] for j != i
-    r_inter = np.zeros(n_subjects)
-    for i in range(n_subjects):
-        mask = np.ones(n_subjects, dtype=bool)
-        mask[i] = False
-        r_inter[i] = np.mean(r_matrix[i, mask])
-    
-    # Per-subject difference
-    d = r_intra - r_inter
-    
-    # Step 3: One-sample t-test on d
-    # H0: mean(d) = 0
-    t_stat, p_value = ttest_1samp(d, 0)
-    
-    # Effect size: Cohen's d for one-sample
-    mean_d = np.mean(d)
-    std_d = np.std(d, ddof=1)
-    cohen_d = mean_d / std_d if std_d > 0 else np.nan
-    
-    results = {
-        'r_matrix': r_matrix,
-        'r_intra': r_intra,
-        'r_inter': r_inter,
-        'd': d,
-        'mean_r_intra': np.mean(r_intra),
-        'mean_r_inter': np.mean(r_inter),
-        'mean_d': mean_d,
-        't_stat': t_stat,
-        'p_value': p_value,
-        'cohen_d': cohen_d,
-        'n_subjects': n_subjects,
-        'df': n_subjects - 1,
-    }
-    
-    return results
-
-
-def generate_mean_baseline(train_mean, n_subjects):
-    """
-    Generate mean eFC baseline predictor.
-    
-    For each subject, the prediction is the same: the training set mean.
-    Expect weak/no identifiability because all subjects share the same prediction.
-    
-    Args:
-        train_mean: np.ndarray (M,), mean connectome from training set
-        n_subjects: int, number of subjects to generate predictions for
-    
-    Returns:
-        np.ndarray (n_subjects x M), replicated mean for each subject
-    """
-    train_mean_np = train_mean.detach().cpu().numpy() if isinstance(train_mean, torch.Tensor) else np.asarray(train_mean)
-    return np.tile(train_mean_np, (n_subjects, 1))
-
-
-def generate_noise_baseline(train_mean, train_std, n_subjects, noise_scale=1.0, seed=None):
-    """
-    Generate mean eFC + independent Gaussian noise baseline.
-    
-    For each subject, prediction = train_mean + epsilon where epsilon is 
-    i.i.d. Gaussian noise per edge.
-    
-    Args:
-        train_mean: np.ndarray (M,), mean connectome from training set
-        train_std: np.ndarray (M,) or float, edgewise std from training set
-        n_subjects: int, number of subjects
-        noise_scale: float, multiplier for noise (sigma = noise_scale * train_std)
-        seed: int, random seed for reproducibility
-    
-    Returns:
-        np.ndarray (n_subjects x M), mean + noise predictions
-    """
-    train_mean_np = train_mean.detach().cpu().numpy() if isinstance(train_mean, torch.Tensor) else np.asarray(train_mean)
-    train_std_np = train_std.detach().cpu().numpy() if isinstance(train_std, torch.Tensor) else np.asarray(train_std)
-    
-    rng = np.random.default_rng(seed)
-    n_edges = train_mean_np.shape[0]
-    
-    # Generate independent noise for each subject and edge
-    train_min = np.min(train_mean_np)
-    train_max = np.max(train_mean_np)
-    mean_std = np.mean(train_std_np)
-    tol = mean_std
-
-    # Add i.i.d. random Gaussian noise on a per edge basis
-    noise = rng.normal(0, 1, size=(n_subjects, n_edges))
-    noise = noise * (noise_scale * train_std_np)
-    noised_preds = np.tile(train_mean_np, (n_subjects, 1)) + noise
-
-    # Clip to reasonable range based on training mean and std
-    clip_min = train_min - tol
-    clip_max = train_max + tol
-    noised_preds = np.clip(noised_preds, clip_min, clip_max)
-    
-    return noised_preds
-
-
-def hungarian_matching(similarity_matrix):
-    """
-    Perform Hungarian algorithm for optimal 1-to-1 matching.
-    
-    Uses the similarity matrix (correlation-based) and finds the assignment
-    that maximizes total similarity (by negating for the cost minimization).
-    
-    Args:
-        similarity_matrix: np.ndarray (n x n), correlation/similarity matrix
-    
-    Returns:
-        dict with:
-            - row_ind: row indices of optimal assignment
-            - col_ind: column indices of optimal assignment  
-            - assignment_matrix: binary (n x n) assignment matrix
-            - accuracy: proportion of correct matches (trace / n)
-            - n_correct: number of correct matches (diagonal assignments)
-    """
-    n = similarity_matrix.shape[0]
-    
-    # Negate similarity to convert to cost matrix (Hungarian minimizes cost)
-    cost_matrix = -similarity_matrix
-    
-    # Solve assignment problem
-    row_ind, col_ind = linear_sum_assignment(cost_matrix)
-    
-    # Create binary assignment matrix
-    assignment_matrix = np.zeros((n, n))
-    assignment_matrix[row_ind, col_ind] = 1
-    
-    # Compute accuracy (proportion on diagonal)
-    n_correct = np.sum(row_ind == col_ind)
-    accuracy = n_correct / n
-    
-    return {
-        'row_ind': row_ind,
-        'col_ind': col_ind,
-        'assignment_matrix': assignment_matrix,
-        'accuracy': accuracy,
-        'n_correct': n_correct,
-        'n': n
-    }
-
-
-def hungarian_matching_subsample(similarity_matrix, n_sample, n_iterations=2500, seed=None):
-    """
-    Repeated subsampling Hungarian matching for a given sample size.
-    
-    Args:
-        similarity_matrix: np.ndarray (N x N), full similarity matrix
-        n_sample: int, subset size to sample
-        n_iterations: int, number of random subsamples (M)
-        seed: int, random seed
-    
-    Returns:
-        np.ndarray of shape (n_iterations,), accuracy for each iteration
-    """
-    rng = np.random.default_rng(seed)
-    N = similarity_matrix.shape[0]
-    accuracies = np.zeros(n_iterations)
-    
-    for m in range(n_iterations):
-        # Sample without replacement
-        indices = rng.choice(N, size=n_sample, replace=False)
-        # Extract submatrix
-        sub_sim = similarity_matrix[np.ix_(indices, indices)]
-        # Run Hungarian
-        result = hungarian_matching(sub_sim)
-        accuracies[m] = result['accuracy']
-    
-    return accuracies
-
-
-def hungarian_matching_permuted(similarity_matrix, seed=None):
-    """
-    Hungarian matching on a permuted similarity matrix (chance baseline).
-    
-    Randomly permutes columns of the similarity matrix before applying
-    Hungarian algorithm to establish chance-level matching.
-    
-    Args:
-        similarity_matrix: np.ndarray (n x n)
-        seed: int, random seed
-    
-    Returns:
-        dict with Hungarian matching results on permuted matrix
-    """
-    rng = np.random.default_rng(seed)
-    n = similarity_matrix.shape[0]
-    
-    # Randomly permute columns
-    perm = rng.permutation(n)
-    permuted_sim = similarity_matrix[:, perm]
-    
-    return hungarian_matching(permuted_sim)
+# Apply defaults on import
+set_plot_defaults()
 
 
 class Evaluator:
@@ -415,11 +82,12 @@ class Evaluator:
             if isinstance(train_data, torch.Tensor):
                 train_data = train_data.cpu().numpy()
             self.train_std = np.std(train_data, axis=0)
-        # Compute correlation matrices
-        self.corr_matrix = compute_corr_matrix(self.preds, self.targets)
+        # Compute correlation matrices (targets, preds) so rows=targets, cols=preds
+        # This answers: "for each target, which prediction matches best?"
+        self.corr_matrix = compute_corr_matrix(self.targets, self.preds)
         self.corr_matrix_demeaned = compute_corr_matrix(
-            self.preds - self.train_mean, 
-            self.targets - self.train_mean
+            self.targets - self.train_mean, 
+            self.preds - self.train_mean
         )
     
         self._metrics = self._compute_metrics()
@@ -447,34 +115,6 @@ class Evaluator:
         
         return metrics
 
-    def _output_metrics(self):
-        """
-        Print all evaluation metrics in a neat and human-readable format.
-        Includes the data partition (train/val/test) from dataset_partition.partition.
-        """
-        print("=" * 50)
-        print(f" Evaluation Metrics for Partition: '{self.dataset_partition.partition}'")
-        print("-" * 50)
-        pretty_names = {
-            "mse": "Mean Squared Error",
-            "r2": "R2 Score",
-            "pearson": "Pearson Corr.",
-            "demeaned_pearson": "Demeaned Pearson Corr.",
-            "avg_rank": "Average Rank",
-            "top1_acc": "Top-1 Accuracy"
-        }
-        for key in ["mse", "r2", "pearson", "demeaned_pearson", "avg_rank", "top1_acc"]:
-            val = self._metrics.get(key, None)
-            if val is not None:
-                # Format value with 4 decimals, handle numpy/scalar cases
-                if isinstance(val, (float, np.floating)):
-                    print(f"{pretty_names.get(key, key):25s}: {float(val):.4f}")
-                elif isinstance(val, (list, np.ndarray)):
-                    mean_val = float(np.mean(val))
-                    print(f"{pretty_names.get(key, key):25s}: Mean={mean_val:.4f} (All: {np.array2string(np.asarray(val), precision=4, separator=', ')})")
-                else:
-                    print(f"{pretty_names.get(key, key):25s}: {val}")
-        print("=" * 50)
     
     def _fit_pca(self):
         """Fit PCA models for predictions and targets (subject-mode PCA)."""
@@ -502,7 +142,7 @@ class Evaluator:
         assert np.allclose(B_preds @ B_preds.T, np.eye(B_preds.shape[0]), atol=1e-6), \
             "B_preds is not orthonormal"
 
-    def evaluate_pca_structure(self, num_pcs=5, show_first_pcs=5, diagval=0, show_sse=True):
+    def evaluate_pca_structure(self, num_pcs=5, show_first_pcs=5, diagval=0, show_sse=True, show=True):
         """
         Evaluate and visualize PCA structure comparing predictions to targets.
         
@@ -515,9 +155,10 @@ class Evaluator:
             show_first_pcs: int, number of PC squares to show in spatial map grid (must be <= num_pcs)
             diagval: float, value to set on diagonal of square matrix (default 0)
             show_sse: bool, whether to display normalized SSE (default True)
+            show: bool, whether to display the plots (default True)
         
         Returns:
-            tuple: (pca_preds, pca_targets) fitted PCA objects
+            tuple: ((fig_line, fig_grid), metrics_dict) with figures and PCA metrics
         """
         # Fit PCA if not already done
         if self._pca_targets is None or self._pca_preds is None:
@@ -556,11 +197,11 @@ class Evaluator:
                 pc_corrs.append(float('nan'))
 
         # Correlation line plot for the first num_pcs
-        plt.figure(figsize=(8, 4))
+        fig_line = plt.figure(figsize=(8, 4))
         plt.plot(np.arange(1, num_pcs+1), pc_corrs, marker='o', color='b', label='PC score corr (targets, preds)')
-        plt.xlabel("Principal Component")
-        plt.ylabel("Correlation between scores")
-        plt.title(f"Correlation between Predicted & Target PC Scores (First {num_pcs} PCs)")
+        plt.xlabel("Principal Component", fontsize=FONT_CONFIG['label'])
+        plt.ylabel("Correlation between scores", fontsize=FONT_CONFIG['label'])
+        plt.title(f"Correlation between Predicted & Target PC Scores (First {num_pcs} PCs)", fontsize=FONT_CONFIG['title'])
 
         # Find index where cumulative variance explained crosses 0.95
         cum_var = np.cumsum(explained_var_targets)
@@ -571,14 +212,22 @@ class Evaluator:
         plt.ylim(-1, 1)
         plt.xlim(0.5, num_pcs + 0.5)
         plt.grid(alpha=0.25)
-        plt.legend()
+        plt.legend(fontsize=FONT_CONFIG['legend'])
         plt.tight_layout()
-        plt.show()
+        if show:
+            plt.show()
 
         # Now PC score spatial maps for show_first_pcs
-        fig, axs = plt.subplots(show_first_pcs, 3, figsize=(8, show_first_pcs * 2.3), dpi=200)
+        fig_grid, axs = plt.subplots(show_first_pcs, 3, figsize=(8, show_first_pcs * 2.3), dpi=200)
         if show_first_pcs == 1:
             axs = axs[None, :]  # Always 2D
+        
+        pca_metrics = {
+            'pc_corrs': pc_corrs,
+            'explained_variance_ratio': explained_var_targets[:num_pcs].tolist(),
+            'cumulative_variance': cum_var[:num_pcs].tolist(),
+            'cutoff_idx_95': int(cutoff_idx),
+        }
         
         for i in range(show_first_pcs):
             C_targets_pc = C_targets_scores[:, i]
@@ -595,14 +244,14 @@ class Evaluator:
 
             # Target PC
             im0 = axs[i, 0].imshow(C_targets_sq, cmap='RdBu_r', vmin=vmin_targets, vmax=vmax_targets, aspect='equal')
-            axs[i, 0].set_title(f'Target PC{i+1}\n(Scores)', fontsize=10)
+            axs[i, 0].set_title(f'Target PC{i+1}\n(Scores)', fontsize=FONT_CONFIG['label'])
             axs[i, 0].set_xticks([])
             axs[i, 0].set_yticks([])
             plt.colorbar(im0, ax=axs[i, 0], fraction=0.045, pad=0.03)
 
             # Predicted PC
             im1 = axs[i, 1].imshow(C_preds_sq, cmap='RdBu_r', vmin=vmin_preds, vmax=vmax_preds, aspect='equal')
-            axs[i, 1].set_title(f'Predicted PC{i+1}\n(Scores)', fontsize=10)
+            axs[i, 1].set_title(f'Predicted PC{i+1}\n(Scores)', fontsize=FONT_CONFIG['label'])
             axs[i, 1].set_xticks([])
             axs[i, 1].set_yticks([])
             plt.colorbar(im1, ax=axs[i, 1], fraction=0.045, pad=0.03)
@@ -618,15 +267,19 @@ class Evaluator:
                 sse_norm_preds   = compute_normalized_sse_pc(self.preds.T, pca_preds, i)
                 label += f"\nNorm. SSE (targ): {sse_norm_targets:.4f}"
                 label += f"\nNorm. SSE (pred): {sse_norm_preds:.4f}"
+                pca_metrics[f'pc{i+1}_sse_targets'] = sse_norm_targets
+                pca_metrics[f'pc{i+1}_sse_preds'] = sse_norm_preds
 
             axs[i, 2].axis('off')
-            axs[i, 2].text(0.05, 0.5, label, va='center', ha='left', fontsize=11)
+            axs[i, 2].text(0.05, 0.5, label, va='center', ha='left', fontsize=FONT_CONFIG['annotation'])
 
-        axs[0, 2].figure.text(0.79, 0.97, "Metrics", fontsize=12, ha='center', va='center')
+        axs[0, 2].figure.text(0.79, 0.97, "Metrics", fontsize=FONT_CONFIG['title'], ha='center', va='center')
         plt.tight_layout(rect=[0, 0.03, 1, 0.98])
-        plt.show()
+        
+        if show:
+            plt.show()
 
-        return pca_preds, pca_targets
+        return (fig_line, fig_grid), pca_metrics
 
     def _compute_subject_order(self, order_by='original'):
         """
@@ -682,7 +335,7 @@ class Evaluator:
 
     def plot_identifiability_heatmaps(self, order_by='original', include_black_circles=True,
                                        include_blue_dots=True, demeaned=False, 
-                                       dpi=200, figsize=(14, 10)):
+                                       dpi=200, figsize=(14, 10), show=True):
         """
         Plot identifiability heatmaps for target and predicted connectomes.
         
@@ -704,9 +357,10 @@ class Evaluator:
             demeaned: bool, whether to demean using training mean (default False)
             dpi: int, figure resolution (default 200)
             figsize: tuple, figure size (default (14, 10))
+            show: bool, whether to display the plot (default True)
         
         Returns:
-            dict: metrics including mean_corr, top1_acc, avg_rank_percentile
+            tuple: (fig, metrics_dict) where metrics includes mean_corr, top1_acc, avg_rank_percentile
         """
         # Get subject ordering
         order = self._compute_subject_order(order_by)
@@ -725,8 +379,8 @@ class Evaluator:
             preds_data = preds_ordered
             demean_label = ""
         
-        # Compute correlation matrix for ordered data (non-demeaned for reference)
-        corr_matrix = compute_corr_matrix(preds_data, targets_data)
+        # Compute correlation matrix for ordered data (targets, preds: rows=targets, cols=preds)
+        corr_matrix = compute_corr_matrix(targets_data, preds_data)
         mean_corr = np.mean(np.diag(corr_matrix))
         
         # Create figure
@@ -792,15 +446,15 @@ class Evaluator:
                 avgrank_index = np.mean(ranklist)
                 titlestr += f'\nAvg Rank {avgrank_index:.1f} out of {sim.shape[0]}, %ile: {avgrank:.3f}'
             
-            ax.set_title(titlestr, fontsize=14)
-            ax.set_xlabel(label2, fontsize=12)
-            ax.set_ylabel(label1, fontsize=12)
+            ax.set_title(titlestr, fontsize=FONT_CONFIG['title'])
+            ax.set_xlabel(label2, fontsize=FONT_CONFIG['label'])
+            ax.set_ylabel(label1, fontsize=FONT_CONFIG['label'])
             
             # Add colorbar
             divider = make_axes_locatable(ax)
             cax = divider.append_axes("right", size="5%", pad=0.1)
             cbar = fig.colorbar(im, cax=cax)
-            cbar.ax.tick_params(labelsize=10)
+            cbar.ax.tick_params(labelsize=FONT_CONFIG['tick'])
         
         # Compute summary metrics
         n_subjects = len(observed_vs_pred_ranklist)
@@ -808,46 +462,55 @@ class Evaluator:
         top1_acc = n_top1 / n_subjects
         avgrank_percentile = 1 - (np.mean(observed_vs_pred_ranklist) / n_subjects)
         
-        # Print summary
-        print(f"Top-1 accuracy: {top1_acc:.3f}  ({n_top1} of {n_subjects} subjects had rank 1)")
-        print(f"Average rank percentile: {avgrank_percentile:.3f}")
-        
         # Fourth panel: leave blank or use for additional info
         ax = axs[3]
         ax.axis('off')
         
+        # Compute chance levels
+        chance_top1 = 1 / n_subjects
+        chance_avgrank = 0.5
+        
         # Add summary text in fourth panel
         summary_text = (
             f"Summary Metrics\n"
-            f"{'─' * 25}\n"
+            f"{'─' * 35}\n"
             f"Mean corr (target vs pred): {mean_corr:.3f}\n"
             f"Demeaned: {demeaned}\n"
-            f"Top-1 accuracy: {top1_acc:.3f}\n"
-            f"Avg rank percentile: {avgrank_percentile:.3f}\n"
-            f"{'─' * 25}\n"
+            f"Top-1 accuracy: {top1_acc:.3f} (chance={chance_top1:.3f})\n"
+            f"  ({n_top1} of {n_subjects} subjects had rank 1)\n"
+            f"Avg rank %ile: {avgrank_percentile:.3f} (chance={chance_avgrank})\n"
+            f"{'─' * 35}\n"
             f"Order: {order_by}\n"
             f"N subjects: {n_subjects}"
         )
-        ax.text(0.5, 0.5, summary_text, transform=ax.transAxes, fontsize=14,
+        ax.text(0.5, 0.5, summary_text, transform=ax.transAxes, fontsize=FONT_CONFIG['title'],
                 verticalalignment='center', horizontalalignment='center',
                 bbox=dict(boxstyle='round,pad=0.5', facecolor='white', 
                          edgecolor='gray', alpha=0.8),
                 family='monospace')
         
         plt.tight_layout()
-        plt.show()
         
-        return {
+        metrics = {
             'mean_corr': mean_corr,
             'demeaned': demeaned,
             'top1_acc': top1_acc,
             'avg_rank_percentile': avgrank_percentile,
-            'ranklist': observed_vs_pred_ranklist
+            'ranklist': observed_vs_pred_ranklist,
+            'chance_top1': chance_top1,
+            'chance_avgrank': chance_avgrank,
         }
+        
+        if show:
+            print(f"Top-1 accuracy: {top1_acc:.3f}  ({n_top1} of {n_subjects} subjects had rank 1) (chance={chance_top1:.3f})")
+            print(f"Average rank percentile: {avgrank_percentile:.3f} (chance={chance_avgrank})")
+            plt.show()
+        
+        return fig, metrics
 
     def plot_single_corr_heatmap(self, comparison='targets_vs_preds', order_by='original',
                                   include_black_circles=True, include_blue_dots=True,
-                                  demeaned=False, dpi=200, figsize=(8, 8)):
+                                  demeaned=False, dpi=200, figsize=(8, 8), show=True):
         """
         Plot a single correlation matrix heatmap.
         
@@ -862,9 +525,10 @@ class Evaluator:
             demeaned: bool, whether to demean using training mean (default False)
             dpi: int, figure resolution (default 200)
             figsize: tuple, figure size (default (8, 8))
+            show: bool, whether to display the plot (default True)
         
         Returns:
-            dict: metrics for this comparison
+            tuple: (fig, metrics_dict) for this comparison
         """
         # Get subject ordering
         order = self._compute_subject_order(order_by)
@@ -944,30 +608,32 @@ class Evaluator:
             avgrank_index = np.mean(ranklist)
             titlestr += f'\nAvg Rank {avgrank_index:.1f}, %ile: {avgrank:.3f}'
         
-        ax.set_title(titlestr, fontsize=16)
-        ax.set_xlabel(label2, fontsize=14)
-        ax.set_ylabel(label1, fontsize=14)
+        ax.set_title(titlestr, fontsize=FONT_CONFIG['title'] + 2)
+        ax.set_xlabel(label2, fontsize=FONT_CONFIG['label'] + 2)
+        ax.set_ylabel(label1, fontsize=FONT_CONFIG['label'] + 2)
         
         # Colorbar
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.1)
         cbar = fig.colorbar(im, cax=cax)
-        cbar.ax.tick_params(labelsize=12)
+        cbar.ax.tick_params(labelsize=FONT_CONFIG['tick'])
         
         plt.tight_layout()
-        plt.show()
         
-        result = {
+        metrics = {
             'mean_corr': mean_corr,
             'avg_rank': avgrank,
         }
         if ranklist is not None:
             n_subjects = len(ranklist)
-            result['top1_acc'] = np.sum(ranklist == 1) / n_subjects
-            result['avg_rank_percentile'] = 1 - (np.mean(ranklist) / n_subjects)
-            result['ranklist'] = ranklist
+            metrics['top1_acc'] = np.sum(ranklist == 1) / n_subjects
+            metrics['avg_rank_percentile'] = 1 - (np.mean(ranklist) / n_subjects)
+            metrics['ranklist'] = ranklist
         
-        return result
+        if show:
+            plt.show()
+        
+        return fig, metrics
 
     def compute_identifiability_stats(self, demeaned=False):
         """
@@ -990,7 +656,7 @@ class Evaluator:
 
     def plot_identifiability_violin(self, include_mean_baseline=True, include_noise_baseline=True,
                                      noise_scale=1.0, demeaned=False, seed=42,
-                                     p_threshold=0.001, dpi=150, figsize=(8, 6)):
+                                     p_threshold=0.001, dpi=150, figsize=(8, 6), show=True):
         """
         Plot identifiability violin plot comparing intraindividual vs interindividual correlations.
         
@@ -1008,9 +674,10 @@ class Evaluator:
             p_threshold: float, p-value threshold for significance annotation (default 0.001)
             dpi: int, figure resolution
             figsize: tuple, figure size
+            show: bool, whether to display the plot (default True)
         
         Returns:
-            dict with identifiability results for each condition
+            tuple: (fig, results_dict) with identifiability results for each condition
         """
         results = {}
         conditions = []
@@ -1113,12 +780,12 @@ class Evaluator:
                 sig_text = 'n.s.'
             
             y_max = max(np.max(r_intra), np.max(r_inter))
-            ax.text(pos, y_max + 0.01, sig_text, ha='center', va='bottom', fontsize=14, fontweight='bold')
+            ax.text(pos, y_max + 0.01, sig_text, ha='center', va='bottom', fontsize=FONT_CONFIG['title'], fontweight='bold')
         
         # Formatting
         ax.set_xticks(positions)
-        ax.set_xticklabels(conditions, fontsize=14)
-        ax.set_ylabel('Correlation', fontsize=14)
+        ax.set_xticklabels(conditions, fontsize=FONT_CONFIG['label'] + 2)
+        ax.set_ylabel('Correlation', fontsize=FONT_CONFIG['label'] + 2)
         ax.set_xlabel('')
         
         # Legend
@@ -1131,11 +798,11 @@ class Evaluator:
             Line2D([0], [0], color='none', 
                    label=r'$H_0: \frac{1}{N}\sum_i (r_{intra}(i) - r_{inter}(i)) = 0$')
         ]
-        ax.legend(handles=legend_elements, loc='upper right', fontsize=11)
+        ax.legend(handles=legend_elements, loc='upper right', fontsize=FONT_CONFIG['legend'])
         
         # Title
         demean_str = " (demeaned)" if demeaned else ""
-        ax.set_title(f'FC Prediction Identifiability{demean_str}', fontsize=16)
+        ax.set_title(f'FC Prediction Identifiability{demean_str}', fontsize=FONT_CONFIG['title'] + 2)
         
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
@@ -1144,24 +811,25 @@ class Evaluator:
         ax.set_ylim(top=1.0)
         
         plt.tight_layout()
-        plt.show()
         
-        # Print summary statistics
-        print("\nIdentifiability Summary:")
-        print("=" * 70)
-        print(f"{'Condition':<12} {'r_intra':<10} {'r_inter':<10} {'d':<10} {'t':<10} {'p':<12} {'Cohen d':<10}")
-        print("-" * 70)
-        for cond, stats in results.items():
-            print(f"{cond:<12} {stats['mean_r_intra']:<10.4f} {stats['mean_r_inter']:<10.4f} "
-                  f"{stats['mean_d']:<10.4f} {stats['t_stat']:<10.2f} {stats['p_value']:<12.2e} "
-                  f"{stats['cohen_d']:<10.2f}")
-        print("=" * 70)
+        if show:
+            plt.show()
+            # Print summary statistics
+            print("\nIdentifiability Summary:")
+            print("=" * 70)
+            print(f"{'Condition':<12} {'r_intra':<10} {'r_inter':<10} {'d':<10} {'t':<10} {'p':<12} {'Cohen d':<10}")
+            print("-" * 70)
+            for cond, stats in results.items():
+                print(f"{cond:<12} {stats['mean_r_intra']:<10.4f} {stats['mean_r_inter']:<10.4f} "
+                      f"{stats['mean_d']:<10.4f} {stats['t_stat']:<10.2f} {stats['p_value']:<12.2e} "
+                      f"{stats['cohen_d']:<10.2f}")
+            print("=" * 70)
         
-        return results
+        return fig, results
 
     def plot_hungarian_heatmaps(self, include_noise_baseline=True, include_permute_baseline=True,
                                  noise_scale=1.0, demeaned=False, seed=42,
-                                 dpi=150, figsize=(15, 5)):
+                                 dpi=150, figsize=(15, 5), show=True):
         """
         Plot Hungarian matching heatmaps comparing pFC, noised null, and permuted null.
         
@@ -1176,9 +844,10 @@ class Evaluator:
             seed: int, random seed
             dpi: int, figure resolution
             figsize: tuple, figure size
+            show: bool, whether to display the plot (default True)
         
         Returns:
-            dict with Hungarian matching results for each condition
+            tuple: (fig, results_dict) with Hungarian matching results for each condition
         """
         results = {}
         
@@ -1197,8 +866,8 @@ class Evaluator:
         sim_matrices = []
         hungarian_results = []
         
-        # 1. pFC (model predictions)
-        sim_pfc = compute_corr_matrix(preds_data, targets_data)
+        # 1. pFC (model predictions) - rows=targets, cols=preds
+        sim_pfc = compute_corr_matrix(targets_data, preds_data)
         hung_pfc = hungarian_matching(sim_pfc)
         results['pFC'] = hung_pfc
         conditions.append('pFC')
@@ -1211,7 +880,7 @@ class Evaluator:
                                                    noise_scale=noise_scale, seed=seed)
             if demeaned:
                 noise_preds = noise_preds - self.train_mean
-            sim_noise = compute_corr_matrix(noise_preds, targets_data)
+            sim_noise = compute_corr_matrix(targets_data, noise_preds)
             hung_noise = hungarian_matching(sim_noise)
             results['Null (noise)'] = hung_noise
             conditions.append('Null (noise)')
@@ -1248,34 +917,31 @@ class Evaluator:
             ax.set_yticks([])
             
             acc = hung['accuracy'] * 100
+            n_correct = hung['n_correct']
+            n_total = hung['n']
             demean_str = " (demeaned)" if demeaned else ""
-            ax.set_title(f'{cond}{demean_str}\nTop-1 Acc: {acc:.1f}%', fontsize=12)
-            ax.set_xlabel('Predicted', fontsize=11)
-            ax.set_ylabel('Target', fontsize=11)
+            ax.set_title(f'{cond}{demean_str}\nTop-1 Acc: {acc:.1f}% ({n_correct}/{n_total})', fontsize=FONT_CONFIG['title'])
+            ax.set_xlabel('Predicted', fontsize=FONT_CONFIG['label'])
+            ax.set_ylabel('Target', fontsize=FONT_CONFIG['label'])
             
             # Colorbar
             divider = make_axes_locatable(ax)
             cax = divider.append_axes("right", size="5%", pad=0.1)
             cbar = fig.colorbar(im, cax=cax)
-            cbar.ax.tick_params(labelsize=9)
-            cbar.set_label('Corr', fontsize=10)
+            cbar.ax.tick_params(labelsize=FONT_CONFIG['tick'] - 2)
+            cbar.set_label('Corr', fontsize=FONT_CONFIG['label'] - 2)
         
         plt.tight_layout()
-        plt.show()
         
-        # Print summary
-        print("\nHungarian Matching Summary:")
-        print("=" * 50)
-        for cond, hung in results.items():
-            print(f"{cond:<20} Top-1 Acc: {hung['accuracy']*100:.2f}% ({hung['n_correct']}/{hung['n']})")
-        print("=" * 50)
+        if show:
+            plt.show()
         
-        # return results
+        return fig, results
 
     def plot_hungarian_sample_size_analysis(self, n_min=2, n_max=20, step=1, n_iterations=2500,
                                              noise_scale=1.0, demeaned=False, 
                                              fdr_alpha=0.05, seed=42,
-                                             dpi=150, figsize=(10, 6)):
+                                             dpi=150, figsize=(10, 6), show=True):
         """
         Plot Hungarian matching accuracy across different sample sizes.
         
@@ -1294,9 +960,10 @@ class Evaluator:
             seed: int, random seed
             dpi: int, figure resolution
             figsize: tuple, figure size
+            show: bool, whether to display the plot (default True)
         
         Returns:
-            dict with results for each condition and sample size
+            tuple: (fig, results_dict) with results for each condition and sample size
         """
         # Prepare data
         if demeaned:
@@ -1310,15 +977,15 @@ class Evaluator:
         sample_sizes = np.arange(n_min, n_max + 1, step)
         n_sizes = len(sample_sizes)
 
-        # Compute similarity matrices
-        sim_pfc = compute_corr_matrix(preds_data, targets_data)
+        # Compute similarity matrices (targets, preds: rows=targets, cols=preds)
+        sim_pfc = compute_corr_matrix(targets_data, preds_data)
 
         # Noised baseline
         noise_preds = generate_noise_baseline(self.train_mean, self.train_std, n_subjects,
                                                noise_scale=noise_scale, seed=seed)
         if demeaned:
             noise_preds = noise_preds - self.train_mean
-        sim_noise = compute_corr_matrix(noise_preds, targets_data)
+        sim_noise = compute_corr_matrix(targets_data, noise_preds)
 
         # Storage for results
         results = {
@@ -1402,8 +1069,8 @@ class Evaluator:
         ax.plot(sample_sizes, results['Null (permute)']['mean'] * 100, '-', color=color_permute,
                 linewidth=2, label='Null (permute)')
 
-        ax.set_xlabel('Number of Individuals', fontsize=14)
-        ax.set_ylabel('% Individuals Correctly Matched', fontsize=14)
+        ax.set_xlabel('Number of Individuals', fontsize=FONT_CONFIG['label'] + 2)
+        ax.set_ylabel('% Individuals Correctly Matched', fontsize=FONT_CONFIG['label'] + 2)
         ax.set_xlim(n_min - 0.5, n_max + 0.5)
         ax.set_ylim(0, None)
 
@@ -1416,31 +1083,32 @@ class Evaluator:
         for i, n in enumerate(sample_sizes):
             # Plot asterisk only if significant for BOTH nulls
             if results['significant_permute'][i] and results['significant_noise'][i]:
-                ax.text(n, y_min+0.05, '*', ha='center', va='top', fontsize=12, 
+                ax.text(n, y_min+0.05, '*', ha='center', va='top', fontsize=FONT_CONFIG['tick'], 
                         fontweight='bold', transform=ax.get_xaxis_transform())
 
         # Build legend, clarifying the meaning of *
-        from matplotlib.lines import Line2D
         handles, labels = ax.get_legend_handles_labels()
         asterisk_patch = Line2D([0], [0], color='none', marker='*', markersize=12, 
                                 markerfacecolor='k', label="Significant (p < {:.3g}) vs both nulls".format(fdr_alpha))
         handles.append(asterisk_patch)
-        ax.legend(handles=handles, fontsize=12, loc='upper right')
+        ax.legend(handles=handles, fontsize=FONT_CONFIG['legend'], loc='upper right')
 
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
 
         demean_str = " (demeaned)" if demeaned else ""
-        ax.set_title(f'Hungarian Matching Accuracy vs Subsetted Sample Size{demean_str}', fontsize=14)
+        ax.set_title(f'Hungarian Matching Accuracy vs Subsetted Sample Size{demean_str}', fontsize=FONT_CONFIG['title'] + 2)
 
         plt.tight_layout()
-        plt.show()
-
-        # Print summary
-        print(f"\nFDR-corrected significance (alpha={fdr_alpha}):")
-        print(f"  pFC vs Null (permute): {np.sum(results['significant_permute'])}/{n_sizes} sample sizes significant")
-        print(f"  pFC vs Null (noise): {np.sum(results['significant_noise'])}/{n_sizes} sample sizes significant")
-        # return results
+        
+        if show:
+            plt.show()
+            # Print summary
+            print(f"\nFDR-corrected significance (alpha={fdr_alpha}):")
+            print(f"  pFC vs Null (permute): {np.sum(results['significant_permute'])}/{n_sizes} sample sizes significant")
+            print(f"  pFC vs Null (noise): {np.sum(results['significant_noise'])}/{n_sizes} sample sizes significant")
+        
+        return fig, results
 
     def get_pca_objects(self):
         """
@@ -1452,11 +1120,446 @@ class Evaluator:
         if self._pca_targets is None or self._pca_preds is None:
             self._fit_pca()
         return self._pca_preds, self._pca_targets
+
     
-    def __repr__(self):
-        return (
-            f"Evaluator(n_subjects={self.preds.shape[0]}, "
-            f"n_features={self.preds.shape[1]}, "
-            f"mse={self._metrics['mse']:.4f}, "
-            f"r2={self._metrics['r2']:.4f})"
+    def _output_metrics(self):
+        """
+        Print all evaluation metrics in a neat and human-readable format.
+        Includes the data partition (train/val/test) from dataset_partition.partition.
+        """
+        print("=" * 50)
+        print(f" Evaluation Metrics for Partition: '{self.dataset_partition.partition}'")
+        print("-" * 50)
+        pretty_names = {
+            "mse": "Mean Squared Error",
+            "r2": "R2 Score",
+            "pearson": "Pearson Corr.",
+            "demeaned_pearson": "Demeaned Pearson Corr.",
+            "avg_rank": "Average Rank",
+            "top1_acc": "Top-1 Accuracy"
+        }
+        for key in ["mse", "r2", "pearson", "demeaned_pearson", "avg_rank", "top1_acc"]:
+            val = self._metrics.get(key, None)
+            if val is not None:
+                # Format value with 4 decimals, handle numpy/scalar cases
+                if isinstance(val, (float, np.floating)):
+                    print(f"{pretty_names.get(key, key):25s}: {float(val):.4f}")
+                elif isinstance(val, (list, np.ndarray)):
+                    mean_val = float(np.mean(val))
+                    print(f"{pretty_names.get(key, key):25s}: Mean={mean_val:.4f} (All: {np.array2string(np.asarray(val), precision=4, separator=', ')})")
+                else:
+                    print(f"{pretty_names.get(key, key):25s}: {val}")
+        print("=" * 50)
+
+    def analyze_results(self, verbose=False, filepath=None):
+        """
+        Main analysis function to generate a comprehensive prediction analysis report.
+        
+        Organizes plots into a report either at a filepath (.jpg) or displays inline in notebook.
+        Stores all analysis metrics in a comprehensive dict for wandb tracking.
+        
+        Args:
+            verbose: bool, if True shows both demeaned and non-demeaned results plus Hungarian plots.
+                     If False (default), shows only demeaned results without Hungarian plots.
+            filepath: str or None, if specified saves report as .jpg at this path.
+                      If None, displays plots inline in notebook.
+        
+        Returns:
+            dict: Comprehensive metrics dictionary containing all analysis results,
+                  suitable for wandb logging.
+        
+        Report Layout (verbose=True):
+            Row 1: Identifiability Heatmaps (non-demeaned | demeaned) - side by side
+            Row 2: Identifiability Violin (non-demeaned | demeaned) - side by side
+            Row 3: Hungarian Heatmaps (non-demeaned, then demeaned) - stacked
+            Row 4: Hungarian Sample Size (non-demeaned | demeaned) - side by side
+            Row 5: PCA Structure (line plot | spatial maps)
+        
+        Report Layout (verbose=False):
+            Row 1: Identifiability Heatmaps (demeaned only)
+            Row 2: Identifiability Violin (demeaned only)
+            Row 3: PCA Structure (line plot | spatial maps)
+        """
+        # Initialize comprehensive metrics dict
+        all_metrics = {
+            'partition': self.dataset_partition.partition,
+            'n_subjects': len(self.subject_indices),
+            'base_metrics': self._metrics.copy(),
+        }
+        
+        # Determine whether we're saving to file or displaying inline
+        save_to_file = filepath is not None
+        show_inline = not save_to_file
+        
+        # Collect all figures for report generation
+        figures_to_combine = []
+        figure_labels = []
+        
+        # ========================================================================
+        # Analysis 1: Identifiability Heatmaps
+        # ========================================================================
+        if verbose:
+            # Non-demeaned heatmaps
+            fig_hm_raw, metrics_hm_raw = self.plot_identifiability_heatmaps(
+                order_by='family', demeaned=False, 
+                include_black_circles=True, include_blue_dots=False, 
+                dpi=150, figsize=(12, 9), show=show_inline
+            )
+            all_metrics['heatmaps_raw'] = {k: v.tolist() if isinstance(v, np.ndarray) else v 
+                                           for k, v in metrics_hm_raw.items() if k != 'ranklist'}
+            all_metrics['heatmaps_raw']['ranklist'] = metrics_hm_raw.get('ranklist', [])
+            if isinstance(all_metrics['heatmaps_raw']['ranklist'], np.ndarray):
+                all_metrics['heatmaps_raw']['ranklist'] = all_metrics['heatmaps_raw']['ranklist'].tolist()
+            
+            if save_to_file:
+                figures_to_combine.append(('side_by_side', [fig_hm_raw, None]))
+                figure_labels.append('Identifiability Heatmaps')
+        
+        # Demeaned heatmaps (always)
+        fig_hm_dm, metrics_hm_dm = self.plot_identifiability_heatmaps(
+            order_by='family', demeaned=True, 
+            include_black_circles=True, include_blue_dots=False, 
+            dpi=150, figsize=(12, 9), show=show_inline
         )
+        all_metrics['heatmaps_demeaned'] = {k: v.tolist() if isinstance(v, np.ndarray) else v 
+                                             for k, v in metrics_hm_dm.items() if k != 'ranklist'}
+        all_metrics['heatmaps_demeaned']['ranklist'] = metrics_hm_dm.get('ranklist', [])
+        if isinstance(all_metrics['heatmaps_demeaned']['ranklist'], np.ndarray):
+            all_metrics['heatmaps_demeaned']['ranklist'] = all_metrics['heatmaps_demeaned']['ranklist'].tolist()
+        
+        if save_to_file:
+            if verbose:
+                figures_to_combine[-1] = ('side_by_side', [fig_hm_raw, fig_hm_dm])
+            else:
+                figures_to_combine.append(('single', fig_hm_dm))
+                figure_labels.append('Identifiability Heatmaps (demeaned)')
+        
+        # ========================================================================
+        # Analysis 2: Identifiability Violin
+        # ========================================================================
+        if verbose:
+            # Non-demeaned violin
+            fig_vio_raw, metrics_vio_raw = self.plot_identifiability_violin(
+                include_mean_baseline=True, include_noise_baseline=True,
+                noise_scale=1.0, demeaned=False, p_threshold=0.05,
+                dpi=150, figsize=(7, 5), show=show_inline
+            )
+            all_metrics['violin_raw'] = self._extract_violin_metrics(metrics_vio_raw)
+            
+            if save_to_file:
+                figures_to_combine.append(('side_by_side', [fig_vio_raw, None]))
+                figure_labels.append('Identifiability Violin')
+        
+        # Demeaned violin (always)
+        fig_vio_dm, metrics_vio_dm = self.plot_identifiability_violin(
+            include_mean_baseline=True, include_noise_baseline=True,
+            noise_scale=1.0, demeaned=True, p_threshold=0.05,
+            dpi=150, figsize=(7, 5), show=show_inline
+        )
+        all_metrics['violin_demeaned'] = self._extract_violin_metrics(metrics_vio_dm)
+        
+        if save_to_file:
+            if verbose:
+                figures_to_combine[-1] = ('side_by_side', [fig_vio_raw, fig_vio_dm])
+            else:
+                figures_to_combine.append(('single', fig_vio_dm))
+                figure_labels.append('Identifiability Violin (demeaned)')
+        
+        # ========================================================================
+        # Analysis 3: Hungarian Matching (verbose only)
+        # ========================================================================
+        if verbose:
+            # Non-demeaned Hungarian heatmaps
+            fig_hung_raw, metrics_hung_raw = self.plot_hungarian_heatmaps(
+                demeaned=False, dpi=150, figsize=(14, 4), show=show_inline
+            )
+            all_metrics['hungarian_raw'] = self._extract_hungarian_metrics(metrics_hung_raw)
+            
+            # Demeaned Hungarian heatmaps
+            fig_hung_dm, metrics_hung_dm = self.plot_hungarian_heatmaps(
+                demeaned=True, dpi=150, figsize=(14, 4), show=show_inline
+            )
+            all_metrics['hungarian_demeaned'] = self._extract_hungarian_metrics(metrics_hung_dm)
+            
+            if save_to_file:
+                figures_to_combine.append(('stacked', [fig_hung_raw, fig_hung_dm]))
+                figure_labels.append('Hungarian Matching')
+            
+            # Hungarian sample size analysis
+            fig_ss_raw, metrics_ss_raw = self.plot_hungarian_sample_size_analysis(
+                n_min=2, n_max=100, step=5, n_iterations=1000, 
+                demeaned=False, dpi=150, figsize=(9, 5), show=show_inline
+            )
+            all_metrics['hungarian_sample_size_raw'] = self._extract_sample_size_metrics(metrics_ss_raw)
+            
+            fig_ss_dm, metrics_ss_dm = self.plot_hungarian_sample_size_analysis(
+                n_min=2, n_max=100, step=5, n_iterations=1000, 
+                demeaned=True, dpi=150, figsize=(9, 5), show=show_inline
+            )
+            all_metrics['hungarian_sample_size_demeaned'] = self._extract_sample_size_metrics(metrics_ss_dm)
+            
+            if save_to_file:
+                figures_to_combine.append(('side_by_side', [fig_ss_raw, fig_ss_dm]))
+                figure_labels.append('Hungarian Sample Size Analysis')
+        
+        # ========================================================================
+        # Analysis 4: PCA Structure (always)
+        # ========================================================================
+        (fig_pca_line, fig_pca_grid), metrics_pca = self.evaluate_pca_structure(
+            num_pcs=len(self.subject_indices), show_first_pcs=5, show=show_inline
+        )
+        all_metrics['pca'] = {k: v.tolist() if isinstance(v, np.ndarray) else v 
+                              for k, v in metrics_pca.items()}
+        
+        if save_to_file:
+            figures_to_combine.append(('side_by_side', [fig_pca_line, fig_pca_grid]))
+            figure_labels.append('PCA Structure')
+        
+        # ========================================================================
+        # Generate combined report if filepath specified
+        # ========================================================================
+        if save_to_file:
+            self._generate_report(figures_to_combine, figure_labels, filepath)
+            # Close all figures to free memory
+            for item in figures_to_combine:
+                layout_type, figs = item
+                if layout_type == 'single':
+                    plt.close(figs)
+                else:
+                    for f in figs:
+                        if f is not None:
+                            plt.close(f)
+        
+        # Store metrics as instance attribute
+        self.analysis_metrics = all_metrics
+        
+        return all_metrics
+    
+    def _extract_violin_metrics(self, results):
+        """Extract wandb-friendly metrics from violin plot results."""
+        extracted = {}
+        for condition, stats in results.items():
+            prefix = condition.lower().replace(' ', '_').replace('(', '').replace(')', '')
+            extracted[f'{prefix}_mean_r_intra'] = float(stats['mean_r_intra'])
+            extracted[f'{prefix}_mean_r_inter'] = float(stats['mean_r_inter'])
+            extracted[f'{prefix}_mean_d'] = float(stats['mean_d'])
+            extracted[f'{prefix}_t_stat'] = float(stats['t_stat'])
+            extracted[f'{prefix}_p_value'] = float(stats['p_value'])
+            extracted[f'{prefix}_cohen_d'] = float(stats['cohen_d'])
+        return extracted
+    
+    def _extract_hungarian_metrics(self, results):
+        """Extract wandb-friendly metrics from Hungarian matching results."""
+        extracted = {}
+        for condition, hung in results.items():
+            prefix = condition.lower().replace(' ', '_').replace('(', '').replace(')', '')
+            extracted[f'{prefix}_accuracy'] = float(hung['accuracy'])
+            extracted[f'{prefix}_n_correct'] = int(hung['n_correct'])
+        return extracted
+    
+    def _extract_sample_size_metrics(self, results):
+        """Extract wandb-friendly metrics from sample size analysis results."""
+        return {
+            'sample_sizes': results['sample_sizes'].tolist(),
+            'pfc_mean_accuracy': results['pFC']['mean'].tolist(),
+            'null_noise_mean_accuracy': results['Null (noise)']['mean'].tolist(),
+            'null_permute_mean_accuracy': results['Null (permute)']['mean'].tolist(),
+            'n_significant_vs_permute': int(np.sum(results['significant_permute'])),
+            'n_significant_vs_noise': int(np.sum(results['significant_noise'])),
+        }
+    
+    def _generate_report(self, figures_to_combine, figure_labels, filepath):
+        """
+        Generate a combined .jpg report from collected figures.
+        
+        Args:
+            figures_to_combine: list of tuples (layout_type, figs)
+                - 'single': single figure
+                - 'side_by_side': [left_fig, right_fig]
+                - 'stacked': [top_fig, bottom_fig]
+            figure_labels: list of str, section titles for each figure group
+            filepath: output path for the report
+        """
+        # Configuration
+        section_spacing = 120  # pixels between sections
+        title_height = 100  # height of title banner
+        title_bg_color = (230, 230, 235)  # light gray-blue background
+        title_text_color = (40, 40, 50)  # dark gray text
+        
+        # Convert figures to images
+        images = []
+        
+        for idx, (layout_type, figs) in enumerate(figures_to_combine):
+            if layout_type == 'single':
+                img = self._fig_to_image(figs)
+                images.append(img)
+            
+            elif layout_type == 'side_by_side':
+                left_img = self._fig_to_image(figs[0]) if figs[0] is not None else None
+                right_img = self._fig_to_image(figs[1]) if figs[1] is not None else None
+                
+                if left_img is not None and right_img is not None:
+                    # Resize to same height
+                    max_height = max(left_img.height, right_img.height)
+                    left_img = self._resize_to_height(left_img, max_height)
+                    right_img = self._resize_to_height(right_img, max_height)
+                    
+                    # Combine horizontally with small gap
+                    gap = 20
+                    combined = Image.new('RGB', 
+                                        (left_img.width + gap + right_img.width, max_height),
+                                        (255, 255, 255))
+                    combined.paste(left_img, (0, 0))
+                    combined.paste(right_img, (left_img.width + gap, 0))
+                    images.append(combined)
+                elif left_img is not None:
+                    images.append(left_img)
+                elif right_img is not None:
+                    images.append(right_img)
+            
+            elif layout_type == 'stacked':
+                top_img = self._fig_to_image(figs[0]) if figs[0] is not None else None
+                bottom_img = self._fig_to_image(figs[1]) if figs[1] is not None else None
+                
+                if top_img is not None and bottom_img is not None:
+                    # Resize to same width
+                    max_width = max(top_img.width, bottom_img.width)
+                    top_img = self._resize_to_width(top_img, max_width)
+                    bottom_img = self._resize_to_width(bottom_img, max_width)
+                    
+                    # Combine vertically with small gap
+                    gap = 15
+                    combined = Image.new('RGB',
+                                        (max_width, top_img.height + gap + bottom_img.height),
+                                        (255, 255, 255))
+                    combined.paste(top_img, (0, 0))
+                    combined.paste(bottom_img, (0, top_img.height + gap))
+                    images.append(combined)
+                elif top_img is not None:
+                    images.append(top_img)
+                elif bottom_img is not None:
+                    images.append(bottom_img)
+        
+        # Combine all rows vertically with titles and spacing
+        if not images:
+            warnings.warn("No images to combine for report")
+            return
+        
+        # Find max width for final combining
+        max_width = max(img.width for img in images)
+        
+        # Resize all to same width
+        resized_images = [self._resize_to_width(img, max_width) for img in images]
+        
+        # Create title banners using matplotlib (has bundled fonts)
+        title_images = []
+        for idx in range(len(resized_images)):
+            title = figure_labels[idx] if idx < len(figure_labels) else f"Section {idx + 1}"
+            title_img = self._create_title_banner(title, max_width, title_height, title_bg_color, title_text_color)
+            title_images.append(title_img)
+        
+        # Calculate total height including titles and spacing
+        n_sections = len(resized_images)
+        total_height = (
+            sum(img.height for img in resized_images) +
+            sum(img.height for img in title_images) +
+            (n_sections - 1) * section_spacing  # spacing between sections (not after last)
+        )
+        
+        final_report = Image.new('RGB', (max_width, total_height), (255, 255, 255))
+        
+        y_offset = 0
+        for idx, img in enumerate(resized_images):
+            # Paste title banner
+            final_report.paste(title_images[idx], (0, y_offset))
+            y_offset += title_images[idx].height
+            
+            # Paste the image
+            final_report.paste(img, (0, y_offset))
+            y_offset += img.height
+            
+            # Add spacing after section (except for last section)
+            if idx < n_sections - 1:
+                y_offset += section_spacing
+        
+        # Ensure filepath has .jpg extension
+        if not filepath.lower().endswith('.jpg') and not filepath.lower().endswith('.jpeg'):
+            filepath = filepath + '.jpg'
+        
+        # Save with high quality
+        final_report.save(filepath, 'JPEG', quality=95)
+        print(f"Report saved to: {filepath}")
+    
+    def _fig_to_image(self, fig):
+        """Convert matplotlib figure to PIL Image."""
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', dpi=150, bbox_inches='tight', 
+                    facecolor='white', edgecolor='none')
+        buf.seek(0)
+        img = Image.open(buf).convert('RGB')
+        return img
+    
+    def _resize_to_height(self, img, target_height):
+        """Resize image to target height maintaining aspect ratio."""
+        if img.height == target_height:
+            return img
+        ratio = target_height / img.height
+        new_width = int(img.width * ratio)
+        return img.resize((new_width, target_height), Image.Resampling.LANCZOS)
+    
+    def _resize_to_width(self, img, target_width):
+        """Resize image to target width maintaining aspect ratio."""
+        if img.width == target_width:
+            return img
+        ratio = target_width / img.width
+        new_height = int(img.height * ratio)
+        return img.resize((target_width, new_height), Image.Resampling.LANCZOS)
+    
+    def _create_title_banner(self, title, width, height, bg_color, text_color):
+        """
+        Create a title banner image using matplotlib for reliable font rendering.
+        
+        Args:
+            title: str, the title text
+            width: int, width of the banner in pixels
+            height: int, height of the banner in pixels
+            bg_color: tuple, RGB background color (0-255)
+            text_color: tuple, RGB text color (0-255)
+        
+        Returns:
+            PIL.Image: the title banner image
+        """
+        # Convert colors from 0-255 to 0-1 for matplotlib
+        bg_color_mpl = tuple(c / 255 for c in bg_color)
+        text_color_mpl = tuple(c / 255 for c in text_color)
+        
+        # Create figure with exact pixel dimensions
+        dpi = 100
+        fig_width = width / dpi
+        fig_height = height / dpi
+        
+        fig = plt.figure(figsize=(fig_width, fig_height), dpi=dpi, facecolor=bg_color_mpl)
+        ax = fig.add_axes([0, 0, 1, 1])
+        ax.set_facecolor(bg_color_mpl)
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.axis('off')
+        
+        # Add centered title text
+        ax.text(0.5, 0.5, title, transform=ax.transAxes,
+                fontsize=28, fontweight='bold', color=text_color_mpl,
+                ha='center', va='center')
+        
+        # Convert to PIL Image
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', dpi=dpi, facecolor=bg_color_mpl, 
+                    edgecolor='none', bbox_inches='tight', pad_inches=0)
+        plt.close(fig)
+        buf.seek(0)
+        img = Image.open(buf).convert('RGB')
+        
+        # Resize to exact dimensions (bbox_inches='tight' may alter size slightly)
+        if img.width != width or img.height != height:
+            img = img.resize((width, height), Image.Resampling.LANCZOS)
+        
+        return img
