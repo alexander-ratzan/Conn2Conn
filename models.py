@@ -18,6 +18,26 @@ import torch
 import torch.nn as nn
 
 
+def predict_from_loader(model, data_loader, device=None):
+    """Generate predictions from a model using a data loader."""
+    model.eval()
+    all_preds = []
+    all_targets = []
+    with torch.no_grad():
+        for batch in data_loader:
+            x = batch["x"]
+            y = batch["y"]
+            if device is not None:
+                x = x.to(device)
+                y = y.to(device)
+            preds = model(x)
+            all_preds.append(preds.cpu())
+            all_targets.append(y.cpu())
+    all_preds = torch.cat(all_preds, dim=0)
+    all_targets = torch.cat(all_targets, dim=0)
+    return all_preds, all_targets
+
+
 class CrossModalPCA(nn.Module):
     """
     Cross-modal PCA model implemented in PyTorch.

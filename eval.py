@@ -3,32 +3,13 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 from sklearn.metrics import r2_score, mean_squared_error
-from scipy.stats import pearsonr, spearmanr, ttest_1samp
+from scipy.stats import pearsonr, spearmanr, ttest_1samp, ttest_ind, false_discovery_control
+from scipy.optimize import linear_sum_assignment
 import torch
 import torch.nn as nn
 from sklearn.decomposition import PCA
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from data.data_utils import *
-
-
-def predict_from_loader(model, data_loader, device=None):
-    """Generate predictions from a model using a data loader."""
-    model.eval()
-    all_preds = []
-    all_targets = []
-    with torch.no_grad():
-        for batch in data_loader:
-            x = batch["x"]
-            y = batch["y"]
-            if device is not None:
-                x = x.to(device)
-                y = y.to(device)
-            preds = model(x)
-            all_preds.append(preds.cpu())
-            all_targets.append(y.cpu())
-    all_preds = torch.cat(all_preds, dim=0)
-    all_targets = torch.cat(all_targets, dim=0)
-    return all_preds, all_targets
 
 
 def compute_corr_matrix(preds, targets, axis=1):
@@ -281,10 +262,119 @@ def generate_noise_baseline(train_mean, train_std, n_subjects, noise_scale=1.0, 
     n_edges = train_mean_np.shape[0]
     
     # Generate independent noise for each subject and edge
+    train_min = np.min(train_mean_np)
+    train_max = np.max(train_mean_np)
+    mean_std = np.mean(train_std_np)
+    tol = mean_std
+
+    # Add i.i.d. random Gaussian noise on a per edge basis
     noise = rng.normal(0, 1, size=(n_subjects, n_edges))
     noise = noise * (noise_scale * train_std_np)
+    noised_preds = np.tile(train_mean_np, (n_subjects, 1)) + noise
+
+    # Clip to reasonable range based on training mean and std
+    clip_min = train_min - tol
+    clip_max = train_max + tol
+    noised_preds = np.clip(noised_preds, clip_min, clip_max)
     
-    return np.tile(train_mean_np, (n_subjects, 1)) + noise
+    return noised_preds
+
+
+def hungarian_matching(similarity_matrix):
+    """
+    Perform Hungarian algorithm for optimal 1-to-1 matching.
+    
+    Uses the similarity matrix (correlation-based) and finds the assignment
+    that maximizes total similarity (by negating for the cost minimization).
+    
+    Args:
+        similarity_matrix: np.ndarray (n x n), correlation/similarity matrix
+    
+    Returns:
+        dict with:
+            - row_ind: row indices of optimal assignment
+            - col_ind: column indices of optimal assignment  
+            - assignment_matrix: binary (n x n) assignment matrix
+            - accuracy: proportion of correct matches (trace / n)
+            - n_correct: number of correct matches (diagonal assignments)
+    """
+    n = similarity_matrix.shape[0]
+    
+    # Negate similarity to convert to cost matrix (Hungarian minimizes cost)
+    cost_matrix = -similarity_matrix
+    
+    # Solve assignment problem
+    row_ind, col_ind = linear_sum_assignment(cost_matrix)
+    
+    # Create binary assignment matrix
+    assignment_matrix = np.zeros((n, n))
+    assignment_matrix[row_ind, col_ind] = 1
+    
+    # Compute accuracy (proportion on diagonal)
+    n_correct = np.sum(row_ind == col_ind)
+    accuracy = n_correct / n
+    
+    return {
+        'row_ind': row_ind,
+        'col_ind': col_ind,
+        'assignment_matrix': assignment_matrix,
+        'accuracy': accuracy,
+        'n_correct': n_correct,
+        'n': n
+    }
+
+
+def hungarian_matching_subsample(similarity_matrix, n_sample, n_iterations=2500, seed=None):
+    """
+    Repeated subsampling Hungarian matching for a given sample size.
+    
+    Args:
+        similarity_matrix: np.ndarray (N x N), full similarity matrix
+        n_sample: int, subset size to sample
+        n_iterations: int, number of random subsamples (M)
+        seed: int, random seed
+    
+    Returns:
+        np.ndarray of shape (n_iterations,), accuracy for each iteration
+    """
+    rng = np.random.default_rng(seed)
+    N = similarity_matrix.shape[0]
+    accuracies = np.zeros(n_iterations)
+    
+    for m in range(n_iterations):
+        # Sample without replacement
+        indices = rng.choice(N, size=n_sample, replace=False)
+        # Extract submatrix
+        sub_sim = similarity_matrix[np.ix_(indices, indices)]
+        # Run Hungarian
+        result = hungarian_matching(sub_sim)
+        accuracies[m] = result['accuracy']
+    
+    return accuracies
+
+
+def hungarian_matching_permuted(similarity_matrix, seed=None):
+    """
+    Hungarian matching on a permuted similarity matrix (chance baseline).
+    
+    Randomly permutes columns of the similarity matrix before applying
+    Hungarian algorithm to establish chance-level matching.
+    
+    Args:
+        similarity_matrix: np.ndarray (n x n)
+        seed: int, random seed
+    
+    Returns:
+        dict with Hungarian matching results on permuted matrix
+    """
+    rng = np.random.default_rng(seed)
+    n = similarity_matrix.shape[0]
+    
+    # Randomly permute columns
+    perm = rng.permutation(n)
+    permuted_sim = similarity_matrix[:, perm]
+    
+    return hungarian_matching(permuted_sim)
 
 
 class Evaluator:
@@ -540,7 +630,7 @@ class Evaluator:
 
     def _compute_subject_order(self, order_by='original'):
         """
-        Compute subject ordering for visualization.
+        Return reordered subject indices for visualization.
         
         Args:
             order_by: str, one of:
@@ -1068,6 +1158,289 @@ class Evaluator:
         print("=" * 70)
         
         return results
+
+    def plot_hungarian_heatmaps(self, include_noise_baseline=True, include_permute_baseline=True,
+                                 noise_scale=1.0, demeaned=False, seed=42,
+                                 dpi=150, figsize=(15, 5)):
+        """
+        Plot Hungarian matching heatmaps comparing pFC, noised null, and permuted null.
+        
+        Shows side-by-side correlation heatmaps with black dots indicating 
+        Hungarian optimal assignments and Top-1 accuracy for each condition.
+        
+        Args:
+            include_noise_baseline: bool, include noised baseline
+            include_permute_baseline: bool, include permuted baseline
+            noise_scale: float, noise scale for null baseline
+            demeaned: bool, whether to demean data
+            seed: int, random seed
+            dpi: int, figure resolution
+            figsize: tuple, figure size
+        
+        Returns:
+            dict with Hungarian matching results for each condition
+        """
+        results = {}
+        
+        # Prepare data
+        if demeaned:
+            preds_data = self.preds - self.train_mean
+            targets_data = self.targets - self.train_mean
+        else:
+            preds_data = self.preds
+            targets_data = self.targets
+        
+        n_subjects = preds_data.shape[0]
+        
+        # Compute conditions
+        conditions = []
+        sim_matrices = []
+        hungarian_results = []
+        
+        # 1. pFC (model predictions)
+        sim_pfc = compute_corr_matrix(preds_data, targets_data)
+        hung_pfc = hungarian_matching(sim_pfc)
+        results['pFC'] = hung_pfc
+        conditions.append('pFC')
+        sim_matrices.append(sim_pfc)
+        hungarian_results.append(hung_pfc)
+        
+        # 2. Noised baseline
+        if include_noise_baseline:
+            noise_preds = generate_noise_baseline(self.train_mean, self.train_std, n_subjects,
+                                                   noise_scale=noise_scale, seed=seed)
+            if demeaned:
+                noise_preds = noise_preds - self.train_mean
+            sim_noise = compute_corr_matrix(noise_preds, targets_data)
+            hung_noise = hungarian_matching(sim_noise)
+            results['Null (noise)'] = hung_noise
+            conditions.append('Null (noise)')
+            sim_matrices.append(sim_noise)
+            hungarian_results.append(hung_noise)
+        
+        # 3. Permuted baseline (chance)
+        if include_permute_baseline:
+            # Use pFC similarity but permute for chance
+            rng = np.random.default_rng(seed + 1)
+            perm = rng.permutation(n_subjects)
+            sim_permuted = sim_pfc[:, perm]
+            hung_permuted = hungarian_matching(sim_permuted)
+            results['Null (permute)'] = hung_permuted
+            conditions.append('Null (permute)')
+            sim_matrices.append(sim_permuted)
+            hungarian_results.append(hung_permuted)
+        
+        # Create figure
+        n_plots = len(conditions)
+        fig, axs = plt.subplots(1, n_plots, figsize=figsize, dpi=dpi)
+        if n_plots == 1:
+            axs = [axs]
+        
+        for ax, cond, sim, hung in zip(axs, conditions, sim_matrices, hungarian_results):
+            # Plot heatmap
+            im = ax.imshow(sim, vmin=-1, vmax=1, cmap='RdBu_r')
+            
+            # Plot Hungarian assignments as black dots
+            row_ind, col_ind = hung['row_ind'], hung['col_ind']
+            ax.scatter(col_ind, row_ind, c='black', s=15, marker='o', zorder=3)
+            
+            ax.set_xticks([])
+            ax.set_yticks([])
+            
+            acc = hung['accuracy'] * 100
+            demean_str = " (demeaned)" if demeaned else ""
+            ax.set_title(f'{cond}{demean_str}\nTop-1 Acc: {acc:.1f}%', fontsize=12)
+            ax.set_xlabel('Predicted', fontsize=11)
+            ax.set_ylabel('Target', fontsize=11)
+            
+            # Colorbar
+            divider = make_axes_locatable(ax)
+            cax = divider.append_axes("right", size="5%", pad=0.1)
+            cbar = fig.colorbar(im, cax=cax)
+            cbar.ax.tick_params(labelsize=9)
+            cbar.set_label('Corr', fontsize=10)
+        
+        plt.tight_layout()
+        plt.show()
+        
+        # Print summary
+        print("\nHungarian Matching Summary:")
+        print("=" * 50)
+        for cond, hung in results.items():
+            print(f"{cond:<20} Top-1 Acc: {hung['accuracy']*100:.2f}% ({hung['n_correct']}/{hung['n']})")
+        print("=" * 50)
+        
+        # return results
+
+    def plot_hungarian_sample_size_analysis(self, n_min=2, n_max=20, step=1, n_iterations=2500,
+                                             noise_scale=1.0, demeaned=False, 
+                                             fdr_alpha=0.05, seed=42,
+                                             dpi=150, figsize=(10, 6)):
+        """
+        Plot Hungarian matching accuracy across different sample sizes.
+        
+        Repeatedly samples subsets of size n (for n=n_min, n_min+step, ..., n_max) and computes
+        average matching accuracy. Compares pFC vs null conditions with FDR-corrected
+        significance testing.
+        
+        Args:
+            n_min: int, minimum sample size (default 2)
+            n_max: int, maximum sample size (default 20)
+            step: int, step size between sample sizes (default 1)
+            n_iterations: int, number of iterations per sample size (M, default 2500)
+            noise_scale: float, noise scale for null baseline
+            demeaned: bool, whether to demean data
+            fdr_alpha: float, FDR threshold (default 0.05)
+            seed: int, random seed
+            dpi: int, figure resolution
+            figsize: tuple, figure size
+        
+        Returns:
+            dict with results for each condition and sample size
+        """
+        # Prepare data
+        if demeaned:
+            preds_data = self.preds - self.train_mean
+            targets_data = self.targets - self.train_mean
+        else:
+            preds_data = self.preds
+            targets_data = self.targets
+
+        n_subjects = preds_data.shape[0]
+        sample_sizes = np.arange(n_min, n_max + 1, step)
+        n_sizes = len(sample_sizes)
+
+        # Compute similarity matrices
+        sim_pfc = compute_corr_matrix(preds_data, targets_data)
+
+        # Noised baseline
+        noise_preds = generate_noise_baseline(self.train_mean, self.train_std, n_subjects,
+                                               noise_scale=noise_scale, seed=seed)
+        if demeaned:
+            noise_preds = noise_preds - self.train_mean
+        sim_noise = compute_corr_matrix(noise_preds, targets_data)
+
+        # Storage for results
+        results = {
+            'sample_sizes': sample_sizes,
+            'pFC': {'mean': np.zeros(n_sizes), 'std': np.zeros(n_sizes), 'all': []},
+            'Null (noise)': {'mean': np.zeros(n_sizes), 'std': np.zeros(n_sizes), 'all': []},
+            'Null (permute)': {'mean': np.zeros(n_sizes), 'std': np.zeros(n_sizes), 'all': []},
+            'p_values_noise': np.zeros(n_sizes),
+            'p_values_permute': np.zeros(n_sizes),
+            'significant_noise': np.zeros(n_sizes, dtype=bool),
+            'significant_permute': np.zeros(n_sizes, dtype=bool),
+        }
+
+        rng = np.random.default_rng(seed)
+
+        print(f"Running Hungarian matching analysis for n={n_min} to {n_max} (step={step}) with M={n_iterations} iterations...")
+
+        for i, n in enumerate(sample_sizes):
+            if n > n_subjects:
+                print(f"Warning: n={n} exceeds n_subjects={n_subjects}, skipping")
+                continue
+
+            # pFC
+            acc_pfc = hungarian_matching_subsample(sim_pfc, n, n_iterations, seed=seed + i)
+            results['pFC']['mean'][i] = np.mean(acc_pfc)
+            results['pFC']['std'][i] = np.std(acc_pfc)
+            results['pFC']['all'].append(acc_pfc)
+
+            # Noised null
+            acc_noise = hungarian_matching_subsample(sim_noise, n, n_iterations, seed=seed + i + 1000)
+            results['Null (noise)']['mean'][i] = np.mean(acc_noise)
+            results['Null (noise)']['std'][i] = np.std(acc_noise)
+            results['Null (noise)']['all'].append(acc_noise)
+
+            # Permuted null - for each iteration, permute the subsampled matrix
+            acc_permute = np.zeros(n_iterations)
+            for m in range(n_iterations):
+                indices = rng.choice(n_subjects, size=n, replace=False)
+                sub_sim = sim_pfc[np.ix_(indices, indices)]
+                # Permute columns
+                perm = rng.permutation(n)
+                sub_sim_permuted = sub_sim[:, perm]
+                hung_result = hungarian_matching(sub_sim_permuted)
+                acc_permute[m] = hung_result['accuracy']
+
+            results['Null (permute)']['mean'][i] = np.mean(acc_permute)
+            results['Null (permute)']['std'][i] = np.std(acc_permute)
+            results['Null (permute)']['all'].append(acc_permute)
+
+            # Two-sample t-test: pFC vs noise
+            t_noise, p_noise = ttest_ind(acc_pfc, acc_noise)
+            results['p_values_noise'][i] = p_noise
+
+            # Two-sample t-test: pFC vs permute
+            t_permute, p_permute = ttest_ind(acc_pfc, acc_permute)
+            results['p_values_permute'][i] = p_permute
+
+            print(f"  n={n}: pFC={results['pFC']['mean'][i]*100:.1f}%, "
+                  f"Noise={results['Null (noise)']['mean'][i]*100:.1f}%, "
+                  f"Permute={results['Null (permute)']['mean'][i]*100:.1f}%")
+
+        # FDR correction using Benjamini-Hochberg
+        adjusted_p_noise = false_discovery_control(results['p_values_noise'], method='bh')
+        adjusted_p_permute = false_discovery_control(results['p_values_permute'], method='bh')
+        results['significant_noise'] = adjusted_p_noise < fdr_alpha
+        results['significant_permute'] = adjusted_p_permute < fdr_alpha
+
+        # Plot
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+
+        # Colors
+        color_pfc = '#CC6666'  # red
+        color_noise = '#6699CC'  # blue  
+        color_permute = '#333333'  # black
+
+        # Plot only the 3 main lines (no std bands)
+        ax.plot(sample_sizes, results['pFC']['mean'] * 100, '-', color=color_pfc, 
+                linewidth=2, label='pFC')
+        ax.plot(sample_sizes, results['Null (noise)']['mean'] * 100, '-', color=color_noise,
+                linewidth=2, label='Null (noise)')
+        ax.plot(sample_sizes, results['Null (permute)']['mean'] * 100, '-', color=color_permute,
+                linewidth=2, label='Null (permute)')
+
+        ax.set_xlabel('Number of Individuals', fontsize=14)
+        ax.set_ylabel('% Individuals Correctly Matched', fontsize=14)
+        ax.set_xlim(n_min - 0.5, n_max + 0.5)
+        ax.set_ylim(0, None)
+
+        # Set x-axis ticks at the specified interval
+        ax.set_xticks(sample_sizes)
+        ax.set_xticklabels(sample_sizes)
+
+        # Add significance markers above x-axis tick labels
+        y_min, y_max = ax.get_ylim()
+        for i, n in enumerate(sample_sizes):
+            # Plot asterisk only if significant for BOTH nulls
+            if results['significant_permute'][i] and results['significant_noise'][i]:
+                ax.text(n, y_min+0.05, '*', ha='center', va='top', fontsize=12, 
+                        fontweight='bold', transform=ax.get_xaxis_transform())
+
+        # Build legend, clarifying the meaning of *
+        from matplotlib.lines import Line2D
+        handles, labels = ax.get_legend_handles_labels()
+        asterisk_patch = Line2D([0], [0], color='none', marker='*', markersize=12, 
+                                markerfacecolor='k', label="Significant (p < {:.3g}) vs both nulls".format(fdr_alpha))
+        handles.append(asterisk_patch)
+        ax.legend(handles=handles, fontsize=12, loc='upper right')
+
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        demean_str = " (demeaned)" if demeaned else ""
+        ax.set_title(f'Hungarian Matching Accuracy vs Subsetted Sample Size{demean_str}', fontsize=14)
+
+        plt.tight_layout()
+        plt.show()
+
+        # Print summary
+        print(f"\nFDR-corrected significance (alpha={fdr_alpha}):")
+        print(f"  pFC vs Null (permute): {np.sum(results['significant_permute'])}/{n_sizes} sample sizes significant")
+        print(f"  pFC vs Null (noise): {np.sum(results['significant_noise'])}/{n_sizes} sample sizes significant")
+        # return results
 
     def get_pca_objects(self):
         """
