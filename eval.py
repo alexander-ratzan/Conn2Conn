@@ -94,8 +94,9 @@ class Evaluator:
         
         # PCA objects (computed lazily when evaluate_pca_structure is called)
         self._pca_preds = None
-        self._pca_targets = None
+        self._pca_targets = None    
     
+
     def _compute_metrics(self):
         """Compute all evaluation metrics."""
         metrics = {}
@@ -1563,3 +1564,192 @@ class Evaluator:
             img = img.resize((width, height), Image.Resampling.LANCZOS)
         
         return img
+
+    def visualize_individual_prediction(self, idx=None, subject_id=None, scale='self', 
+                                         dpi=150, figsize=(15, 10), show=True):
+        """
+        Visualize the prediction for a single subject with comparison to ground truth.
+        
+        Shows two rows of plots:
+        - Row 1 (Original): True matrix, Predicted matrix, Scatter plot with regression line
+        - Row 2 (Demeaned): Same plots but with training mean subtracted
+        
+        Args:
+            idx: int, optional. Index into preds/targets arrays (position in partition).
+                 Must be < number of subjects in this partition.
+            subject_id: str or int, optional. Subject ID as defined in partition_ids.
+                        The position of the ID in partition_ids equals the idx.
+            scale: str, colorbar scaling mode (default 'self'):
+                - 'self': Each matrix uses its own colorbar range
+                - 'true': Both true and predicted matrices use the true target's range
+            dpi: int, figure resolution (default 150)
+            figsize: tuple, figure size (default (15, 10))
+            show: bool, whether to display the plot (default True)
+        
+        Returns:
+            tuple: (fig, metrics_dict) where metrics includes Pearson correlations for
+                   both original and demeaned comparisons
+        
+        Note:
+            Exactly one of idx or subject_id must be provided.
+        """
+        # Validate inputs
+        if idx is None and subject_id is None:
+            raise ValueError("Must provide either idx or subject_id")
+        if idx is not None and subject_id is not None:
+            raise ValueError("Provide only one of idx or subject_id, not both")
+        
+        n_subjects = self.preds.shape[0]
+        partition_ids = self.dataset_partition.ids
+        
+        # Resolve idx and subject_id
+        if subject_id is not None:
+            # Convert to string if int for matching
+            subject_id_str = str(subject_id)
+            if subject_id_str not in partition_ids:
+                raise ValueError(f"subject_id '{subject_id}' not found in partition. "
+                                f"Available IDs: {partition_ids[:5]}... (showing first 5)")
+            idx = partition_ids.index(subject_id_str)
+        else:
+            if idx < 0 or idx >= n_subjects:
+                raise ValueError(f"idx must be in range [0, {n_subjects}), got {idx}")
+            subject_id = partition_ids[idx]
+        
+        # Get prediction and target for this subject
+        y_true = self.targets[idx]
+        y_pred = self.preds[idx]
+        
+        # Compute demeaned versions
+        y_true_demeaned = y_true - self.train_mean
+        y_pred_demeaned = y_pred - self.train_mean
+        
+        # Compute number of ROIs and convert to square matrices
+        n_edges = y_true.size
+        n_roi = int((1 + np.sqrt(1 + 8 * n_edges)) / 2)
+        
+        mat_true = tri2square(y_true, numroi=n_roi)
+        mat_pred = tri2square(y_pred, numroi=n_roi)
+        mat_true_dm = tri2square(y_true_demeaned, numroi=n_roi)
+        mat_pred_dm = tri2square(y_pred_demeaned, numroi=n_roi)
+        
+        # Look up subject metadata
+        metadata_df = self.dataset.metadata_df
+        subj_meta = metadata_df[metadata_df['subject'] == int(subject_id)]
+        
+        if len(subj_meta) == 0:
+            # Try string match
+            subj_meta = metadata_df[metadata_df['subject'].astype(str) == str(subject_id)]
+        
+        # Format metadata string
+        if len(subj_meta) > 0:
+            row = subj_meta.iloc[0]
+            meta_str = (
+                f"Subject: {subject_id}  |  "
+                f"Age: {row.get('age', 'N/A')}  |  "
+                f"Sex: {row.get('sex', 'N/A')}  |  "
+                f"Race/Ethnicity: {row.get('Race_Ethnicity', 'N/A')}  |  "
+                f"Family: {row.get('Family_Relation', 'N/A')}"
+            )
+        else:
+            meta_str = f"Subject: {subject_id}  |  (Metadata not found)"
+        
+        # Compute Pearson correlations
+        r_orig, _ = pearsonr(y_true, y_pred)
+        r_demeaned, _ = pearsonr(y_true_demeaned, y_pred_demeaned)
+        
+        # Create figure
+        fig, axes = plt.subplots(2, 3, figsize=figsize, dpi=dpi)
+        
+        # Add metadata as super title
+        fig.suptitle(meta_str, fontsize=FONT_CONFIG['title'], fontweight='bold', y=0.98)
+        
+        # Dynamic colorbar scaling
+        vmax_true = np.abs(mat_true).max()
+        vmax_pred = np.abs(mat_pred).max()
+        vmax_true_dm = np.abs(mat_true_dm).max()
+        vmax_pred_dm = np.abs(mat_pred_dm).max()
+        
+        # Apply scaling mode
+        if scale == 'self':
+            # Each matrix uses its own colorbar range (do nothing)
+            pass
+        elif scale == 'true':
+            # Use true target's range for both matrices
+            vmax_pred = vmax_true
+            vmax_pred_dm = vmax_true_dm
+        else:
+            raise ValueError(f"scale must be 'self' or 'true', got '{scale}'")
+        
+        # ========== Row 0: Original ==========
+        # True matrix
+        im00 = axes[0, 0].imshow(mat_true, aspect='equal', cmap='RdBu_r', vmin=-vmax_true, vmax=vmax_true)
+        axes[0, 0].set_title(f"True Target", fontsize=FONT_CONFIG['title'])
+        cbar00 = fig.colorbar(im00, ax=axes[0, 0], orientation='vertical', fraction=0.046, pad=0.04)
+        cbar00.ax.tick_params(labelsize=FONT_CONFIG['tick'] - 2)
+        axes[0, 0].set_xticks([])
+        axes[0, 0].set_yticks([])
+        
+        # Predicted matrix
+        im01 = axes[0, 1].imshow(mat_pred, aspect='equal', cmap='RdBu_r', vmin=-vmax_pred, vmax=vmax_pred)
+        axes[0, 1].set_title(f"Predicted Target", fontsize=FONT_CONFIG['title'])
+        cbar01 = fig.colorbar(im01, ax=axes[0, 1], orientation='vertical', fraction=0.046, pad=0.04)
+        cbar01.ax.tick_params(labelsize=FONT_CONFIG['tick'] - 2)
+        axes[0, 1].set_xticks([])
+        axes[0, 1].set_yticks([])
+        
+        # Scatter plot with regression
+        axes[0, 2].scatter(y_true, y_pred, alpha=0.3, s=5, c='steelblue')
+        # Regression line
+        z = np.polyfit(y_true, y_pred, 1)
+        p = np.poly1d(z)
+        x_line = np.linspace(y_true.min(), y_true.max(), 100)
+        axes[0, 2].plot(x_line, p(x_line), 'r-', linewidth=2, label=f'r = {r_orig:.3f}')
+        axes[0, 2].set_xlabel('True', fontsize=FONT_CONFIG['label'])
+        axes[0, 2].set_ylabel('Predicted', fontsize=FONT_CONFIG['label'])
+        axes[0, 2].set_title(f'True vs Predicted (Original)', fontsize=FONT_CONFIG['title'])
+        axes[0, 2].legend(loc='upper left', fontsize=FONT_CONFIG['legend'])
+        axes[0, 2].tick_params(labelsize=FONT_CONFIG['tick'] - 2)
+        
+        # ========== Row 1: Demeaned ==========
+        # True matrix (demeaned)
+        im10 = axes[1, 0].imshow(mat_true_dm, aspect='equal', cmap='RdBu_r', vmin=-vmax_true_dm, vmax=vmax_true_dm)
+        axes[1, 0].set_title(f"True Target (demeaned)", fontsize=FONT_CONFIG['title'])
+        cbar10 = fig.colorbar(im10, ax=axes[1, 0], orientation='vertical', fraction=0.046, pad=0.04)
+        cbar10.ax.tick_params(labelsize=FONT_CONFIG['tick'] - 2)
+        axes[1, 0].set_xticks([])
+        axes[1, 0].set_yticks([])
+        
+        # Predicted matrix (demeaned)
+        im11 = axes[1, 1].imshow(mat_pred_dm, aspect='equal', cmap='RdBu_r', vmin=-vmax_pred_dm, vmax=vmax_pred_dm)
+        axes[1, 1].set_title(f"Predicted Target (demeaned)", fontsize=FONT_CONFIG['title'])
+        cbar11 = fig.colorbar(im11, ax=axes[1, 1], orientation='vertical', fraction=0.046, pad=0.04)
+        cbar11.ax.tick_params(labelsize=FONT_CONFIG['tick'] - 2)
+        axes[1, 1].set_xticks([])
+        axes[1, 1].set_yticks([])
+        
+        # Scatter plot with regression (demeaned)
+        axes[1, 2].scatter(y_true_demeaned, y_pred_demeaned, alpha=0.3, s=5, c='steelblue')
+        # Regression line
+        z_dm = np.polyfit(y_true_demeaned, y_pred_demeaned, 1)
+        p_dm = np.poly1d(z_dm)
+        x_line_dm = np.linspace(y_true_demeaned.min(), y_true_demeaned.max(), 100)
+        axes[1, 2].plot(x_line_dm, p_dm(x_line_dm), 'r-', linewidth=2, label=f'r = {r_demeaned:.3f}')
+        axes[1, 2].set_xlabel('True (demeaned)', fontsize=FONT_CONFIG['label'])
+        axes[1, 2].set_ylabel('Predicted (demeaned)', fontsize=FONT_CONFIG['label'])
+        axes[1, 2].set_title(f'True vs Predicted (Demeaned)', fontsize=FONT_CONFIG['title'])
+        axes[1, 2].legend(loc='upper left', fontsize=FONT_CONFIG['legend'])
+        axes[1, 2].tick_params(labelsize=FONT_CONFIG['tick'] - 2)
+        
+        plt.tight_layout(rect=[0, 0, 1, 0.96])
+        
+        metrics = {
+            'subject_id': subject_id,
+            'idx': idx,
+            'pearson_original': float(r_orig),
+            'pearson_demeaned': float(r_demeaned),
+        }
+        
+        if show:
+            plt.show()
+        
+        return fig, metrics

@@ -72,10 +72,17 @@ class HCP_Base():
         self.sc_upper_triangles = self.sc_upper_triangles[canonical_sc_indices]
         self.sc_r2t_matrices = self.sc_r2t_matrices[canonical_sc_indices]
 
+
         self.trainvaltest_partition_indices = {
             "train": self.subject_indices_from_id(self.all_subject_ids, self.metadata_df[self.metadata_df["train_val_test"] == "train"]["subject"].tolist()),
             "val": self.subject_indices_from_id(self.all_subject_ids, self.metadata_df[self.metadata_df["train_val_test"] == "val"]["subject"].tolist()),
             "test": self.subject_indices_from_id(self.all_subject_ids, self.metadata_df[self.metadata_df["train_val_test"] == "test"]["subject"].tolist()),
+        }
+
+        self.trainvaltest_partition_ids = {
+            "train": self.metadata_df[self.metadata_df["train_val_test"] == "train"]["subject"].tolist(),
+            "val": self.metadata_df[self.metadata_df["train_val_test"] == "val"]["subject"].tolist(),
+            "test": self.metadata_df[self.metadata_df["train_val_test"] == "test"]["subject"].tolist(),
         }
         
         # Compute mean and PCA for training subjects for FC and SC
@@ -95,8 +102,10 @@ class HCP_Partition(Dataset):
         """
         self.base = base
         self.partition = partition
-        self.indices = base.trainvaltest_partition_indices[partition] # idx list like: [2, 4, 15, 19, 21, 24...]
-        
+        self.indices = base.trainvaltest_partition_indices[partition] # global idx list like: [2, 4, 15, 19, 21, 24...]
+        self.ids = base.trainvaltest_partition_ids[partition] # id list like: ["100206", "100207", "100208", "100209", "100210", "100211"]
+        self.ids_to_indices = dict  (zip(self.ids, self.indices))
+
         self.source = base.source
         self.target = base.target
 

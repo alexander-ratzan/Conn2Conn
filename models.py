@@ -11,6 +11,7 @@ GNN
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import r2_score, mean_squared_error
+from sklearn.cross_decomposition import PLSRegression
 from scipy.stats import pearsonr, spearmanr
 from sklearn.decomposition import PCA
 from scipy import stats
@@ -117,6 +118,113 @@ class CrossModalPCA(nn.Module):
         self.source_loadings_k = self.source_loadings_k.to(*args, **kwargs)
         self.target_loadings_k = self.target_loadings_k.to(*args, **kwargs)
         return self
+
+class CrossModal_PCA_PLS(nn.Module):
+    """
+    Cross-modal PCA model implemented in PyTorch.
+    Given a base data object (which provides population mean and loadings for each modality), 
+    it projects from source modality into source PCA space, truncates to num_components, 
+    the PCA is learned between the PCA of the source and target modalities,
+    then reconstructs (inverse transforms) via the target modality's PCA.
+
+    # example: X @ B_sc = C ← PLS regression → C_hat @ B_fc^T = X_hat 
+
+    Typical intended use is for source and target in {'SC', 'FC'}.
+
+    Args:
+        base: Dataset base object (e.g., HCP_Base) providing PCA means/loadings for both modalities on train partition.
+        num_components: Number of components to use (int).
+        source: 'SC' or 'FC' (modality for input)
+        target: 'SC' or 'FC' (modality for output)
+    """
+    def __init__(self, base, n_components_pca=32, n_components_pls=4, device=None):
+        super().__init__()
+        self.base = base
+        self.n_components_pca = n_components_pca
+        self.n_components_pls = n_components_pls
+
+        if device is None:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = device
+
+        # Select appropriate means, loadings, and scores for source and target
+        if base.source == "SC":
+            self.source_mean = torch.tensor(base.sc_train_avg, dtype=torch.float32, device=self.device)
+            self.source_loadings = torch.tensor(base.sc_train_loadings, dtype=torch.float32, device=self.device)
+            self.source_scores = torch.tensor(base.sc_train_scores, dtype=torch.float32, device=self.device)  # shape: (n_train, n_components_sc)
+        elif base.source == "FC":
+            self.source_mean = torch.tensor(base.fc_train_avg, dtype=torch.float32, device=self.device)
+            self.source_loadings = torch.tensor(base.fc_train_loadings, dtype=torch.float32, device=self.device)
+            self.source_scores = torch.tensor(base.fc_train_scores, dtype=torch.float32, device=self.device)  # shape: (n_train, n_components_fc)
+
+        if base.target == "SC":
+            self.target_mean = torch.tensor(base.sc_train_avg, dtype=torch.float32, device=self.device)
+            self.target_loadings = torch.tensor(base.sc_train_loadings, dtype=torch.float32, device=self.device)
+            self.target_scores = torch.tensor(base.sc_train_scores, dtype=torch.float32, device=self.device)  # shape: (n_train, n_components_sc)
+        elif base.target == "FC":
+            self.target_mean = torch.tensor(base.fc_train_avg, dtype=torch.float32, device=self.device)
+            self.target_loadings = torch.tensor(base.fc_train_loadings, dtype=torch.float32, device=self.device)
+            self.target_scores = torch.tensor(base.fc_train_scores, dtype=torch.float32, device=self.device)  # shape: (n_train, n_components_fc)
+
+        # --- Fit PLS model on the training data's PCA scores ---
+        # Only use first n_components_pca components for PLS (np->cpu for sklearn)
+        X_pls = self.source_scores[:, :self.n_components_pca].cpu().numpy()
+        Y_pls = self.target_scores[:, :self.n_components_pca].cpu().numpy()
+
+        self.pls_pca_fusion_model = PLSRegression(n_components=self.n_components_pls)
+        self.pls_pca_fusion_model.fit(X_pls, Y_pls)
+        print("PLS model fit score: ", self.pls_pca_fusion_model.score(X_pls, Y_pls))
+
+        print(f"PCA source scores shape: {self.source_scores.shape}")
+        print("PLS source scores shape: ", self.pls_pca_fusion_model.x_scores_.shape)
+        print("PLS target scores shape: ", self.pls_pca_fusion_model.y_scores_.shape)
+        print(f"PCA target scores shape: {self.target_scores.shape}")
+        
+        # Only keep first k components, and explicitly ensure float32 dtype to avoid matmul dtype mismatch
+        self.register_buffer('source_loadings_k', self.source_loadings[:, :self.n_components_pca].to(torch.float32))
+        self.register_buffer('target_loadings_k', self.target_loadings[:, :self.n_components_pca].to(torch.float32))
+        self.register_buffer('source_mean_', self.source_mean.to(torch.float32))
+        self.register_buffer('target_mean_', self.target_mean.to(torch.float32))
+
+        # https://github.com/scikit-learn/scikit-learn/blob/98ed9dc73/sklearn/cross_decomposition/_pls.py#L564
+        self.register_buffer('x_rotations_', torch.tensor(self.pls_pca_fusion_model.x_rotations_, dtype=torch.float32, device=self.device))
+
+    def forward(self, x):
+        """
+        Args:
+            x (torch.Tensor(batch_size, d)): source modality tensor.
+
+        Returns:
+            y_hat (torch.Tensor(batch_size, d)): predicted target modality.
+        """
+        x = x.to(self.device).to(torch.float32)
+
+        # 1. Center input
+        x_centered = x - self.source_mean_
+
+        # 2. Project into truncated source PCA space (batch @ (d, k)) => (batch, k)
+        z = torch.matmul(x_centered, self.source_loadings_k)
+
+        # 3. Run through learned PLS model in PCA space to get y_hat_pca
+        #    - Switch to cpu and numpy for sklearn
+        z_np = z.detach().cpu().numpy()
+        y_hat_pca_np = self.pls_pca_fusion_model.predict(z_np)
+
+        # 4. Convert PLS output back to torch and move to device
+        y_hat_pca = torch.tensor(y_hat_pca_np, dtype=torch.float32, device=self.device)
+
+        # 5. Reconstruct with target PCA (inverse transform): (batch, k) @ (k, d) => (batch, d)
+        y_hat = torch.matmul(y_hat_pca, self.target_loadings_k.t()) + self.target_mean_
+        return y_hat
+
+    def to(self, *args, **kwargs): # for device mismatch issues
+        super().to(*args, **kwargs)
+        self.source_mean_ = self.source_mean_.to(*args, **kwargs)
+        self.target_mean_ = self.target_mean_.to(*args, **kwargs)
+        self.source_loadings_k = self.source_loadings_k.to(*args, **kwargs)
+        self.target_loadings_k = self.target_loadings_k.to(*args, **kwargs)
+        return self
+
 
 
 def run_pca_and_plot(X_train, X_val=None, X_test=None, 
