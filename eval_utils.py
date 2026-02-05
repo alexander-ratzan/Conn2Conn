@@ -149,8 +149,13 @@ def compute_identifiability(preds, targets, return_full=False):
     """
     Compute identifiability statistics using one-sample t-test.
     
-    Tests whether each subject's predicted FC is more similar to their own 
-    empirical FC than to other subjects' empirical FCs.
+    Exact translation of Sarwar et al. MATLAB code:
+        r_matrix = corr(efc', preds')  % N x N correlation matrix
+        r_intra = diag(r_matrix)       % intraindividual: corr(targets[i], preds[i])
+        r_inter(i) = mean(r_matrix(i, [1:i-1, i+1:N]))  % interindividual
+    
+    Tests whether each subject's target (empirical FC) is more similar to their own 
+    prediction than to other subjects' predictions.
     
     Args:
         preds: np.ndarray (N x M), predicted connectomes (N subjects, M edges)
@@ -159,7 +164,7 @@ def compute_identifiability(preds, targets, return_full=False):
     
     Returns:
         dict with:
-            - r_matrix: (N x N) correlation matrix between preds and targets
+            - r_matrix: (N x N) correlation matrix, r_matrix[i,j] = corr(targets[i], preds[j])
             - r_intra: (N,) intraindividual correlations (diagonal)
             - r_inter: (N,) mean interindividual correlations per subject
             - d: (N,) per-subject differences d_i = r_intra(i) - r_inter(i)
@@ -178,12 +183,16 @@ def compute_identifiability(preds, targets, return_full=False):
     n_subjects = preds_np.shape[0]
     
     # Step 1: Compute similarity matrix (N x N)
-    r_matrix = compute_corr_matrix(preds_np, targets_np)
+    # IMPORTANT: Order is (targets, preds) to match paper's corr(efc', preds')
+    # r_matrix[i,j] = corr(targets[i], preds[j])
+    r_matrix = compute_corr_matrix(targets_np, preds_np)
     
     # Step 2: Extract intra- and inter-individual similarities
-    r_intra = np.diag(r_matrix)  # r[i,i] for each subject
+    # r_intra[i] = r_matrix[i,i] = corr(targets[i], preds[i])
+    r_intra = np.diag(r_matrix)
     
-    # r_inter(i) = mean of r[i,j] for j != i
+    # r_inter[i] = mean of r_matrix[i,j] for j != i
+    # "How well does subject i's target correlate with OTHER subjects' predictions?"
     r_inter = np.zeros(n_subjects)
     for i in range(n_subjects):
         mask = np.ones(n_subjects, dtype=bool)
@@ -238,22 +247,24 @@ def generate_mean_baseline(train_mean, n_subjects):
     return np.tile(train_mean_np, (n_subjects, 1))
 
 
-def generate_noise_baseline(train_mean, train_std, n_subjects, noise_scale=1.0, seed=None):
+def generate_noise_baseline(train_mean, train_std, n_subjects, seed=None):
     """
     Generate mean eFC + independent Gaussian noise baseline.
     
-    For each subject, prediction = train_mean + epsilon where epsilon is 
-    i.i.d. Gaussian noise per edge.
+    Exact translation of Sarwar et al. MATLAB code:
+        null = repmat(std(efc), N, 1) .* randn(N, J) + mean_efc
+    
+    For each subject i, each edge j:
+        null[i,j] = train_mean[j] + train_std[j] * randn()
     
     Args:
         train_mean: np.ndarray (M,), mean connectome from training set
-        train_std: np.ndarray (M,) or float, edgewise std from training set
-        n_subjects: int, number of subjects
-        noise_scale: float, multiplier for noise (sigma = noise_scale * train_std)
+        train_std: np.ndarray (M,), edgewise std across subjects from training set
+        n_subjects: int, number of subjects (N)
         seed: int, random seed for reproducibility
     
     Returns:
-        np.ndarray (n_subjects x M), mean + noise predictions
+        np.ndarray (n_subjects x M), null predictions with noise
     """
     train_mean_np = train_mean.detach().cpu().numpy() if isinstance(train_mean, torch.Tensor) else np.asarray(train_mean)
     train_std_np = train_std.detach().cpu().numpy() if isinstance(train_std, torch.Tensor) else np.asarray(train_std)
@@ -261,23 +272,13 @@ def generate_noise_baseline(train_mean, train_std, n_subjects, noise_scale=1.0, 
     rng = np.random.default_rng(seed)
     n_edges = train_mean_np.shape[0]
     
-    # Generate independent noise for each subject and edge
-    train_min = np.min(train_mean_np)
-    train_max = np.max(train_mean_np)
-    mean_std = np.mean(train_std_np)
-    tol = mean_std
-
-    # Add i.i.d. random Gaussian noise on a per edge basis
-    noise = rng.normal(0, 1, size=(n_subjects, n_edges))
-    noise = noise * (noise_scale * train_std_np)
-    noised_preds = np.tile(train_mean_np, (n_subjects, 1)) + noise
-
-    # Clip to reasonable range based on training mean and std
-    clip_min = train_min - tol
-    clip_max = train_max + tol
-    noised_preds = np.clip(noised_preds, clip_min, clip_max)
+    # Exact translation: std(efc) .* randn(N, J) + mean_efc
+    # randn generates standard normal (mean=0, std=1)
+    # Then scale by train_std per edge and add mean
+    noise = rng.standard_normal(size=(n_subjects, n_edges)) * train_std_np
+    null_preds = train_mean_np + noise
     
-    return noised_preds
+    return null_preds
 
 
 def hungarian_matching(similarity_matrix):

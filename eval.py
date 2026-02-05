@@ -4,7 +4,7 @@ from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 from sklearn.metrics import r2_score, mean_squared_error
 from scipy.stats import pearsonr, spearmanr, ttest_1samp, ttest_ind, false_discovery_control
-from scipy.optimize import linear_sum_assignment
+from scipy.optimize import linear_sum_assignment, curve_fit
 import torch
 import torch.nn as nn
 from sklearn.decomposition import PCA
@@ -202,6 +202,30 @@ class Evaluator:
         # Correlation line plot for the first num_pcs
         fig_line = plt.figure(figsize=(8, 4))
         plt.plot(np.arange(1, num_pcs+1), pc_corrs, marker='o', color='b', label='PC score corr (targets, preds)')
+        
+        # Fit exponential decay curve: r(k) = a * exp(-b * k) + c
+        def exp_decay(x, a, b, c):
+            return a * np.exp(-b * x) + c
+        
+        exp_fit_params = None
+        try:
+            x_data = np.arange(1, num_pcs+1)
+            y_data = np.array(pc_corrs)
+            # Filter out NaN values for fitting
+            valid_mask = ~np.isnan(y_data)
+            if np.sum(valid_mask) > 3:  # Need at least 3 points
+                popt, _ = curve_fit(exp_decay, x_data[valid_mask], y_data[valid_mask], 
+                                   p0=[0.5, 0.05, 0.0], maxfev=5000,
+                                   bounds=([0, 0, -1], [2, 1, 1]))
+                exp_fit_params = {'a': popt[0], 'b': popt[1], 'c': popt[2]}
+                # Plot smooth exponential curve
+                x_smooth = np.linspace(1, num_pcs, 200)
+                y_smooth = exp_decay(x_smooth, *popt)
+                plt.plot(x_smooth, y_smooth, '-', color='lightblue', alpha=0.8, linewidth=2,
+                        label=f'Exp. fit: {popt[0]:.2f}·exp(-{popt[1]:.3f}·k) + {popt[2]:.2f}')
+        except Exception:
+            pass  # Skip if fitting fails
+        
         plt.xlabel("Principal Component", fontsize=FONT_CONFIG['label'])
         plt.ylabel("Correlation between scores", fontsize=FONT_CONFIG['label'])
         plt.title(f"Correlation between Predicted & Target PC Scores (First {num_pcs} PCs)", fontsize=FONT_CONFIG['title'])
@@ -230,6 +254,7 @@ class Evaluator:
             'explained_variance_ratio': explained_var_targets[:num_pcs].tolist(),
             'cumulative_variance': cum_var[:num_pcs].tolist(),
             'cutoff_idx_95': int(cutoff_idx),
+            'exp_fit_params': exp_fit_params,
         }
         
         for i in range(show_first_pcs):
@@ -658,7 +683,7 @@ class Evaluator:
         return compute_identifiability(preds_data, targets_data)
 
     def plot_identifiability_violin(self, include_mean_baseline=True, include_noise_baseline=True,
-                                     noise_scale=1.0, demeaned=False, seed=42,
+                                     demeaned=False, seed=42,
                                      p_threshold=0.001, dpi=150, figsize=(8, 6), show=True):
         """
         Plot identifiability violin plot comparing intraindividual vs interindividual correlations.
@@ -671,7 +696,6 @@ class Evaluator:
         Args:
             include_mean_baseline: bool, include mean eFC baseline condition
             include_noise_baseline: bool, include mean eFC + noise baseline
-            noise_scale: float, noise scale relative to training std
             demeaned: bool, whether to demean data (if True, mean baseline is excluded)
             seed: int, random seed for noise baseline
             p_threshold: float, p-value threshold for significance annotation (default 0.001)
@@ -714,13 +738,18 @@ class Evaluator:
             results['Mean eFC'] = mean_stats
             conditions.append('Mean eFC')
             r_intra_all.append(mean_stats['r_intra'])
+             # technically these are the exact same
+             # if the null test is that every prediction is truly the population mean
             r_inter_all.append(mean_stats['r_inter'])
             stats_all.append(mean_stats)
         
         # 3. Noise baseline
         if include_noise_baseline:
             noise_preds = generate_noise_baseline(self.train_mean, self.train_std, n_subjects, 
-                                                   noise_scale=noise_scale, seed=seed)
+                                                   seed=seed)
+            
+            print('returned noise_preds', noise_preds)
+            
             if demeaned:
                 noise_preds = noise_preds - self.train_mean
             noise_stats = compute_identifiability(noise_preds, targets_data)
@@ -831,7 +860,7 @@ class Evaluator:
         return fig, results
 
     def plot_hungarian_heatmaps(self, include_noise_baseline=True, include_permute_baseline=True,
-                                 noise_scale=1.0, demeaned=False, seed=42,
+                                 demeaned=False, seed=42,
                                  dpi=150, figsize=(15, 5), show=True):
         """
         Plot Hungarian matching heatmaps comparing pFC, noised null, and permuted null.
@@ -842,7 +871,6 @@ class Evaluator:
         Args:
             include_noise_baseline: bool, include noised baseline
             include_permute_baseline: bool, include permuted baseline
-            noise_scale: float, noise scale for null baseline
             demeaned: bool, whether to demean data
             seed: int, random seed
             dpi: int, figure resolution
@@ -880,7 +908,7 @@ class Evaluator:
         # 2. Noised baseline
         if include_noise_baseline:
             noise_preds = generate_noise_baseline(self.train_mean, self.train_std, n_subjects,
-                                                   noise_scale=noise_scale, seed=seed)
+                                                   seed=seed)
             if demeaned:
                 noise_preds = noise_preds - self.train_mean
             sim_noise = compute_corr_matrix(targets_data, noise_preds)
@@ -942,7 +970,7 @@ class Evaluator:
         return fig, results
 
     def plot_hungarian_sample_size_analysis(self, n_min=2, n_max=20, step=1, n_iterations=2500,
-                                             noise_scale=1.0, demeaned=False, 
+                                             demeaned=False, 
                                              fdr_alpha=0.05, seed=42,
                                              dpi=150, figsize=(10, 6), show=True):
         """
@@ -957,7 +985,6 @@ class Evaluator:
             n_max: int, maximum sample size (default 20)
             step: int, step size between sample sizes (default 1)
             n_iterations: int, number of iterations per sample size (M, default 2500)
-            noise_scale: float, noise scale for null baseline
             demeaned: bool, whether to demean data
             fdr_alpha: float, FDR threshold (default 0.05)
             seed: int, random seed
@@ -985,7 +1012,7 @@ class Evaluator:
 
         # Noised baseline
         noise_preds = generate_noise_baseline(self.train_mean, self.train_std, n_subjects,
-                                               noise_scale=noise_scale, seed=seed)
+                                               seed=seed)
         if demeaned:
             noise_preds = noise_preds - self.train_mean
         sim_noise = compute_corr_matrix(targets_data, noise_preds)
@@ -1250,7 +1277,7 @@ class Evaluator:
             # Non-demeaned violin
             fig_vio_raw, metrics_vio_raw = self.plot_identifiability_violin(
                 include_mean_baseline=True, include_noise_baseline=True,
-                noise_scale=1.0, demeaned=False, p_threshold=0.05,
+                demeaned=False, p_threshold=0.05,
                 dpi=150, figsize=(7, 5), show=show_inline
             )
             all_metrics['violin_raw'] = self._extract_violin_metrics(metrics_vio_raw)
@@ -1263,7 +1290,7 @@ class Evaluator:
         # Demeaned violin (always)
         fig_vio_dm, metrics_vio_dm = self.plot_identifiability_violin(
             include_mean_baseline=True, include_noise_baseline=True,
-            noise_scale=1.0, demeaned=True, p_threshold=0.05,
+            demeaned=True, p_threshold=0.05,
             dpi=150, figsize=(7, 5), show=show_inline
         )
         all_metrics['violin_demeaned'] = self._extract_violin_metrics(metrics_vio_dm)
@@ -1656,9 +1683,16 @@ class Evaluator:
         Args:
             figures_dict: dict mapping figure names to matplotlib figure objects
             all_metrics: dict with all computed metrics
-            filepath: base path for output (without extension)
+            filepath: base path for output (without extension, must end in _results)
             verbose: bool, whether verbose mode is enabled
         """
+        # Extract model type from filepath (assumes filepath ends with _results)
+        filepath_base = os.path.basename(filepath)
+        if filepath_base.endswith('_results'):
+            model_type = filepath_base[:-8]  # Remove '_results' suffix
+        else:
+            model_type = filepath_base
+        
         # Create plots directory
         plots_dir = f"{filepath}_plots"
         os.makedirs(plots_dir, exist_ok=True)
@@ -1679,7 +1713,8 @@ class Evaluator:
         # Header
         md_lines.append("# FC Prediction Evaluation Report")
         md_lines.append("")
-        md_lines.append(f"**Partition:** {all_metrics.get('partition', 'N/A')} | "
+        md_lines.append(f"**Model:** {model_type} | "
+                       f"**Partition:** {all_metrics.get('partition', 'N/A')} | "
                        f"**N subjects:** {all_metrics.get('n_subjects', 'N/A')} | "
                        f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}")
         md_lines.append("")
@@ -1694,14 +1729,21 @@ class Evaluator:
         md_lines.append("Pairwise correlation matrices between predicted and target connectomes. "
                        "Diagonal dominance indicates subject-specific predictions.")
         md_lines.append("")
+        md_lines.append("**Top-1 Accuracy:** Fraction of subjects whose own prediction is the best match.")
+        md_lines.append("")
         md_lines.append(r"$$\text{Top-1 Acc} = \frac{1}{N}\sum_{i=1}^{N} \mathbb{1}[\arg\max_j \, r(\hat{y}_i, y_j) = i]$$")
+        md_lines.append("")
+        md_lines.append("**Avg Rank %ile:** For each subject, count how many other subjects' predictions have lower correlation with their target than their own prediction does.")
+        md_lines.append("")
+        md_lines.append(r"$$\text{avgrank} = \frac{1}{N}\sum_{s=1}^{N}\left(\frac{1}{N}\sum_{a \neq s}^{N} \mathbb{1}[r(X_s, \hat{X}_a) < r(X_s, \hat{X}_s)]\right)$$")
         md_lines.append("")
         
         if verbose and 'identifiability_heatmaps' in saved_figures:
-            md_lines.append("| Raw | Demeaned |")
-            md_lines.append("|:---:|:---:|")
-            md_lines.append(f"| ![]({saved_figures.get('identifiability_heatmaps', '')}) | "
-                           f"![]({saved_figures.get('identifiability_heatmaps_demeaned', '')}) |")
+            # Use HTML table for consistent sizing
+            md_lines.append('<table><tr>')
+            md_lines.append(f'<td align="center"><b>Raw</b><br/><img src="{saved_figures.get("identifiability_heatmaps", "")}" width="450"/></td>')
+            md_lines.append(f'<td align="center"><b>Demeaned</b><br/><img src="{saved_figures.get("identifiability_heatmaps_demeaned", "")}" width="450"/></td>')
+            md_lines.append('</tr></table>')
         else:
             if 'identifiability_heatmaps_demeaned' in saved_figures:
                 md_lines.append(f"![]({saved_figures['identifiability_heatmaps_demeaned']})")
@@ -1714,14 +1756,14 @@ class Evaluator:
             raw = all_metrics.get('heatmaps_raw', {})
             dem = all_metrics.get('heatmaps_demeaned', {})
             md_lines.append(f"| Mean Corr | {raw.get('mean_corr', '-'):.3f} | {dem.get('mean_corr', '-'):.3f} |")
-            md_lines.append(f"| Top-1 Accuracy | {raw.get('top1_acc', '-'):.3f} | {dem.get('top1_acc', '-'):.3f} |")
+            md_lines.append(f"| Top-1 Acc | {raw.get('top1_acc', '-'):.3f} | {dem.get('top1_acc', '-'):.3f} |")
             md_lines.append(f"| Avg Rank %ile | {raw.get('avg_rank_percentile', '-'):.3f} | {dem.get('avg_rank_percentile', '-'):.3f} |")
         elif 'heatmaps_demeaned' in all_metrics:
             dem = all_metrics.get('heatmaps_demeaned', {})
             md_lines.append("| Metric | Value |")
             md_lines.append("|--------|-------|")
             md_lines.append(f"| Mean Corr | {dem.get('mean_corr', '-'):.3f} |")
-            md_lines.append(f"| Top-1 Accuracy | {dem.get('top1_acc', '-'):.3f} |")
+            md_lines.append(f"| Top-1 Acc | {dem.get('top1_acc', '-'):.3f} |")
             md_lines.append(f"| Avg Rank %ile | {dem.get('avg_rank_percentile', '-'):.3f} |")
         md_lines.append("")
         md_lines.append("---")
@@ -1733,16 +1775,20 @@ class Evaluator:
         md_lines.append("## Identifiability Violin")
         md_lines.append("")
         md_lines.append("Tests whether intraindividual correlations (subject's prediction vs their own target) "
-                       "exceed interindividual correlations (vs other subjects' targets).")
+                       "exceed interindividual correlations (vs other subjects' targets) using a **one-sample t-test**.")
         md_lines.append("")
-        md_lines.append(r"$$H_0: \frac{1}{N}\sum_i (r_{intra}(i) - r_{inter}(i)) = 0$$")
+        md_lines.append("For each subject $i$, compute $d_i = r_{intra}(i) - r_{inter}(i)$, then test:")
+        md_lines.append("")
+        md_lines.append(r"$$H_0: \frac{1}{N}\sum_i d_i = 0 \quad \text{(one-sample t-test)}$$")
+        md_lines.append("")
+        md_lines.append("Significance ($*$) indicates the model captures individual-specific features beyond group average.")
         md_lines.append("")
         
         if verbose and 'identifiability_violin' in saved_figures:
-            md_lines.append("| Raw | Demeaned |")
-            md_lines.append("|:---:|:---:|")
-            md_lines.append(f"| ![]({saved_figures.get('identifiability_violin', '')}) | "
-                           f"![]({saved_figures.get('identifiability_violin_demeaned', '')}) |")
+            md_lines.append('<table><tr>')
+            md_lines.append(f'<td align="center"><b>Raw</b><br/><img src="{saved_figures.get("identifiability_violin", "")}" width="400"/></td>')
+            md_lines.append(f'<td align="center"><b>Demeaned</b><br/><img src="{saved_figures.get("identifiability_violin_demeaned", "")}" width="400"/></td>')
+            md_lines.append('</tr></table>')
         else:
             if 'identifiability_violin_demeaned' in saved_figures:
                 md_lines.append(f"![]({saved_figures['identifiability_violin_demeaned']})")
@@ -1757,7 +1803,7 @@ class Evaluator:
             md_lines.append(f"| pFC r_intra | {raw.get('pfc_mean_r_intra', '-'):.3f} | {dem.get('pfc_mean_r_intra', '-'):.3f} |")
             md_lines.append(f"| pFC r_inter | {raw.get('pfc_mean_r_inter', '-'):.3f} | {dem.get('pfc_mean_r_inter', '-'):.3f} |")
             md_lines.append(f"| pFC Cohen's d | {raw.get('pfc_cohen_d', '-'):.2f} | {dem.get('pfc_cohen_d', '-'):.2f} |")
-            md_lines.append(f"| pFC p-value | {raw.get('pfc_p_value', '-'):.2e} | {dem.get('pfc_p_value', '-'):.2e} |")
+            md_lines.append(f"| pFC p-value (t-test) | {raw.get('pfc_p_value', '-'):.2e} | {dem.get('pfc_p_value', '-'):.2e} |")
         elif 'violin_demeaned' in all_metrics:
             dem = all_metrics.get('violin_demeaned', {})
             md_lines.append("| Metric | Value |")
@@ -1765,7 +1811,7 @@ class Evaluator:
             md_lines.append(f"| pFC r_intra | {dem.get('pfc_mean_r_intra', '-'):.3f} |")
             md_lines.append(f"| pFC r_inter | {dem.get('pfc_mean_r_inter', '-'):.3f} |")
             md_lines.append(f"| pFC Cohen's d | {dem.get('pfc_cohen_d', '-'):.2f} |")
-            md_lines.append(f"| pFC p-value | {dem.get('pfc_p_value', '-'):.2e} |")
+            md_lines.append(f"| pFC p-value (t-test) | {dem.get('pfc_p_value', '-'):.2e} |")
         md_lines.append("")
         md_lines.append("---")
         md_lines.append("")
@@ -1776,23 +1822,34 @@ class Evaluator:
         if verbose:
             md_lines.append("## Hungarian Matching")
             md_lines.append("")
-            md_lines.append("Optimal 1-to-1 assignment between predictions and targets that maximizes total similarity. "
-                           "Black dots show the optimal assignment; accuracy measures diagonal matches.")
+            md_lines.append("The Hungarian algorithm derives an optimal **one-to-one** mapping between target (eFC) and predicted (pFC) matrices "
+                           "that maximizes total similarity. Unlike greedy matching (which permits one-to-many assignments), "
+                           "Hungarian matching ensures each prediction is assigned to exactly one target.")
             md_lines.append("")
-            md_lines.append(r"$$\max_{\pi \in S_N} \sum_{i=1}^{N} r(\hat{y}_i, y_{\pi(i)})$$")
+            md_lines.append("**Procedure:**")
+            md_lines.append("1. Compute similarity matrix $R_{ij} = r(X_i, \\hat{X}_j)$ between all target-prediction pairs")
+            md_lines.append("2. Find permutation $\\pi^*$ that maximizes total similarity:")
+            md_lines.append("")
+            md_lines.append(r"$$\pi^* = \arg\max_{\pi \in S_N} \sum_{i=1}^{N} R_{i,\pi(i)}$$")
+            md_lines.append("")
+            md_lines.append("3. **Top-1 Acc** = fraction of subjects assigned to themselves: $\\frac{1}{N}\\sum_i \\mathbb{1}[\\pi^*(i) = i]$")
+            md_lines.append("")
+            md_lines.append("**Null conditions:**")
+            md_lines.append("- **Null (noise):** Predictions replaced with mean + Gaussian noise")
+            md_lines.append("- **Null (permute):** Columns of similarity matrix randomly permuted (chance baseline)")
             md_lines.append("")
             
             if 'hungarian_heatmaps' in saved_figures:
-                md_lines.append("| Raw | Demeaned |")
-                md_lines.append("|:---:|:---:|")
-                md_lines.append(f"| ![]({saved_figures.get('hungarian_heatmaps', '')}) | "
-                               f"![]({saved_figures.get('hungarian_heatmaps_demeaned', '')}) |")
+                md_lines.append('<table><tr>')
+                md_lines.append(f'<td align="center"><b>Raw</b><br/><img src="{saved_figures.get("hungarian_heatmaps", "")}" width="500"/></td>')
+                md_lines.append(f'<td align="center"><b>Demeaned</b><br/><img src="{saved_figures.get("hungarian_heatmaps_demeaned", "")}" width="500"/></td>')
+                md_lines.append('</tr></table>')
             md_lines.append("")
             
             # Metrics table
             if 'hungarian_raw' in all_metrics:
-                md_lines.append("| Condition | Raw Accuracy | Demeaned Accuracy |")
-                md_lines.append("|-----------|--------------|-------------------|")
+                md_lines.append("| Condition | Raw Top-1 Acc | Demeaned Top-1 Acc |")
+                md_lines.append("|-----------|---------------|---------------------|")
                 raw = all_metrics.get('hungarian_raw', {})
                 dem = all_metrics.get('hungarian_demeaned', {})
                 md_lines.append(f"| pFC | {raw.get('pfc_accuracy', '-'):.3f} | {dem.get('pfc_accuracy', '-'):.3f} |")
@@ -1808,14 +1865,14 @@ class Evaluator:
             md_lines.append("## Hungarian Sample Size Analysis")
             md_lines.append("")
             md_lines.append("Matching accuracy as a function of subset sample size. "
-                           "Stars indicate sample sizes where pFC significantly exceeds both null baselines (FDR-corrected).")
+                           "Stars indicate sample sizes where pFC significantly exceeds both null baselines (FDR-corrected, two-sample t-test).")
             md_lines.append("")
             
             if 'hungarian_sample_size' in saved_figures:
-                md_lines.append("| Raw | Demeaned |")
-                md_lines.append("|:---:|:---:|")
-                md_lines.append(f"| ![]({saved_figures.get('hungarian_sample_size', '')}) | "
-                               f"![]({saved_figures.get('hungarian_sample_size_demeaned', '')}) |")
+                md_lines.append('<table><tr>')
+                md_lines.append(f'<td align="center"><b>Raw</b><br/><img src="{saved_figures.get("hungarian_sample_size", "")}" width="450"/></td>')
+                md_lines.append(f'<td align="center"><b>Demeaned</b><br/><img src="{saved_figures.get("hungarian_sample_size_demeaned", "")}" width="450"/></td>')
+                md_lines.append('</tr></table>')
             md_lines.append("")
             md_lines.append("---")
             md_lines.append("")
@@ -1825,10 +1882,17 @@ class Evaluator:
         # ========================================================================
         md_lines.append("## PCA Structure")
         md_lines.append("")
-        md_lines.append("Correlation between predicted and target PC scores in subject-mode PCA. "
-                       "High correlations indicate preserved modes of inter-subject variation.")
+        md_lines.append("Subject-mode PCA captures the main modes of inter-subject variation in connectivity. "
+                       "High PC score correlations indicate the model preserves individual differences along each mode.")
         md_lines.append("")
-        md_lines.append(r"$$\text{PC Corr}_k = \text{corr}(C^{pred}_k, C^{target}_k)$$")
+        md_lines.append("**Procedure:**")
+        md_lines.append("1. Mean-center data: $\\tilde{X} = X - \\bar{X}_{train}$ where $X \\in \\mathbb{R}^{N \\times E}$ (subjects $\\times$ edges)")
+        md_lines.append("2. Transpose for subject-mode PCA: $\\tilde{X}^T \\in \\mathbb{R}^{E \\times N}$")
+        md_lines.append("3. Compute eigenvectors $B_k$ (loadings) and project: $C_k = \\tilde{X}^T B_k$ (PC scores, length $E$)")
+        md_lines.append("4. Project predictions into same basis: $C^{pred}_k = \\tilde{\\hat{X}}^T B_k$")
+        md_lines.append("5. Correlate scores: $\\text{PC Corr}_k = r(C^{target}_k, C^{pred}_k)$")
+        md_lines.append("")
+        md_lines.append(r"$$\text{PC Corr}_k = \text{corr}(C^{target}_k, C^{pred}_k)$$")
         md_lines.append("")
         
         if 'pca_line' in saved_figures:
@@ -1850,6 +1914,55 @@ class Evaluator:
                 md_lines.append(f"| PC1 Corr | {pca['pc_corrs'][0]:.3f} |")
                 if len(pca['pc_corrs']) > 4:
                     md_lines.append(f"| PC5 Corr | {pca['pc_corrs'][4]:.3f} |")
+            if pca.get('exp_fit_params'):
+                exp = pca['exp_fit_params']
+                md_lines.append(f"| Exp. decay rate (b) | {exp.get('b', '-'):.4f} |")
+        md_lines.append("")
+        md_lines.append("---")
+        md_lines.append("")
+        
+        # ========================================================================
+        # Section 6: Summary Metrics Table
+        # ========================================================================
+        md_lines.append("## Summary Metrics")
+        md_lines.append("")
+        md_lines.append("| Category | Metric | Value |")
+        md_lines.append("|----------|--------|-------|")
+        
+        # Base metrics
+        base = all_metrics.get('base_metrics', {})
+        md_lines.append(f"| Base | MSE | {base.get('mse', '-'):.4f} |")
+        md_lines.append(f"| Base | R² | {base.get('r2', '-'):.4f} |")
+        md_lines.append(f"| Base | Pearson Corr | {base.get('pearson', '-'):.4f} |")
+        md_lines.append(f"| Base | Demeaned Pearson | {base.get('demeaned_pearson', '-'):.4f} |")
+        
+        # Identifiability (raw)
+        raw_hm = all_metrics.get('heatmaps_raw', all_metrics.get('heatmaps_demeaned', {}))
+        md_lines.append(f"| Identifiability | Top-1 Acc | {raw_hm.get('top1_acc', '-'):.3f} |")
+        md_lines.append(f"| Identifiability | Avg Rank %ile | {raw_hm.get('avg_rank_percentile', '-'):.3f} |")
+        
+        # Violin (raw)
+        raw_vio = all_metrics.get('violin_raw', all_metrics.get('violin_demeaned', {}))
+        md_lines.append(f"| Violin | Cohen's d | {raw_vio.get('pfc_cohen_d', '-'):.2f} |")
+        md_lines.append(f"| Violin | p-value | {raw_vio.get('pfc_p_value', '-'):.2e} |")
+        
+        # Hungarian (if verbose, raw)
+        if verbose and ('hungarian_raw' in all_metrics or 'hungarian_demeaned' in all_metrics):
+            raw_hung = all_metrics.get('hungarian_raw', all_metrics.get('hungarian_demeaned', {}))
+            md_lines.append(f"| Hungarian | pFC Top-1 Acc | {raw_hung.get('pfc_accuracy', '-'):.3f} |")
+        
+        # PCA
+        if 'pca' in all_metrics:
+            pca = all_metrics['pca']
+            if 'pc_corrs' in pca and len(pca['pc_corrs']) >= 5:
+                pc_str = ", ".join([f"{pca['pc_corrs'][i]:.3f}" for i in range(5)])
+                md_lines.append(f"| PCA | PC1-5 Corr | {pc_str} |")
+            elif 'pc_corrs' in pca and len(pca['pc_corrs']) > 0:
+                pc_str = ", ".join([f"{c:.3f}" for c in pca['pc_corrs'][:5]])
+                md_lines.append(f"| PCA | PC Corrs | {pc_str} |")
+            if pca.get('exp_fit_params'):
+                md_lines.append(f"| PCA | Exp. decay rate (b) | {pca['exp_fit_params'].get('b', '-'):.4f} |")
+        
         md_lines.append("")
         
         # ========================================================================
