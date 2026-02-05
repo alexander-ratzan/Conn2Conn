@@ -12,6 +12,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.lines import Line2D
 from matplotlib.gridspec import GridSpec
 import io
+import os
+from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 import warnings
 
@@ -1152,18 +1154,21 @@ class Evaluator:
                     print(f"{pretty_names.get(key, key):25s}: {val}")
         print("=" * 50)
 
-    def analyze_results(self, verbose=False, filepath=None):
+    def analyze_results(self, verbose=False, filepath=None, output_format='md'):
         """
         Main analysis function to generate a comprehensive prediction analysis report.
         
-        Organizes plots into a report either at a filepath (.jpg) or displays inline in notebook.
+        Organizes plots into a report either at a filepath or displays inline in notebook.
         Stores all analysis metrics in a comprehensive dict for wandb tracking.
         
         Args:
             verbose: bool, if True shows both demeaned and non-demeaned results plus Hungarian plots.
                      If False (default), shows only demeaned results without Hungarian plots.
-            filepath: str or None, if specified saves report as .jpg at this path.
+            filepath: str or None, if specified saves report to this path (without extension).
                       If None, displays plots inline in notebook.
+            output_format: str, output format when filepath is specified:
+                      - 'md' (default): Markdown file with separate PNG figures in {filepath}_plots/
+                      - 'jpg': Single combined JPEG image (legacy behavior)
         
         Returns:
             dict: Comprehensive metrics dictionary containing all analysis results,
@@ -1193,8 +1198,9 @@ class Evaluator:
         show_inline = not save_to_file
         
         # Collect all figures for report generation
-        figures_to_combine = []
-        figure_labels = []
+        figures_to_combine = []  # For JPEG output (legacy)
+        figure_labels = []       # For JPEG output (legacy)
+        figures_dict = {}        # For Markdown output (new)
         
         # ========================================================================
         # Analysis 1: Identifiability Heatmaps
@@ -1213,6 +1219,7 @@ class Evaluator:
                 all_metrics['heatmaps_raw']['ranklist'] = all_metrics['heatmaps_raw']['ranklist'].tolist()
             
             if save_to_file:
+                figures_dict['identifiability_heatmaps'] = fig_hm_raw
                 figures_to_combine.append(('side_by_side', [fig_hm_raw, None]))
                 figure_labels.append('Identifiability Heatmaps')
         
@@ -1229,6 +1236,7 @@ class Evaluator:
             all_metrics['heatmaps_demeaned']['ranklist'] = all_metrics['heatmaps_demeaned']['ranklist'].tolist()
         
         if save_to_file:
+            figures_dict['identifiability_heatmaps_demeaned'] = fig_hm_dm
             if verbose:
                 figures_to_combine[-1] = ('side_by_side', [fig_hm_raw, fig_hm_dm])
             else:
@@ -1248,6 +1256,7 @@ class Evaluator:
             all_metrics['violin_raw'] = self._extract_violin_metrics(metrics_vio_raw)
             
             if save_to_file:
+                figures_dict['identifiability_violin'] = fig_vio_raw
                 figures_to_combine.append(('side_by_side', [fig_vio_raw, None]))
                 figure_labels.append('Identifiability Violin')
         
@@ -1260,6 +1269,7 @@ class Evaluator:
         all_metrics['violin_demeaned'] = self._extract_violin_metrics(metrics_vio_dm)
         
         if save_to_file:
+            figures_dict['identifiability_violin_demeaned'] = fig_vio_dm
             if verbose:
                 figures_to_combine[-1] = ('side_by_side', [fig_vio_raw, fig_vio_dm])
             else:
@@ -1283,6 +1293,8 @@ class Evaluator:
             all_metrics['hungarian_demeaned'] = self._extract_hungarian_metrics(metrics_hung_dm)
             
             if save_to_file:
+                figures_dict['hungarian_heatmaps'] = fig_hung_raw
+                figures_dict['hungarian_heatmaps_demeaned'] = fig_hung_dm
                 figures_to_combine.append(('stacked', [fig_hung_raw, fig_hung_dm]))
                 figure_labels.append('Hungarian Matching')
             
@@ -1300,6 +1312,8 @@ class Evaluator:
             all_metrics['hungarian_sample_size_demeaned'] = self._extract_sample_size_metrics(metrics_ss_dm)
             
             if save_to_file:
+                figures_dict['hungarian_sample_size'] = fig_ss_raw
+                figures_dict['hungarian_sample_size_demeaned'] = fig_ss_dm
                 figures_to_combine.append(('side_by_side', [fig_ss_raw, fig_ss_dm]))
                 figure_labels.append('Hungarian Sample Size Analysis')
         
@@ -1313,23 +1327,30 @@ class Evaluator:
                               for k, v in metrics_pca.items()}
         
         if save_to_file:
+            figures_dict['pca_line'] = fig_pca_line
+            figures_dict['pca_spatial'] = fig_pca_grid
             figures_to_combine.append(('side_by_side', [fig_pca_line, fig_pca_grid]))
             figure_labels.append('PCA Structure')
         
         # ========================================================================
-        # Generate combined report if filepath specified
+        # Generate report if filepath specified
         # ========================================================================
         if save_to_file:
-            self._generate_report(figures_to_combine, figure_labels, filepath)
-            # Close all figures to free memory
-            for item in figures_to_combine:
-                layout_type, figs = item
-                if layout_type == 'single':
-                    plt.close(figs)
-                else:
-                    for f in figs:
-                        if f is not None:
-                            plt.close(f)
+            if output_format == 'md':
+                # New markdown output
+                self._generate_markdown_report(figures_dict, all_metrics, filepath, verbose=verbose)
+            else:
+                # Legacy JPEG output
+                self._generate_report(figures_to_combine, figure_labels, filepath)
+                # Close all figures to free memory
+                for item in figures_to_combine:
+                    layout_type, figs = item
+                    if layout_type == 'single':
+                        plt.close(figs)
+                    else:
+                        for f in figs:
+                            if f is not None:
+                                plt.close(f)
         
         # Store metrics as instance attribute
         self.analysis_metrics = all_metrics
@@ -1564,6 +1585,282 @@ class Evaluator:
             img = img.resize((width, height), Image.Resampling.LANCZOS)
         
         return img
+
+    def _format_metrics_table(self, metrics_dict, columns, headers=None):
+        """
+        Format metrics as a markdown table.
+        
+        Args:
+            metrics_dict: dict with metric values
+            columns: list of column keys to include
+            headers: optional list of header names (defaults to column keys)
+        
+        Returns:
+            str: markdown table string
+        """
+        if headers is None:
+            headers = columns
+        
+        # Build header row
+        header_row = "| Metric | " + " | ".join(headers) + " |"
+        separator = "|--------|" + "|".join(["-------"] * len(columns)) + "|"
+        
+        # Build data rows
+        rows = [header_row, separator]
+        
+        # Define metric display names
+        metric_names = {
+            'mean_corr': 'Mean Corr',
+            'top1_acc': 'Top-1 Accuracy',
+            'avg_rank_percentile': 'Avg Rank %ile',
+            'pfc_mean_r_intra': 'pFC r_intra',
+            'pfc_mean_r_inter': 'pFC r_inter',
+            'pfc_cohen_d': 'pFC Cohen\'s d',
+            'pfc_p_value': 'pFC p-value',
+            'null_mean_r_intra': 'Null r_intra',
+            'null_mean_r_inter': 'Null r_inter',
+            'pfc_accuracy': 'pFC Accuracy',
+            'null_noise_accuracy': 'Null (noise) Accuracy',
+            'null_permute_accuracy': 'Null (permute) Accuracy',
+        }
+        
+        # Collect all unique metrics across columns
+        all_metrics = set()
+        for col in columns:
+            if col in metrics_dict and isinstance(metrics_dict[col], dict):
+                all_metrics.update(metrics_dict[col].keys())
+        
+        # Filter to common important metrics
+        important_metrics = ['mean_corr', 'top1_acc', 'avg_rank_percentile']
+        
+        for metric in important_metrics:
+            if any(metric in metrics_dict.get(col, {}) for col in columns if isinstance(metrics_dict.get(col), dict)):
+                display_name = metric_names.get(metric, metric)
+                values = []
+                for col in columns:
+                    if col in metrics_dict and isinstance(metrics_dict[col], dict):
+                        val = metrics_dict[col].get(metric, '-')
+                        if isinstance(val, float):
+                            val = f"{val:.3f}"
+                        values.append(str(val))
+                    else:
+                        values.append('-')
+                rows.append(f"| {display_name} | " + " | ".join(values) + " |")
+        
+        return "\n".join(rows)
+
+    def _generate_markdown_report(self, figures_dict, all_metrics, filepath, verbose=False):
+        """
+        Generate a Markdown report with embedded PNG figures.
+        
+        Args:
+            figures_dict: dict mapping figure names to matplotlib figure objects
+            all_metrics: dict with all computed metrics
+            filepath: base path for output (without extension)
+            verbose: bool, whether verbose mode is enabled
+        """
+        # Create plots directory
+        plots_dir = f"{filepath}_plots"
+        os.makedirs(plots_dir, exist_ok=True)
+        plots_dirname = os.path.basename(plots_dir)
+        
+        # Save all figures as PNGs
+        saved_figures = {}
+        for name, fig in figures_dict.items():
+            if fig is not None:
+                fig_path = os.path.join(plots_dir, f"{name}.png")
+                fig.savefig(fig_path, dpi=150, bbox_inches='tight', facecolor='white', edgecolor='none')
+                saved_figures[name] = f"{plots_dirname}/{name}.png"
+                plt.close(fig)
+        
+        # Build markdown content
+        md_lines = []
+        
+        # Header
+        md_lines.append("# FC Prediction Evaluation Report")
+        md_lines.append("")
+        md_lines.append(f"**Partition:** {all_metrics.get('partition', 'N/A')} | "
+                       f"**N subjects:** {all_metrics.get('n_subjects', 'N/A')} | "
+                       f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        md_lines.append("")
+        md_lines.append("---")
+        md_lines.append("")
+        
+        # ========================================================================
+        # Section 1: Identifiability Heatmaps
+        # ========================================================================
+        md_lines.append("## Identifiability Heatmaps")
+        md_lines.append("")
+        md_lines.append("Pairwise correlation matrices between predicted and target connectomes. "
+                       "Diagonal dominance indicates subject-specific predictions.")
+        md_lines.append("")
+        md_lines.append(r"$$\text{Top-1 Acc} = \frac{1}{N}\sum_{i=1}^{N} \mathbb{1}[\arg\max_j \, r(\hat{y}_i, y_j) = i]$$")
+        md_lines.append("")
+        
+        if verbose and 'identifiability_heatmaps' in saved_figures:
+            md_lines.append("| Raw | Demeaned |")
+            md_lines.append("|:---:|:---:|")
+            md_lines.append(f"| ![]({saved_figures.get('identifiability_heatmaps', '')}) | "
+                           f"![]({saved_figures.get('identifiability_heatmaps_demeaned', '')}) |")
+        else:
+            if 'identifiability_heatmaps_demeaned' in saved_figures:
+                md_lines.append(f"![]({saved_figures['identifiability_heatmaps_demeaned']})")
+        md_lines.append("")
+        
+        # Metrics table for heatmaps
+        if verbose and 'heatmaps_raw' in all_metrics:
+            md_lines.append("| Metric | Raw | Demeaned |")
+            md_lines.append("|--------|-----|----------|")
+            raw = all_metrics.get('heatmaps_raw', {})
+            dem = all_metrics.get('heatmaps_demeaned', {})
+            md_lines.append(f"| Mean Corr | {raw.get('mean_corr', '-'):.3f} | {dem.get('mean_corr', '-'):.3f} |")
+            md_lines.append(f"| Top-1 Accuracy | {raw.get('top1_acc', '-'):.3f} | {dem.get('top1_acc', '-'):.3f} |")
+            md_lines.append(f"| Avg Rank %ile | {raw.get('avg_rank_percentile', '-'):.3f} | {dem.get('avg_rank_percentile', '-'):.3f} |")
+        elif 'heatmaps_demeaned' in all_metrics:
+            dem = all_metrics.get('heatmaps_demeaned', {})
+            md_lines.append("| Metric | Value |")
+            md_lines.append("|--------|-------|")
+            md_lines.append(f"| Mean Corr | {dem.get('mean_corr', '-'):.3f} |")
+            md_lines.append(f"| Top-1 Accuracy | {dem.get('top1_acc', '-'):.3f} |")
+            md_lines.append(f"| Avg Rank %ile | {dem.get('avg_rank_percentile', '-'):.3f} |")
+        md_lines.append("")
+        md_lines.append("---")
+        md_lines.append("")
+        
+        # ========================================================================
+        # Section 2: Identifiability Violin
+        # ========================================================================
+        md_lines.append("## Identifiability Violin")
+        md_lines.append("")
+        md_lines.append("Tests whether intraindividual correlations (subject's prediction vs their own target) "
+                       "exceed interindividual correlations (vs other subjects' targets).")
+        md_lines.append("")
+        md_lines.append(r"$$H_0: \frac{1}{N}\sum_i (r_{intra}(i) - r_{inter}(i)) = 0$$")
+        md_lines.append("")
+        
+        if verbose and 'identifiability_violin' in saved_figures:
+            md_lines.append("| Raw | Demeaned |")
+            md_lines.append("|:---:|:---:|")
+            md_lines.append(f"| ![]({saved_figures.get('identifiability_violin', '')}) | "
+                           f"![]({saved_figures.get('identifiability_violin_demeaned', '')}) |")
+        else:
+            if 'identifiability_violin_demeaned' in saved_figures:
+                md_lines.append(f"![]({saved_figures['identifiability_violin_demeaned']})")
+        md_lines.append("")
+        
+        # Metrics table for violin
+        if verbose and 'violin_raw' in all_metrics:
+            md_lines.append("| Metric | Raw | Demeaned |")
+            md_lines.append("|--------|-----|----------|")
+            raw = all_metrics.get('violin_raw', {})
+            dem = all_metrics.get('violin_demeaned', {})
+            md_lines.append(f"| pFC r_intra | {raw.get('pfc_mean_r_intra', '-'):.3f} | {dem.get('pfc_mean_r_intra', '-'):.3f} |")
+            md_lines.append(f"| pFC r_inter | {raw.get('pfc_mean_r_inter', '-'):.3f} | {dem.get('pfc_mean_r_inter', '-'):.3f} |")
+            md_lines.append(f"| pFC Cohen's d | {raw.get('pfc_cohen_d', '-'):.2f} | {dem.get('pfc_cohen_d', '-'):.2f} |")
+            md_lines.append(f"| pFC p-value | {raw.get('pfc_p_value', '-'):.2e} | {dem.get('pfc_p_value', '-'):.2e} |")
+        elif 'violin_demeaned' in all_metrics:
+            dem = all_metrics.get('violin_demeaned', {})
+            md_lines.append("| Metric | Value |")
+            md_lines.append("|--------|-------|")
+            md_lines.append(f"| pFC r_intra | {dem.get('pfc_mean_r_intra', '-'):.3f} |")
+            md_lines.append(f"| pFC r_inter | {dem.get('pfc_mean_r_inter', '-'):.3f} |")
+            md_lines.append(f"| pFC Cohen's d | {dem.get('pfc_cohen_d', '-'):.2f} |")
+            md_lines.append(f"| pFC p-value | {dem.get('pfc_p_value', '-'):.2e} |")
+        md_lines.append("")
+        md_lines.append("---")
+        md_lines.append("")
+        
+        # ========================================================================
+        # Section 3: Hungarian Matching (verbose only)
+        # ========================================================================
+        if verbose:
+            md_lines.append("## Hungarian Matching")
+            md_lines.append("")
+            md_lines.append("Optimal 1-to-1 assignment between predictions and targets that maximizes total similarity. "
+                           "Black dots show the optimal assignment; accuracy measures diagonal matches.")
+            md_lines.append("")
+            md_lines.append(r"$$\max_{\pi \in S_N} \sum_{i=1}^{N} r(\hat{y}_i, y_{\pi(i)})$$")
+            md_lines.append("")
+            
+            if 'hungarian_heatmaps' in saved_figures:
+                md_lines.append("| Raw | Demeaned |")
+                md_lines.append("|:---:|:---:|")
+                md_lines.append(f"| ![]({saved_figures.get('hungarian_heatmaps', '')}) | "
+                               f"![]({saved_figures.get('hungarian_heatmaps_demeaned', '')}) |")
+            md_lines.append("")
+            
+            # Metrics table
+            if 'hungarian_raw' in all_metrics:
+                md_lines.append("| Condition | Raw Accuracy | Demeaned Accuracy |")
+                md_lines.append("|-----------|--------------|-------------------|")
+                raw = all_metrics.get('hungarian_raw', {})
+                dem = all_metrics.get('hungarian_demeaned', {})
+                md_lines.append(f"| pFC | {raw.get('pfc_accuracy', '-'):.3f} | {dem.get('pfc_accuracy', '-'):.3f} |")
+                md_lines.append(f"| Null (noise) | {raw.get('null_noise_accuracy', '-'):.3f} | {dem.get('null_noise_accuracy', '-'):.3f} |")
+                md_lines.append(f"| Null (permute) | {raw.get('null_permute_accuracy', '-'):.3f} | {dem.get('null_permute_accuracy', '-'):.3f} |")
+            md_lines.append("")
+            md_lines.append("---")
+            md_lines.append("")
+            
+            # ========================================================================
+            # Section 4: Hungarian Sample Size Analysis (verbose only)
+            # ========================================================================
+            md_lines.append("## Hungarian Sample Size Analysis")
+            md_lines.append("")
+            md_lines.append("Matching accuracy as a function of subset sample size. "
+                           "Stars indicate sample sizes where pFC significantly exceeds both null baselines (FDR-corrected).")
+            md_lines.append("")
+            
+            if 'hungarian_sample_size' in saved_figures:
+                md_lines.append("| Raw | Demeaned |")
+                md_lines.append("|:---:|:---:|")
+                md_lines.append(f"| ![]({saved_figures.get('hungarian_sample_size', '')}) | "
+                               f"![]({saved_figures.get('hungarian_sample_size_demeaned', '')}) |")
+            md_lines.append("")
+            md_lines.append("---")
+            md_lines.append("")
+        
+        # ========================================================================
+        # Section 5: PCA Structure
+        # ========================================================================
+        md_lines.append("## PCA Structure")
+        md_lines.append("")
+        md_lines.append("Correlation between predicted and target PC scores in subject-mode PCA. "
+                       "High correlations indicate preserved modes of inter-subject variation.")
+        md_lines.append("")
+        md_lines.append(r"$$\text{PC Corr}_k = \text{corr}(C^{pred}_k, C^{target}_k)$$")
+        md_lines.append("")
+        
+        if 'pca_line' in saved_figures:
+            md_lines.append(f"![]({saved_figures['pca_line']})")
+            md_lines.append("")
+        
+        if 'pca_spatial' in saved_figures:
+            md_lines.append(f"![]({saved_figures['pca_spatial']})")
+            md_lines.append("")
+        
+        # PCA metrics
+        if 'pca' in all_metrics:
+            pca = all_metrics['pca']
+            md_lines.append("| Metric | Value |")
+            md_lines.append("|--------|-------|")
+            if 'cutoff_idx_95' in pca:
+                md_lines.append(f"| PCs for 95% variance | {pca['cutoff_idx_95'] + 1} |")
+            if 'pc_corrs' in pca and len(pca['pc_corrs']) > 0:
+                md_lines.append(f"| PC1 Corr | {pca['pc_corrs'][0]:.3f} |")
+                if len(pca['pc_corrs']) > 4:
+                    md_lines.append(f"| PC5 Corr | {pca['pc_corrs'][4]:.3f} |")
+        md_lines.append("")
+        
+        # ========================================================================
+        # Write markdown file
+        # ========================================================================
+        md_path = f"{filepath}.md"
+        with open(md_path, 'w') as f:
+            f.write("\n".join(md_lines))
+        
+        print(f"Markdown report saved to: {md_path}")
+        print(f"Figures saved to: {plots_dir}/")
 
     def visualize_individual_prediction(self, idx=None, subject_id=None, scale='self', 
                                          dpi=150, figsize=(15, 10), show=True):
