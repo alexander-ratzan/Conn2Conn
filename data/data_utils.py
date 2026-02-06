@@ -2,6 +2,7 @@ import os
 import random
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import Dataset
 import scipy.io
@@ -65,6 +66,111 @@ def tri2square(Ctri, tri_indices=None, numroi=None, k=1, diagval=0):
     C[tri_indices]=Ctri
     C[tri_indices[1],tri_indices[0]]=Ctri
     return C
+
+def visualize_connectome(
+    HCP_Dataset, 
+    modality='FC', 
+    subj_idx=None, 
+    subject_id=None, 
+    cmap_dict=None,
+    global_fontsize=16,
+    tick_interval=50
+):
+    """
+    Visualize connectivity matrix (FC, SC, or SC_r2t_corr) from HCP_Dataset.
+
+    Args:
+        HCP_Dataset: dataset object with .fc_matrices, .sc_matrices, .sc_r2t_corr_matrices, and .metadata_df['subject']
+        modality: 'FC', 'SC', or 'SC_r2t_corr'
+        subj_idx: integer index (if not provided, resolved from subject_id)
+        subject_id: string subject id (if provided, used to resolve index)
+        cmap_dict: optional mapping for modality to colormap, e.g. {'FC': 'RdBu_r'}
+        global_fontsize: base font size
+        tick_interval: interval between axis ticks (default 50). The last ROI index is only
+            shown if it falls exactly on the interval (e.g., 100 ROIs with interval 50 shows 0, 50, 100).
+    """
+
+    # Default colormaps
+    if cmap_dict is None:
+        cmap_dict = {'FC': 'RdBu_r', 'SC': 'viridis', 'SC_r2t_corr': 'viridis'}
+
+    # Resolve subject index if only subject ID is provided
+    if subj_idx is None and subject_id is not None:
+        meta = HCP_Dataset.metadata_df
+        try:
+            subj_idx = int(meta.index[meta['subject'] == subject_id][0])
+        except Exception:
+            raise ValueError(f"subject_id {subject_id} not found in HCP_Dataset.metadata_df")
+    elif subj_idx is None:
+        raise ValueError("Must provide either subj_idx or subject_id.")
+
+    if modality.upper() == 'FC':
+        mat = HCP_Dataset.fc_matrices[subj_idx]
+        cmap = cmap_dict.get('FC', 'RdBu_r')
+        vmin = -np.abs(mat).max()
+        vmax =  np.abs(mat).max()
+    elif modality.upper() == 'SC':
+        mat = HCP_Dataset.sc_matrices[subj_idx]
+        cmap = cmap_dict.get('SC', 'viridis')
+        vmin = None
+        vmax = None
+    elif modality.upper() in ('SC_R2T', 'SC_R2T_CORR', 'SC_R2T_CORR_MAT', 'SC_R2T_CORR_MATRIX'):
+        # Accept a few aliases in case
+        mat = HCP_Dataset.sc_r2t_corr_matrices[subj_idx]
+        cmap = cmap_dict.get('SC_r2t_corr', 'viridis')
+        vmin = None
+        vmax = None
+    else:
+        raise ValueError(f"Unknown modality: {modality}")
+
+    nroi = mat.shape[0]
+    title_id = HCP_Dataset.metadata_df['subject'][subj_idx] if hasattr(HCP_Dataset.metadata_df, 'subject') else subj_idx
+
+    # Make more readable cbar ticks (every 0.2, or 0.25, or a few at start/mid/end if auto)
+    def _get_cbar_ticks(vmin, vmax, nmax=6):
+        if vmin is not None and vmax is not None:
+            ticks = np.linspace(vmin, vmax, nmax)
+            return np.round(ticks, 2)
+        else:
+            return None
+
+    plt.figure(figsize=(7,6), dpi=300)  # Increased dpi for higher quality
+    kwargs = {'aspect': 'equal', 'cmap': cmap}
+    if vmin is not None and vmax is not None:
+        kwargs['vmin'] = vmin
+        kwargs['vmax'] = vmax
+    im = plt.imshow(mat, **kwargs)
+    # Choose plot-specific title
+    mod_titles = {
+        'FC': f"FC for subject {subj_idx}: id {title_id}",
+        'SC': f"SC for subject {subj_idx}: id {title_id}",
+        'SC_r2t_corr': f"SC r2t corr mat for subject {subj_idx}: id {title_id}"
+    }
+    shortkey = modality.upper() if modality.upper() != 'SC_R2T_CORR' else 'SC_r2t_corr'
+    plt.title(
+        mod_titles.get(shortkey, f"{modality} for subject {subj_idx}: id {title_id}"),
+        fontsize=global_fontsize + 2,
+        pad=15
+    )
+    # Colorbar
+    cbar = plt.colorbar(im, fraction=0.046, pad=0.04)
+    # Adjust cbar ticks to less-frequent
+    if vmin is not None and vmax is not None:
+        ticks = _get_cbar_ticks(vmin, vmax)
+        
+        cbar.set_ticks(ticks)
+    cbar.ax.tick_params(labelsize=global_fontsize - 2)
+    # Axis ticks at specified interval
+    ticks = np.arange(0, nroi, tick_interval)
+    plt.xticks(ticks, fontsize=global_fontsize - 2)
+    plt.yticks(ticks, fontsize=global_fontsize - 2)
+    plt.xlabel('ROI', fontsize=global_fontsize, labelpad=10)
+    plt.ylabel('ROI', fontsize=global_fontsize, labelpad=10)
+    plt.tight_layout(pad=3)
+    plt.show()
+
+
+
 
 def _load_single_fc_file(args):
     """Helper function to load a single FC file - designed for parallel execution"""

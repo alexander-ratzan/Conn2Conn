@@ -1,5 +1,4 @@
 from typing import Any
-
 from data.dataset_utils import *
 
 """
@@ -71,7 +70,9 @@ class HCP_Base():
         self.sc_matrices = self.sc_matrices[canonical_sc_indices]
         self.sc_upper_triangles = self.sc_upper_triangles[canonical_sc_indices]
         self.sc_r2t_matrices = self.sc_r2t_matrices[canonical_sc_indices]
-
+        # Compute r x r correlation matrix for each subject's r2t matrix, replace NaNs with 0s in place
+        self.sc_r2t_corr_matrices = [np.nan_to_num(np.corrcoef(mat), nan=0.0) for mat in self.sc_r2t_matrices]
+        
 
         self.trainvaltest_partition_indices = {
             "train": self.subject_indices_from_id(self.all_subject_ids, self.metadata_df[self.metadata_df["train_val_test"] == "train"]["subject"].tolist()),
@@ -113,16 +114,7 @@ class HCP_Partition(Dataset):
 
         self.sc_upper_triangles = torch.tensor(base.sc_upper_triangles, dtype=torch.float32, device=self.device)
         self.fc_upper_triangles = torch.tensor(base.fc_upper_triangles, dtype=torch.float32, device=self.device)
-        
-        # self.sc_train_avg = torch.tensor(base.sc_train_avg, dtype=torch.float32, device=device)
-        # self.sc_train_loadings = torch.tensor(base.sc_train_loadings, dtype=torch.float32, device=device)
-        # self.sc_train_scores = torch.tensor(base.sc_train_scores, dtype=torch.float32, device=device)
-
-        # self.fc_train_avg = torch.tensor(base.fc_train_avg, dtype=torch.float32, device=device)
-        # self.fc_train_loadings = torch.tensor(base.fc_train_loadings, dtype=torch.float32, device=device)
-        # self.fc_train_scores = torch.tensor(base.fc_train_scores, dtype=torch.float32, device=device)
-
-
+    
     def __getitem__(self, idx):
         """
         By default, returns a dict with:
