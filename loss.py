@@ -19,19 +19,16 @@ def get_target_train_mean(base):
     else:
         raise ValueError(f"Unknown target modality: {base.target}")
 
-
 # =============================================================================
 # Loss Functions
 # =============================================================================
-
 class MSELoss(nn.Module):
-    """Standard MSE loss."""
-    
+    """Standard MSE loss."""    
     def __init__(self):
         super().__init__()
         self.name = "mse"
     
-    def forward(self, y_pred, y_true):
+    def forward(self, y_pred, y_true, **kwargs):
         return F.mse_loss(y_pred, y_true)
 
 
@@ -45,7 +42,6 @@ class DemeanedMSELoss(nn.Module):
     Args:
         target_train_mean: (d,) numpy array or tensor, training set mean for target modality
     """
-    
     def __init__(self, target_train_mean):
         super().__init__()
         self.name = "demeaned_mse"
@@ -53,7 +49,7 @@ class DemeanedMSELoss(nn.Module):
             target_train_mean = torch.tensor(target_train_mean, dtype=torch.float32)
         self.register_buffer('target_mean', target_train_mean)
     
-    def forward(self, y_pred, y_true):
+    def forward(self, y_pred, y_true, **kwargs):
         y_pred_demeaned = y_pred - self.target_mean
         y_true_demeaned = y_true - self.target_mean
         return F.mse_loss(y_pred_demeaned, y_true_demeaned)
@@ -86,7 +82,7 @@ class WeightedMSELoss(nn.Module):
         self.register_buffer('demeaned_scale', torch.tensor(1.0))
         self._initialized = False
     
-    def forward(self, y_pred, y_true):
+    def forward(self, y_pred, y_true, **kwargs):
         # Compute both losses
         mse_loss = F.mse_loss(y_pred, y_true)
         
@@ -109,14 +105,37 @@ class WeightedMSELoss(nn.Module):
         return self.alpha * mse_normalized + (1 - self.alpha) * demeaned_normalized
 
 
-def create_loss_fn(loss_type, base=None, alpha=0.5):
+class VAELoss(nn.Module):
+    """
+    VAE loss: reconstruction (MSE) + beta * KLD to standard Gaussian prior.
+    KLD = -0.5 * mean(sum(1 + logvar - mu^2 - exp(logvar), dim=1)).
+    
+    Args:
+        beta: weight for KLD term (default 1.0).
+    """
+    def __init__(self, beta=1.0):
+        super().__init__()
+        self.name = "vae"
+        self.beta = beta
+    
+    def forward(self, y_pred, y_true, mu=None, logvar=None, **kwargs):
+        recon = F.mse_loss(y_pred, y_true)
+        if mu is not None and logvar is not None:
+            # measures how far each sample’s Gaussian latent embedding deviates from a unit Gaussian
+            kld = -0.5 * torch.mean(torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1))
+            return recon + self.beta * kld
+        return recon
+
+
+def create_loss_fn(loss_type, base=None, alpha=0.5, beta=1.0):
     """
     Factory function to create loss functions.
     
     Args:
-        loss_type: one of 'mse', 'demeaned_mse', 'weighted_mse'
+        loss_type: one of 'mse', 'demeaned_mse', 'weighted_mse', 'vae'
         base: Dataset base object (required for demeaned losses)
         alpha: weight for weighted_mse (default 0.5)
+        beta: weight for VAE KLD term (default 1.0)
     
     Returns:
         Loss function module
@@ -133,8 +152,10 @@ def create_loss_fn(loss_type, base=None, alpha=0.5):
             raise ValueError("base is required for weighted_mse loss")
         target_mean = get_target_train_mean(base)
         return WeightedMSELoss(target_mean, alpha=alpha)
+    elif loss_type == "vae":
+        return VAELoss(beta=beta)
     else:
-        raise ValueError(f"Unknown loss type: {loss_type}. Choose from 'mse', 'demeaned_mse', 'weighted_mse'")
+        raise ValueError(f"Unknown loss type: {loss_type}. Choose from 'mse', 'demeaned_mse', 'weighted_mse', 'vae'")
 
 
 def compute_pearson_r(y_pred, y_true):
@@ -213,7 +234,8 @@ def evaluate_model(model, data_loader, target_train_mean, device):
             x = batch["x"].to(device)
             y = batch["y"].to(device)
             
-            y_pred = model(x)
+            out = model(x)
+            y_pred = out[0] if isinstance(out, tuple) else out
             
             mse = F.mse_loss(y_pred, y).item()
             total_mse += mse
@@ -413,8 +435,12 @@ def train_model(
             y = batch["y"].to(device)
             
             optimizer.zero_grad()
-            y_pred = model(x)
-            loss = loss_fn(y_pred, y)
+            out = model(x)
+            y_pred = out[0] if isinstance(out, tuple) else out
+            if isinstance(out, tuple) and len(out) == 3:
+                loss = loss_fn(y_pred, y, mu=out[1], logvar=out[2])
+            else:
+                loss = loss_fn(y_pred, y)
             
             # Add regularization if model has get_reg_loss method
             if hasattr(model, 'get_reg_loss'):
@@ -442,114 +468,3 @@ def train_model(
     print("="*80)
     
     return logger
-
-
-def train_model_early_stopping(
-    model,
-    train_loader,
-    val_loader,
-    base,
-    log_every=5,
-    patience=20,
-    device=None,
-):
-    """
-    Train with early stopping based on validation MSE.
-    
-    Args:
-        model: nn.Module to train. Uses model.lr, model.epochs, model.loss_fn, model.get_reg_loss().
-        train_loader: DataLoader for training data
-        val_loader: DataLoader for validation data
-        base: Dataset base object (e.g., HCP_Base) with target modality info
-        log_every: log metrics every N epochs
-        patience: stop if val MSE doesn't improve for this many epochs
-        device: torch device
-        
-    Returns:
-        logger: TrainingLogger with full history
-        best_state_dict: state dict of best model
-    """
-    if device is None:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    target_train_mean = get_target_train_mean(base)
-    
-    model = model.to(device)
-    
-    # Get training params from model
-    lr = getattr(model, 'lr', 1e-4)
-    num_epochs = getattr(model, 'epochs', 100)
-    
-    # Get loss function from model or default to MSE
-    if hasattr(model, 'loss_fn') and model.loss_fn is not None:
-        loss_fn = model.loss_fn
-        loss_fn = loss_fn.to(device)
-        loss_name = getattr(loss_fn, 'name', type(loss_fn).__name__)
-    else:
-        loss_fn = MSELoss().to(device)
-        loss_name = "mse"
-    
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    
-    logger = TrainingLogger()
-    best_val_mse = float('inf')
-    best_state_dict = None
-    epochs_without_improvement = 0
-    
-    reg_info = f"L1={model.l1_reg}, L2={model.l2_reg}" if hasattr(model, 'l1_reg') else "none"
-    print(f"Training on {device}")
-    print(f"Model parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
-    print(f"Loss: {loss_name} | Reg: {reg_info}")
-    print(f"Epochs: {num_epochs}, LR: {lr}, Patience: {patience}")
-    print(f"Logging every {log_every} epochs\n")
-    
-    for epoch in range(1, num_epochs + 1):
-        epoch_start = time.time()
-        
-        # === Training ===
-        model.train()
-        loss_fn.train()
-        for batch in train_loader:
-            x = batch["x"].to(device)
-            y = batch["y"].to(device)
-            
-            optimizer.zero_grad()
-            y_pred = model(x)
-            loss = loss_fn(y_pred, y)
-            
-            # Add regularization if model has get_reg_loss method
-            if hasattr(model, 'get_reg_loss'):
-                loss = loss + model.get_reg_loss()
-            
-            loss.backward()
-            optimizer.step()
-        
-        epoch_time = time.time() - epoch_start
-        
-        # === Logging every log_every epochs ===
-        if epoch % log_every == 0 or epoch == 1:
-            train_metrics = evaluate_model(model, train_loader, target_train_mean, device)
-            val_metrics = evaluate_model(model, val_loader, target_train_mean, device)
-            gpu_alloc, gpu_reserved = get_gpu_memory_usage()
-            logger.log(epoch, train_metrics, val_metrics, epoch_time, gpu_alloc, gpu_reserved)
-            logger.print_metrics(epoch)
-            logger.plot()
-            
-            # Early stopping check
-            if val_metrics['mse'] < best_val_mse:
-                best_val_mse = val_metrics['mse']
-                best_state_dict = {k: v.clone() for k, v in model.state_dict().items()}
-                epochs_without_improvement = 0
-                print(f"  ★ New best val MSE: {best_val_mse:.6f}")
-            else:
-                epochs_without_improvement += log_every
-                
-            if epochs_without_improvement >= patience:
-                print(f"\nEarly stopping at epoch {epoch} (no improvement for {patience} epochs)")
-                break
-    
-    print("\n" + "="*80)
-    print(f"Training complete! Best val MSE: {best_val_mse:.6f}")
-    print("="*80)
-    
-    return logger, best_state_dict
