@@ -1327,13 +1327,13 @@ class Evaluator:
             
             # Hungarian sample size analysis
             fig_ss_raw, metrics_ss_raw = self.plot_hungarian_sample_size_analysis(
-                n_min=2, n_max=100, step=5, n_iterations=1000, 
+                n_min=2, n_max=75, step=10, n_iterations=1000, 
                 demeaned=False, dpi=150, figsize=(9, 5), show=show_inline
             )
             all_metrics['hungarian_sample_size_raw'] = self._extract_sample_size_metrics(metrics_ss_raw)
             
             fig_ss_dm, metrics_ss_dm = self.plot_hungarian_sample_size_analysis(
-                n_min=2, n_max=100, step=5, n_iterations=1000, 
+                n_min=2, n_max=75, step=10, n_iterations=1000, 
                 demeaned=True, dpi=150, figsize=(9, 5), show=show_inline
             )
             all_metrics['hungarian_sample_size_demeaned'] = self._extract_sample_size_metrics(metrics_ss_dm)

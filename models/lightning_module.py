@@ -65,7 +65,19 @@ class CrossModalLightningModule(pl.LightningModule):
         loss = self.loss_fn(y_pred, y, mu=mu, logvar=logvar)
         if hasattr(self.model, "get_reg_loss"):
             loss = loss + self.model.get_reg_loss()
+        
+        target_mean = self._target_train_mean
+        if isinstance(target_mean, np.ndarray):
+            target_mean = torch.tensor(
+                target_mean, dtype=torch.float32, device=y_pred.device
+            )
+        
+        pr = compute_pearson_r(y_pred, y)
+        dr = compute_demeaned_pearson_r(y_pred, y, target_mean)
         self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("train_pearson_r", pr, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("train_demeaned_r", dr, on_step=False, on_epoch=True, prog_bar=True)
+        
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -85,6 +97,7 @@ class CrossModalLightningModule(pl.LightningModule):
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log("val_pearson_r", pr, on_step=False, on_epoch=True)
         self.log("val_demeaned_r", dr, on_step=False, on_epoch=True)
+
         return loss
 
     def configure_optimizers(self):

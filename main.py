@@ -26,10 +26,15 @@ from models.config import (
 )
 
 import wandb
+import yaml
+import ray
 from ray import tune
 from ray.tune.schedulers import ASHAScheduler
+from ray.tune import CLIReporter
 from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
 from ray.air.integrations.wandb import WandbLoggerCallback
+from ray.air import session
+from ray.tune import Checkpoint
 import lightning.pytorch as pl
 from lightning.pytorch.loggers import WandbLogger
 from models.lightning_module import CrossModalLightningModule
@@ -111,14 +116,17 @@ class Sim:
         """
         if run_dir is None and save_checkpoint:
             run_dir = os.path.join("results", f"run_{int(time.time())}")
-        if mode == "prod" and wandb is not None:
-            wandb.init(entity=WANDB_ENTITY, project=WANDB_PROJECT, config=self.config, reinit=True)
+        
+        if mode == "prod" and wandb is not None and not self.learned: # need to do this specifically for 'closed form' models
+            wandb.init(entity=WANDB_ENTITY, project=WANDB_PROJECT, config=self.config, reinit=True, tags=[self.model_name, "prod"])
+        
         try:
             if self.learned:
                 return self._run_learned_single(mode, save_checkpoint, run_dir)
-            return self._run_closed_form_single(mode, save_checkpoint, run_dir)
+            else: 
+                return self._run_closed_form_single(mode, save_checkpoint, run_dir)
         finally:
-            if mode == "prod" and wandb is not None:
+            if mode == "prod" and wandb is not None: # fallback to finish any wandb run - can consider replacing with WandbLogger to manage init and finish
                 wandb.finish()
 
     def _run_learned_single(self, mode: str, save_checkpoint: bool, run_dir: str = None):
@@ -134,11 +142,25 @@ class Sim:
 
         model = build_model(self.base, self.model_name, model_cfg)
         pl_logger = None
+        
+        '''
         if mode == "prod" and WandbLogger is not None:
             try:
-                pl_logger = WandbLogger(entity=WANDB_ENTITY, project=WANDB_PROJECT)
+                pl_logger = WandbLogger(entity=WANDB_ENTITY, project=WANDB_PROJECT, tags=[self.model_name, "prod"])
             except Exception:
                 pl_logger = None
+        '''
+        
+        if mode == "prod" and WandbLogger is not None:
+            pl_logger = WandbLogger(
+                entity=WANDB_ENTITY,
+                project=WANDB_PROJECT,
+                tags=[self.model_name, "prod"],
+                name=f"{self.model_name}_prod",
+            )
+            # log full config once
+            pl_logger.log_hyperparams(self.config)
+
 
         train_result = train_model(
             model,
@@ -154,12 +176,7 @@ class Sim:
             logger=False if mode == "dev" else (pl_logger is None),
             pl_logger=pl_logger,
         )
-        if mode == "prod" and pl_logger is None and wandb is not None:
-            for record in train_result.callback.history:
-                step = record.get("epoch", 0)
-                to_log = {k: (float(v.item()) if hasattr(v, "item") else v) for k, v in record.items() if k != "epoch" and v is not None}
-                if to_log:
-                    wandb.log(to_log, step=step)
+        
         if mode == "dev":
             train_result.plot()
 
@@ -179,10 +196,17 @@ class Sim:
             os.makedirs(run_dir, exist_ok=True)
         test_metrics = test_eval.analyze_results(verbose=verbose, filepath=test_filepath)
 
-        if mode == "prod" and wandb is not None:
+        
+        if mode == "prod" and pl_logger is not None:
+            test_metrics = test_eval.analyze_results(verbose=True)
+            metrics_to_log = {}
             for k, v in (test_metrics.get("base_metrics") or {}).items():
                 if isinstance(v, (int, float, np.floating)):
-                    wandb.log({f"eval_test/{k}": float(v)})
+                    metrics_to_log[f"eval_test/{k}"] = float(v)
+            if metrics_to_log:
+                # WandbLogger uses .experiment as the wandb run
+                pl_logger.experiment.log(metrics_to_log)        
+        
         if save_checkpoint and run_dir:
             train_result.trainer.save_checkpoint(os.path.join(run_dir, "checkpoint.ckpt"))
 
@@ -211,17 +235,33 @@ class Sim:
         test_filepath = os.path.join(run_dir, "eval_test") if (save_checkpoint and run_dir) else None
         if run_dir and save_checkpoint:
             os.makedirs(run_dir, exist_ok=True)
+
         test_metrics = test_eval.analyze_results(verbose=verbose, filepath=test_filepath)
-        if mode == "prod" and wandb is not None:
+
+        if mode == "prod" and wandb is not None:    
+            # Log train and val metrics
+            train_metrics = train_eval._metrics
+            val_metrics = val_eval._metrics
+            wandb.log({
+                "train_mse": train_metrics.get("mse", np.nan),
+                "train_demeaned_r": train_metrics.get("demeaned_pearson", np.nan),
+                "train_pearson_r": train_metrics.get("pearson", np.nan),
+                "val_mse": val_metrics.get("mse", np.nan),
+                "val_demeaned_r": val_metrics.get("demeaned_pearson", np.nan),
+                "val_pearson_r": val_metrics.get("pearson", np.nan),
+            })
+            # Log test metrics
             for k, v in (test_metrics.get("base_metrics") or {}).items():
                 if isinstance(v, (int, float, np.floating)):
                     wandb.log({f"eval_test/{k}": float(v)})
+        
         return {
             "model": model,
             "evaluators": {"train": train_eval, "val": val_eval, "test": test_eval},
             "test_metrics": test_metrics,
         }
 
+    
     def run_tune(
         self,
         num_samples: int = 10,
@@ -229,6 +269,8 @@ class Sim:
         metric: str = "val_demeaned_r",
         mode: str = "max",
         max_epochs: int = None,
+        cpus_per_trial: float = 2.0,
+        gpus_per_trial: float = 0.0,
     ):
         """
         Run Ray Tune for this model. Returns ResultGrid.
@@ -237,6 +279,21 @@ class Sim:
         """
         if tune is None:
             raise RuntimeError("Ray Tune is not installed. pip install 'ray[tune]'")
+        if not ray.is_initialized():
+            ray_init_kwargs = {"ignore_reinit_error": True}
+            ray_tmpdir = os.environ.get("RAY_TMPDIR")
+            if ray_tmpdir:
+                ray_tmpdir = os.path.abspath(ray_tmpdir)
+            else:
+                ray_tmpdir = f"/tmp/ray_{os.environ.get('SLURM_JOB_ID', 'local')}"
+            os.makedirs(ray_tmpdir, exist_ok=True)
+            ray_init_kwargs["_temp_dir"] = ray_tmpdir
+            ray.init(**ray_init_kwargs)
+        print(f"Ray cluster resources: {ray.cluster_resources()}", flush=True)
+        # Avoid capturing the full Sim instance (which can include large in-memory data)
+        # inside the Ray trainable closure.
+        model_name = self.model_name
+        learned = self.learned
         param_space = get_search_space(self.model_name)
         if not param_space:
             raise ValueError(f"No search_space for model: {self.model_name} in config YAML.")
@@ -247,11 +304,12 @@ class Sim:
                 default_flat[k] = v
         for k, v in default.get("trainer", {}).items():
             default_flat[k] = v
+            
 
-        def train_func(tune_config):
+        def train_func(default_flat, param_space, tune_config):
             config_flat = {**default_flat, **{k: v for k, v in tune_config.items() if k in param_space or k in TRAINER_KEYS}}
-            config_flat["name"] = self.model_name
-            config = _flat_to_nested(config_flat, self.model_name)
+            config_flat["name"] = model_name
+            config = _flat_to_nested(config_flat, model_name)
             batch_size = config.get("trainer", {}).get("batch_size", 128)
             base = HCP_Base(parcellation="Glasser", shuffle_seed=0, source="SC", target="FC")
             train_ds = HCP_Partition(base, "train")
@@ -261,12 +319,14 @@ class Sim:
             val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False)
             test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
 
-            if self.learned:
+            report_dict = {}
+
+            if learned:
                 model_cfg = config["model"].copy()
                 model_cfg.pop("name")
                 trainer_cfg = config.get("trainer", {})
                 epochs = trainer_cfg.get("max_epochs", max_epochs or 100)
-                model = build_model(base, self.model_name, model_cfg)
+                model = build_model(base, model_name, model_cfg)
                 pl_module = CrossModalLightningModule(
                     model=model,
                     base=base,
@@ -275,48 +335,83 @@ class Sim:
                     loss_alpha=trainer_cfg.get("loss_alpha", 0.5),
                     loss_beta=trainer_cfg.get("loss_beta", 1.0),
                 )
-                callbacks = [TuneReportCheckpointCallback(metrics={"val_demeaned_r": "val_demeaned_r", "val_pearson_r": "val_pearson_r"}, filename="checkpoint")]
+                callbacks = [
+                    TuneReportCheckpointCallback(
+                        metrics={
+                            "train_loss": "train_loss",
+                            "train_demeaned_r": "train_demeaned_r",
+                            "train_pearson_r": "train_pearson_r",
+                            "val_loss": "val_loss",
+                            "val_demeaned_r": "val_demeaned_r",
+                            "val_pearson_r": "val_pearson_r",
+                        },
+                        filename="checkpoint",
+                    )
+                ]
                 trainer = pl.Trainer(max_epochs=epochs, logger=False, callbacks=callbacks, enable_progress_bar=False)
                 trainer.fit(pl_module, train_dataloaders=train_loader, val_dataloaders=val_loader)
-                model = pl_module.model
-                test_preds, test_targets = predict_from_loader(model, test_loader)
-                test_partition = HCP_Partition(base, "test")
-                test_eval = Evaluator(test_preds, test_targets, test_partition, base)
-                test_metrics = test_eval.analyze_results(verbose=False)
-                if wandb is not None:
-                    for k, v in (test_metrics.get("base_metrics") or {}).items():
-                        if isinstance(v, (int, float, np.floating)):
-                            wandb.log({f"eval_test/{k}": float(v)})
+                session.report(report_dict)
+
                 if save_checkpoint:
                     try:
                         trial_dir = tune.get_context().get_trial_dir()
                         run_dir = os.path.join("results", os.path.basename(trial_dir))
                     except Exception:
-                        run_dir = os.path.join("results", f"tune_{self.model_name}_{id(tune_config)}")
+                        run_dir = os.path.join("results", f"tune_{model_name}_{id(tune_config)}")
                     os.makedirs(run_dir, exist_ok=True)
-                    test_eval.analyze_results(verbose=True, filepath=os.path.join(run_dir, "eval_test"))
                     trainer.save_checkpoint(os.path.join(run_dir, "checkpoint.ckpt"))
             else:
                 model_cfg = config["model"].copy()
                 model_cfg.pop("name")
-                model = build_model(base, self.model_name, model_cfg)
+                model = build_model(base, model_name, model_cfg)
+                
+                train_preds, train_targets = predict_from_loader(model, train_loader)
                 val_preds, val_targets = predict_from_loader(model, val_loader)
-                val_partition = HCP_Partition(base, "val")
-                val_eval = Evaluator(val_preds, val_targets, val_partition, base)
-                tune.report(val_demeaned_r=float(val_eval._metrics.get("demeaned_pearson", 0.0)))
                 test_preds, test_targets = predict_from_loader(model, test_loader)
+                train_partition = HCP_Partition(base, "train")
+                val_partition = HCP_Partition(base, "val")
                 test_partition = HCP_Partition(base, "test")
+                
+                train_eval = Evaluator(train_preds, train_targets, train_partition, base)
+                val_eval = Evaluator(val_preds, val_targets, val_partition, base)
                 test_eval = Evaluator(test_preds, test_targets, test_partition, base)
-                test_eval.analyze_results(verbose=False)
-                if wandb is not None:
-                    for k, v in test_eval._metrics.items():
-                        if isinstance(v, (int, float, np.floating)):
-                            wandb.log({f"eval_test/{k}": float(v)})
 
-        # Request CPU only so Ray schedules trials immediately; workers still use GPU if visible in their process.
-        train_with_resources = tune.with_resources(train_func, {"CPU": 2})
-        callbacks = [WandbLoggerCallback(entity=WANDB_ENTITY, project=WANDB_PROJECT)] if WandbLoggerCallback else []
-        from ray.tune import CLIReporter
+                train_metrics = train_eval._metrics
+                val_metrics = val_eval._metrics
+                
+                # populate report_dict
+                report_dict = {
+                    "train_mse": train_metrics.get("mse", np.nan),
+                    "train_pearson_r": train_metrics.get("pearson", np.nan),
+                    "train_demeaned_r": train_metrics.get("demeaned_pearson", np.nan),
+                    "val_mse": val_metrics.get("mse", np.nan),
+                    "val_pearson_r": val_metrics.get("pearson", np.nan),
+                    "val_demeaned_r": val_metrics.get("demeaned_pearson", np.nan),
+                }
+
+                session.report(report_dict)
+
+        # Ray Tune requires the trainable to have a single positional parameter named 'config'.
+        def _tune_trainable(config):
+            return train_func(default_flat, param_space, config)
+
+        resources = {"cpu": float(cpus_per_trial)}
+        if gpus_per_trial and float(gpus_per_trial) > 0:
+            resources["gpu"] = float(gpus_per_trial)
+        print(f"Tune trial resources: {resources}", flush=True)
+        train_with_resources = tune.with_resources(_tune_trainable, resources)
+        callbacks = []
+        if WandbLoggerCallback is not None:
+            callbacks.append(
+                WandbLoggerCallback(
+                    project=WANDB_PROJECT,
+                    entity=WANDB_ENTITY,
+                    group=f"{self.model_name}_tune",
+                    tags=[self.model_name, "tune"],
+                    log_config=True,
+                )
+            )
+        
         reporter = CLIReporter()
         reporter.add_metric_column("val_demeaned_r")
         run_config = tune.RunConfig(callbacks=callbacks, progress_reporter=reporter)
@@ -327,10 +422,11 @@ class Sim:
                 num_samples=num_samples,
                 metric=metric,
                 mode=mode,
-                scheduler=ASHAScheduler(max_t=max_epochs or 100, grace_period=1, reduction_factor=2) if self.learned else None,
+                scheduler=ASHAScheduler(max_t=max_epochs or 100, grace_period=1, reduction_factor=2) if learned else None,
             ),
             run_config=run_config,
         )
+
         return tuner.fit()
 
 
@@ -342,6 +438,18 @@ def _parse_args():
     p.add_argument("--save_checkpoint", action="store_true")
     p.add_argument("--use_tune", action="store_true")
     p.add_argument("--num_samples", type=int, default=10)
+    p.add_argument(
+        "--tune_cpus_per_trial",
+        type=float,
+        default=float(os.environ.get("TUNE_CPUS_PER_TRIAL", 2)),
+        help="Ray Tune CPUs allocated per trial.",
+    )
+    p.add_argument(
+        "--tune_gpus_per_trial",
+        type=float,
+        default=float(os.environ.get("TUNE_GPUS_PER_TRIAL", 0)),
+        help="Ray Tune GPUs allocated per trial.",
+    )
     return p.parse_args()
 
 
@@ -354,6 +462,11 @@ if __name__ == "__main__":
         overrides = data.get("default", data) if isinstance(data, dict) else None
     sim = Sim(model_name=args.model, config_overrides=overrides)
     if args.use_tune and args.mode == "prod":
-        sim.run_tune(num_samples=args.num_samples, save_checkpoint=args.save_checkpoint)
+        sim.run_tune(
+            num_samples=args.num_samples,
+            save_checkpoint=args.save_checkpoint,
+            cpus_per_trial=args.tune_cpus_per_trial,
+            gpus_per_trial=args.tune_gpus_per_trial,
+        )
     else:
         sim.run_single(mode=args.mode, save_checkpoint=args.save_checkpoint)
