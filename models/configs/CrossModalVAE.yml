@@ -1,0 +1,41 @@
+learned: true
+
+default:
+  model:
+    name: CrossModalVAE
+    latent_dim: 64
+    hidden_dims: [512, 256]
+    use_pca_encoder: false
+    n_pca_components_encoder: 256
+    use_pca_decoder: false
+    n_pca_components_decoder: 256
+    dropout: 0.1
+    l1_l2_tuple: [0.0, 0.0]
+    device: null
+  trainer:
+    lr: 1.0e-4
+    loss_type: vae
+    loss_alpha: 0.5
+    loss_beta: 1.0
+    max_epochs: 100
+    batch_size: 128
+    log_every: 5
+
+search_space:
+  latent_dim:
+    type: choice
+    values: [32, 64, 128]
+  lr:
+    type: loguniform
+    lower: 1.0e-5
+    upper: 1.0e-2
+  loss_beta:
+    type: uniform
+    lower: 0.1
+    upper: 2.0
+  max_epochs:
+    type: choice
+    values: [50, 100]
+  batch_size:
+    type: choice
+    values: [64, 128, 256]

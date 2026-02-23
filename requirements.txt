@@ -1,0 +1,5 @@
+# Core (assumed already in env: torch, lightning, sklearn, scipy, etc.)
+PyYAML
+# Optional for main.py prod/tune:
+ray[tune]
+wandb
