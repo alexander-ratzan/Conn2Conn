@@ -6,7 +6,7 @@
 #SBATCH --time=1:00:00
 #SBATCH --mem=64GB
 #SBATCH --gres=gpu:1
-#SBATCH --job-name=tune_model
+#SBATCH --job-name=tune_model_single
 #SBATCH --output=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_model_%j.out
 #SBATCH --error=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_model_%j.err
 #SBATCH --mail-type=END
@@ -26,7 +26,17 @@ singularity exec --nv \
   /share/apps/images/cuda12.8.1-cudnn9.8.0-ubuntu24.04.2.sif \
   /bin/bash -lc "
     source /ext3/env.sh
-    python main.py --mode prod --model CrossModal_PCA_PLS_learnable --config models/configs/CrossModal_PCA_PLS_learnable.yml --save_checkpoint --use_tune --num_samples 3 --tune_cpus_per_trial ${TUNE_CPUS_PER_TRIAL} --tune_gpus_per_trial ${TUNE_GPUS_PER_TRIAL}
+    python main.py \
+      --mode prod \
+      --model CrossModal_PCA_PLS_learnable \
+      --config models/configs/CrossModal_PCA_PLS_learnable.yml \
+      --save_checkpoint \
+      --use_tune \
+      --num_samples 1 \
+      --tune_cpus_per_trial ${TUNE_CPUS_PER_TRIAL} \
+      --tune_gpus_per_trial ${TUNE_GPUS_PER_TRIAL} \
+      --report_best_after_tune \
+      --store_eval_md
   "
 
 echo "Job Over"
