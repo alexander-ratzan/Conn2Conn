@@ -2,7 +2,7 @@
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=5
+#SBATCH --cpus-per-task=6
 #SBATCH --time=1:00:00
 #SBATCH --mem=64GB
 #SBATCH --gres=gpu:1
@@ -17,6 +17,10 @@ cd /scratch/asr655/neuroinformatics/Conn2Conn/
 export RAY_TMPDIR="/tmp/ray_${SLURM_JOB_ID}"
 mkdir -p "${RAY_TMPDIR}"
 
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+
 export TUNE_CPUS_PER_TRIAL=2
 export TUNE_GPUS_PER_TRIAL=1
 
@@ -28,8 +32,8 @@ singularity exec --nv \
     source /ext3/env.sh
     python main.py \
       --mode prod \
-      --model CrossModal_PCA_PLS_learnable \
-      --config models/configs/CrossModal_PCA_PLS_learnable.yml \
+      --model CrossModal_PLS_SVD \
+      --config models/configs/CrossModal_PLS_SVD.yml \
       --save_checkpoint \
       --use_tune \
       --num_samples 1 \

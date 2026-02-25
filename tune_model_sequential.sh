@@ -32,7 +32,7 @@ singularity exec --nv \
       --config models/configs/CrossModal_PCA_PLS_learnable.yml \
       --save_checkpoint \
       --use_tune \
-      --num_samples 2 \
+      --num_samples 4 \
       --tune_cpus_per_trial ${TUNE_CPUS_PER_TRIAL} \
       --tune_gpus_per_trial ${TUNE_GPUS_PER_TRIAL} \
       --report_best_after_tune \

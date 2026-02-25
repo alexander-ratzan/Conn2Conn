@@ -24,7 +24,34 @@ default:
 search_space:
   latent_dim:
     type: choice
-    values: [32, 64, 128]
+    values: [16, 32, 64, 128]
+  hidden_dims:
+    type: choice
+    values:
+      - [1024, 512]
+      - [512, 256]
+      - [256, 128]
+  use_pca_encoder:
+    type: choice
+    values: [true, false]
+  n_pca_components_encoder:
+    type: choice
+    values: [64, 128, 256, 512]
+  use_pca_decoder:
+    type: choice
+    values: [true, false]
+  n_pca_components_decoder:
+    type: choice
+    values: [64, 128, 256, 512]
+  dropout:
+    type: uniform
+    lower: 0.0
+    upper: 0.4
+  l1_l2_tuple:
+    type: quniform
+    lower: [0.0, 0.0]
+    upper: [0.001, 0.001]
+    q: [0.0001, 0.0001]
   lr:
     type: loguniform
     lower: 1.0e-5
@@ -35,7 +62,7 @@ search_space:
     upper: 2.0
   max_epochs:
     type: choice
-    values: [50, 100]
+    values: [50, 100, 150, 200, 250]
   batch_size:
     type: choice
     values: [64, 128, 256]

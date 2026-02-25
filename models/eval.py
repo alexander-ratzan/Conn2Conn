@@ -1181,7 +1181,7 @@ class Evaluator:
                     print(f"{pretty_names.get(key, key):25s}: {val}")
         print("=" * 50)
 
-    def analyze_results(self, verbose=False, filepath=None, output_format='md'):
+    def analyze_results(self, verbose=False, filepath=None, output_format='md', model_name=None):
         """
         Main analysis function to generate a comprehensive prediction analysis report.
         
@@ -1218,6 +1218,7 @@ class Evaluator:
             'partition': self.dataset_partition.partition,
             'n_subjects': len(self.subject_indices),
             'base_metrics': self._metrics.copy(),
+            'model_name': model_name,
         }
         
         # Determine whether we're saving to file or displaying inline
@@ -1686,12 +1687,14 @@ class Evaluator:
             filepath: base path for output (without extension, must end in _results)
             verbose: bool, whether verbose mode is enabled
         """
-        # Extract model type from filepath (assumes filepath ends with _results)
-        filepath_base = os.path.basename(filepath)
-        if filepath_base.endswith('_results'):
-            model_type = filepath_base[:-8]  # Remove '_results' suffix
-        else:
-            model_type = filepath_base
+        # Prefer explicit model name; fall back to filepath-based inference.
+        model_type = all_metrics.get('model_name')
+        if not model_type:
+            filepath_base = os.path.basename(filepath)
+            if filepath_base.endswith('_results'):
+                model_type = filepath_base[:-8]  # Remove '_results' suffix
+            else:
+                model_type = filepath_base
         
         # Create plots directory
         plots_dir = f"{filepath}_plots"

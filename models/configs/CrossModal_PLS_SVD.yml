@@ -3,11 +3,13 @@ learned: false
 default:
   model:
     name: CrossModal_PLS_SVD
-    n_components: 40
-    device: null
+    n_components: 100
+    device: cpu
   trainer: {}
 
 search_space:
   n_components:
-    type: choice
-    values: [10, 20, 40, 60, 80]
+    type: uniform
+    min: 1
+    max: 512
+    device: cpu

@@ -6,21 +6,38 @@ Callable from notebook or via CLI/sbatch (python main.py --mode dev|prod).
 import argparse
 import json
 import os
+import re
 import shutil
 import sys
-import time
 import tempfile
+import time
 from pathlib import Path
 from copy import deepcopy
+from typing import Optional
 
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
+import wandb
+import yaml
+import ray
+from ray import tune
+from ray.tune import Checkpoint
+from ray.tune.schedulers import ASHAScheduler
+from ray.tune import CLIReporter
+from ray.tune.integration.pytorch_lightning import TuneReportCallback, TuneReportCheckpointCallback
+from ray.air.integrations.wandb import WandbLoggerCallback
+from ray.air import session
+import lightning.pytorch as pl
+from lightning.pytorch.loggers import WandbLogger
+
+
 from data.hcp_dataset import HCP_Base, HCP_Partition
 from models.models import predict_from_loader
 from models.loss import train_model, get_target_train_mean
 from models.eval import Evaluator
+from models.lightning_module import CrossModalLightningModule
 from models.config import (
     load_config,
     get_default_config,
@@ -28,21 +45,6 @@ from models.config import (
     build_model,
     TRAINER_KEYS,
 )
-
-import wandb
-import yaml
-import ray
-from ray import tune
-from ray.tune.schedulers import ASHAScheduler
-from ray.tune import CLIReporter
-from ray.tune.integration.pytorch_lightning import TuneReportCallback
-from ray.air.integrations.wandb import WandbLoggerCallback
-from ray.air import session
-from ray.train import Checkpoint
-import lightning.pytorch as pl
-from lightning.pytorch.loggers import WandbLogger
-from models.lightning_module import CrossModalLightningModule
-
 
 # Ensure project root is on path when run as script
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -55,6 +57,56 @@ WANDB_ENTITY = "alexander-ratzan-new-york-university"
 RESULTS_ROOT = os.path.join(_SCRIPT_DIR, "results")
 RAY_CHECKPOINTS_DIR = os.path.join(RESULTS_ROOT, "ray_checkpoints")
 RAY_RESULTS_DIR = os.path.join(RESULTS_ROOT, "ray_results")
+
+
+def _extract_ray_tune_id(name_or_path: str) -> Optional[str]:
+    if not name_or_path:
+        return None
+    m = re.search(r"_tune_(\d+)", name_or_path)
+    return m.group(1) if m else None
+
+
+class TrialFamilyWandbLoggerCallback(WandbLoggerCallback):
+    """Minimal WandB callback wrapper to attach Ray Tune IDs and group by trial family."""
+
+    def log_trial_start(self, trial):
+        config = trial.config.copy()
+        config.pop("callbacks", None)
+
+        exclude_results = self._exclude_results.copy()
+        exclude_results += self.excludes
+        if not self.log_config:
+            exclude_results += ["config"]
+
+        trial_id = trial.trial_id if trial else None
+        trial_family = trial_id.split("_")[0] if trial_id and "_" in trial_id else trial_id
+        ray_tune_id = _extract_ray_tune_id(trial.experiment_dir_name if trial else "")
+
+        if ray_tune_id:
+            config["ray_tune_id"] = ray_tune_id
+        if trial_id:
+            config["ray_trial_id"] = trial_id
+
+        config = {
+            key: value for key, value in config.items() if key not in self.excludes
+        }
+
+        base_group = self.group or (trial.experiment_dir_name if trial else None)
+        wandb_group = f"{base_group}_{trial_family}" if (base_group and trial_family) else base_group
+        trial_name = f"_tune_trainable_{trial_id}" if trial_id else (str(trial) if trial else None)
+
+        wandb_init_kwargs = dict(
+            id=trial_id,
+            name=trial_name,
+            resume=False,
+            reinit=True,
+            allow_val_change=True,
+            group=wandb_group,
+            project=self.project,
+            config=config,
+        )
+        wandb_init_kwargs.update(self.kwargs)
+        self._start_logging_actor(trial, exclude_results, **wandb_init_kwargs)
 
 
 def _flat_to_nested(flat: dict, model_name: str) -> dict:
@@ -92,6 +144,7 @@ class Sim:
         config_path: str = None,
         config_overrides: dict = None,
         parcellation: str = "Glasser",
+        hemi: str = "L", # default is both
         source: str = "SC",
         target: str = "FC",
         shuffle_seed: int = 0,
@@ -104,6 +157,7 @@ class Sim:
         Remaining args: data options for HCP_Base and DataLoader batch_size.
         """
         self.model_name = model_name
+        self.hemi = hemi
         full = load_config(model_name, path=config_path)
         self._raw_config = full
         self.learned = full.get("learned", True)
@@ -118,6 +172,7 @@ class Sim:
 
         self.base = HCP_Base(
             parcellation=parcellation,
+            hemi=hemi,
             shuffle_seed=shuffle_seed,
             source=source,
             target=target,
@@ -163,7 +218,13 @@ class Sim:
                 cfg[section].update(config_override[section])
         return cfg
 
-    def _evaluate_model(self, model, mode: str = "dev", test_report_path: str = None):
+    def _evaluate_model(
+        self,
+        model,
+        mode: str = "dev",
+        test_report_path: str = None,
+        model_name: str = None,
+    ):
         train_preds, train_targets = predict_from_loader(model, self.train_loader)
         val_preds, val_targets = predict_from_loader(model, self.val_loader)
         test_preds, test_targets = predict_from_loader(model, self.test_loader)
@@ -173,7 +234,11 @@ class Sim:
         train_eval = Evaluator(train_preds, train_targets, train_partition, self.base)
         val_eval = Evaluator(val_preds, val_targets, val_partition, self.base)
         test_eval = Evaluator(test_preds, test_targets, test_partition, self.base)
-        test_metrics = test_eval.analyze_results(verbose=(mode == "prod"), filepath=test_report_path)
+        test_metrics = test_eval.analyze_results(
+            verbose=(mode == "prod"),
+            filepath=test_report_path,
+            model_name=model_name,
+        )
         return {
             "evaluators": {"train": train_eval, "val": val_eval, "test": test_eval},
             "metrics": {
@@ -194,7 +259,9 @@ class Sim:
         train_from_scratch: bool = True,
         test_report_basename: str = "eval_test",
         wandb_name: str = None,
+        wandb_group: str = None,
         wandb_tags: list = None,
+        wandb_metadata: dict = None,
         store_eval_md: bool = False,
     ):
         cfg = self._merge_config(config_override)
@@ -221,9 +288,12 @@ class Sim:
                 project=WANDB_PROJECT,
                 tags=tags,
                 name=wandb_name or f"{self.model_name}_prod",
+                group=wandb_group,
             )
             # log full config once
             pl_logger.log_hyperparams(cfg)
+            if wandb_metadata:
+                pl_logger.experiment.config.update(_to_serializable(wandb_metadata), allow_val_change=True)
 
         if train_from_scratch:
             train_result = train_model(
@@ -261,7 +331,12 @@ class Sim:
             os.makedirs(run_dir, exist_ok=True)
             if save_checkpoint or (store_eval_md and (not train_from_scratch and checkpoint_path)):
                 test_filepath = os.path.join(run_dir, test_report_basename)
-        eval_out = self._evaluate_model(model, mode=mode, test_report_path=test_filepath)
+        eval_out = self._evaluate_model(
+            model,
+            mode=mode,
+            test_report_path=test_filepath,
+            model_name=self.model_name,
+        )
         test_metrics = eval_out["test_metrics"]
 
         if mode == "prod" and pl_logger is not None:
@@ -293,7 +368,9 @@ class Sim:
         config_override: dict = None,
         test_report_basename: str = "eval_test",
         wandb_name: str = None,
+        wandb_group: str = None,
         wandb_tags: list = None,
+        wandb_metadata: dict = None,
         store_eval_md: bool = False,
     ):
         cfg = self._merge_config(config_override)
@@ -304,7 +381,12 @@ class Sim:
         if run_dir and (save_checkpoint or store_eval_md):
             os.makedirs(run_dir, exist_ok=True)
             test_filepath = os.path.join(run_dir, test_report_basename)
-        eval_out = self._evaluate_model(model, mode=mode, test_report_path=test_filepath)
+        eval_out = self._evaluate_model(
+            model,
+            mode=mode,
+            test_report_path=test_filepath,
+            model_name=self.model_name,
+        )
         test_metrics = eval_out["test_metrics"]
 
         wandb_started_here = False
@@ -319,7 +401,10 @@ class Sim:
                 reinit=True,
                 tags=tags,
                 name=wandb_name or f"{self.model_name}_prod",
+                group=wandb_group,
             )
+            if wandb_metadata:
+                wandb.config.update(_to_serializable(wandb_metadata), allow_val_change=True)
             wandb_started_here = True
 
         if mode == "prod" and wandb is not None and wandb.run is not None:
@@ -357,7 +442,8 @@ class Sim:
         mode: str = "max",
         max_epochs: int = None,
         cpus_per_trial: float = 2.0,
-        gpus_per_trial: float = 0.0,
+        gpus_per_trial: float = 1.0,
+        persist_final_artifacts: bool = False,
     ):
         """
         Run Ray Tune for this model. Returns ResultGrid.
@@ -370,6 +456,8 @@ class Sim:
         os.makedirs(RAY_RESULTS_DIR, exist_ok=True)
         if not ray.is_initialized():
             ray_init_kwargs = {"ignore_reinit_error": True}
+            # Dashboard/agent startup can stall or fail on some HPC nodes; disable for batch runs.
+            ray_init_kwargs["include_dashboard"] = False
             ray_tmpdir = os.environ.get("RAY_TMPDIR")
             if ray_tmpdir:
                 ray_tmpdir = os.path.abspath(ray_tmpdir)
@@ -395,10 +483,45 @@ class Sim:
             default_flat[k] = v
             
 
+        run_name = f"{self.model_name}_tune_{int(time.time())}"
+        ray_tune_id = _extract_ray_tune_id(run_name)
+        run_root = os.path.join(RAY_CHECKPOINTS_DIR, run_name)
+
+        def _trial_artifact_dir(trial_id: str) -> str:
+            return os.path.join(run_root, trial_id, "final")
+
+        def _write_final_artifact(trial_id: str, config_nested: dict, learned_trial: bool, trainer=None, final_metrics=None):
+            artifact_dir = _trial_artifact_dir(trial_id)
+            os.makedirs(artifact_dir, exist_ok=True)
+            config_path = os.path.join(artifact_dir, "config.json")
+            with open(config_path, "w") as f:
+                json.dump(_to_serializable(config_nested), f, indent=2)
+
+            model_path = None
+            if learned_trial and trainer is not None:
+                model_path = os.path.join(artifact_dir, "model.ckpt")
+                trainer.save_checkpoint(model_path)
+
+            if final_metrics:
+                with open(os.path.join(artifact_dir, "metrics_final.json"), "w") as f:
+                    json.dump(_to_serializable(final_metrics), f, indent=2)
+
+            manifest = {
+                "trial_id": trial_id,
+                "learned": learned_trial,
+                "config_path": config_path,
+                "model_path": model_path,
+                "metrics_path": os.path.join(artifact_dir, "metrics_final.json") if final_metrics else None,
+            }
+            with open(os.path.join(artifact_dir, "artifact_manifest.json"), "w") as f:
+                json.dump(_to_serializable(manifest), f, indent=2)
+            return manifest
+
         def train_func(default_flat, param_space, tune_config):
             config_flat = {**default_flat, **{k: v for k, v in tune_config.items() if k in param_space or k in TRAINER_KEYS}}
             config_flat["name"] = model_name
             config = _flat_to_nested(config_flat, model_name)
+            trial_id = tune.get_context().get_trial_id()
             batch_size = config.get("trainer", {}).get("batch_size", 128)
             base = HCP_Base(parcellation="Glasser", shuffle_seed=0, source="SC", target="FC")
             train_ds = HCP_Partition(base, "train")
@@ -409,6 +532,7 @@ class Sim:
             test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
 
             report_dict = {}
+            should_write_final_artifact = save_checkpoint or persist_final_artifacts
 
             if learned:
                 model_cfg = config["model"].copy()
@@ -426,11 +550,14 @@ class Sim:
                 )
                 tune_metrics = {
                     "train_loss": "train_loss",
+                    "train_demeaned_r": "train_demeaned_r",
+                    "train_pearson_r": "train_pearson_r",
                     "val_loss": "val_loss",
                     "val_demeaned_r": "val_demeaned_r",
                     "val_pearson_r": "val_pearson_r",
                 }
-                callbacks = [TuneReportCallback(metrics=tune_metrics, on="validation_end")]
+                callbacks = [TuneReportCallback(metrics=tune_metrics, on="validation_end"),
+                            TuneReportCheckpointCallback(metrics=tune_metrics, filename="checkpoint",on="fit_end")] # train_end, fit_end
                 trainer = pl.Trainer(max_epochs=epochs, logger=False, callbacks=callbacks, enable_progress_bar=False)
                 trainer.fit(pl_module, train_dataloaders=train_loader, val_dataloaders=val_loader)
                 final_report = {}
@@ -439,24 +566,8 @@ class Sim:
                     if val is not None:
                         final_report[metric_name] = float(val.item()) if hasattr(val, "item") else float(val)
 
-                if save_checkpoint:
-                    try:
-                        trial_dir = tune.get_context().get_trial_dir()
-                        run_dir = os.path.join("results", os.path.basename(trial_dir))
-                    except Exception:
-                        trial_dir = None
-                        run_dir = os.path.join("results", f"tune_{model_name}_{id(tune_config)}")
-                    os.makedirs(run_dir, exist_ok=True)
-                    final_ckpt = os.path.join(run_dir, "checkpoint.ckpt")
-                    trainer.save_checkpoint(final_ckpt)
-
-                    # Report exactly one checkpoint to Ray at fit end.
-                    checkpoint_dir = tempfile.mkdtemp(
-                        prefix="final_ckpt_",
-                        dir=trial_dir if trial_dir and os.path.isdir(trial_dir) else None,
-                    )
-                    shutil.copy2(final_ckpt, os.path.join(checkpoint_dir, "checkpoint.ckpt"))
-                    session.report(final_report, checkpoint=Checkpoint.from_directory(checkpoint_dir))
+                # Learned-model checkpointing is handled by TuneReportCheckpointCallback.
+                # Keep manual final artifact writing for closed-form models only.
             else:
                 model_cfg = config["model"].copy()
                 model_cfg.pop("name")
@@ -471,7 +582,6 @@ class Sim:
                 
                 train_eval = Evaluator(train_preds, train_targets, train_partition, base)
                 val_eval = Evaluator(val_preds, val_targets, val_partition, base)
-                test_eval = Evaluator(test_preds, test_targets, test_partition, base)
 
                 train_metrics = train_eval._metrics
                 val_metrics = val_eval._metrics
@@ -486,7 +596,24 @@ class Sim:
                     "val_demeaned_r": val_metrics.get("demeaned_pearson", np.nan),
                 }
 
-                session.report(report_dict)
+                checkpoint = None
+                if should_write_final_artifact:
+                    trial_dir = None
+                    try:
+                        trial_dir = tune.get_context().get_trial_dir()
+                    except Exception:
+                        trial_dir = None
+                    checkpoint_dir = tempfile.mkdtemp(
+                        prefix="closed_form_ckpt_",
+                        dir=trial_dir if trial_dir and os.path.isdir(trial_dir) else None,
+                    )
+                    with open(os.path.join(checkpoint_dir, "model_config.json"), "w") as f:
+                        json.dump(_to_serializable(config), f, indent=2)
+                    checkpoint = Checkpoint.from_directory(checkpoint_dir)
+
+                if should_write_final_artifact:
+                    _write_final_artifact(trial_id, config, learned_trial=False, final_metrics=report_dict)
+                session.report(report_dict, checkpoint=checkpoint)
 
         # Ray Tune requires the trainable to have a single positional parameter named 'config'.
         def _tune_trainable(config):
@@ -500,18 +627,17 @@ class Sim:
         callbacks = []
         if WandbLoggerCallback is not None:
             callbacks.append(
-                WandbLoggerCallback(
+                TrialFamilyWandbLoggerCallback(
                     project=WANDB_PROJECT,
                     entity=WANDB_ENTITY,
                     group=f"{self.model_name}_tune",
-                    tags=[self.model_name, "tune"],
+                    tags=[self.model_name, "tune"] + ([f"ray_tune_id:{ray_tune_id}"] if ray_tune_id else []),
                     log_config=True,
                 )
             )
         
         reporter = CLIReporter()
         reporter.add_metric_column("val_demeaned_r")
-        run_name = f"{self.model_name}_tune_{int(time.time())}"
         print(f"Ray checkpoint storage path: {RAY_CHECKPOINTS_DIR}", flush=True)
         run_config = tune.RunConfig(
             name=run_name,
@@ -526,7 +652,7 @@ class Sim:
                 num_samples=num_samples,
                 metric=metric,
                 mode=mode,
-                scheduler=ASHAScheduler(max_t=max_epochs or 100, grace_period=1, reduction_factor=2) if learned else None,
+                scheduler=ASHAScheduler(max_t=max_epochs, grace_period=50, reduction_factor=2) if learned else None,
             ),
             run_config=run_config,
         )
@@ -546,28 +672,86 @@ class Sim:
         Uses best checkpoint/config, writes test eval report via Evaluator.analyze_results,
         and logs train/val/test + selection metadata to W&B.
         """
-        best = results.get_best_result(metric=metric, mode=mode)
+        if self.learned:
+            all_results = list(results)
+            checkpointed_results = []
+            for res in all_results:
+                metrics = getattr(res, "metrics", {}) or {}
+                has_checkpoint_obj = getattr(res, "checkpoint", None) is not None
+                has_checkpoint_name = metrics.get("checkpoint_dir_name") not in (None, "")
+                metric_value = metrics.get(metric)
+                if metric_value is None:
+                    continue
+                try:
+                    metric_value = float(metric_value)
+                except (TypeError, ValueError):
+                    continue
+                if np.isnan(metric_value):
+                    continue
+                if has_checkpoint_obj or has_checkpoint_name:
+                    checkpointed_results.append((res, metric_value))
+
+            if not checkpointed_results:
+                raise RuntimeError(
+                    f"No learned trials have both metric '{metric}' and a checkpoint. "
+                    "Cannot report best Tune trial."
+                )
+
+            reverse = (mode == "max")
+            best = sorted(checkpointed_results, key=lambda x: x[1], reverse=reverse)[0][0]
+            skipped_no_checkpoint = len(all_results) - len(checkpointed_results)
+            print(
+                f"Best-trial selection considered {len(checkpointed_results)} checkpointed "
+                f"trial(s); skipped {skipped_no_checkpoint} without checkpoints.",
+                flush=True,
+            )
+        else:
+            best = results.get_best_result(metric=metric, mode=mode)
         best_config_flat = dict(best.config)
         best_config = _flat_to_nested(best_config_flat, self.model_name)
 
         best_path = getattr(best, "path", None)
-        best_trial_id = os.path.basename(best_path) if best_path else f"best_{int(time.time())}"
+        best_metrics = getattr(best, "metrics", {}) or {}
+        best_trial_id = best_metrics.get("trial_id")
+        if not best_trial_id and best_path:
+            m = re.search(r"([0-9a-f]{5}_\d{5})", best_path)
+            best_trial_id = m.group(1) if m else None
+        if not best_trial_id:
+            best_trial_id = f"trial_{int(time.time())}"
+        best_trial_family = best_trial_id.split("_")[0] if "_" in best_trial_id else best_trial_id
+        ray_tune_id = _extract_ray_tune_id(best_path or "")
+        best_run_name = f"{best_trial_family}_best"
+        best_group = f"{self.model_name}_tune_{best_trial_family}"
         report_dir = os.path.join(RAY_RESULTS_DIR, self.model_name, best_trial_id)
         checkpoint_dir = os.path.join(RAY_CHECKPOINTS_DIR, "best", self.model_name, best_trial_id)
 
         best_checkpoint_path = None
         run_mode = "prod" if report_to_wandb else "dev"
+        run_parent = os.path.dirname(best_path) if best_path else None
+        canonical_artifact_dir = (
+            os.path.join(run_parent, best_trial_id, "final")
+            if run_parent else None
+        )
+        manifest = None
+        if canonical_artifact_dir and os.path.isfile(os.path.join(canonical_artifact_dir, "artifact_manifest.json")):
+            with open(os.path.join(canonical_artifact_dir, "artifact_manifest.json")) as f:
+                manifest = json.load(f)
+
         if self.learned:
-            ckpt_dir = best.checkpoint.to_directory() if best.checkpoint is not None else None
-            if ckpt_dir is None:
-                raise RuntimeError("Best trial has no checkpoint; cannot evaluate learned model on test.")
-            ckpt_candidates = list(Path(ckpt_dir).rglob("*.ckpt"))
-            if not ckpt_candidates:
-                ckpt_candidates = list(Path(ckpt_dir).rglob("checkpoint"))
-            if not ckpt_candidates:
-                raise FileNotFoundError(f"No checkpoint file found under {ckpt_dir}")
-            source_ckpt_path = str(ckpt_candidates[0])
+            source_ckpt_path = None
+            if best.checkpoint is not None:
+                ckpt_dir = best.checkpoint.to_directory()
+                ckpt_candidates = list(Path(ckpt_dir).rglob("*.ckpt"))
+                if not ckpt_candidates:
+                    ckpt_candidates = list(Path(ckpt_dir).rglob("checkpoint"))
+                if ckpt_candidates:
+                    source_ckpt_path = str(ckpt_candidates[0])
+            elif manifest and manifest.get("model_path") and os.path.isfile(manifest["model_path"]):
+                source_ckpt_path = manifest["model_path"]
+            if source_ckpt_path is None:
+                raise RuntimeError("Best trial has no checkpoint artifact; cannot evaluate learned model on test.")
             best_checkpoint_copy = os.path.join(checkpoint_dir, "best_checkpoint.ckpt")
+            os.makedirs(checkpoint_dir, exist_ok=True)
             shutil.copy2(source_ckpt_path, best_checkpoint_copy)
             best_checkpoint_path = best_checkpoint_copy
             run_out = self._run_learned_single(
@@ -578,14 +762,30 @@ class Sim:
                 checkpoint_path=best_checkpoint_path,
                 train_from_scratch=False,
                 test_report_basename="test_results",
-                wandb_name=f"{self.model_name}_best_{best_trial_id}",
-                wandb_tags=["best_trial_report", f"source_trial:{best_trial_id}"],
+                wandb_name=best_run_name,
+                wandb_group=best_group,
+                wandb_tags=[
+                    "best_trial_report",
+                    f"source_trial:{best_trial_id}",
+                ] + ([f"ray_tune_id:{ray_tune_id}"] if ray_tune_id else []),
+                wandb_metadata={
+                    "ray_tune_id": ray_tune_id,
+                    "ray_trial_id": best_trial_id,
+                },
                 store_eval_md=store_eval_md,
             )
         else:
+            os.makedirs(checkpoint_dir, exist_ok=True)
             config_path = os.path.join(checkpoint_dir, "best_model_config.json")
+            config_to_save = best_config
+            if best.checkpoint is not None:
+                ckpt_dir = best.checkpoint.to_directory()
+                ckpt_config_path = os.path.join(ckpt_dir, "model_config.json")
+                if os.path.isfile(ckpt_config_path):
+                    with open(ckpt_config_path) as f:
+                        config_to_save = json.load(f)
             with open(config_path, "w") as f:
-                json.dump(_to_serializable(best_config), f, indent=2)
+                json.dump(_to_serializable(config_to_save), f, indent=2)
             best_checkpoint_path = config_path
             run_out = self._run_closed_form_single(
                 mode=run_mode,
@@ -593,8 +793,16 @@ class Sim:
                 run_dir=report_dir,
                 config_override=best_config,
                 test_report_basename="test_results",
-                wandb_name=f"{self.model_name}_best_{best_trial_id}",
-                wandb_tags=["best_trial_report", f"source_trial:{best_trial_id}"],
+                wandb_name=best_run_name,
+                wandb_group=best_group,
+                wandb_tags=[
+                    "best_trial_report",
+                    f"source_trial:{best_trial_id}",
+                ] + ([f"ray_tune_id:{ray_tune_id}"] if ray_tune_id else []),
+                wandb_metadata={
+                    "ray_tune_id": ray_tune_id,
+                    "ray_trial_id": best_trial_id,
+                },
                 store_eval_md=store_eval_md,
             )
 
@@ -609,10 +817,14 @@ class Sim:
                 "mode": mode,
                 "value": best.metrics.get(metric),
             },
+            "ray_tune_id": ray_tune_id,
             "best_trial": {
+                "id": best_trial_id,
                 "path": best_path,
                 "config": best_config,
                 "checkpoint_saved_to": best_checkpoint_path,
+                "best_run_name": best_run_name,
+                "wandb_group": best_group,
             },
             "metrics": {
                 "train": train_metrics,
@@ -632,6 +844,7 @@ class Sim:
                 report_body = f.read()
             trial_meta = (
                 f"## Ray Tune Linkage\n\n"
+                f"- Ray Tune id: `{ray_tune_id}`\n"
                 f"- Ray Tune trial id: `{best_trial_id}`\n"
                 f"- Ray Tune trial path: `{best_path}`\n"
                 f"- Ray Tune trial dir link: [{best_trial_id}]({best_path})\n\n"
@@ -682,17 +895,21 @@ def _parse_args():
 if __name__ == "__main__":
     args = _parse_args()
     overrides = None
+    
     if args.config and os.path.isfile(args.config):
         with open(args.config) as f:
             data = json.load(f) if args.config.endswith(".json") else yaml.safe_load(f)
         overrides = data.get("default", data) if isinstance(data, dict) else None
+    
     sim = Sim(model_name=args.model, config_overrides=overrides)
+
     if args.use_tune and args.mode == "prod":
         tune_results = sim.run_tune(
             num_samples=args.num_samples,
             save_checkpoint=args.save_checkpoint,
             cpus_per_trial=args.tune_cpus_per_trial,
             gpus_per_trial=args.tune_gpus_per_trial,
+            persist_final_artifacts=(args.save_checkpoint or args.report_best_after_tune or args.store_eval_md),
         )
         if args.report_best_after_tune or args.store_eval_md:
             sim.report_best_tune_trial(
