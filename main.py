@@ -43,7 +43,9 @@ from models.config import (
     get_default_config,
     get_search_space,
     build_model,
+    resolve_source_dependent_config,
     TRAINER_KEYS,
+    DATA_KEYS,
 )
 
 # Ensure project root is on path when run as script
@@ -110,10 +112,13 @@ class TrialFamilyWandbLoggerCallback(WandbLoggerCallback):
 
 
 def _flat_to_nested(flat: dict, model_name: str) -> dict:
-    """Split flat config (e.g. from Tune) into nested {model: {...}, trainer: {...}}."""
+    """Split flat config (e.g. from Tune) into nested {data, model, trainer}."""
     trainer = {k: flat[k] for k in TRAINER_KEYS if k in flat}
+    data = {k: flat[k] for k in DATA_KEYS if k in flat}
     model = {"name": model_name, **{k: flat[k] for k in flat if k not in TRAINER_KEYS and k != "name"}}
-    return {"model": model, "trainer": trainer}
+    for key in DATA_KEYS:
+        model.pop(key, None)
+    return {"data": data, "model": model, "trainer": trainer}
 
 
 def _to_serializable(obj):
@@ -144,7 +149,7 @@ class Sim:
         config_path: str = None,
         config_overrides: dict = None,
         parcellation: str = "Glasser",
-        hemi: str = "L", # default is both
+        hemi: str = "both",
         source: str = "SC",
         target: str = "FC",
         shuffle_seed: int = 0,
@@ -157,25 +162,50 @@ class Sim:
         Remaining args: data options for HCP_Base and DataLoader batch_size.
         """
         self.model_name = model_name
+        self.parcellation = parcellation
         self.hemi = hemi
+        self.source = source
+        self.target = target
+        self.shuffle_seed = shuffle_seed
         full = load_config(model_name, path=config_path)
         self._raw_config = full
         self.learned = full.get("learned", True)
 
         self.config = get_default_config(model_name, path=config_path)
+        self.config.setdefault("data", {})
+        self.config["data"].update(
+            {
+                "parcellation": parcellation,
+                "hemi": hemi,
+                "source": source,
+                "target": target,
+                "shuffle_seed": shuffle_seed,
+            }
+        )
         if config_overrides:
-            for section in ("model", "trainer"):
+            for section in ("data", "model", "trainer"):
                 if section in config_overrides and section in self.config:
                     self.config[section].update(config_overrides[section])
+                elif section in config_overrides:
+                    self.config[section] = deepcopy(config_overrides[section])
+
+        self.config = resolve_source_dependent_config(self.config)
+        data_cfg = deepcopy(self.config.get("data", {}))
+        self.config["data"] = data_cfg
 
         batch_size = self.config.get("trainer", {}).get("batch_size", batch_size)
+        self.parcellation = data_cfg["parcellation"]
+        self.hemi = data_cfg["hemi"]
+        self.source = data_cfg["source"]
+        self.target = data_cfg["target"]
+        self.shuffle_seed = data_cfg["shuffle_seed"]
 
         self.base = HCP_Base(
-            parcellation=parcellation,
-            hemi=hemi,
-            shuffle_seed=shuffle_seed,
-            source=source,
-            target=target,
+            parcellation=self.parcellation,
+            hemi=self.hemi,
+            shuffle_seed=self.shuffle_seed,
+            source=self.source,
+            target=self.target,
         )
         train_ds = HCP_Partition(self.base, "train")
         val_ds = HCP_Partition(self.base, "val")
@@ -184,16 +214,23 @@ class Sim:
         self.val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False)
         self.test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
 
-    def run_single(self, mode: str = "dev", save_checkpoint: bool = False, run_dir: str = None):
+    def run_single(
+        self,
+        mode: str = "dev",
+        save_checkpoint: bool = False,
+        run_dir: str = None,
+        store_eval_md: bool = False,
+    ):
         """
         Run a single configuration (one model, one training run). No Ray; runs in this process.
 
         mode: "dev" = no wandb, live plot, verbose=False. "prod" = log to wandb, verbose eval.
         For one run with wandb from a notebook or script, use run_single(mode="prod").
         save_checkpoint: if True, write checkpoint and eval report to run_dir (default results/run_<timestamp>).
+        store_eval_md: if True, write the eval markdown report to run_dir even without a checkpoint.
         Returns dict with model, evaluators, test_metrics, and for learned models train_result.
         """
-        if run_dir is None and save_checkpoint:
+        if run_dir is None and (save_checkpoint or store_eval_md):
             run_dir = os.path.join("results", f"run_{int(time.time())}")
         
         if mode == "prod" and wandb is not None and not self.learned: # need to do this specifically for 'closed form' models
@@ -201,9 +238,19 @@ class Sim:
         
         try:
             if self.learned:
-                return self._run_learned_single(mode, save_checkpoint, run_dir)
+                return self._run_learned_single(
+                    mode,
+                    save_checkpoint,
+                    run_dir,
+                    store_eval_md=store_eval_md,
+                )
             else: 
-                return self._run_closed_form_single(mode, save_checkpoint, run_dir)
+                return self._run_closed_form_single(
+                    mode,
+                    save_checkpoint,
+                    run_dir,
+                    store_eval_md=store_eval_md,
+                )
         finally:
             if mode == "prod" and wandb is not None: # fallback to finish any wandb run - can consider replacing with WandbLogger to manage init and finish
                 wandb.finish()
@@ -211,12 +258,12 @@ class Sim:
     def _merge_config(self, config_override: dict = None) -> dict:
         cfg = deepcopy(self.config)
         if not config_override:
-            return cfg
-        for section in ("model", "trainer"):
+            return resolve_source_dependent_config(cfg)
+        for section in ("data", "model", "trainer"):
             if section in config_override and isinstance(config_override[section], dict):
                 cfg.setdefault(section, {})
                 cfg[section].update(config_override[section])
-        return cfg
+        return resolve_source_dependent_config(cfg)
 
     def _evaluate_model(
         self,
@@ -440,9 +487,10 @@ class Sim:
         save_checkpoint: bool = False,
         metric: str = "val_demeaned_r",
         mode: str = "max",
-        max_epochs: int = None,
+        max_epochs: int = 100,
         cpus_per_trial: float = 2.0,
         gpus_per_trial: float = 1.0,
+        max_concurrent_trials: int = None,
         persist_final_artifacts: bool = False,
     ):
         """
@@ -471,16 +519,39 @@ class Sim:
         # inside the Ray trainable closure.
         model_name = self.model_name
         learned = self.learned
+        parcellation = self.parcellation
+        hemi = self.hemi
+        source = self.source
+        target = self.target
+        shuffle_seed = self.shuffle_seed
         param_space = get_search_space(self.model_name)
         if not param_space:
             raise ValueError(f"No search_space for model: {self.model_name} in config YAML.")
         default = get_default_config(self.model_name)
         default_flat = {"name": self.model_name}
+        for k, v in default.get("data", {}).items():
+            default_flat[k] = v
         for k, v in default.get("model", {}).items():
             if k != "name":
                 default_flat[k] = v
         for k, v in default.get("trainer", {}).items():
             default_flat[k] = v
+        # Determine ASHA max_t from config/search-space first, then fallback.
+        # This keeps scheduler budget aligned with trainer.max_epochs choices.
+        scheduler_max_t = max_epochs
+        if not scheduler_max_t:
+            search_max_epochs = (
+                param_space.get("max_epochs", {}).get("values")
+                if isinstance(param_space.get("max_epochs"), dict)
+                else None
+            )
+            if search_max_epochs:
+                scheduler_max_t = max(search_max_epochs)
+            else:
+                scheduler_max_t = default.get("trainer", {}).get("max_epochs", 100)
+        scheduler_max_t = int(scheduler_max_t)
+        if scheduler_max_t <= 0:
+            raise ValueError(f"Invalid scheduler max_t: {scheduler_max_t}")
             
 
         run_name = f"{self.model_name}_tune_{int(time.time())}"
@@ -518,12 +589,21 @@ class Sim:
             return manifest
 
         def train_func(default_flat, param_space, tune_config):
-            config_flat = {**default_flat, **{k: v for k, v in tune_config.items() if k in param_space or k in TRAINER_KEYS}}
+            allowed_keys = set(param_space) | TRAINER_KEYS | DATA_KEYS
+            config_flat = {**default_flat, **{k: v for k, v in tune_config.items() if k in allowed_keys}}
             config_flat["name"] = model_name
+            config_flat = resolve_source_dependent_config(config_flat)
             config = _flat_to_nested(config_flat, model_name)
             trial_id = tune.get_context().get_trial_id()
             batch_size = config.get("trainer", {}).get("batch_size", 128)
-            base = HCP_Base(parcellation="Glasser", shuffle_seed=0, source="SC", target="FC")
+            data_cfg = config.get("data", {})
+            base = HCP_Base(
+                parcellation=data_cfg.get("parcellation", parcellation),
+                hemi=data_cfg.get("hemi", hemi),
+                shuffle_seed=data_cfg.get("shuffle_seed", shuffle_seed),
+                source=data_cfg.get("source", source),
+                target=data_cfg.get("target", target),
+            )
             train_ds = HCP_Partition(base, "train")
             val_ds = HCP_Partition(base, "val")
             test_ds = HCP_Partition(base, "test")
@@ -652,7 +732,8 @@ class Sim:
                 num_samples=num_samples,
                 metric=metric,
                 mode=mode,
-                scheduler=ASHAScheduler(max_t=max_epochs, grace_period=50, reduction_factor=2) if learned else None,
+                max_concurrent_trials=max_concurrent_trials,
+                scheduler=ASHAScheduler(max_t=scheduler_max_t, grace_period=50, reduction_factor=2) if learned else None,
             ),
             run_config=run_config,
         )
@@ -864,9 +945,43 @@ def _parse_args():
     p.add_argument("--mode", choices=["dev", "prod"], default="dev")
     p.add_argument("--model", type=str, default="CrossModal_PCA_PLS_learnable")
     p.add_argument("--config", type=str, default=None, help="Path to JSON/YAML config overrides (optional)")
+    p.add_argument(
+        "--parcellation",
+        type=str,
+        default="Glasser",
+        help="Parcellation to load for FC/SC data.",
+    )
+    p.add_argument(
+        "--hemi",
+        choices=["left", "right", "both"],
+        default="both",
+        help="Hemisphere subset to use.",
+    )
+    p.add_argument(
+        "--source",
+        default="SC",
+        help="Input/source modality. Use '+' to combine sources, e.g. SC+SC_r2t.",
+    )
+    p.add_argument(
+        "--target",
+        default="FC",
+        help="Prediction/target modality. Single modality only.",
+    )
+    p.add_argument(
+        "--shuffle_seed",
+        type=int,
+        default=0,
+        help="Shuffle seed for family-aware train/val/test repartitioning. Use 0 for the original split.",
+    )
     p.add_argument("--save_checkpoint", action="store_true")
     p.add_argument("--use_tune", action="store_true")
     p.add_argument("--num_samples", type=int, default=10)
+    p.add_argument(
+        "--max_concurrent_trials",
+        type=int,
+        default=None,
+        help="Maximum number of Ray Tune trials to run concurrently. Set to 1 for sequential execution.",
+    )
     p.add_argument(
         "--tune_cpus_per_trial",
         type=float,
@@ -887,7 +1002,7 @@ def _parse_args():
     p.add_argument(
         "--store_eval_md",
         action="store_true",
-        help="Store eval markdown report for the best trial (test split) under results/ray_results.",
+        help="Store the eval markdown report for the test split for a single run or best Tune trial.",
     )
     return p.parse_args()
 
@@ -901,7 +1016,15 @@ if __name__ == "__main__":
             data = json.load(f) if args.config.endswith(".json") else yaml.safe_load(f)
         overrides = data.get("default", data) if isinstance(data, dict) else None
     
-    sim = Sim(model_name=args.model, config_overrides=overrides)
+    sim = Sim(
+        model_name=args.model,
+        config_overrides=overrides,
+        parcellation=args.parcellation,
+        hemi=args.hemi,
+        source=args.source,
+        target=args.target,
+        shuffle_seed=args.shuffle_seed,
+    )
 
     if args.use_tune and args.mode == "prod":
         tune_results = sim.run_tune(
@@ -909,6 +1032,7 @@ if __name__ == "__main__":
             save_checkpoint=args.save_checkpoint,
             cpus_per_trial=args.tune_cpus_per_trial,
             gpus_per_trial=args.tune_gpus_per_trial,
+            max_concurrent_trials=args.max_concurrent_trials,
             persist_final_artifacts=(args.save_checkpoint or args.report_best_after_tune or args.store_eval_md),
         )
         if args.report_best_after_tune or args.store_eval_md:
@@ -920,4 +1044,8 @@ if __name__ == "__main__":
                 store_eval_md=args.store_eval_md,
             )
     else:
-        sim.run_single(mode=args.mode, save_checkpoint=args.save_checkpoint)
+        sim.run_single(
+            mode=args.mode,
+            save_checkpoint=args.save_checkpoint,
+            store_eval_md=args.store_eval_md,
+        )

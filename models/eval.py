@@ -73,17 +73,18 @@ class Evaluator:
         train_indices = dataset.trainvaltest_partition_indices["train"]
         if dataset.target == "FC":
             self.train_mean = dataset.fc_train_avg
-            # fc_upper_triangles shape: (N_subjects, n_edges)
             train_data = dataset.fc_upper_triangles[train_indices]
-            if isinstance(train_data, torch.Tensor):
-                train_data = train_data.cpu().numpy()
-            self.train_std = np.std(train_data, axis=0)
-        else:
+        elif dataset.target == "SC":
             self.train_mean = dataset.sc_train_avg
             train_data = dataset.sc_upper_triangles[train_indices]
-            if isinstance(train_data, torch.Tensor):
-                train_data = train_data.cpu().numpy()
-            self.train_std = np.std(train_data, axis=0)
+        elif dataset.target == "SC_r2t":
+            self.train_mean = dataset.sc_r2t_corr_train_avg
+            train_data = dataset.sc_r2t_corr_upper_triangles[train_indices]
+        else:
+            raise ValueError(f"Unknown target modality: {dataset.target}")
+        if isinstance(train_data, torch.Tensor):
+            train_data = train_data.cpu().numpy()
+        self.train_std = np.std(train_data, axis=0)
         # Compute correlation matrices (targets, preds) so rows=targets, cols=preds
         # This answers: "for each target, which prediction matches best?"
         self.corr_matrix = compute_corr_matrix(self.targets, self.preds)
@@ -690,8 +691,8 @@ class Evaluator:
         
         Shows distributions for:
         - pFC (model predictions)
-        - Mean eFC baseline (optional, not shown if demeaned=True)
-        - Mean eFC + noise baseline (optional)
+        - Mean eFC baseline (optional, not shown if demeaned=True) - # demeaned = False: true and null identical (consider what target vs predicted matrix looks like; constant horizontally)
+        - Mean eFC + noise baseline (optional) - # demeaned = False: true and null near identical here (consider that inter is correlation to noise minus self noise estimate); demeaned = True: true has more variance than null (consider precision in estimate when correlating with noise over many samples)
         
         Args:
             include_mean_baseline: bool, include mean eFC baseline condition

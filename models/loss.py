@@ -10,14 +10,27 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
+def get_model_input(batch):
+    """Return the preferred model input from a batch."""
+    return batch["x"] if "x" in batch else batch["x_modalities"]
+
+
+def get_batch_fs(batch):
+    """Return FreeSurfer features from a batch when present."""
+    return batch.get("fs")
+
+
 def get_target_train_mean(base):
     """Extract target modality training mean from base dataset."""
-    if base.target == "SC":
+    target_modality = getattr(base, "target_modality", None) or getattr(base, "target", None)
+    if target_modality == "SC":
         return base.sc_train_avg
-    elif base.target == "FC":
+    elif target_modality == "FC":
         return base.fc_train_avg
+    elif target_modality == "SC_r2t":
+        return base.sc_r2t_corr_train_avg
     else:
-        raise ValueError(f"Unknown target modality: {base.target}")
+        raise ValueError(f"Unknown target modality: {target_modality}")
 
 # =============================================================================
 # Loss Functions
@@ -214,7 +227,7 @@ def evaluate_model(model, data_loader, target_train_mean, device):
     
     Args:
         model: the model to evaluate
-        data_loader: DataLoader yielding batches with 'x' and 'y' keys
+        data_loader: DataLoader yielding batches with model inputs and 'y'
         target_train_mean: (d,) training mean for target modality (for demeaned corr)
         device: torch device
         
@@ -231,10 +244,13 @@ def evaluate_model(model, data_loader, target_train_mean, device):
     
     with torch.no_grad():
         for batch in data_loader:
-            x = batch["x"].to(device)
+            x = get_model_input(batch)
             y = batch["y"].to(device)
             
-            out = model(x)
+            if getattr(model, "uses_fs", False):
+                out = model(x, fs=get_batch_fs(batch))
+            else:
+                out = model(x)
             y_pred = out[0] if isinstance(out, tuple) else out
             
             mse = F.mse_loss(y_pred, y).item()

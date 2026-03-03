@@ -13,6 +13,7 @@ from models.loss import (
     compute_pearson_r,
     compute_demeaned_pearson_r,
 )
+from models.models import get_model_input
 
 class CrossModalLightningModule(pl.LightningModule):
     """
@@ -53,14 +54,20 @@ class CrossModalLightningModule(pl.LightningModule):
     def forward(self, x):
         return self.model(x)
 
+    def _forward_model(self, batch):
+        x = get_model_input(batch)
+        if getattr(self.model, "uses_fs", False) and "fs" in batch:
+            return self.model(x, fs=batch["fs"])
+        return self.model(x)
+
     def _unpack_out(self, out):
         if isinstance(out, tuple) and len(out) == 3:
             return out[0], out[1], out[2]
         return out, None, None
 
     def training_step(self, batch, batch_idx):
-        x, y = batch["x"], batch["y"]
-        out = self.model(x)
+        y = batch["y"]
+        out = self._forward_model(batch)
         y_pred, mu, logvar = self._unpack_out(out)
         loss = self.loss_fn(y_pred, y, mu=mu, logvar=logvar)
         if hasattr(self.model, "get_reg_loss"):
@@ -81,10 +88,10 @@ class CrossModalLightningModule(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch["x"], batch["y"]
+        y = batch["y"]
         if self.loss_fn is not None:
-            self.loss_fn = self.loss_fn.to(x.device)
-        out = self.model(x)
+            self.loss_fn = self.loss_fn.to(y.device)
+        out = self._forward_model(batch)
         y_pred, mu, logvar = self._unpack_out(out)
         loss = self.loss_fn(y_pred, y, mu=mu, logvar=logvar)
         target_mean = self._target_train_mean

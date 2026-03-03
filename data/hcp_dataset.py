@@ -19,6 +19,26 @@ Desired features:
     - return relevant covariate info
 """
 
+VALID_MODALITIES = {"SC", "FC", "SC_r2t"}
+
+
+def normalize_modality_spec(spec):
+    """Normalize a source/target modality spec to a list of modality names."""
+    if isinstance(spec, str):
+        parts = [part.strip() for part in spec.split("+") if part.strip()]
+    elif isinstance(spec, (list, tuple)):
+        parts = [str(part).strip() for part in spec if str(part).strip()]
+    else:
+        raise TypeError(f"Unsupported modality spec type: {type(spec)!r}")
+
+    if not parts:
+        raise ValueError("Modality spec must include at least one modality.")
+
+    invalid = [part for part in parts if part not in VALID_MODALITIES]
+    if invalid:
+        raise ValueError(f"Unknown modalities {invalid}. Valid options: {sorted(VALID_MODALITIES)}")
+    return parts
+
 class HCP_Base():
     def __init__(self,
     HCP_dir='/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/',
@@ -35,8 +55,15 @@ class HCP_Base():
         self.parcellation = parcellation # Glasser or 4S456Parcels
         self.hemi = hemi # select whether to subset to a specific hemisphere or both
         self.HCP_dir = HCP_dir
-        self.source = source # SC or FC
-        self.target = target # SC or FC
+        self.source_modalities = normalize_modality_spec(source)
+        self.target_modalities = normalize_modality_spec(target)
+        if len(self.target_modalities) != 1:
+            raise ValueError(
+                "Conn2Conn currently supports a single target modality. "
+                f"Received target={self.target_modalities}."
+            )
+        self.source = "+".join(self.source_modalities)
+        self.target = self.target_modalities[0]
         self.sc_metric_type = sc_metric_type
         self.sc_apply_log1p = sc_apply_log1p
         self.shuffle_seed = shuffle_seed
@@ -69,9 +96,23 @@ class HCP_Base():
         self.fc_upper_triangles = self.fc_upper_triangles[canonical_fc_indices]
         self.sc_matrices = self.sc_matrices[canonical_sc_indices]
         self.sc_upper_triangles = self.sc_upper_triangles[canonical_sc_indices]
-        self.sc_r2t_matrices = self.sc_r2t_matrices[canonical_sc_indices]
+        self.sc_r2t_matrices = (
+            self.sc_r2t_matrices[canonical_sc_indices]
+            if self.sc_r2t_matrices is not None
+            else None
+        )
+        
         # Compute r x r correlation matrix for each subject's r2t matrix, replace NaNs with 0s in place
-        self.sc_r2t_corr_matrices = [np.nan_to_num(np.corrcoef(mat), nan=0.0) for mat in self.sc_r2t_matrices]
+        if self.sc_r2t_matrices is None:
+            self.sc_r2t_corr_matrices = None
+            self.sc_r2t_corr_upper_triangles = None
+        else:
+            self.sc_r2t_corr_matrices = np.stack(
+                [np.nan_to_num(np.corrcoef(mat), nan=0.0) for mat in self.sc_r2t_matrices],
+                axis=0,
+            )
+            tri_indices = np.triu_indices(self.sc_r2t_corr_matrices.shape[1], k=1)
+            self.sc_r2t_corr_upper_triangles = self.sc_r2t_corr_matrices[:, tri_indices[0], tri_indices[1]]
         
 
         self.trainvaltest_partition_indices = {
@@ -85,11 +126,21 @@ class HCP_Base():
             "val": self.metadata_df[self.metadata_df["train_val_test"] == "val"]["subject"].tolist(),
             "test": self.metadata_df[self.metadata_df["train_val_test"] == "test"]["subject"].tolist(),
         }
+
+        # Build aligned FreeSurfer feature matrix and normalize using train split statistics.
+        self.fs_feature_columns = [col for col in self.freesurfer_df.columns if col != "subject"]
+        self.fs_features_all = self.freesurfer_df[self.fs_feature_columns].to_numpy(dtype=np.float32, copy=True)
+        train_indices = self.trainvaltest_partition_indices["train"]
+        self.fs_train_mean = self.fs_features_all[train_indices].mean(axis=0)
+        self.fs_train_std = self.fs_features_all[train_indices].std(axis=0)
+        self.fs_train_std[self.fs_train_std == 0] = 1.0
+        self.fs_features_z = (self.fs_features_all - self.fs_train_mean) / self.fs_train_std
         
         # Compute mean and PCA for training subjects for FC and SC
-        self.sc_train_avg,  self.sc_train_loadings, self.sc_train_scores = population_mean_pca(self.sc_upper_triangles[self.trainvaltest_partition_indices["train"]])
-        self.fc_train_avg, self.fc_train_loadings, self.fc_train_scores = population_mean_pca(self.fc_upper_triangles[self.trainvaltest_partition_indices["train"]])
-        
+        self.sc_train_avg,  self.sc_train_loadings, self.sc_train_scores = population_mean_pca(self.sc_upper_triangles[train_indices])
+        self.fc_train_avg, self.fc_train_loadings, self.fc_train_scores = population_mean_pca(self.fc_upper_triangles[train_indices])
+        self.sc_r2t_corr_train_avg, self.sc_r2t_corr_train_loadings, self.sc_r2t_corr_train_scores = population_mean_pca(self.sc_r2t_corr_upper_triangles[train_indices])
+
     @staticmethod
     def subject_indices_from_id(subject_list, target_subjects):
         return [i for i, subj in enumerate(subject_list) if subj in target_subjects]
@@ -107,14 +158,31 @@ class HCP_Partition(Dataset):
         self.ids = base.trainvaltest_partition_ids[partition] # id list like: ["100206", "100207", "100208", "100209", "100210", "100211"]
         self.ids_to_indices = dict  (zip(self.ids, self.indices))
 
-        self.source = base.source
+        self.source_modalities = list(base.source_modalities)
         self.target = base.target
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.sc_upper_triangles = torch.tensor(base.sc_upper_triangles, dtype=torch.float32, device=self.device)
         self.fc_upper_triangles = torch.tensor(base.fc_upper_triangles, dtype=torch.float32, device=self.device)
+        self.sc_r2t_corr_upper_triangles = (
+            torch.tensor(base.sc_r2t_corr_upper_triangles, dtype=torch.float32, device=self.device)
+            if base.sc_r2t_corr_upper_triangles is not None
+            else None
+        )
+        self.fs_features = torch.tensor(base.fs_features_z, dtype=torch.float32, device=self.device)
     
+    def _get_modality_tensor(self, modality, global_idx):
+        if modality == "SC":
+            return self.sc_upper_triangles[global_idx]
+        if modality == "FC":
+            return self.fc_upper_triangles[global_idx]
+        if modality == "SC_r2t":
+            if self.sc_r2t_corr_upper_triangles is None:
+                raise ValueError("SC_r2t requested but sc_r2t correlation matrices are unavailable.")
+            return self.sc_r2t_corr_upper_triangles[global_idx]
+        raise ValueError(f"Unknown modality: {modality}")
+
     def __getitem__(self, idx):
         """
         By default, returns a dict with:
@@ -124,19 +192,24 @@ class HCP_Partition(Dataset):
         Later, more keys can be added (covariates, freesurfer, tracts, etc)
         """
         global_idx = self.indices[idx] # retruns index of subject in global subject list
-        if self.source == "SC":
-            source_data = self.sc_upper_triangles[global_idx]
-        elif self.source == "FC":
-            source_data = self.fc_upper_triangles[global_idx]
-            
-        if self.target == "SC":
-            target_data = self.sc_upper_triangles[global_idx]
-        elif self.target == "FC":
-            target_data = self.fc_upper_triangles[global_idx]
-        
+        source_modalities = {
+            modality: self._get_modality_tensor(modality, global_idx)
+            for modality in self.source_modalities
+        }
+        target_data = self._get_modality_tensor(self.target, global_idx)
+        fs_data = self.fs_features[global_idx]
+
+        if len(self.source_modalities) == 1:
+            model_input = source_modalities[self.source_modalities[0]]
+        else:
+            model_input = source_modalities
+
         return {
-            "x": source_data,
+            "x": model_input,
+            "x_modalities": source_modalities,
             "y": target_data,
+            "fs": fs_data,
+            "subject_id": self.ids[idx],
         }
     
     def __len__(self):

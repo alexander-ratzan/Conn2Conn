@@ -1,15 +1,33 @@
 learned: false
 
 default:
+  data:
+    source: SC
+    target: FC
   model:
     name: CrossModal_PCA_PLS
     n_components_pca: 128
+    n_components_pca_target: 128
     n_components_pls: 64
     device: null
   trainer: {}
 
 search_space:
+  source:
+    type: choice
+    values: [SC, SC_r2t, SC+SC_r2t]
   n_components_pca:
+    type: choice
+    values:
+      - 32
+      - 64
+      - 128
+      - 256
+      - 512
+      - {SC: 64, SC_r2t: 64}
+      - {SC: 128, SC_r2t: 128}
+      - {SC: 256, SC_r2t: 256}
+  n_components_pca_target:
     type: choice
     values: [32, 64, 128, 256, 512]
   n_components_pls:

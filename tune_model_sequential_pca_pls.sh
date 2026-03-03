@@ -2,7 +2,7 @@
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=6
+#SBATCH --cpus-per-task=5
 #SBATCH --time=1:00:00
 #SBATCH --mem=64GB
 #SBATCH --gres=gpu:1
@@ -17,8 +17,13 @@ cd /scratch/asr655/neuroinformatics/Conn2Conn/
 export RAY_TMPDIR="/tmp/ray_${SLURM_JOB_ID}"
 mkdir -p "${RAY_TMPDIR}"
 
-export TUNE_CPUS_PER_TRIAL=2
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+
+export TUNE_CPUS_PER_TRIAL=5
 export TUNE_GPUS_PER_TRIAL=1
+export MAX_CONCURRENT_TRIALS=1
 
 singularity exec --nv \
   --overlay "/scratch/$USER/envs/kraken_env/overlay-15GB-500K.ext3:ro" \
@@ -32,7 +37,8 @@ singularity exec --nv \
       --config models/configs/CrossModal_PCA_PLS.yml \
       --save_checkpoint \
       --use_tune \
-      --num_samples 16 \
+      --num_samples 3 \
+      --max_concurrent_trials ${MAX_CONCURRENT_TRIALS} \
       --tune_cpus_per_trial ${TUNE_CPUS_PER_TRIAL} \
       --tune_gpus_per_trial ${TUNE_GPUS_PER_TRIAL} \
       --report_best_after_tune \

@@ -8,6 +8,7 @@ import yaml
 
 # Keys that belong to trainer config (used when splitting flat Tune config).
 TRAINER_KEYS = {"lr", "loss_type", "loss_alpha", "loss_beta", "max_epochs", "batch_size", "log_every"}
+DATA_KEYS = {"parcellation", "hemi", "source", "target", "shuffle_seed"}
 
 _CONFIGS_DIR = os.path.join(os.path.dirname(__file__), "configs")
 
@@ -36,6 +37,85 @@ def get_default_config(model_name: str, path: str = None) -> dict:
     """Return a deep copy of the default section (model + trainer) for the given model."""
     cfg = load_config(model_name, path=path)
     return deepcopy(cfg.get("default", {}))
+
+
+def _normalize_source_list(source_spec):
+    if isinstance(source_spec, str):
+        return [part.strip() for part in source_spec.split("+") if part.strip()]
+    if isinstance(source_spec, (list, tuple)):
+        return [str(part).strip() for part in source_spec if str(part).strip()]
+    return []
+
+
+def _resolve_source_dims(value, source_modalities):
+    """
+    Coerce scalar/dict PCA settings to match the selected source modalities.
+
+    Rules:
+    - single-source + dict -> select that modality's entry
+    - multi-source + scalar -> broadcast scalar to all source modalities
+    - multi-source + dict -> keep only the active modality keys
+    """
+    if value is None or not source_modalities:
+        return value
+
+    if len(source_modalities) == 1:
+        modality = source_modalities[0]
+        if isinstance(value, dict):
+            if modality not in value:
+                raise ValueError(
+                    f"Resolved source '{modality}' is missing from PCA config keys {sorted(value)}."
+                )
+            return value[modality]
+        return value
+
+    if isinstance(value, dict):
+        missing = [modality for modality in source_modalities if modality not in value]
+        if missing:
+            raise ValueError(
+                f"Multi-source setting {source_modalities} is missing PCA dims for {missing}."
+            )
+        return {modality: value[modality] for modality in source_modalities}
+
+    return {modality: value for modality in source_modalities}
+
+
+def resolve_source_dependent_config(config: dict) -> dict:
+    """
+    Normalize source-dependent PCA settings for either nested or flat config dicts.
+
+    Supported keys:
+    - data.source or source
+    - model.n_components_pca / n_components_pca
+    - model.n_components_pca_source / n_components_pca_source
+    """
+    resolved = deepcopy(config or {})
+
+    if "model" in resolved or "data" in resolved:
+        source_spec = resolved.get("data", {}).get("source")
+        source_modalities = _normalize_source_list(source_spec)
+        model_cfg = resolved.setdefault("model", {})
+        if "n_components_pca" in model_cfg:
+            model_cfg["n_components_pca"] = _resolve_source_dims(
+                model_cfg["n_components_pca"], source_modalities
+            )
+        if "n_components_pca_source" in model_cfg:
+            model_cfg["n_components_pca_source"] = _resolve_source_dims(
+                model_cfg["n_components_pca_source"], source_modalities
+            )
+        return resolved
+
+    source_spec = resolved.get("source")
+    source_modalities = _normalize_source_list(source_spec)
+    if "n_components_pca" in resolved:
+        resolved["n_components_pca"] = _resolve_source_dims(
+            resolved["n_components_pca"], source_modalities
+        )
+    if "n_components_pca_source" in resolved:
+        resolved["n_components_pca_source"] = _resolve_source_dims(
+            resolved["n_components_pca_source"], source_modalities
+        )
+    return resolved
 
 
 def search_space_to_tune(search_space: dict):
@@ -81,7 +161,7 @@ def build_model(base, model_name: str = None, model_kwargs: dict = None):
         raise ValueError("model_name or model_kwargs['name'] required")
     kwargs = {k: v for k, v in model_kwargs.items() if k != "name"}
     # YAML may give lists for tuples (e.g. l1_l2_tuple, hidden_dims)
-    for k in ("l1_l2_tuple", "hidden_dims"):
+    for k in ("l1_l2_tuple", "hidden_dims", "fs_hidden_dims"):
         if k in kwargs and isinstance(kwargs[k], list):
             kwargs[k] = tuple(kwargs[k])
     if kwargs.get("device") is None:

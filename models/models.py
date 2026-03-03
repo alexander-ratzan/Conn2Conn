@@ -38,6 +38,57 @@ def compute_reg_loss(parameters, l1_l2_tuple=(0.0, 0.0)):
     return reg
 
 
+def get_model_input(batch):
+    """Return the preferred model input from a batch."""
+    return batch["x"] if "x" in batch else batch["x_modalities"]
+
+
+def get_batch_fs(batch):
+    """Return FreeSurfer features from a batch when present."""
+    return batch.get("fs")
+
+
+def get_single_modality_data(base, modality, include_scores=True, include_raw_data=False):
+    """Extract train-split summaries and optional raw data for one modality."""
+    mapping = {
+        "SC": (
+            base.sc_train_avg,
+            base.sc_train_loadings,
+            base.sc_train_scores if include_scores else None,
+            base.sc_upper_triangles if include_raw_data else None,
+        ),
+        "FC": (
+            base.fc_train_avg,
+            base.fc_train_loadings,
+            base.fc_train_scores if include_scores else None,
+            base.fc_upper_triangles if include_raw_data else None,
+        ),
+        "SC_r2t": (
+            base.sc_r2t_corr_train_avg,
+            base.sc_r2t_corr_train_loadings,
+            base.sc_r2t_corr_train_scores if include_scores else None,
+            base.sc_r2t_corr_upper_triangles if include_raw_data else None,
+        ),
+    }
+    if modality not in mapping:
+        raise ValueError(f"Unknown modality: {modality}")
+
+    mean, loadings, scores, raw = mapping[modality]
+    if mean is None or loadings is None:
+        raise ValueError(f"Modality '{modality}' is unavailable in this dataset instance.")
+
+    result = {
+        "mean": mean,
+        "loadings": loadings,
+    }
+    if include_scores:
+        result["scores"] = scores
+    if include_raw_data:
+        result["upper_triangles"] = raw
+        result["train_indices"] = base.trainvaltest_partition_indices["train"]
+    return result
+
+
 def get_modality_data(base, device=None, include_scores=True, include_raw_data=False):
     """
     Extract source and target modality data from base dataset object.
@@ -63,50 +114,48 @@ def get_modality_data(base, device=None, include_scores=True, include_raw_data=F
     if device is None:
         device = torch.device("cpu")
     
-    # Source modality
-    if base.source == "SC":
-        source_mean = base.sc_train_avg
-        source_loadings = base.sc_train_loadings
-        source_scores = base.sc_train_scores if include_scores else None
-        source_upper_triangles = base.sc_upper_triangles if include_raw_data else None
-    elif base.source == "FC":
-        source_mean = base.fc_train_avg
-        source_loadings = base.fc_train_loadings
-        source_scores = base.fc_train_scores if include_scores else None
-        source_upper_triangles = base.fc_upper_triangles if include_raw_data else None
-    else:
-        raise ValueError(f"Unknown source modality: {base.source}")
-    
-    # Target modality
-    if base.target == "SC":
-        target_mean = base.sc_train_avg
-        target_loadings = base.sc_train_loadings
-        target_scores = base.sc_train_scores if include_scores else None
-        target_upper_triangles = base.sc_upper_triangles if include_raw_data else None
-    elif base.target == "FC":
-        target_mean = base.fc_train_avg
-        target_loadings = base.fc_train_loadings
-        target_scores = base.fc_train_scores if include_scores else None
-        target_upper_triangles = base.fc_upper_triangles if include_raw_data else None
-    else:
-        raise ValueError(f"Unknown target modality: {base.target}")
-    
-    result = {
-        'source_mean': source_mean,
-        'source_loadings': source_loadings,
-        'target_mean': target_mean,
-        'target_loadings': target_loadings,
+    source_modalities = getattr(base, "source_modalities", [base.source])
+    target_modality = getattr(base, "target_modalities", [base.target])[0]
+    source_data = {
+        modality: get_single_modality_data(
+            base,
+            modality,
+            include_scores=include_scores,
+            include_raw_data=include_raw_data,
+        )
+        for modality in source_modalities
     }
-    
-    if include_scores:
-        result['source_scores'] = source_scores
-        result['target_scores'] = target_scores
-    
-    if include_raw_data:
-        result['source_upper_triangles'] = source_upper_triangles
-        result['target_upper_triangles'] = target_upper_triangles
-        result['train_indices'] = base.trainvaltest_partition_indices["train"]
-    
+    target_data = get_single_modality_data(
+        base,
+        target_modality,
+        include_scores=include_scores,
+        include_raw_data=include_raw_data,
+    )
+
+    result = {
+        "sources": source_data,
+        "target": target_data,
+    }
+
+    # Preserve the legacy flat keys for single-source models.
+    if len(source_modalities) == 1:
+        source_only = source_data[source_modalities[0]]
+        result.update(
+            {
+                "source_mean": source_only["mean"],
+                "source_loadings": source_only["loadings"],
+                "target_mean": target_data["mean"],
+                "target_loadings": target_data["loadings"],
+            }
+        )
+        if include_scores:
+            result["source_scores"] = source_only["scores"]
+            result["target_scores"] = target_data["scores"]
+        if include_raw_data:
+            result["source_upper_triangles"] = source_only["upper_triangles"]
+            result["target_upper_triangles"] = target_data["upper_triangles"]
+            result["train_indices"] = target_data["train_indices"]
+
     return result
 
 
@@ -126,11 +175,13 @@ def predict_from_loader(model, data_loader, device=None):
     all_targets = []
     with torch.no_grad():
         for batch in data_loader:
-            x = batch["x"]
+            x = get_model_input(batch)
             y = batch["y"]
-            x = x.to(device)
             y = y.to(device)
-            out = model(x)
+            if getattr(model, "uses_fs", False):
+                out = model(x, fs=get_batch_fs(batch))
+            else:
+                out = model(x)
             preds = out[0] if isinstance(out, tuple) else out
             all_preds.append(preds.cpu())
             all_targets.append(y.cpu())
@@ -159,6 +210,8 @@ class CrossModalPCA(nn.Module):
         super().__init__()
         self.base = base
         self.num_components = num_components
+        if len(getattr(base, "source_modalities", [base.source])) != 1:
+            raise ValueError("CrossModalPCA only supports a single source modality.")
 
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -243,6 +296,8 @@ class CrossModal_PLS_SVD(nn.Module):
     def __init__(self, base, n_components=10, device=None):
         super().__init__()
         self.n_components = n_components
+        if len(getattr(base, "source_modalities", [base.source])) != 1:
+            raise ValueError("CrossModal_PLS_SVD only supports a single source modality.")
         
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -370,50 +425,71 @@ class CrossModal_PCA_PLS(nn.Module):
         source: 'SC' or 'FC' (modality for input)
         target: 'SC' or 'FC' (modality for output)
     """
-    def __init__(self, base, n_components_pca=32, n_components_pls=4, device=None):
+    def __init__(self, base, n_components_pca=32, n_components_pls=4, n_components_pca_target=None, device=None):
         super().__init__()
         self.base = base
         self.n_components_pca = n_components_pca
         self.n_components_pls = n_components_pls
+        self.n_components_pca_target = int(n_components_pca if n_components_pca_target is None else n_components_pca_target)
+        self.source_modalities = list(getattr(base, "source_modalities", [base.source]))
+        self.target_modality = getattr(base, "target_modalities", [base.target])[0]
 
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.device = device
 
-        # Get modality data using helper function (with scores)
         data = get_modality_data(base, device=self.device, include_scores=True)
-        source_mean = data['source_mean']
-        source_loadings = data['source_loadings']
-        source_scores = data['source_scores']
-        target_mean = data['target_mean']
-        target_loadings = data['target_loadings']
-        target_scores = data['target_scores']
-        
-        self.source_mean = torch.tensor(source_mean, dtype=torch.float32, device=self.device)
-        self.source_loadings = torch.tensor(source_loadings, dtype=torch.float32, device=self.device)
-        self.source_scores = torch.tensor(source_scores, dtype=torch.float32, device=self.device)  # shape: (n_train, n_components)
+        target_data = data["target"]
+        target_mean = target_data["mean"]
+        target_loadings = target_data["loadings"]
+        target_scores = target_data["scores"]
+
+        if isinstance(n_components_pca, dict):
+            self.n_components_pca_by_modality = {
+                modality: int(n_components_pca[modality]) for modality in self.source_modalities
+            }
+        else:
+            shared_dim = int(n_components_pca)
+            self.n_components_pca_by_modality = {
+                modality: shared_dim for modality in self.source_modalities
+            }
+
+        self.source_means = {}
+        self.source_loadings_k = {}
+        self.source_dims = {}
+        source_pls_parts = []
+        for modality in self.source_modalities:
+            modality_data = data["sources"][modality]
+            source_mean = torch.tensor(modality_data["mean"], dtype=torch.float32, device=self.device)
+            source_loadings = torch.tensor(modality_data["loadings"], dtype=torch.float32, device=self.device)
+            source_scores = torch.tensor(modality_data["scores"], dtype=torch.float32, device=self.device)
+            k_mod = self.n_components_pca_by_modality[modality]
+            self.source_means[modality] = source_mean
+            self.source_loadings_k[modality] = source_loadings[:, :k_mod].to(torch.float32)
+            self.source_dims[modality] = k_mod
+            source_pls_parts.append(source_scores[:, :k_mod].cpu().numpy())
+
         self.target_mean = torch.tensor(target_mean, dtype=torch.float32, device=self.device)
         self.target_loadings = torch.tensor(target_loadings, dtype=torch.float32, device=self.device)
-        self.target_scores = torch.tensor(target_scores, dtype=torch.float32, device=self.device)  # shape: (n_train, n_components)
+        self.target_scores = torch.tensor(target_scores, dtype=torch.float32, device=self.device)
 
-        # --- Fit PLS model on the training data's PCA scores ---
-        # Only use first n_components_pca components for PLS (np->cpu for sklearn)
-        X_pls = self.source_scores[:, :self.n_components_pca].cpu().numpy()
-        Y_pls = self.target_scores[:, :self.n_components_pca].cpu().numpy()
+        X_pls = np.concatenate(source_pls_parts, axis=1)
+        Y_pls = self.target_scores[:, :self.n_components_pca_target].cpu().numpy()
 
         self.pls_pca_fusion_model = PLSRegression(n_components=self.n_components_pls)
         self.pls_pca_fusion_model.fit(X_pls, Y_pls)
         print("PLS model fit score: ", self.pls_pca_fusion_model.score(X_pls, Y_pls))
-
-        print(f"PCA source scores shape: {self.source_scores.shape}")
+        print(f"Source modalities: {self.source_modalities}")
+        print(f"Source PCA dims: {self.n_components_pca_by_modality}")
+        print(f"Concatenated source score shape: {X_pls.shape}")
         print("PLS source scores shape: ", self.pls_pca_fusion_model.x_scores_.shape)
         print("PLS target scores shape: ", self.pls_pca_fusion_model.y_scores_.shape)
         print(f"PCA target scores shape: {self.target_scores.shape}")
-        
-        # Only keep first k components, and explicitly ensure float32 dtype to avoid matmul dtype mismatch
-        self.register_buffer('source_loadings_k', self.source_loadings[:, :self.n_components_pca].to(torch.float32))
-        self.register_buffer('target_loadings_k', self.target_loadings[:, :self.n_components_pca].to(torch.float32))
-        self.register_buffer('source_mean_', self.source_mean.to(torch.float32))
+
+        for modality in self.source_modalities:
+            self.register_buffer(f"source_mean_{modality}", self.source_means[modality].to(torch.float32))
+            self.register_buffer(f"source_loadings_k_{modality}", self.source_loadings_k[modality].to(torch.float32))
+        self.register_buffer('target_loadings_k', self.target_loadings[:, :self.n_components_pca_target].to(torch.float32))
         self.register_buffer('target_mean_', self.target_mean.to(torch.float32))
 
         # https://github.com/scikit-learn/scikit-learn/blob/98ed9dc73/sklearn/cross_decomposition/_pls.py#L564
@@ -427,13 +503,20 @@ class CrossModal_PCA_PLS(nn.Module):
         Returns:
             y_hat (torch.Tensor(batch_size, d)): predicted target modality.
         """
-        x = x.to(self.device).to(torch.float32)
+        if isinstance(x, dict):
+            source_inputs = x
+        elif len(self.source_modalities) == 1:
+            source_inputs = {self.source_modalities[0]: x}
+        else:
+            raise TypeError("Expected dict input for multi-source CrossModal_PCA_PLS.")
 
-        # 1. Center input
-        x_centered = x - self.source_mean_
-
-        # 2. Project into truncated source PCA space (batch @ (d, k)) => (batch, k)
-        z = torch.matmul(x_centered, self.source_loadings_k)
+        z_parts = []
+        for modality in self.source_modalities:
+            x_mod = source_inputs[modality].to(self.target_mean_.device).to(torch.float32)
+            source_mean = getattr(self, f"source_mean_{modality}")
+            source_loadings_k = getattr(self, f"source_loadings_k_{modality}")
+            z_parts.append(torch.matmul(x_mod - source_mean, source_loadings_k))
+        z = torch.cat(z_parts, dim=1)
 
         # 3. Run through learned PLS model in PCA space to get y_hat_pca
         #    - Switch to cpu and numpy for sklearn
@@ -441,7 +524,7 @@ class CrossModal_PCA_PLS(nn.Module):
         y_hat_pca_np = self.pls_pca_fusion_model.predict(z_np)
 
         # 4. Convert PLS output back to torch and move to device
-        y_hat_pca = torch.tensor(y_hat_pca_np, dtype=torch.float32, device=self.device)
+        y_hat_pca = torch.tensor(y_hat_pca_np, dtype=torch.float32, device=self.target_mean_.device)
 
         # 5. Reconstruct with target PCA (inverse transform): (batch, k) @ (k, d) => (batch, d)
         y_hat = torch.matmul(y_hat_pca, self.target_loadings_k.t()) + self.target_mean_
@@ -449,9 +532,10 @@ class CrossModal_PCA_PLS(nn.Module):
 
     def to(self, *args, **kwargs): # for device mismatch issues
         super().to(*args, **kwargs)
-        self.source_mean_ = self.source_mean_.to(*args, **kwargs)
         self.target_mean_ = self.target_mean_.to(*args, **kwargs)
-        self.source_loadings_k = self.source_loadings_k.to(*args, **kwargs)
+        for modality in self.source_modalities:
+            setattr(self, f"source_mean_{modality}", getattr(self, f"source_mean_{modality}").to(*args, **kwargs))
+            setattr(self, f"source_loadings_k_{modality}", getattr(self, f"source_loadings_k_{modality}").to(*args, **kwargs))
         self.target_loadings_k = self.target_loadings_k.to(*args, **kwargs)
         return self
 
@@ -485,6 +569,8 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
                  learn_encoder=False, learn_mid=True, learn_decoder=False,
                  random_init=False, dropout=0.3, l1_l2_tuple=(0.0, 0.001), **kwargs):
         super().__init__()
+        self.source_modalities = list(getattr(base, "source_modalities", [base.source]))
+        self.target_modality = getattr(base, "target_modalities", [base.target])[0]
         self.n_components_pca_source = n_components_pca_source
         self.n_components_pca_target = n_components_pca_target
         self.random_init = random_init
@@ -497,27 +583,29 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.device = device
 
-        # Get modality data using helper function (with scores)
         data = get_modality_data(base, device=device, include_scores=True)
-        source_mean = data['source_mean']
-        source_loadings = data['source_loadings']
-        source_scores = data['source_scores']
-        target_mean = data['target_mean']
-        target_loadings = data['target_loadings']
-        target_scores = data['target_scores']
-
-        d_source = source_loadings.shape[0]
+        target_data = data["target"]
+        target_mean = target_data["mean"]
+        target_loadings = target_data["loadings"]
+        target_scores = target_data["scores"]
         d_target = target_loadings.shape[0]
-        k_src, k_tgt = n_components_pca_source, n_components_pca_target
+        k_tgt = n_components_pca_target
 
-        # Means (always from data, optionally learnable)
-        self.source_mean = nn.Parameter(torch.tensor(source_mean, dtype=torch.float32, device=device), requires_grad=learn_means)
-        self.target_mean = nn.Parameter(torch.tensor(target_mean, dtype=torch.float32, device=device), requires_grad=learn_means)
+        if isinstance(n_components_pca_source, dict):
+            self.n_components_pca_source_by_modality = {
+                modality: int(n_components_pca_source[modality]) for modality in self.source_modalities
+            }
+        else:
+            shared_dim = int(n_components_pca_source)
+            self.n_components_pca_source_by_modality = {
+                modality: shared_dim for modality in self.source_modalities
+            }
 
-        # Fit PLS (needed for non-random mid layer initialization)
-        pls = PLSRegression(n_components=n_components_pls)
-        pls.fit(source_scores[:, :k_src], target_scores[:, :k_tgt])
-        
+        self.source_means = nn.ParameterDict()
+        self.source_encoders = nn.ParameterDict()
+        source_pls_parts = []
+        fused_source_dim = 0
+
         # Helper to init weight: random if learnable AND random_init, else from PCA/PLS
         def init_weight(shape, pca_pls_data, learnable):
             if learnable and random_init:
@@ -526,24 +614,60 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
                 return nn.Parameter(w, requires_grad=True)
             else:
                 return nn.Parameter(torch.tensor(pca_pls_data, dtype=torch.float32, device=device), requires_grad=learnable)
+
+        # Means (always from data, optionally learnable)
+        self.target_mean = nn.Parameter(torch.tensor(target_mean, dtype=torch.float32, device=device), requires_grad=learn_means)
+        for modality in self.source_modalities:
+            modality_data = data["sources"][modality]
+            source_mean = modality_data["mean"]
+            source_loadings = modality_data["loadings"]
+            source_scores = modality_data["scores"]
+            d_source_mod = source_loadings.shape[0]
+            k_src_mod = self.n_components_pca_source_by_modality[modality]
+            fused_source_dim += k_src_mod
+
+            self.source_means[modality] = nn.Parameter(
+                torch.tensor(source_mean, dtype=torch.float32, device=device),
+                requires_grad=learn_means,
+            )
+            self.source_encoders[modality] = init_weight(
+                (d_source_mod, k_src_mod),
+                source_loadings[:, :k_src_mod],
+                learn_encoder,
+            )
+            source_pls_parts.append(source_scores[:, :k_src_mod])
+
+        # Fit PLS (needed for non-random mid layer initialization)
+        pls = PLSRegression(n_components=n_components_pls)
+        pls.fit(np.concatenate(source_pls_parts, axis=1), target_scores[:, :k_tgt])
         
-        self.W_enc = init_weight((d_source, k_src), source_loadings[:, :k_src], learn_encoder)
-        self.W_mid = init_weight((k_src, k_tgt), pls.coef_, learn_mid)
+        self.W_mid = init_weight((fused_source_dim, k_tgt), pls.coef_, learn_mid)
         self.W_dec = init_weight((k_tgt, d_target), target_loadings[:, :k_tgt].T, learn_decoder)
         
         # Log initialization
         init_info = lambda name, p: f"{name}:{'rand' if (p.requires_grad and random_init) else 'pca/pls'}{'(frozen)' if not p.requires_grad else ''}"
-        print(f"Init: {init_info('enc', self.W_enc)}, {init_info('mid', self.W_mid)}, {init_info('dec', self.W_dec)}")
-        print(f"Shapes: enc={tuple(self.W_enc.shape)}, mid={tuple(self.W_mid.shape)}, dec={tuple(self.W_dec.shape)}")
+        enc_shapes = {modality: tuple(self.source_encoders[modality].shape) for modality in self.source_modalities}
+        print(f"Init: encoders={enc_shapes}, {init_info('mid', self.W_mid)}, {init_info('dec', self.W_dec)}")
+        print(f"Source PCA dims: {self.n_components_pca_source_by_modality}, mid={tuple(self.W_mid.shape)}, dec={tuple(self.W_dec.shape)}")
 
         # Dropout layers
         self.dropout = nn.Dropout(p=dropout) if dropout > 0 else nn.Identity()
 
     def forward(self, x):
         # Use parameter device so model works after being moved by Lightning (self.device can be stale)
-        device = self.source_mean.device
-        x = x.to(device).to(torch.float32)
-        z = torch.matmul(x - self.source_mean, self.W_enc)
+        device = self.target_mean.device
+        if isinstance(x, dict):
+            source_inputs = x
+        elif len(self.source_modalities) == 1:
+            source_inputs = {self.source_modalities[0]: x}
+        else:
+            raise TypeError("Expected dict input for multi-source CrossModal_PCA_PLS_learnable.")
+
+        z_parts = []
+        for modality in self.source_modalities:
+            x_mod = source_inputs[modality].to(device).to(torch.float32)
+            z_parts.append(torch.matmul(x_mod - self.source_means[modality], self.source_encoders[modality]))
+        z = torch.cat(z_parts, dim=1)
         z = self.dropout(z)
         z = torch.matmul(z, self.W_mid.T)
         z = self.dropout(z)
@@ -551,8 +675,213 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
 
     def get_reg_loss(self):
         """Compute L1/L2 regularization on learnable weights using global helper."""
-        return compute_reg_loss([self.W_enc, self.W_mid, self.W_dec], self.l1_l2_tuple)
+        return compute_reg_loss(list(self.source_encoders.values()) + [self.W_mid, self.W_dec], self.l1_l2_tuple)
     
+    def get_num_params(self):
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+
+class CrossModal_PCA_PLS_FSResidual(nn.Module):
+    """
+    Learnable source-to-target PCA/PLS backbone with an additive FreeSurfer residual branch.
+
+    Architecture:
+        z_src = concat_i((x_i - mu_i) @ W_enc_i)
+        z_base = dropout(z_src) @ W_mid.T
+        z_fs = projector(fs)
+        z_target = z_base + alpha * z_fs
+        y_hat = z_target @ W_dec + mu_target
+    """
+    def __init__(
+        self,
+        base,
+        n_components_pca_source=256,
+        n_components_pca_target=256,
+        n_components_pls=64,
+        device=None,
+        learn_means=False,
+        learn_encoder=False,
+        learn_mid=True,
+        learn_decoder=False,
+        random_init=False,
+        dropout=0.3,
+        l1_l2_tuple=(0.0, 0.001),
+        fs_projector_type="linear",
+        fs_hidden_dims=(128,),
+        fs_dropout=0.0,
+        fs_residual_scale_init=1.0,
+        learn_fs_scale=True,
+        **kwargs,
+    ):
+        super().__init__()
+        self.uses_fs = True
+        self.source_modalities = list(getattr(base, "source_modalities", [base.source]))
+        self.target_modality = getattr(base, "target_modalities", [base.target])[0]
+        self.n_components_pca_source = n_components_pca_source
+        self.n_components_pca_target = n_components_pca_target
+        self.random_init = random_init
+        self.dropout_p = dropout
+        self.fs_projector_type = fs_projector_type
+        self.fs_hidden_dims = tuple(fs_hidden_dims)
+        self.fs_dropout = fs_dropout
+        self.l1_reg, self.l2_reg = l1_l2_tuple
+        self.l1_l2_tuple = l1_l2_tuple
+
+        if device is None:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = device
+
+        data = get_modality_data(base, device=device, include_scores=True)
+        target_data = data["target"]
+        target_mean = target_data["mean"]
+        target_loadings = target_data["loadings"]
+        target_scores = target_data["scores"]
+        d_target = target_loadings.shape[0]
+        k_tgt = int(n_components_pca_target)
+        n_fs_features = len(base.fs_feature_columns)
+
+        if isinstance(n_components_pca_source, dict):
+            self.n_components_pca_source_by_modality = {
+                modality: int(n_components_pca_source[modality]) for modality in self.source_modalities
+            }
+        else:
+            shared_dim = int(n_components_pca_source)
+            self.n_components_pca_source_by_modality = {
+                modality: shared_dim for modality in self.source_modalities
+            }
+
+        self.source_means = nn.ParameterDict()
+        self.source_encoders = nn.ParameterDict()
+        source_pls_parts = []
+        fused_source_dim = 0
+
+        def init_weight(shape, pca_pls_data, learnable):
+            if learnable and random_init:
+                w = torch.empty(shape, device=device)
+                nn.init.kaiming_uniform_(w, a=np.sqrt(5))
+                return nn.Parameter(w, requires_grad=True)
+            return nn.Parameter(torch.tensor(pca_pls_data, dtype=torch.float32, device=device), requires_grad=learnable)
+
+        self.target_mean = nn.Parameter(
+            torch.tensor(target_mean, dtype=torch.float32, device=device),
+            requires_grad=learn_means,
+        )
+
+        for modality in self.source_modalities:
+            modality_data = data["sources"][modality]
+            source_mean = modality_data["mean"]
+            source_loadings = modality_data["loadings"]
+            source_scores = modality_data["scores"]
+            d_source_mod = source_loadings.shape[0]
+            k_src_mod = self.n_components_pca_source_by_modality[modality]
+            fused_source_dim += k_src_mod
+
+            self.source_means[modality] = nn.Parameter(
+                torch.tensor(source_mean, dtype=torch.float32, device=device),
+                requires_grad=learn_means,
+            )
+            self.source_encoders[modality] = init_weight(
+                (d_source_mod, k_src_mod),
+                source_loadings[:, :k_src_mod],
+                learn_encoder,
+            )
+            source_pls_parts.append(source_scores[:, :k_src_mod])
+
+        pls = PLSRegression(n_components=n_components_pls)
+        pls.fit(np.concatenate(source_pls_parts, axis=1), target_scores[:, :k_tgt])
+
+        self.W_mid = init_weight((fused_source_dim, k_tgt), pls.coef_, learn_mid)
+        self.W_dec = init_weight((k_tgt, d_target), target_loadings[:, :k_tgt].T, learn_decoder)
+        self.dropout = nn.Dropout(p=dropout) if dropout > 0 else nn.Identity()
+
+        if fs_projector_type == "linear":
+            self.fs_projector = nn.Linear(n_fs_features, k_tgt)
+        elif fs_projector_type == "mlp":
+            self.fs_projector = _build_mlp(n_fs_features, self.fs_hidden_dims, k_tgt, dropout_p=fs_dropout)
+        else:
+            raise ValueError(f"Unknown fs_projector_type: {fs_projector_type}")
+
+        if learn_fs_scale:
+            self.fs_residual_scale = nn.Parameter(
+                torch.tensor(float(fs_residual_scale_init), dtype=torch.float32, device=device)
+            )
+        else:
+            self.register_buffer(
+                "fs_residual_scale",
+                torch.tensor(float(fs_residual_scale_init), dtype=torch.float32, device=device),
+            )
+
+        print(
+            f"FSResidual init: source_dims={self.n_components_pca_source_by_modality}, "
+            f"target_dim={k_tgt}, fs_features={n_fs_features}, fs_projector={fs_projector_type}"
+        )
+
+    def _resolve_inputs(self, x, fs=None):
+        if isinstance(x, dict) and "y" in x:
+            batch = x
+            fs = batch.get("fs") if fs is None else fs
+            x = get_model_input(batch)
+
+        if isinstance(x, dict):
+            source_inputs = x
+        elif len(self.source_modalities) == 1:
+            source_inputs = {self.source_modalities[0]: x}
+        else:
+            raise TypeError("Expected dict input for multi-source CrossModal_PCA_PLS_FSResidual.")
+
+        if fs is None:
+            raise ValueError("FreeSurfer features are required for CrossModal_PCA_PLS_FSResidual.")
+
+        return source_inputs, fs
+
+    def _encode_sources(self, x):
+        device = self.target_mean.device
+        z_parts = []
+        for modality in self.source_modalities:
+            x_mod = x[modality].to(device).to(torch.float32)
+            z_parts.append(torch.matmul(x_mod - self.source_means[modality], self.source_encoders[modality]))
+        return torch.cat(z_parts, dim=1)
+
+    def _predict_target_latent_from_sources(self, z_src):
+        z_base = self.dropout(z_src)
+        z_base = torch.matmul(z_base, self.W_mid.T)
+        return self.dropout(z_base)
+
+    def _project_fs(self, fs):
+        device = self.target_mean.device
+        fs = fs.to(device).to(torch.float32)
+        return self.fs_projector(fs)
+
+    def _decode_target_latent(self, z_target):
+        return torch.matmul(z_target, self.W_dec) + self.target_mean
+
+    def predict_latents(self, batch):
+        source_inputs, fs = self._resolve_inputs(batch)
+        z_src = self._encode_sources(source_inputs)
+        z_base = self._predict_target_latent_from_sources(z_src)
+        z_fs_resid = self._project_fs(fs)
+        z_target = z_base + self.fs_residual_scale * z_fs_resid
+        return {
+            "z_base": z_base,
+            "z_fs_resid": z_fs_resid,
+            "z_target": z_target,
+        }
+
+    def forward(self, x, fs=None):
+        source_inputs, fs = self._resolve_inputs(x, fs=fs)
+        z_src = self._encode_sources(source_inputs)
+        z_base = self._predict_target_latent_from_sources(z_src)
+        z_fs_resid = self._project_fs(fs)
+        z_target = z_base + self.fs_residual_scale * z_fs_resid
+        return self._decode_target_latent(z_target)
+
+    def get_reg_loss(self):
+        params = list(self.source_encoders.values()) + [self.W_mid, self.W_dec]
+        params.extend(p for p in self.fs_projector.parameters())
+        if isinstance(self.fs_residual_scale, nn.Parameter):
+            params.append(self.fs_residual_scale)
+        return compute_reg_loss(params, self.l1_l2_tuple)
+
     def get_num_params(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 

@@ -1,0 +1,13 @@
+learned: false
+
+default:
+  model:
+    name: CrossModalPCA
+    num_components: 256
+    device: null
+  trainer: {}
+
+search_space:
+  num_components:
+    type: choice
+    values: [32, 64, 128, 256, 512]
