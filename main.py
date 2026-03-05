@@ -519,15 +519,27 @@ class Sim:
         # inside the Ray trainable closure.
         model_name = self.model_name
         learned = self.learned
-        parcellation = self.parcellation
-        hemi = self.hemi
-        source = self.source
-        target = self.target
-        shuffle_seed = self.shuffle_seed
         param_space = get_search_space(self.model_name)
         if not param_space:
             raise ValueError(f"No search_space for model: {self.model_name} in config YAML.")
-        default = get_default_config(self.model_name)
+        tuned_keys = set(param_space.keys())
+        tuned_data_keys = tuned_keys & DATA_KEYS
+        if tuned_data_keys:
+            raise ValueError(
+                "Ray Tune search_space contains data identity keys "
+                f"{sorted(tuned_data_keys)}. For fixed-base tuning, pass data choices via "
+                "--source/--target/--parcellation/--hemi/--shuffle_seed and remove these keys from search_space."
+            )
+        if "batch_size" in tuned_keys:
+            raise ValueError(
+                "Ray Tune search_space contains 'batch_size', but this run reuses one fixed set of DataLoaders. "
+                "Remove batch_size from search_space for this fixed-base tuning flow."
+            )
+        print(
+            "Using fixed data setup for Tune. HCP_Base and DataLoaders are built once and reused across trials.",
+            flush=True,
+        )
+        default = deepcopy(self.config)
         default_flat = {"name": self.model_name}
         for k, v in default.get("data", {}).items():
             default_flat[k] = v
@@ -536,6 +548,15 @@ class Sim:
                 default_flat[k] = v
         for k, v in default.get("trainer", {}).items():
             default_flat[k] = v
+
+        fixed_batch_size = default.get("trainer", {}).get("batch_size", 128)
+        train_ds = HCP_Partition(self.base, "train")
+        val_ds = HCP_Partition(self.base, "val")
+        test_ds = HCP_Partition(self.base, "test")
+        train_loader = DataLoader(train_ds, batch_size=fixed_batch_size, shuffle=True)
+        val_loader = DataLoader(val_ds, batch_size=fixed_batch_size, shuffle=False)
+        test_loader = DataLoader(test_ds, batch_size=fixed_batch_size, shuffle=False)
+        print(f"Fixed Tune batch_size: {fixed_batch_size}", flush=True)
         # Determine ASHA max_t from config/search-space first, then fallback.
         # This keeps scheduler budget aligned with trainer.max_epochs choices.
         scheduler_max_t = max_epochs
@@ -589,27 +610,14 @@ class Sim:
             return manifest
 
         def train_func(default_flat, param_space, tune_config):
-            allowed_keys = set(param_space) | TRAINER_KEYS | DATA_KEYS
+            allowed_keys = set(param_space) | TRAINER_KEYS
             config_flat = {**default_flat, **{k: v for k, v in tune_config.items() if k in allowed_keys}}
             config_flat["name"] = model_name
             config_flat = resolve_source_dependent_config(config_flat)
             config = _flat_to_nested(config_flat, model_name)
             trial_id = tune.get_context().get_trial_id()
-            batch_size = config.get("trainer", {}).get("batch_size", 128)
-            data_cfg = config.get("data", {})
-            base = HCP_Base(
-                parcellation=data_cfg.get("parcellation", parcellation),
-                hemi=data_cfg.get("hemi", hemi),
-                shuffle_seed=data_cfg.get("shuffle_seed", shuffle_seed),
-                source=data_cfg.get("source", source),
-                target=data_cfg.get("target", target),
-            )
-            train_ds = HCP_Partition(base, "train")
-            val_ds = HCP_Partition(base, "val")
-            test_ds = HCP_Partition(base, "test")
-            train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
-            val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False)
-            test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
+            print(f"[{trial_id}] Reusing fixed HCP_Base and DataLoaders.", flush=True)
+            base = self.base
 
             report_dict = {}
             should_write_final_artifact = save_checkpoint or persist_final_artifacts
@@ -656,9 +664,9 @@ class Sim:
                 train_preds, train_targets = predict_from_loader(model, train_loader)
                 val_preds, val_targets = predict_from_loader(model, val_loader)
                 test_preds, test_targets = predict_from_loader(model, test_loader)
-                train_partition = HCP_Partition(base, "train")
-                val_partition = HCP_Partition(base, "val")
-                test_partition = HCP_Partition(base, "test")
+                train_partition = train_ds
+                val_partition = val_ds
+                test_partition = test_ds
                 
                 train_eval = Evaluator(train_preds, train_targets, train_partition, base)
                 val_eval = Evaluator(val_preds, val_targets, val_partition, base)
@@ -733,6 +741,7 @@ class Sim:
                 metric=metric,
                 mode=mode,
                 max_concurrent_trials=max_concurrent_trials,
+                reuse_actors=True,
                 scheduler=ASHAScheduler(max_t=scheduler_max_t, grace_period=50, reduction_factor=2) if learned else None,
             ),
             run_config=run_config,

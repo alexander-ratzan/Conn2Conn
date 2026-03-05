@@ -13,9 +13,6 @@ default:
   trainer: {}
 
 search_space:
-  source:
-    type: choice
-    values: [SC, SC_r2t, SC+SC_r2t]
   n_components_pca:
     type: choice
     values:

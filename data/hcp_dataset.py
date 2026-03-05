@@ -46,10 +46,9 @@ class HCP_Base():
     sc_metric_type='sift_invnodevol_radius2_count_connectivity', sc_apply_log1p=True, 
     num_pca_components_sc=256, num_pca_components_fc=256):
         """
-        Load in data for all HCP subjects
-        Define features and targets
-        Assign train/val/test splits
-        Compute averages and PCA transforms per partition
+        Load and cache all global HCP data for one fixed experiment data setup.
+        The selected source/target modalities are owned by this base instance and
+        reused by partitions and models for the full run.
         """
         # Choose parcellation
         self.parcellation = parcellation # Glasser or 4S456Parcels
@@ -149,7 +148,8 @@ class HCP_Partition(Dataset):
     def __init__(self, base, partition):
         """
         Args:
-            base: An instance of the full dataset class that stores all data arrays and indices.
+            base: HCP_Base instance that already owns source/target modality identity
+                and global arrays for this run.
             partition: One of ["train", "val", "test"] specifying which split for this dataset.
         """
         self.base = base
@@ -185,11 +185,8 @@ class HCP_Partition(Dataset):
 
     def __getitem__(self, idx):
         """
-        By default, returns a dict with:
-            - 'x': upper triangle vector of the source modality
-            - 'y': upper triangle vector of the target modality
-        
-        Later, more keys can be added (covariates, freesurfer, tracts, etc)
+        Return one subject sample for this split using the base-fixed source/target
+        modality setup.
         """
         global_idx = self.indices[idx] # retruns index of subject in global subject list
         source_modalities = {

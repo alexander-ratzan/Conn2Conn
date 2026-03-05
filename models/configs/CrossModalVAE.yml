@@ -63,6 +63,3 @@ search_space:
   max_epochs:
     type: choice
     values: [50, 100, 150, 200, 250]
-  batch_size:
-    type: choice
-    values: [64, 128, 256]

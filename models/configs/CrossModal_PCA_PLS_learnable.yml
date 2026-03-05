@@ -27,9 +27,6 @@ default:
     log_every: 5
 
 search_space:
-  source:
-    type: choice
-    values: [SC, SC_r2t, SC+SC_r2t]
   n_components_pca_source:
     type: choice
     values:
@@ -72,6 +69,3 @@ search_space:
   max_epochs:
     type: choice
     values: [50, 100, 150, 200, 250]
-  batch_size:
-    type: choice
-    values: [32, 64, 128, 256]

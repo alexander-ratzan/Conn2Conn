@@ -35,6 +35,8 @@ singularity exec --nv \
       --mode prod \
       --model CrossModal_PCA_PLS \
       --config models/configs/CrossModal_PCA_PLS.yml \
+      --source SC \
+      --target FC \
       --save_checkpoint \
       --use_tune \
       --num_samples 3 \

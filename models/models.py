@@ -115,7 +115,9 @@ def get_modality_data(base, device=None, include_scores=True, include_raw_data=F
         device = torch.device("cpu")
     
     source_modalities = getattr(base, "source_modalities", [base.source])
-    target_modality = getattr(base, "target_modalities", [base.target])[0]
+    target_modality = getattr(base, "target", None)
+    if target_modality is None:
+        target_modality = getattr(base, "target_modalities", [base.target])[0]
     source_data = {
         modality: get_single_modality_data(
             base,
@@ -432,7 +434,9 @@ class CrossModal_PCA_PLS(nn.Module):
         self.n_components_pls = n_components_pls
         self.n_components_pca_target = int(n_components_pca if n_components_pca_target is None else n_components_pca_target)
         self.source_modalities = list(getattr(base, "source_modalities", [base.source]))
-        self.target_modality = getattr(base, "target_modalities", [base.target])[0]
+        self.target_modality = getattr(base, "target", None)
+        if self.target_modality is None:
+            self.target_modality = getattr(base, "target_modalities", [base.target])[0]
 
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -570,7 +574,9 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
                  random_init=False, dropout=0.3, l1_l2_tuple=(0.0, 0.001), **kwargs):
         super().__init__()
         self.source_modalities = list(getattr(base, "source_modalities", [base.source]))
-        self.target_modality = getattr(base, "target_modalities", [base.target])[0]
+        self.target_modality = getattr(base, "target", None)
+        if self.target_modality is None:
+            self.target_modality = getattr(base, "target_modalities", [base.target])[0]
         self.n_components_pca_source = n_components_pca_source
         self.n_components_pca_target = n_components_pca_target
         self.random_init = random_init
@@ -716,7 +722,9 @@ class CrossModal_PCA_PLS_FSResidual(nn.Module):
         super().__init__()
         self.uses_fs = True
         self.source_modalities = list(getattr(base, "source_modalities", [base.source]))
-        self.target_modality = getattr(base, "target_modalities", [base.target])[0]
+        self.target_modality = getattr(base, "target", None)
+        if self.target_modality is None:
+            self.target_modality = getattr(base, "target_modalities", [base.target])[0]
         self.n_components_pca_source = n_components_pca_source
         self.n_components_pca_target = n_components_pca_target
         self.random_init = random_init
