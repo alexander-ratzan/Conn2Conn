@@ -59,6 +59,9 @@ WANDB_ENTITY = "alexander-ratzan-new-york-university"
 RESULTS_ROOT = os.path.join(_SCRIPT_DIR, "results")
 RAY_CHECKPOINTS_DIR = os.path.join(RESULTS_ROOT, "ray_checkpoints")
 RAY_RESULTS_DIR = os.path.join(RESULTS_ROOT, "ray_results")
+RAY_TMP_DIR = os.path.join(RESULTS_ROOT, "ray_tmp")
+
+_WORKER_CACHE = {}
 
 
 def _extract_ray_tune_id(name_or_path: str) -> Optional[str]:
@@ -207,12 +210,12 @@ class Sim:
             source=self.source,
             target=self.target,
         )
-        train_ds = HCP_Partition(self.base, "train")
-        val_ds = HCP_Partition(self.base, "val")
-        test_ds = HCP_Partition(self.base, "test")
-        self.train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
-        self.val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False)
-        self.test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
+        self.train_ds = HCP_Partition(self.base, "train")
+        self.val_ds = HCP_Partition(self.base, "val")
+        self.test_ds = HCP_Partition(self.base, "test")
+        self.train_loader = DataLoader(self.train_ds, batch_size=batch_size, shuffle=True)
+        self.val_loader = DataLoader(self.val_ds, batch_size=batch_size, shuffle=False)
+        self.test_loader = DataLoader(self.test_ds, batch_size=batch_size, shuffle=False)
 
     def run_single(
         self,
@@ -500,23 +503,40 @@ class Sim:
         """
         if tune is None:
             raise RuntimeError("Ray Tune is not installed. pip install 'ray[tune]'")
+        
         os.makedirs(RAY_CHECKPOINTS_DIR, exist_ok=True)
         os.makedirs(RAY_RESULTS_DIR, exist_ok=True)
+        
         if not ray.is_initialized():
+            if "RAY_worker_register_timeout_seconds" not in os.environ:
+                os.environ["RAY_worker_register_timeout_seconds"] = "120"
             ray_init_kwargs = {"ignore_reinit_error": True}
-            # Dashboard/agent startup can stall or fail on some HPC nodes; disable for batch runs.
-            ray_init_kwargs["include_dashboard"] = False
+            if os.environ.get("RAY_INCLUDE_DASHBOARD", "").strip() != "1":
+                ray_init_kwargs["include_dashboard"] = False
             ray_tmpdir = os.environ.get("RAY_TMPDIR")
             if ray_tmpdir:
                 ray_tmpdir = os.path.abspath(ray_tmpdir)
             else:
-                ray_tmpdir = f"/tmp/ray_{os.environ.get('SLURM_JOB_ID', 'local')}"
+                job_id = os.environ.get("SLURM_JOB_ID", str(os.getpid()))
+                long_dir = os.path.join(RAY_TMP_DIR, f"ray_{job_id}")
+                os.makedirs(long_dir, exist_ok=True)
+                short_path = f"/tmp/ray_{job_id}"
+                try:
+                    if os.path.lexists(short_path) and not os.path.islink(short_path):
+                        short_path = f"/tmp/ray_{os.getpid()}_{job_id}"
+                    if not os.path.lexists(short_path):
+                        os.symlink(long_dir, short_path)
+                    ray_tmpdir = short_path
+                except OSError:
+                    ray_tmpdir = long_dir
             os.makedirs(ray_tmpdir, exist_ok=True)
             ray_init_kwargs["_temp_dir"] = ray_tmpdir
             ray.init(**ray_init_kwargs)
-        print(f"Ray cluster resources: {ray.cluster_resources()}", flush=True)
-        # Avoid capturing the full Sim instance (which can include large in-memory data)
-        # inside the Ray trainable closure.
+            time.sleep(10)
+        resources = ray.cluster_resources()
+        print(f"Ray cluster resources: {resources}", flush=True)
+        
+        # Avoid capturing the full Sim instance (which can include large in-memory data) inside the Ray trainable closure.
         model_name = self.model_name
         learned = self.learned
         param_space = get_search_space(self.model_name)
@@ -524,6 +544,7 @@ class Sim:
             raise ValueError(f"No search_space for model: {self.model_name} in config YAML.")
         tuned_keys = set(param_space.keys())
         tuned_data_keys = tuned_keys & DATA_KEYS
+        
         if tuned_data_keys:
             raise ValueError(
                 "Ray Tune search_space contains data identity keys "
@@ -535,10 +556,9 @@ class Sim:
                 "Ray Tune search_space contains 'batch_size', but this run reuses one fixed set of DataLoaders. "
                 "Remove batch_size from search_space for this fixed-base tuning flow."
             )
-        print(
-            "Using fixed data setup for Tune. HCP_Base and DataLoaders are built once and reused across trials.",
-            flush=True,
-        )
+        print("Tune: fixed data (HCP_Base built in worker, reused across trials).", flush=True)
+
+        # Config setup 
         default = deepcopy(self.config)
         default_flat = {"name": self.model_name}
         for k, v in default.get("data", {}).items():
@@ -549,14 +569,10 @@ class Sim:
         for k, v in default.get("trainer", {}).items():
             default_flat[k] = v
 
+        fixed_data_cfg = deepcopy(default.get("data", {}))
         fixed_batch_size = default.get("trainer", {}).get("batch_size", 128)
-        train_ds = HCP_Partition(self.base, "train")
-        val_ds = HCP_Partition(self.base, "val")
-        test_ds = HCP_Partition(self.base, "test")
-        train_loader = DataLoader(train_ds, batch_size=fixed_batch_size, shuffle=True)
-        val_loader = DataLoader(val_ds, batch_size=fixed_batch_size, shuffle=False)
-        test_loader = DataLoader(test_ds, batch_size=fixed_batch_size, shuffle=False)
         print(f"Fixed Tune batch_size: {fixed_batch_size}", flush=True)
+       
         # Determine ASHA max_t from config/search-space first, then fallback.
         # This keeps scheduler budget aligned with trainer.max_epochs choices.
         scheduler_max_t = max_epochs
@@ -574,11 +590,12 @@ class Sim:
         if scheduler_max_t <= 0:
             raise ValueError(f"Invalid scheduler max_t: {scheduler_max_t}")
             
-
+        # Run name and Ray dataset and loader initialization
         run_name = f"{self.model_name}_tune_{int(time.time())}"
         ray_tune_id = _extract_ray_tune_id(run_name)
         run_root = os.path.join(RAY_CHECKPOINTS_DIR, run_name)
-
+        
+        
         def _trial_artifact_dir(trial_id: str) -> str:
             return os.path.join(run_root, trial_id, "final")
 
@@ -616,8 +633,29 @@ class Sim:
             config_flat = resolve_source_dependent_config(config_flat)
             config = _flat_to_nested(config_flat, model_name)
             trial_id = tune.get_context().get_trial_id()
-            print(f"[{trial_id}] Reusing fixed HCP_Base and DataLoaders.", flush=True)
-            base = self.base
+            if "base" not in _WORKER_CACHE:
+                print(f"[tune] {trial_id}: building HCP_Base and DataLoaders in worker", flush=True)
+                _WORKER_CACHE["base"] = HCP_Base(
+                    parcellation=fixed_data_cfg.get("parcellation", "Glasser"),
+                    hemi=fixed_data_cfg.get("hemi", "both"),
+                    shuffle_seed=fixed_data_cfg.get("shuffle_seed", 0),
+                    source=fixed_data_cfg.get("source", "SC"),
+                    target=fixed_data_cfg.get("target", "FC"),
+                )
+                b = _WORKER_CACHE["base"]
+                _WORKER_CACHE["train_ds"] = HCP_Partition(b, "train")
+                _WORKER_CACHE["val_ds"] = HCP_Partition(b, "val")
+                _WORKER_CACHE["test_ds"] = HCP_Partition(b, "test")
+                _WORKER_CACHE["train_loader"] = DataLoader(_WORKER_CACHE["train_ds"], batch_size=fixed_batch_size, shuffle=True)
+                _WORKER_CACHE["val_loader"] = DataLoader(_WORKER_CACHE["val_ds"], batch_size=fixed_batch_size, shuffle=False)
+                _WORKER_CACHE["test_loader"] = DataLoader(_WORKER_CACHE["test_ds"], batch_size=fixed_batch_size, shuffle=False)
+            base = _WORKER_CACHE["base"]
+            train_ds = _WORKER_CACHE["train_ds"]
+            val_ds = _WORKER_CACHE["val_ds"]
+            test_ds = _WORKER_CACHE["test_ds"]
+            train_loader = _WORKER_CACHE["train_loader"]
+            val_loader = _WORKER_CACHE["val_loader"]
+            test_loader = _WORKER_CACHE["test_loader"]
 
             report_dict = {}
             should_write_final_artifact = save_checkpoint or persist_final_artifacts
@@ -644,8 +682,10 @@ class Sim:
                     "val_demeaned_r": "val_demeaned_r",
                     "val_pearson_r": "val_pearson_r",
                 }
+                
                 callbacks = [TuneReportCallback(metrics=tune_metrics, on="validation_end"),
                             TuneReportCheckpointCallback(metrics=tune_metrics, filename="checkpoint",on="fit_end")] # train_end, fit_end
+                
                 trainer = pl.Trainer(max_epochs=epochs, logger=False, callbacks=callbacks, enable_progress_bar=False)
                 trainer.fit(pl_module, train_dataloaders=train_loader, val_dataloaders=val_loader)
                 final_report = {}
@@ -711,8 +751,10 @@ class Sim:
         if gpus_per_trial and float(gpus_per_trial) > 0:
             resources["gpu"] = float(gpus_per_trial)
         print(f"Tune trial resources: {resources}", flush=True)
+
         train_with_resources = tune.with_resources(_tune_trainable, resources)
         callbacks = []
+        
         if WandbLoggerCallback is not None:
             callbacks.append(
                 TrialFamilyWandbLoggerCallback(
@@ -726,13 +768,25 @@ class Sim:
         
         reporter = CLIReporter()
         reporter.add_metric_column("val_demeaned_r")
-        print(f"Ray checkpoint storage path: {RAY_CHECKPOINTS_DIR}", flush=True)
+
+        print(f"Tune run: {run_name}  num_samples={num_samples}  storage={RAY_CHECKPOINTS_DIR}", flush=True)
         run_config = tune.RunConfig(
             name=run_name,
             storage_path=RAY_CHECKPOINTS_DIR,
             callbacks=callbacks,
             progress_reporter=reporter,
         )
+
+        try:
+            import cloudpickle
+            payload = cloudpickle.dumps(_tune_trainable)
+            size_mb = len(payload) / (1024 * 1024)
+            print(f"Tune trainable serialized size: {size_mb:.1f} MB", flush=True)
+            if size_mb > 1800:
+                raise RuntimeError(f"Trainable closure too large ({size_mb:.0f} MB); will exceed Ray 2 GB limit.")
+        except ImportError:
+            pass
+        print("Tune starting...", flush=True)
         tuner = tune.Tuner(
             train_with_resources,
             param_space=param_space,
@@ -746,8 +800,10 @@ class Sim:
             ),
             run_config=run_config,
         )
-
-        return tuner.fit()
+        result_grid = tuner.fit()
+        n = len(result_grid)
+        print(f"Tune finished: {n} trial(s).", flush=True)
+        return result_grid
 
     def report_best_tune_trial(
         self,

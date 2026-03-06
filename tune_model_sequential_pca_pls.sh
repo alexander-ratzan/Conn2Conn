@@ -2,7 +2,7 @@
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=5
+#SBATCH --cpus-per-task=4
 #SBATCH --time=1:00:00
 #SBATCH --mem=64GB
 #SBATCH --gres=gpu:1
@@ -12,25 +12,35 @@
 #SBATCH --mail-type=END
 #SBATCH --mail-user=asr655@nyu.edu
 
+set -euo pipefail
+
 module purge
-cd /scratch/asr655/neuroinformatics/Conn2Conn/
-export RAY_TMPDIR="/tmp/ray_${SLURM_JOB_ID}"
-mkdir -p "${RAY_TMPDIR}"
+CONN2CONN_DIR="/scratch/asr655/neuroinformatics/Conn2Conn"
+cd "${CONN2CONN_DIR}"
+# Let main.py set Ray temp (symlink from /tmp to results/ray_tmp so logs stay on scratch).
+# Pass SLURM_JOB_ID so main.py uses it when RAY_TMPDIR is unset.
+export RAY_worker_register_timeout_seconds=120
 
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 
-export TUNE_CPUS_PER_TRIAL=5
+export TUNE_CPUS_PER_TRIAL=4
 export TUNE_GPUS_PER_TRIAL=1
 export MAX_CONCURRENT_TRIALS=1
 
+echo "Starting job ${SLURM_JOB_ID} on $(hostname) at $(date)"
+
 singularity exec --nv \
   --overlay "/scratch/$USER/envs/kraken_env/overlay-15GB-500K.ext3:ro" \
-  --env "RAY_TMPDIR=${RAY_TMPDIR}" \
+  --env "SLURM_JOB_ID=${SLURM_JOB_ID}" \
+  --env "RAY_worker_register_timeout_seconds=${RAY_worker_register_timeout_seconds}" \
   /share/apps/images/cuda12.8.1-cudnn9.8.0-ubuntu24.04.2.sif \
   /bin/bash -lc "
     source /ext3/env.sh
+    export PYTHONUNBUFFERED=1
+    unset RAY_TMPDIR
+    cd ${CONN2CONN_DIR}
     python main.py \
       --mode prod \
       --model CrossModal_PCA_PLS \
@@ -39,7 +49,7 @@ singularity exec --nv \
       --target FC \
       --save_checkpoint \
       --use_tune \
-      --num_samples 3 \
+      --num_samples 2 \
       --max_concurrent_trials ${MAX_CONCURRENT_TRIALS} \
       --tune_cpus_per_trial ${TUNE_CPUS_PER_TRIAL} \
       --tune_gpus_per_trial ${TUNE_GPUS_PER_TRIAL} \
@@ -47,4 +57,4 @@ singularity exec --nv \
       --store_eval_md
   "
 
-echo "Job Over"
+echo "Job Over at $(date)"
