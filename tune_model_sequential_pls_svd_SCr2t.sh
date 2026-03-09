@@ -4,11 +4,11 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=4
 #SBATCH --time=1:00:00
-#SBATCH --mem=48GB
+#SBATCH --mem=64GB
 #SBATCH --gres=gpu:1
-#SBATCH --job-name=run_model_single
-#SBATCH --output=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/run_model_single_%j.out
-#SBATCH --error=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/run_model_single_%j.err
+#SBATCH --job-name=tune_model_sequential
+#SBATCH --output=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_model_%j.out
+#SBATCH --error=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_model_%j.err
 #SBATCH --mail-type=END
 #SBATCH --mail-user=asr655@nyu.edu
 
@@ -17,8 +17,7 @@ set -euo pipefail
 module purge
 CONN2CONN_DIR="/scratch/asr655/neuroinformatics/Conn2Conn"
 cd "${CONN2CONN_DIR}"
-# Let main.py set Ray temp (symlink from /tmp to results/ray_tmp so logs stay on scratch).
-# Pass SLURM_JOB_ID so main.py uses it when RAY_TMPDIR is unset.
+
 export RAY_worker_register_timeout_seconds=120
 
 export OMP_NUM_THREADS=1
@@ -43,13 +42,13 @@ singularity exec --nv \
     cd ${CONN2CONN_DIR}
     python main.py \
       --mode prod \
-      --model CrossModal_PCA_PLS \
-      --config models/configs/CrossModal_PCA_PLS.yml \
-      --source SC \
+      --model CrossModal_PLS_SVD \
+      --config models/configs/CrossModal_PLS_SVD.yml \
+      --source SC_r2t \
       --target FC \
       --save_checkpoint \
       --use_tune \
-      --num_samples 1 \
+      --num_samples 12 \
       --max_concurrent_trials ${MAX_CONCURRENT_TRIALS} \
       --tune_cpus_per_trial ${TUNE_CPUS_PER_TRIAL} \
       --tune_gpus_per_trial ${TUNE_GPUS_PER_TRIAL} \

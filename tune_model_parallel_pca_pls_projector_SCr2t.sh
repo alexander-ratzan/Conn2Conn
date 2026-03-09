@@ -2,9 +2,10 @@
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=5
+#SBATCH --cpus-per-task=6
 #SBATCH --time=1:00:00
 #SBATCH --mem=64GB
+# 2 GPUs: 1 per trial, max_concurrent_trials=2 → 2 trials in parallel
 #SBATCH --gres=gpu:2
 #SBATCH --job-name=tune_model_parallel
 #SBATCH --output=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_model_parallel_%j.out
@@ -12,38 +13,48 @@
 #SBATCH --mail-type=END
 #SBATCH --mail-user=asr655@nyu.edu
 
-module purge
-cd /scratch/asr655/neuroinformatics/Conn2Conn/
-export RAY_TMPDIR="/tmp/ray_${SLURM_JOB_ID}"
-mkdir -p "${RAY_TMPDIR}"
+set -euo pipefail
 
-# Prevent BLAS/OMP oversubscription
+module purge
+CONN2CONN_DIR="/scratch/asr655/neuroinformatics/Conn2Conn"
+cd "${CONN2CONN_DIR}"
+
+export RAY_worker_register_timeout_seconds=120
+
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 
-# 2-way parallelism with 1 GPU and 2 CPUs per trial.
-export TUNE_CPUS_PER_TRIAL=2
+export TUNE_CPUS_PER_TRIAL=3
 export TUNE_GPUS_PER_TRIAL=1
-export TUNE_NUM_SAMPLES=32
+export MAX_CONCURRENT_TRIALS=2
+
+echo "Starting job ${SLURM_JOB_ID} on $(hostname) at $(date)"
 
 singularity exec --nv \
   --overlay "/scratch/$USER/envs/kraken_env/overlay-15GB-500K.ext3:ro" \
-  --env "RAY_TMPDIR=${RAY_TMPDIR}" \
+  --env "SLURM_JOB_ID=${SLURM_JOB_ID}" \
+  --env "RAY_worker_register_timeout_seconds=${RAY_worker_register_timeout_seconds}" \
   /share/apps/images/cuda12.8.1-cudnn9.8.0-ubuntu24.04.2.sif \
   /bin/bash -lc "
     source /ext3/env.sh
+    export PYTHONUNBUFFERED=1
+    unset RAY_TMPDIR
+    cd ${CONN2CONN_DIR}
     python main.py \
       --mode prod \
-      --model CrossModalVAE \
-      --config models/configs/CrossModalVAE.yml \
+      --model CrossModal_PCA_PLS_FSResidual \
+      --config models/configs/CrossModal_PCA_PLS_FSResidual.yml \
       --save_checkpoint \
       --use_tune \
-      --num_samples ${TUNE_NUM_SAMPLES} \
+      --source SC_r2t \
+      --target FC \
+      --num_samples 16 \
+      --max_concurrent_trials ${MAX_CONCURRENT_TRIALS} \
       --tune_cpus_per_trial ${TUNE_CPUS_PER_TRIAL} \
       --tune_gpus_per_trial ${TUNE_GPUS_PER_TRIAL} \
       --report_best_after_tune \
       --store_eval_md
   "
 
-echo "Job Over"
+echo "Job Over at $(date)"

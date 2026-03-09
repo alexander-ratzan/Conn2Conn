@@ -401,11 +401,16 @@ def train_model(
         logger_pl = pl_logger
     else:
         logger_pl = pl.loggers.CSVLogger(save_dir="results/lightning_logs", name="conn2conn") if logger else False
+    # Single process, 1 GPU; strategy="ddp" so the same path works when we later use
+    # multi-GPU DDP (e.g. devices=2 with ntasks-per-node=2).
     trainer = pl.Trainer(
+        accelerator="gpu",
+        devices=1,
+        strategy="ddp",
         max_epochs=max_epochs,
         logger=logger_pl,
         callbacks=[callback],
-        enable_progress_bar=True,
+        enable_progress_bar=False, # set to False for now
         enable_model_summary=True,
     )
     trainer.fit(

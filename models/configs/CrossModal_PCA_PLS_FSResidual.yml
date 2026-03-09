@@ -27,19 +27,15 @@ default:
     loss_type: demeaned_mse
     loss_alpha: 0.5
     loss_beta: 1.0
-    max_epochs: 150
-    batch_size: 128
+    max_epochs: 200
+    batch_size: 64
     log_every: 5
 
 search_space:
   n_components_pca_source:
     type: choice
     values:
-      - 64
-      - 128
-      - 256
-      - {SC: 128, SC_r2t: 64}
-      - {SC: 256, SC_r2t: 128}
+      [64, 128, 256, 512]
   n_components_pca_target:
     type: choice
     values: [64, 128, 256, 512]
@@ -54,7 +50,9 @@ search_space:
     values:
       - [64]
       - [128]
+      - [256]
       - [256, 128]
+      - [128, 256]
   fs_dropout:
     type: uniform
     lower: 0.0
@@ -66,13 +64,18 @@ search_space:
   learn_fs_scale:
     type: choice
     values: [false, true]
+  l1_l2_tuple:
+    type: quniform
+    lower: [0.0, 0.0]
+    upper: [0.001, 0.001]
+    q: [0.0001, 0.0001]
   lr:
     type: loguniform
     lower: 1.0e-5
     upper: 1.0e-2
   loss_type:
     type: choice
-    values: [mse, demeaned_mse, weighted_mse]
+    values: [mse, demeaned_mse]
   max_epochs:
     type: choice
-    values: [50, 100, 150, 200]
+    values: [50, 100, 150, 200, 250]

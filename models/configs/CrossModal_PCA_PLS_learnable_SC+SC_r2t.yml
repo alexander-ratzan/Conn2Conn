@@ -22,14 +22,18 @@ default:
     loss_type: mse
     loss_alpha: 0.5
     loss_beta: 1.0
-    max_epochs: 200
-    batch_size: 64
+    max_epochs: 150
+    batch_size: 128
     log_every: 5
 
 search_space:
   n_components_pca_source:
     type: choice
-    values: [64, 128, 256, 512]
+    values:
+      - {SC: 32, SC_r2t: 32}
+      - {SC: 64, SC_r2t: 64}
+      - {SC: 128, SC_r2t: 128}
+      - {SC: 256, SC_r2t: 256}
   n_components_pca_target:
     type: choice
     values: [64, 128, 256, 512]
@@ -45,11 +49,6 @@ search_space:
   learn_decoder:
     type: choice
     values: [false, true]
-  l1_l2_tuple:
-    type: quniform
-    lower: [0.0, 0.0]
-    upper: [0.001, 0.001]
-    q: [0.0001, 0.0001]
   random_init:
     type: choice
     values: [false, true]

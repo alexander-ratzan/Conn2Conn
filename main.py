@@ -121,6 +121,9 @@ def _flat_to_nested(flat: dict, model_name: str) -> dict:
     model = {"name": model_name, **{k: flat[k] for k in flat if k not in TRAINER_KEYS and k != "name"}}
     for key in DATA_KEYS:
         model.pop(key, None)
+    for key in list(model):
+        if key.startswith("data."):
+            model.pop(key, None)
     return {"data": data, "model": model, "trainer": trainer}
 
 
@@ -569,6 +572,14 @@ class Sim:
         for k, v in default.get("trainer", {}).items():
             default_flat[k] = v
 
+        # Explicitly expose data.* fields in the flat Tune config for wandb / analysis.
+        # This mirrors the prod-level logging where DATA.SOURCE/TARGET/PARCELLATION/HEMI/SHUFFLE_SEED exist.
+        default_flat["data.source"] = self.source
+        default_flat["data.target"] = self.target
+        default_flat["data.parcellation"] = self.parcellation
+        default_flat["data.hemi"] = self.hemi
+        default_flat["data.shuffle_seed"] = self.shuffle_seed
+
         fixed_data_cfg = deepcopy(default.get("data", {}))
         fixed_batch_size = default.get("trainer", {}).get("batch_size", 128)
         print(f"Fixed Tune batch_size: {fixed_batch_size}", flush=True)
@@ -815,16 +826,16 @@ class Sim:
     ):
         """
         Select best Tune trial by validation metric and report comprehensive metrics.
-        Uses best checkpoint/config, writes test eval report via Evaluator.analyze_results,
-        and logs train/val/test + selection metadata to W&B.
+        For learned models, selection is based purely on the chosen metric; a fresh
+        prod run of the best config retrains once and saves a final checkpoint and
+        eval report under RAY_RESULTS_DIR. For closed-form models, the analytic
+        solution is recomputed from base + best config.
         """
         if self.learned:
             all_results = list(results)
-            checkpointed_results = []
+            scored_results = []
             for res in all_results:
                 metrics = getattr(res, "metrics", {}) or {}
-                has_checkpoint_obj = getattr(res, "checkpoint", None) is not None
-                has_checkpoint_name = metrics.get("checkpoint_dir_name") not in (None, "")
                 metric_value = metrics.get(metric)
                 if metric_value is None:
                     continue
@@ -834,21 +845,19 @@ class Sim:
                     continue
                 if np.isnan(metric_value):
                     continue
-                if has_checkpoint_obj or has_checkpoint_name:
-                    checkpointed_results.append((res, metric_value))
+                scored_results.append((res, metric_value))
 
-            if not checkpointed_results:
+            if not scored_results:
                 raise RuntimeError(
-                    f"No learned trials have both metric '{metric}' and a checkpoint. "
+                    f"No learned trials have a finite value for metric '{metric}'. "
                     "Cannot report best Tune trial."
                 )
 
             reverse = (mode == "max")
-            best = sorted(checkpointed_results, key=lambda x: x[1], reverse=reverse)[0][0]
-            skipped_no_checkpoint = len(all_results) - len(checkpointed_results)
+            best = sorted(scored_results, key=lambda x: x[1], reverse=reverse)[0][0]
             print(
-                f"Best-trial selection considered {len(checkpointed_results)} checkpointed "
-                f"trial(s); skipped {skipped_no_checkpoint} without checkpoints.",
+                f"Best-trial selection (learned) considered {len(scored_results)} trial(s) "
+                f"with finite '{metric}'.",
                 flush=True,
             )
         else:
@@ -858,6 +867,12 @@ class Sim:
 
         best_path = getattr(best, "path", None)
         best_metrics = getattr(best, "metrics", {}) or {}
+        # Final run should use the same number of epochs the best trial actually ran
+        # (e.g. if ASHA stopped at 100, refit for 100, not config max_epochs).
+        if self.learned and "trainer" in best_config:
+            actual_epochs = best_metrics.get("training_iteration")
+            if actual_epochs is not None:
+                best_config["trainer"]["max_epochs"] = int(actual_epochs)
         best_trial_id = best_metrics.get("trial_id")
         if not best_trial_id and best_path:
             m = re.search(r"([0-9a-f]{5}_\d{5})", best_path)
@@ -884,29 +899,16 @@ class Sim:
                 manifest = json.load(f)
 
         if self.learned:
-            source_ckpt_path = None
-            if best.checkpoint is not None:
-                ckpt_dir = best.checkpoint.to_directory()
-                ckpt_candidates = list(Path(ckpt_dir).rglob("*.ckpt"))
-                if not ckpt_candidates:
-                    ckpt_candidates = list(Path(ckpt_dir).rglob("checkpoint"))
-                if ckpt_candidates:
-                    source_ckpt_path = str(ckpt_candidates[0])
-            elif manifest and manifest.get("model_path") and os.path.isfile(manifest["model_path"]):
-                source_ckpt_path = manifest["model_path"]
-            if source_ckpt_path is None:
-                raise RuntimeError("Best trial has no checkpoint artifact; cannot evaluate learned model on test.")
-            best_checkpoint_copy = os.path.join(checkpoint_dir, "best_checkpoint.ckpt")
-            os.makedirs(checkpoint_dir, exist_ok=True)
-            shutil.copy2(source_ckpt_path, best_checkpoint_copy)
-            best_checkpoint_path = best_checkpoint_copy
+            # Retrain the best learned-config once in a clean prod run on the driver,
+            # and save the final checkpoint alongside the eval report under RAY_RESULTS_DIR.
+            os.makedirs(report_dir, exist_ok=True)
             run_out = self._run_learned_single(
                 mode=run_mode,
-                save_checkpoint=False,
+                save_checkpoint=True,
                 run_dir=report_dir,
                 config_override=best_config,
-                checkpoint_path=best_checkpoint_path,
-                train_from_scratch=False,
+                checkpoint_path=None,
+                train_from_scratch=True,
                 test_report_basename="test_results",
                 wandb_name=best_run_name,
                 wandb_group=best_group,
@@ -920,6 +922,10 @@ class Sim:
                 },
                 store_eval_md=store_eval_md,
             )
+            final_ckpt = os.path.join(report_dir, "checkpoint.ckpt")
+            best_checkpoint_path = final_ckpt if os.path.isfile(final_ckpt) else None
+            # For learned models, treat the report_dir as the effective checkpoint directory.
+            checkpoint_dir = report_dir
         else:
             os.makedirs(checkpoint_dir, exist_ok=True)
             config_path = os.path.join(checkpoint_dir, "best_model_config.json")

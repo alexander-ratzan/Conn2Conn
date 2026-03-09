@@ -5,11 +5,10 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --time=1:00:00
 #SBATCH --mem=64GB
-# 2 GPUs: 1 per trial, max_concurrent_trials=2 → 2 trials in parallel
-#SBATCH --gres=gpu:2
-#SBATCH --job-name=tune_model_parallel
-#SBATCH --output=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_model_parallel_%j.out
-#SBATCH --error=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_model_parallel_%j.err
+#SBATCH --gres=gpu:1
+#SBATCH --job-name=tune_model_sequential
+#SBATCH --output=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_model_%j.out
+#SBATCH --error=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_model_%j.err
 #SBATCH --mail-type=END
 #SBATCH --mail-user=asr655@nyu.edu
 
@@ -18,17 +17,16 @@ set -euo pipefail
 module purge
 CONN2CONN_DIR="/scratch/asr655/neuroinformatics/Conn2Conn"
 cd "${CONN2CONN_DIR}"
-# Let main.py set Ray temp (symlink from /tmp to results/ray_tmp so logs stay on scratch).
-# Pass SLURM_JOB_ID so main.py uses it when RAY_TMPDIR is unset.
+
 export RAY_worker_register_timeout_seconds=120
 
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 
-export TUNE_CPUS_PER_TRIAL=2
+export TUNE_CPUS_PER_TRIAL=4
 export TUNE_GPUS_PER_TRIAL=1
-export MAX_CONCURRENT_TRIALS=2
+export MAX_CONCURRENT_TRIALS=1
 
 echo "Starting job ${SLURM_JOB_ID} on $(hostname) at $(date)"
 
@@ -44,13 +42,13 @@ singularity exec --nv \
     cd ${CONN2CONN_DIR}
     python main.py \
       --mode prod \
-      --model CrossModal_PCA_PLS \
-      --config models/configs/CrossModal_PCA_PLS.yml \
-      --source SC \
-      --target FC \
+      --model CrossModal_PCA_PLS_learnable \
+      --config models/configs/CrossModal_PCA_PLS_learnable.yml \
       --save_checkpoint \
       --use_tune \
-      --num_samples 4 \
+      --source SC \
+      --target FC \
+      --num_samples 16 \
       --max_concurrent_trials ${MAX_CONCURRENT_TRIALS} \
       --tune_cpus_per_trial ${TUNE_CPUS_PER_TRIAL} \
       --tune_gpus_per_trial ${TUNE_GPUS_PER_TRIAL} \

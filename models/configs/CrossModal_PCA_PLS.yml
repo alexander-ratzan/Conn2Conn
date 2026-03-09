@@ -16,14 +16,7 @@ search_space:
   n_components_pca:
     type: choice
     values:
-      - 32
-      - 64
-      - 128
-      - 256
-      - 512
-      - {SC: 64, SC_r2t: 64}
-      - {SC: 128, SC_r2t: 128}
-      - {SC: 256, SC_r2t: 256}
+      [32, 64, 128, 256, 512]
   n_components_pca_target:
     type: choice
     values: [32, 64, 128, 256, 512]
