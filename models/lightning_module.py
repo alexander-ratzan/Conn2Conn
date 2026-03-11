@@ -56,8 +56,11 @@ class CrossModalLightningModule(pl.LightningModule):
 
     def _forward_model(self, batch):
         x = get_model_input(batch)
-        if getattr(self.model, "uses_fs", False) and "fs" in batch:
-            return self.model(x, fs=batch["fs"])
+        if getattr(self.model, "uses_cov", False) and "cov" in batch:
+            kwargs = {"cov": batch["cov"]}
+            if getattr(self.model, "use_target_scores_in_projector", False) and "y" in batch:
+                kwargs["y"] = batch["y"]
+            return self.model(x, **kwargs)
         return self.model(x)
 
     def _unpack_out(self, out):

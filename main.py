@@ -168,6 +168,7 @@ class Sim:
         Remaining args: data options for HCP_Base and DataLoader batch_size.
         """
         self.model_name = model_name
+        self.config_path = config_path
         self.parcellation = parcellation
         self.hemi = hemi
         self.source = source
@@ -195,6 +196,18 @@ class Sim:
                 elif section in config_overrides:
                     self.config[section] = deepcopy(config_overrides[section])
 
+        # Always trust the invocation (sbatch/CLI) for data identity to ensure correct tracking.
+        # Config files should not override these runtime selections.
+        self.config.setdefault("data", {})
+        self.config["data"].update(
+            {
+                "source": source,
+                "target": target,
+                "parcellation": parcellation,
+                "hemi": hemi,
+                "shuffle_seed": shuffle_seed,
+            }
+        )
         self.config = resolve_source_dependent_config(self.config)
         data_cfg = deepcopy(self.config.get("data", {}))
         self.config["data"] = data_cfg
@@ -206,13 +219,25 @@ class Sim:
         self.target = data_cfg["target"]
         self.shuffle_seed = data_cfg["shuffle_seed"]
 
+        cov_sources = (self.config.get("model", {}) or {}).get("cov_sources", ["fs_all"])
+        cov_projectors = (self.config.get("model", {}) or {}).get("cov_projectors", {}) or {}
+        cov_one_hot_mode = (cov_projectors.get("covariate_one_hot", {}) or {}).get("type", "embedding")
         self.base = HCP_Base(
             parcellation=self.parcellation,
             hemi=self.hemi,
             shuffle_seed=self.shuffle_seed,
             source=self.source,
             target=self.target,
+            cov_sources=cov_sources,
+            cov_one_hot_mode=cov_one_hot_mode,
         )
+
+        # Loggable covariate metadata for wandb filtering.
+        cov_sources_str = "+".join(cov_sources)
+        self.config.setdefault("model", {})
+        self.config["model"]["cov_sources_str"] = cov_sources_str
+        self.config["model"]["cov_one_hot_mode"] = cov_one_hot_mode
+        self.config["model"]["cov_dims"] = getattr(self.base, "cov_dims", {})
         self.train_ds = HCP_Partition(self.base, "train")
         self.val_ds = HCP_Partition(self.base, "val")
         self.test_ds = HCP_Partition(self.base, "test")
@@ -339,6 +364,7 @@ class Sim:
             pl_logger = WandbLogger(
                 entity=WANDB_ENTITY,
                 project=WANDB_PROJECT,
+                save_dir=os.path.join(_SCRIPT_DIR, "results"),
                 tags=tags,
                 name=wandb_name or f"{self.model_name}_prod",
                 group=wandb_group,
@@ -362,6 +388,7 @@ class Sim:
                 max_epochs=max_epochs,
                 logger=False if mode == "dev" else (pl_logger is None),
                 pl_logger=pl_logger,
+                enable_progress_bar=(mode == "dev"),
             )
             if mode == "dev":
                 train_result.plot()
@@ -542,7 +569,7 @@ class Sim:
         # Avoid capturing the full Sim instance (which can include large in-memory data) inside the Ray trainable closure.
         model_name = self.model_name
         learned = self.learned
-        param_space = get_search_space(self.model_name)
+        param_space = get_search_space(self.model_name, path=self.config_path)
         if not param_space:
             raise ValueError(f"No search_space for model: {self.model_name} in config YAML.")
         tuned_keys = set(param_space.keys())
@@ -581,6 +608,9 @@ class Sim:
         default_flat["data.shuffle_seed"] = self.shuffle_seed
 
         fixed_data_cfg = deepcopy(default.get("data", {}))
+        fixed_cov_sources = (default.get("model", {}) or {}).get("cov_sources", ["fs_all"])
+        fixed_cov_projectors = (default.get("model", {}) or {}).get("cov_projectors", {}) or {}
+        fixed_cov_one_hot_mode = (fixed_cov_projectors.get("covariate_one_hot", {}) or {}).get("type", "embedding")
         fixed_batch_size = default.get("trainer", {}).get("batch_size", 128)
         print(f"Fixed Tune batch_size: {fixed_batch_size}", flush=True)
        
@@ -652,6 +682,8 @@ class Sim:
                     shuffle_seed=fixed_data_cfg.get("shuffle_seed", 0),
                     source=fixed_data_cfg.get("source", "SC"),
                     target=fixed_data_cfg.get("target", "FC"),
+                    cov_sources=fixed_cov_sources,
+                    cov_one_hot_mode=fixed_cov_one_hot_mode,
                 )
                 b = _WORKER_CACHE["base"]
                 _WORKER_CACHE["train_ds"] = HCP_Partition(b, "train")
@@ -1089,6 +1121,7 @@ if __name__ == "__main__":
     
     sim = Sim(
         model_name=args.model,
+        config_path=args.config,
         config_overrides=overrides,
         parcellation=args.parcellation,
         hemi=args.hemi,

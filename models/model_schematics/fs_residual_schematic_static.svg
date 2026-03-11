@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="720" viewBox="0 0 1500 720" role="img" aria-label="Cross-modal PCA-PLS with FS residual schematic">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,3 L0,6 Z" fill="#111827" />
+    </marker>
+    <style>
+      .label { font-weight: 600; font-size: 13px; fill: #111827; font-family: "Helvetica Neue", Arial, sans-serif; }
+      .small { font-size: 11.5px; fill: #4b5563; font-family: "Helvetica Neue", Arial, sans-serif; }
+      .tiny { font-size: 10.5px; fill: #4b5563; font-family: "Helvetica Neue", Arial, sans-serif; }
+      .box { fill: #ffffff; stroke: #111827; stroke-width: 1.6; rx: 8; ry: 8; }
+      .fixed { stroke: #6b7280; stroke-dasharray: 6 4; }
+      .pca { fill: #eef2ff; stroke: #4338ca; stroke-width: 1.6; }
+      .encoder { fill: #dbeafe; stroke: #2563eb; stroke-width: 1.6; }
+      .decoder { fill: #fee2e2; stroke: #ef4444; stroke-width: 1.6; }
+      .latent { fill: #f3f4f6; stroke: #9ca3af; stroke-width: 1.4; rx: 12; ry: 12; }
+      .residual { stroke: #16a34a; }
+      .loss { fill: #fef2f2; stroke: #ef4444; stroke-width: 1.4; rx: 8; ry: 8; }
+      .arrow { stroke: #111827; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .arrow-blue { stroke: #2563eb; }
+      .arrow-red { stroke: #ef4444; }
+      .arrow-green { stroke: #16a34a; }
+      .arrow-dashed { stroke-dasharray: 7 5; }
+    </style>
+  </defs>
+
+  <rect x="1050" y="20" width="410" height="28" rx="8" ry="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.2" />
+  <text x="1062" y="39" class="small">Multi-source SC(+SC_r2t) → FC prediction with FS residual</text>
+
+  <text x="40" y="40" class="label">Measured connectomes (source)</text>
+
+  <rect x="40" y="70" width="70" height="70" class="box" fill="#f3f4f6" />
+  <rect x="50" y="80" width="70" height="70" class="box" fill="#e5e7eb" />
+  <rect x="60" y="90" width="70" height="70" class="box" fill="#d1d5db" />
+  <text x="58" y="175" class="tiny">SC</text>
+
+  <rect x="40" y="200" width="70" height="70" class="box" fill="#f3f4f6" />
+  <rect x="50" y="210" width="70" height="70" class="box" fill="#e5e7eb" />
+  <rect x="60" y="220" width="70" height="70" class="box" fill="#d1d5db" />
+  <text x="48" y="305" class="tiny">SC_r2t (opt.)</text>
+
+  <rect x="160" y="70" width="110" height="120" class="box" />
+  <text x="180" y="125" class="label">x_SC</text>
+  <text x="170" y="148" class="tiny">edges × subjects</text>
+  <text x="170" y="168" class="tiny">d = R(R-1)/2</text>
+
+  <rect x="160" y="210" width="110" height="120" class="box" />
+  <text x="170" y="265" class="label">x_r2t</text>
+  <text x="170" y="288" class="tiny">edges × subjects</text>
+
+  <line x1="120" y1="115" x2="160" y2="115" class="arrow" />
+  <line x1="120" y1="245" x2="160" y2="245" class="arrow" />
+  <text x="106" y="115" class="tiny">vec</text>
+  <text x="106" y="245" class="tiny">vec</text>
+
+  <polygon points="300,80 360,60 360,200 300,180" class="pca" />
+  <text x="312" y="135" class="label">PCA_SC</text>
+  <text x="314" y="158" class="tiny">fixed</text>
+
+  <polygon points="300,220 360,200 360,340 300,320" class="pca" />
+  <text x="308" y="275" class="label">PCA_r2t</text>
+  <text x="314" y="298" class="tiny">fixed</text>
+
+  <line x1="270" y1="125" x2="300" y2="125" class="arrow" />
+  <line x1="270" y1="265" x2="300" y2="265" class="arrow" />
+
+  <rect x="385" y="85" width="120" height="110" class="box fixed" />
+  <text x="405" y="135" class="label">C_SC</text>
+  <text x="400" y="158" class="tiny">k_SC comps</text>
+
+  <rect x="385" y="225" width="120" height="110" class="box fixed" />
+  <text x="400" y="275" class="label">C_r2t</text>
+  <text x="395" y="298" class="tiny">k_r2t comps</text>
+
+  <line x1="360" y1="125" x2="385" y2="125" class="arrow" />
+  <line x1="360" y1="265" x2="385" y2="265" class="arrow" />
+
+  <rect x="545" y="140" width="140" height="120" class="box" />
+  <text x="565" y="190" class="label">Concat</text>
+  <text x="555" y="213" class="tiny">z_src ∈ R^{k_SC+k_r2t}</text>
+
+  <line x1="505" y1="140" x2="545" y2="190" class="arrow" />
+  <line x1="505" y1="280" x2="545" y2="205" class="arrow" />
+
+  <polygon points="705,150 810,190 705,230" class="encoder" />
+  <text x="728" y="195" class="label">PLS / W_mid</text>
+  <text x="732" y="215" class="tiny">learnable</text>
+  <line x1="685" y1="200" x2="705" y2="200" class="arrow arrow-blue" />
+
+  <rect x="840" y="170" width="140" height="60" class="latent" />
+  <text x="865" y="200" class="label">z_base</text>
+  <text x="858" y="220" class="tiny">k_FC dims</text>
+  <line x1="810" y1="200" x2="840" y2="200" class="arrow arrow-blue" />
+
+  <rect x="1010" y="165" width="170" height="70" class="box residual" />
+  <text x="1025" y="198" class="label">z_t = z_base + α z_fs</text>
+  <text x="1030" y="220" class="tiny">α learnable</text>
+  <line x1="980" y1="200" x2="1010" y2="200" class="arrow" />
+
+  <polygon points="1210,150 1320,190 1210,230" class="decoder" />
+  <text x="1230" y="195" class="label">Decoder</text>
+  <text x="1220" y="215" class="tiny">W_dec (fixed/learnable)</text>
+
+  <polygon points="1340,160 1400,140 1400,260 1340,240" class="pca" />
+  <text x="1348" y="205" class="label">PCA_FC^{-1}</text>
+  <text x="1348" y="225" class="tiny">fixed</text>
+
+  <rect x="1420" y="150" width="70" height="120" class="box" />
+  <text x="1430" y="205" class="label">ŷ_FC</text>
+  <text x="1422" y="228" class="tiny">edges × subjects</text>
+
+  <line x1="1180" y1="200" x2="1210" y2="200" class="arrow arrow-red" />
+  <line x1="1320" y1="200" x2="1340" y2="200" class="arrow arrow-red" />
+  <line x1="1400" y1="200" x2="1420" y2="200" class="arrow" />
+
+  <rect x="1420" y="300" width="70" height="110" class="box" />
+  <text x="1430" y="350" class="label">y_FC</text>
+  <text x="1422" y="372" class="tiny">ground truth</text>
+  <line x1="1455" y1="270" x2="1455" y2="300" class="arrow" />
+
+  <rect x="1210" y="320" width="250" height="70" class="loss" />
+  <text x="1230" y="348" class="label">Loss</text>
+  <text x="1230" y="368" class="tiny">MSE(ŷ_FC, y_FC) + optional terms</text>
+
+  <line x1="1420" y1="355" x2="1460" y2="355" class="arrow" />
+  <line x1="1420" y1="200" x2="1460" y2="355" class="arrow arrow-dashed" />
+
+  <text x="40" y="420" class="label">FreeSurfer residual branch</text>
+  <rect x="40" y="450" width="120" height="70" class="box" />
+  <text x="58" y="482" class="label">FS data</text>
+  <text x="50" y="504" class="tiny">f ∈ R^{d_fs}</text>
+
+  <rect x="190" y="450" width="160" height="70" class="box fixed" />
+  <text x="205" y="480" class="label">Z-score</text>
+  <text x="205" y="500" class="tiny">(μ_fs, σ_fs)</text>
+
+  <polygon points="380,455 480,485 380,515" class="encoder" />
+  <text x="392" y="488" class="label">h(·)</text>
+  <text x="392" y="508" class="tiny">linear / MLP</text>
+
+  <rect x="520" y="450" width="120" height="70" class="box residual" />
+  <text x="545" y="482" class="label">z_fs</text>
+  <text x="538" y="504" class="tiny">k_FC dims</text>
+
+  <line x1="160" y1="485" x2="190" y2="485" class="arrow arrow-green" />
+  <line x1="350" y1="485" x2="380" y2="485" class="arrow arrow-green" />
+  <line x1="480" y1="485" x2="520" y2="485" class="arrow arrow-green" />
+  <line x1="640" y1="485" x2="1010" y2="200" class="arrow arrow-green arrow-dashed" />
+
+  <text x="60" y="640" class="tiny">E_SC = R(R-1)/2, E_r2t for tract correlations. k_* are PCA ranks, k_FC is target latent dim.</text>
+  <text x="60" y="660" class="tiny">Fixed: PCA means/loadings, FS z-score stats. Learnable: W_mid, W_dec (optional), h(·), α.</text>
+</svg>

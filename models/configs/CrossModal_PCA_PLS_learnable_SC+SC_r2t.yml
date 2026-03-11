@@ -2,7 +2,7 @@ learned: true
 
 default:
   data:
-    source: SC
+    source: SC+SC_r2t
     target: FC
   model:
     name: CrossModal_PCA_PLS_learnable

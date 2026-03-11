@@ -21,6 +21,26 @@ Desired features:
 
 VALID_MODALITIES = {"SC", "FC", "SC_r2t"}
 
+# Subset of FreeSurfer features representing whole-brain volumes
+FS_VOLUME_COLUMNS = [
+    "FS_IntraCranial_Vol",
+    "FS_BrainSeg_Vol",
+    "FS_BrainSeg_Vol_No_Vent",
+    "FS_BrainSeg_Vol_No_Vent_Surf",
+    "FS_LCort_GM_Vol",
+    "FS_RCort_GM_Vol",
+    "FS_TotCort_GM_Vol",
+    "FS_SubCort_GM_Vol",
+    "FS_Total_GM_Vol",
+    "FS_SupraTentorial_Vol",
+    "FS_L_WM_Vol",
+    "FS_R_WM_Vol",
+    "FS_Tot_WM_Vol",
+    "FS_Mask_Vol",
+    "FS_BrainSegVol_eTIV_Ratio",
+    "FS_MaskVol_eTIV_Ratio",
+]
+
 
 def normalize_modality_spec(spec):
     """Normalize a source/target modality spec to a list of modality names."""
@@ -43,8 +63,9 @@ class HCP_Base():
     def __init__(self,
     HCP_dir='/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/',
     parcellation='Glasser', hemi='both', source='SC', target='FC', shuffle_seed=0,
-    sc_metric_type='sift_invnodevol_radius2_count_connectivity', sc_apply_log1p=True, 
-    num_pca_components_sc=256, num_pca_components_fc=256):
+    sc_metric_type='sift_invnodevol_radius2_count_connectivity', sc_apply_log1p=True,
+    num_pca_components_sc=256, num_pca_components_fc=256,
+    cov_sources=None, cov_one_hot_mode="embedding"):
         """
         Load and cache all global HCP data for one fixed experiment data setup.
         The selected source/target modalities are owned by this base instance and
@@ -68,6 +89,8 @@ class HCP_Base():
         self.shuffle_seed = shuffle_seed
         self.num_pca_components_sc = num_pca_components_sc
         self.num_pca_components_fc = num_pca_components_fc
+        self.cov_sources = list(cov_sources) if cov_sources is not None else ["fs_all"]
+        self.cov_one_hot_mode = cov_one_hot_mode
 
         # Load basic covariates and train/val/test split
         self.metadata_df, self.covariate_one_hot_tuple = load_metadata(shuffle_seed=shuffle_seed, age_bin_size=3)
@@ -134,6 +157,42 @@ class HCP_Base():
         self.fs_train_std = self.fs_features_all[train_indices].std(axis=0)
         self.fs_train_std[self.fs_train_std == 0] = 1.0
         self.fs_features_z = (self.fs_features_all - self.fs_train_mean) / self.fs_train_std
+
+        # Precompute FS volume subset (if available)
+        available_volume_cols = [col for col in FS_VOLUME_COLUMNS if col in self.freesurfer_df.columns]
+        self.fs_volume_columns = available_volume_cols
+        if available_volume_cols:
+            fs_vol = self.freesurfer_df[available_volume_cols].to_numpy(dtype=np.float32, copy=True)
+            self.fs_vol_train_mean = fs_vol[train_indices].mean(axis=0)
+            self.fs_vol_train_std = fs_vol[train_indices].std(axis=0)
+            self.fs_vol_train_std[self.fs_vol_train_std == 0] = 1.0
+            self.fs_volumes_z = (fs_vol - self.fs_vol_train_mean) / self.fs_vol_train_std
+        else:
+            self.fs_volumes_z = None
+
+        # Precompute one-hot covariate matrix and optional embedding ids.
+        if self.covariate_one_hot_tuple:
+            cov_one_hot = np.concatenate(self.covariate_one_hot_tuple, axis=1).astype(np.float32)
+            self.cov_one_hot_matrix = cov_one_hot
+            # Build a compact id per unique one-hot tuple for embedding lookup.
+            unique_rows, inverse = np.unique(cov_one_hot, axis=0, return_inverse=True)
+            self.cov_one_hot_ids = inverse.astype(np.int64)
+            self.cov_one_hot_vocab_size = unique_rows.shape[0]
+        else:
+            self.cov_one_hot_matrix = None
+            self.cov_one_hot_ids = None
+            self.cov_one_hot_vocab_size = 0
+
+        # Covariate dimension registry for model construction.
+        self.cov_dims = {}
+        self.cov_dims["fs_all"] = int(self.fs_features_z.shape[1])
+        if self.fs_volumes_z is not None:
+            self.cov_dims["fs_volumes"] = int(self.fs_volumes_z.shape[1])
+        if self.cov_one_hot_mode == "embedding":
+            self.cov_dims["covariate_one_hot_vocab_size"] = int(self.cov_one_hot_vocab_size)
+        else:
+            if self.cov_one_hot_matrix is not None:
+                self.cov_dims["covariate_one_hot"] = int(self.cov_one_hot_matrix.shape[1])
         
         # Compute mean and PCA for training subjects for FC and SC
         self.sc_train_avg,  self.sc_train_loadings, self.sc_train_scores = population_mean_pca(self.sc_upper_triangles[train_indices])
@@ -170,7 +229,24 @@ class HCP_Partition(Dataset):
             if base.sc_r2t_corr_upper_triangles is not None
             else None
         )
-        self.fs_features = torch.tensor(base.fs_features_z, dtype=torch.float32, device=self.device)
+        # Prebuild covariate tensors for requested sources.
+        self.cov_sources = list(base.cov_sources)
+        self.cov_tensors = {}
+        if "fs_all" in self.cov_sources:
+            self.cov_tensors["fs_all"] = torch.tensor(base.fs_features_z, dtype=torch.float32, device=self.device)
+        if "fs_volumes" in self.cov_sources:
+            if base.fs_volumes_z is None:
+                raise ValueError("fs_volumes requested but FS volume columns are unavailable.")
+            self.cov_tensors["fs_volumes"] = torch.tensor(base.fs_volumes_z, dtype=torch.float32, device=self.device)
+        if "covariate_one_hot" in self.cov_sources:
+            if base.cov_one_hot_mode == "embedding":
+                if base.cov_one_hot_ids is None:
+                    raise ValueError("covariate_one_hot requested but IDs are unavailable.")
+                self.cov_tensors["covariate_one_hot"] = torch.tensor(base.cov_one_hot_ids, dtype=torch.long, device=self.device)
+            else:
+                if base.cov_one_hot_matrix is None:
+                    raise ValueError("covariate_one_hot requested but matrix is unavailable.")
+                self.cov_tensors["covariate_one_hot"] = torch.tensor(base.cov_one_hot_matrix, dtype=torch.float32, device=self.device)
     
     def _get_modality_tensor(self, modality, global_idx):
         if modality == "SC":
@@ -194,7 +270,7 @@ class HCP_Partition(Dataset):
             for modality in self.source_modalities
         }
         target_data = self._get_modality_tensor(self.target, global_idx)
-        fs_data = self.fs_features[global_idx]
+        cov_data = {key: tensor[global_idx] for key, tensor in self.cov_tensors.items()}
 
         if len(self.source_modalities) == 1:
             model_input = source_modalities[self.source_modalities[0]]
@@ -205,7 +281,7 @@ class HCP_Partition(Dataset):
             "x": model_input,
             "x_modalities": source_modalities,
             "y": target_data,
-            "fs": fs_data,
+            "cov": cov_data,
             "subject_id": self.ids[idx],
         }
     

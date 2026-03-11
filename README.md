@@ -1,60 +1,26 @@
 # Conn2Conn
 
-Minimal status README for the current state of the repository. The code is active and some details may change.
+Predicts one connectome modality from another on HCP-derived data (default `SC -> FC`), with both closed-form and learned cross-modal models.
 
-## What This Repo Does
+## Current Functionality
 
-Conn2Conn predicts one connectome modality from another, primarily `SC -> FC`, using HCP-derived data.
+- Modalities: `SC`, `FC`, and `SC_r2t`
+- Supports multi-source inputs via `--source` (for example `SC+SC_r2t`), with a single target modality via `--target`
+- Family-aware train/val/test partitioning with configurable `--shuffle_seed`
+- Evaluation on train/val/test with optional markdown report export
 
-Current workflow:
+## Models
 
-- load structural and functional connectivity matrices plus metadata
-- vectorize connectomes as upper-triangle edge features
-- fit a cross-modal model
-- evaluate predictions on train, validation, and test splits
+Implemented in `models/models.py` and configured in `models/configs/*.yml`:
 
-## Current Layout
+- `CrossModalPCA`
+- `CrossModal_PLS_SVD`
+- `CrossModal_PCA_PLS` (closed-form PCA+PLS)
+- `CrossModal_PCA_PLS_learnable` (trainable PCA/PLS-initialized linear map)
+- `CrossModal_PCA_PLS_CovProjector` (covariate residual projector variant)
+- `CrossModalVAE`
 
-```text
-Conn2Conn/
-├── main.py                # main experiment entrypoint
-├── data/                  # HCP loading, splits, PCA preprocessing, utilities
-├── models/                # model classes, Lightning module, losses, eval, configs
-├── notebooks/             # exploratory analysis and evaluation notebooks
-├── sbatch/                # SLURM launch scripts
-├── results/               # Ray Tune outputs, checkpoints, logs
-├── wandb/                 # local W&B run artifacts
-└── krakencoder/           # bundled reference package / external comparison material
-```
-
-## Main Components
-
-### Data
-
-- `data/hcp_dataset.py`: dataset objects for full HCP state and train/val/test partitions
-- `data/dataset_utils.py`: FC/SC loading, metadata merging, family-aware split generation, PCA summaries
-- `data/data_utils.py`: connectome matrix helpers and visualization utilities
-
-### Models
-
-Model definitions live in `models/models.py`.
-
-Current model families include:
-
-- PCA projection baseline
-- PCA + PLS closed-form model
-- direct PLS-SVD closed-form model
-- learnable PCA/PLS-initialized linear model
-- cross-modal VAE
-
-Training support:
-
-- `models/lightning_module.py`: Lightning wrapper for learned models
-- `models/loss.py`: MSE, demeaned MSE, weighted MSE, and VAE losses
-- `models/eval.py`: prediction evaluation and reporting
-- `models/configs/*.yml`: default configs and Ray Tune search spaces
-
-## Running
+## Run
 
 Single run:
 
@@ -62,16 +28,35 @@ Single run:
 python main.py --mode dev --model CrossModal_PCA_PLS_learnable
 ```
 
+Single run with multi-source input:
+
+```bash
+python main.py --mode prod --model CrossModal_PCA_PLS_learnable --source SC+SC_r2t --target FC
+```
+
 Tune run:
 
 ```bash
-python main.py --mode prod --model CrossModal_PCA_PLS_learnable --use_tune --num_samples 10
+python main.py --mode prod --model CrossModal_PCA_PLS_learnable --use_tune --num_samples 10 --max_concurrent_trials 1
 ```
 
-Cluster launch scripts are under `sbatch/`.
+After tuning, report full best-trial metrics and write eval markdown:
 
-## Notes
+```bash
+python main.py --mode prod --model CrossModal_PCA_PLS_learnable --use_tune --num_samples 10 --report_best_after_tune --store_eval_md
+```
 
-- `main.py` is the real entrypoint.
-- The repo currently assumes local access to HCP-derived datasets configured in the data loaders.
-- The README is intentionally brief and may lag behind active development.
+## Layout
+
+- `main.py`: entrypoint (single run + Ray Tune + best-trial reporting)
+- `kraken_env.yml`: environment spec used for local runs
+- `data/`: dataset loading, partitioning, preprocessing, atlas metadata
+- `models/`: model definitions, Lightning module, losses, eval, configs
+- `notebooks/` + top-level `*.ipynb`: exploratory and evaluation notebooks
+- `krakencoder/`: bundled KrakenEncoder codebase + examples
+- `sbatch/`: SLURM launch scripts grouped by model
+- `checkpoints/`: saved model checkpoints
+- `results/`: Ray Tune artifacts, logs, reports, and local eval outputs
+- `wandb/`: Weights & Biases run logs
+
+Assumes local access to HCP-derived datasets configured in the data loaders.

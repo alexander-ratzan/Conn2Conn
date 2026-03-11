@@ -43,9 +43,9 @@ def get_model_input(batch):
     return batch["x"] if "x" in batch else batch["x_modalities"]
 
 
-def get_batch_fs(batch):
-    """Return FreeSurfer features from a batch when present."""
-    return batch.get("fs")
+def get_batch_cov(batch):
+    """Return covariate features from a batch when present."""
+    return batch.get("cov")
 
 
 def get_single_modality_data(base, modality, include_scores=True, include_raw_data=False):
@@ -180,8 +180,8 @@ def predict_from_loader(model, data_loader, device=None):
             x = get_model_input(batch)
             y = batch["y"]
             y = y.to(device)
-            if getattr(model, "uses_fs", False):
-                out = model(x, fs=get_batch_fs(batch))
+            if getattr(model, "uses_cov", False):
+                out = model(x, cov=get_batch_cov(batch))
             else:
                 out = model(x)
             preds = out[0] if isinstance(out, tuple) else out
@@ -687,15 +687,15 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
 
-class CrossModal_PCA_PLS_FSResidual(nn.Module):
+class CrossModal_PCA_PLS_CovProjector(nn.Module):
     """
-    Learnable source-to-target PCA/PLS backbone with an additive FreeSurfer residual branch.
+    Learnable source-to-target PCA/PLS backbone with an additive covariate residual branch.
 
     Architecture:
         z_src = concat_i((x_i - mu_i) @ W_enc_i)
         z_base = dropout(z_src) @ W_mid.T
-        z_fs = projector(fs)
-        z_target = z_base + alpha * z_fs
+        z_cov = fusion(concat_j(encoder_j(cov_j)))
+        z_target = z_base + alpha * z_cov
         y_hat = z_target @ W_dec + mu_target
     """
     def __init__(
@@ -712,15 +712,18 @@ class CrossModal_PCA_PLS_FSResidual(nn.Module):
         random_init=False,
         dropout=0.3,
         l1_l2_tuple=(0.0, 0.001),
-        fs_projector_type="linear",
-        fs_hidden_dims=(128,),
-        fs_dropout=0.0,
-        fs_residual_scale_init=1.0,
-        learn_fs_scale=True,
+        cov_sources=("fs_all",),
+        cov_projectors=None,
+        cov_fusion=None,
+        cov_out_dim=256,
+        cov_residual_scale_init=1.0,
+        learn_cov_scale=True,
+        use_target_scores_in_projector=False,
         **kwargs,
     ):
         super().__init__()
-        self.uses_fs = True
+        self.uses_cov = True
+        self.use_target_scores_in_projector = bool(use_target_scores_in_projector)
         self.source_modalities = list(getattr(base, "source_modalities", [base.source]))
         self.target_modality = getattr(base, "target", None)
         if self.target_modality is None:
@@ -729,9 +732,10 @@ class CrossModal_PCA_PLS_FSResidual(nn.Module):
         self.n_components_pca_target = n_components_pca_target
         self.random_init = random_init
         self.dropout_p = dropout
-        self.fs_projector_type = fs_projector_type
-        self.fs_hidden_dims = tuple(fs_hidden_dims)
-        self.fs_dropout = fs_dropout
+        self.cov_sources = list(cov_sources) if cov_sources is not None else ["fs_all"]
+        self.cov_projectors = cov_projectors or {}
+        self.cov_fusion = cov_fusion or {"type": "linear"}
+        self.cov_out_dim = int(cov_out_dim)
         self.l1_reg, self.l2_reg = l1_l2_tuple
         self.l1_l2_tuple = l1_l2_tuple
 
@@ -746,7 +750,7 @@ class CrossModal_PCA_PLS_FSResidual(nn.Module):
         target_scores = target_data["scores"]
         d_target = target_loadings.shape[0]
         k_tgt = int(n_components_pca_target)
-        n_fs_features = len(base.fs_feature_columns)
+        cov_dims = getattr(base, "cov_dims", {})
 
         if isinstance(n_components_pca_source, dict):
             self.n_components_pca_source_by_modality = {
@@ -802,32 +806,87 @@ class CrossModal_PCA_PLS_FSResidual(nn.Module):
         self.W_dec = init_weight((k_tgt, d_target), target_loadings[:, :k_tgt].T, learn_decoder)
         self.dropout = nn.Dropout(p=dropout) if dropout > 0 else nn.Identity()
 
-        if fs_projector_type == "linear":
-            self.fs_projector = nn.Linear(n_fs_features, k_tgt)
-        elif fs_projector_type == "mlp":
-            self.fs_projector = _build_mlp(n_fs_features, self.fs_hidden_dims, k_tgt, dropout_p=fs_dropout)
-        else:
-            raise ValueError(f"Unknown fs_projector_type: {fs_projector_type}")
+        # Covariate projectors (per-source encoders)
+        self.cov_encoders = nn.ModuleDict()
+        self.cov_embed_dims = {}
+        for source in self.cov_sources:
+            spec = self.cov_projectors.get(source, {}) or {}
+            proj_type = spec.get("type", "linear")
+            out_dim = int(spec.get("out_dim", 32))
+            self.cov_embed_dims[source] = out_dim
+            if proj_type == "embedding":
+                vocab_size = int(cov_dims.get(f"{source}_vocab_size", 0))
+                if vocab_size <= 0:
+                    raise ValueError(f"Embedding projector requested for {source} but vocab size is unavailable.")
+                self.cov_encoders[source] = nn.Embedding(vocab_size, out_dim)
+            elif proj_type == "mlp":
+                in_dim = int(cov_dims.get(source, 0))
+                if in_dim <= 0:
+                    raise ValueError(f"Covariate source '{source}' is unavailable in base.")
+                hidden = spec.get("hidden_dims", [out_dim])
+                layers = []
+                dims = [in_dim] + list(hidden) + [out_dim]
+                for i in range(len(dims) - 1):
+                    layers.append(nn.Linear(dims[i], dims[i + 1]))
+                    if i < len(dims) - 2:
+                        layers.append(nn.ReLU())
+                        if spec.get("dropout", 0.0) > 0:
+                            layers.append(nn.Dropout(p=spec["dropout"]))
+                self.cov_encoders[source] = nn.Sequential(*layers)
+            else:
+                in_dim = int(cov_dims.get(source, 0))
+                if in_dim <= 0:
+                    raise ValueError(f"Covariate source '{source}' is unavailable in base.")
+                self.cov_encoders[source] = nn.Linear(in_dim, out_dim)
 
-        if learn_fs_scale:
-            self.fs_residual_scale = nn.Parameter(
-                torch.tensor(float(fs_residual_scale_init), dtype=torch.float32, device=device)
+        fused_cov_dim = sum(self.cov_embed_dims.values())
+        fusion_type = (self.cov_fusion or {}).get("type", "linear")
+        if fusion_type == "mlp":
+            hidden = (self.cov_fusion or {}).get("hidden_dims", [self.cov_out_dim])
+            dropout_p = float((self.cov_fusion or {}).get("dropout", 0.0))
+            dims = [fused_cov_dim] + list(hidden) + [self.cov_out_dim]
+            layers = []
+            for i in range(len(dims) - 1):
+                layers.append(nn.Linear(dims[i], dims[i + 1]))
+                if i < len(dims) - 2:
+                    layers.append(nn.ReLU())
+                    if dropout_p > 0:
+                        layers.append(nn.Dropout(p=dropout_p))
+            self.cov_fusion_net = nn.Sequential(*layers)
+        else:
+            self.cov_fusion_net = nn.Linear(fused_cov_dim, self.cov_out_dim)
+
+        if self.cov_out_dim != k_tgt:
+            raise ValueError(
+                f"cov_out_dim ({self.cov_out_dim}) must match n_components_pca_target ({k_tgt}) for residual add."
+            )
+
+        if learn_cov_scale:
+            self.cov_residual_scale = nn.Parameter(
+                torch.tensor(float(cov_residual_scale_init), dtype=torch.float32, device=device)
             )
         else:
             self.register_buffer(
-                "fs_residual_scale",
-                torch.tensor(float(fs_residual_scale_init), dtype=torch.float32, device=device),
+                "cov_residual_scale",
+                torch.tensor(float(cov_residual_scale_init), dtype=torch.float32, device=device),
             )
 
+        # Sanity-check option: feed true target PCA scores (FC latents) into the projector (target leakage).
+        if self.use_target_scores_in_projector:
+            self.target_scores_proj = nn.Linear(k_tgt, self.cov_out_dim, device=device)
+        else:
+            self.target_scores_proj = None
+
         print(
-            f"FSResidual init: source_dims={self.n_components_pca_source_by_modality}, "
-            f"target_dim={k_tgt}, fs_features={n_fs_features}, fs_projector={fs_projector_type}"
+            f"CovProjector init: source_dims={self.n_components_pca_source_by_modality}, "
+            f"target_dim={k_tgt}, cov_sources={self.cov_sources}"
+            + (", use_target_scores_in_projector=True (sanity-check)" if self.use_target_scores_in_projector else "")
         )
 
-    def _resolve_inputs(self, x, fs=None):
+    def _resolve_inputs(self, x, cov=None):
         if isinstance(x, dict) and "y" in x:
             batch = x
-            fs = batch.get("fs") if fs is None else fs
+            cov = batch.get("cov") if cov is None else cov
             x = get_model_input(batch)
 
         if isinstance(x, dict):
@@ -835,12 +894,12 @@ class CrossModal_PCA_PLS_FSResidual(nn.Module):
         elif len(self.source_modalities) == 1:
             source_inputs = {self.source_modalities[0]: x}
         else:
-            raise TypeError("Expected dict input for multi-source CrossModal_PCA_PLS_FSResidual.")
+            raise TypeError("Expected dict input for multi-source CrossModal_PCA_PLS_CovProjector.")
 
-        if fs is None:
-            raise ValueError("FreeSurfer features are required for CrossModal_PCA_PLS_FSResidual.")
+        if cov is None:
+            raise ValueError("Covariate projector model requires cov input.")
 
-        return source_inputs, fs
+        return source_inputs, cov
 
     def _encode_sources(self, x):
         device = self.target_mean.device
@@ -850,44 +909,69 @@ class CrossModal_PCA_PLS_FSResidual(nn.Module):
             z_parts.append(torch.matmul(x_mod - self.source_means[modality], self.source_encoders[modality]))
         return torch.cat(z_parts, dim=1)
 
+    def _encode_covariates(self, cov):
+        device = self.target_mean.device
+        z_parts = []
+        for source in self.cov_sources:
+            if source not in cov:
+                raise ValueError(f"Missing covariate source '{source}' in batch.")
+            c = cov[source]
+            encoder = self.cov_encoders[source]
+            if isinstance(encoder, nn.Embedding):
+                c = c.long().to(device)
+                if c.ndim > 1:
+                    c = c.squeeze(-1)
+                z = encoder(c)
+            else:
+                z = encoder(c.to(device).to(torch.float32))
+            z_parts.append(z)
+        return torch.cat(z_parts, dim=1)
+
     def _predict_target_latent_from_sources(self, z_src):
         z_base = self.dropout(z_src)
         z_base = torch.matmul(z_base, self.W_mid.T)
         return self.dropout(z_base)
 
-    def _project_fs(self, fs):
-        device = self.target_mean.device
-        fs = fs.to(device).to(torch.float32)
-        return self.fs_projector(fs)
-
     def _decode_target_latent(self, z_target):
         return torch.matmul(z_target, self.W_dec) + self.target_mean
 
     def predict_latents(self, batch):
-        source_inputs, fs = self._resolve_inputs(batch)
+        source_inputs, cov = self._resolve_inputs(batch)
         z_src = self._encode_sources(source_inputs)
         z_base = self._predict_target_latent_from_sources(z_src)
-        z_fs_resid = self._project_fs(fs)
-        z_target = z_base + self.fs_residual_scale * z_fs_resid
+        z_cov = self.cov_fusion_net(self._encode_covariates(cov))
+        z_target = z_base + self.cov_residual_scale * z_cov
         return {
             "z_base": z_base,
-            "z_fs_resid": z_fs_resid,
+            "z_cov": z_cov,
             "z_target": z_target,
         }
 
-    def forward(self, x, fs=None):
-        source_inputs, fs = self._resolve_inputs(x, fs=fs)
+    def forward(self, x, cov=None, y=None):
+        source_inputs, cov = self._resolve_inputs(x, cov=cov)
         z_src = self._encode_sources(source_inputs)
         z_base = self._predict_target_latent_from_sources(z_src)
-        z_fs_resid = self._project_fs(fs)
-        z_target = z_base + self.fs_residual_scale * z_fs_resid
+        z_cov = self.cov_fusion_net(self._encode_covariates(cov))
+        if self.use_target_scores_in_projector and self.target_scores_proj is not None and y is not None:
+            device = self.target_mean.device
+            y_ = y.to(device).to(torch.float32)
+            target_scores = torch.matmul(y_ - self.target_mean, self.W_dec.T)
+            z_cov = self.target_scores_proj(target_scores) # replace z_cov with target scores
+        z_target = z_base + self.cov_residual_scale * z_cov
         return self._decode_target_latent(z_target)
 
     def get_reg_loss(self):
         params = list(self.source_encoders.values()) + [self.W_mid, self.W_dec]
-        params.extend(p for p in self.fs_projector.parameters())
-        if isinstance(self.fs_residual_scale, nn.Parameter):
-            params.append(self.fs_residual_scale)
+        params.extend(self.cov_fusion_net.parameters())
+        if self.target_scores_proj is not None:
+            params.extend(self.target_scores_proj.parameters())
+        for encoder in self.cov_encoders.values():
+            if isinstance(encoder, nn.Embedding):
+                params.append(encoder.weight)
+            else:
+                params.extend(p for p in encoder.parameters())
+        if isinstance(self.cov_residual_scale, nn.Parameter):
+            params.append(self.cov_residual_scale)
         return compute_reg_loss(params, self.l1_l2_tuple)
 
     def get_num_params(self):

@@ -15,9 +15,9 @@ def get_model_input(batch):
     return batch["x"] if "x" in batch else batch["x_modalities"]
 
 
-def get_batch_fs(batch):
-    """Return FreeSurfer features from a batch when present."""
-    return batch.get("fs")
+def get_batch_cov(batch):
+    """Return covariate features from a batch when present."""
+    return batch.get("cov")
 
 
 def get_target_train_mean(base):
@@ -247,8 +247,8 @@ def evaluate_model(model, data_loader, target_train_mean, device):
             x = get_model_input(batch)
             y = batch["y"].to(device)
             
-            if getattr(model, "uses_fs", False):
-                out = model(x, fs=get_batch_fs(batch))
+            if getattr(model, "uses_cov", False):
+                out = model(x, cov=get_batch_cov(batch))
             else:
                 out = model(x)
             y_pred = out[0] if isinstance(out, tuple) else out
@@ -306,25 +306,24 @@ class ValidationEvalCallback(pl.Callback):
 
     def on_validation_epoch_end(self, trainer, pl_module):
         cm = trainer.callback_metrics
+        model = pl_module.model
+        device = pl_module.device
+        # Always run full val evaluate_model so plotted val metrics are from one consistent path (avoids sawtooth from mixing Lightning step vs full pass).
+        val_metrics = evaluate_model(
+            model, self.val_loader, self.target_train_mean, device
+        )
         record = {
             "epoch": trainer.current_epoch,
             "train_loss": cm.get("train_loss"),
-            "val_loss": cm.get("val_loss"),
-            "val_pearson_r": cm.get("val_pearson_r"),
-            "val_demeaned_r": cm.get("val_demeaned_r"),
+            "val_loss": val_metrics["mse"],  # use same val source as pearson/demeaned for consistent curve
+            "val_mse": val_metrics["mse"],
+            "val_pearson_r": val_metrics["pearson_r"],
+            "val_demeaned_r": val_metrics["demeaned_r"],
         }
+        pl_module.log("val_mse", val_metrics["mse"], on_epoch=True)
+        pl_module.log("val_pearson_r", val_metrics["pearson_r"], on_epoch=True)
+        pl_module.log("val_demeaned_r", val_metrics["demeaned_r"], on_epoch=True)
         if trainer.current_epoch % self.log_every == 0 or trainer.current_epoch == 0:
-            model = pl_module.model
-            device = pl_module.device
-            val_metrics = evaluate_model(
-                model, self.val_loader, self.target_train_mean, device
-            )
-            record["val_mse"] = val_metrics["mse"]
-            record["val_pearson_r"] = val_metrics["pearson_r"]
-            record["val_demeaned_r"] = val_metrics["demeaned_r"]
-            pl_module.log("val_mse", val_metrics["mse"], on_epoch=True)
-            pl_module.log("val_pearson_r", val_metrics["pearson_r"], on_epoch=True)
-            pl_module.log("val_demeaned_r", val_metrics["demeaned_r"], on_epoch=True)
             if self.log_train and self.train_loader is not None:
                 train_metrics = evaluate_model(
                     model, self.train_loader, self.target_train_mean, device
@@ -357,6 +356,7 @@ def train_model(
     max_epochs=100,
     logger=True, # remove at some point
     pl_logger=None,
+    enable_progress_bar=False,
 ):
     """
     Train a cross-modal model using PyTorch Lightning Trainer.
@@ -374,6 +374,7 @@ def train_model(
         max_epochs: number of epochs (Trainer max_epochs).
         logger: If True, use CSVLogger (writes to disk). If False, no logging to disk (dev mode).
         pl_logger: Optional Lightning logger (e.g. WandbLogger). If set, overrides logger/CSVLogger.
+        enable_progress_bar: If True, show training progress bar (e.g. in dev/notebook).
 
     Returns:
         TrainResult with pl_module, trainer, callback, history_df and .plot().
@@ -401,16 +402,27 @@ def train_model(
         logger_pl = pl_logger
     else:
         logger_pl = pl.loggers.CSVLogger(save_dir="results/lightning_logs", name="conn2conn") if logger else False
-    # Single process, 1 GPU; strategy="ddp" so the same path works when we later use
-    # multi-GPU DDP (e.g. devices=2 with ntasks-per-node=2).
+    # Single device: use "auto" to avoid subprocess spawn and "CUDA in forked subprocess" errors.
+    # Multi-GPU: use "ddp_notebook" in notebooks, "ddp" in scripts.
+    devices = 1
+    try:
+        _in_notebook = get_ipython() is not None
+    except NameError:
+        _in_notebook = False
+    if devices == 1:
+        strategy = "auto"
+    elif _in_notebook:
+        strategy = "ddp_notebook"
+    else:
+        strategy = "ddp"
     trainer = pl.Trainer(
         accelerator="gpu",
-        devices=1,
-        strategy="ddp",
+        devices=devices,
+        strategy=strategy,
         max_epochs=max_epochs,
         logger=logger_pl,
         callbacks=[callback],
-        enable_progress_bar=False, # set to False for now
+        enable_progress_bar=enable_progress_bar,
         enable_model_summary=True,
     )
     trainer.fit(
