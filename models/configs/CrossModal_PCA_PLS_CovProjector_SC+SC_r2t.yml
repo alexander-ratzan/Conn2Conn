@@ -17,19 +17,17 @@ default:
     random_init: false
     l1_l2_tuple: [0.0, 0.0001]
     dropout: 0.2
-    learn_means: false
-    cov_sources: [fs_all, fs_volumes, covariate_one_hot]
+    cov_sources: [fs_all, fs_volumes, age, sex, race_eth]
     cov_projectors:
-      fs_all: {type: linear, out_dim: 64}
-      covariate_one_hot: {type: embedding, out_dim: 16}
+      fs_all:     {type: linear, out_dim: 64}
       fs_volumes: {type: linear, out_dim: 32}
+      age:        {type: linear, out_dim: 4}
+      sex:        {type: linear, out_dim: 4}
+      race_eth:   {type: linear, out_dim: 8}
     cov_fusion:
       type: mlp
       hidden_dims: [64]
       dropout: 0.0
-    cov_out_dim: 256
-    cov_residual_scale_init: 1.0
-    learn_cov_scale: false
     device: null
   trainer:
     lr: 1.0e-4
@@ -64,9 +62,6 @@ search_space:
     type: uniform
     lower: 0.0
     upper: 0.4
-  learn_cov_scale:
-    type: choice
-    values: [false, true]
   l1_l2_tuple:
     type: quniform
     lower: [0.0, 0.0]

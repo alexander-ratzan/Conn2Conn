@@ -15,7 +15,6 @@ default:
     random_init: false
     l1_l2_tuple: [0.0, 0.0001]
     dropout: 0.2
-    learn_means: false
     device: null
   trainer:
     lr: 1.0e-4

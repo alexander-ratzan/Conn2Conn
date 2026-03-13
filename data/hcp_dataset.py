@@ -19,7 +19,7 @@ Desired features:
     - return relevant covariate info
 """
 
-VALID_MODALITIES = {"SC", "FC", "SC_r2t"}
+VALID_MODALITIES = {"SC", "SC_r2t", "FC"}
 
 # Subset of FreeSurfer features representing whole-brain volumes
 FS_VOLUME_COLUMNS = [
@@ -41,7 +41,6 @@ FS_VOLUME_COLUMNS = [
     "FS_MaskVol_eTIV_Ratio",
 ]
 
-
 def normalize_modality_spec(spec):
     """Normalize a source/target modality spec to a list of modality names."""
     if isinstance(spec, str):
@@ -59,13 +58,14 @@ def normalize_modality_spec(spec):
         raise ValueError(f"Unknown modalities {invalid}. Valid options: {sorted(VALID_MODALITIES)}")
     return parts
 
+
 class HCP_Base():
     def __init__(self,
     HCP_dir='/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/',
     parcellation='Glasser', hemi='both', source='SC', target='FC', shuffle_seed=0,
     sc_metric_type='sift_invnodevol_radius2_count_connectivity', sc_apply_log1p=True,
     num_pca_components_sc=256, num_pca_components_fc=256,
-    cov_sources=None, cov_one_hot_mode="embedding"):
+    cov_sources=None):
         """
         Load and cache all global HCP data for one fixed experiment data setup.
         The selected source/target modalities are owned by this base instance and
@@ -90,10 +90,9 @@ class HCP_Base():
         self.num_pca_components_sc = num_pca_components_sc
         self.num_pca_components_fc = num_pca_components_fc
         self.cov_sources = list(cov_sources) if cov_sources is not None else ["fs_all"]
-        self.cov_one_hot_mode = cov_one_hot_mode
 
         # Load basic covariates and train/val/test split
-        self.metadata_df, self.covariate_one_hot_tuple = load_metadata(shuffle_seed=shuffle_seed, age_bin_size=3)
+        self.metadata_df, _cov_arrays = load_metadata(shuffle_seed=shuffle_seed)
         self.all_subject_ids = self.metadata_df['subject'].tolist()
         
         # Load freesurfer data
@@ -104,7 +103,7 @@ class HCP_Base():
         self.fc_subject_ids, self.fc_matrices, self.fc_upper_triangles = load_fc(parcellation, hemi, HCP_dir)
         self.sc_subject_ids, self.sc_matrices, self.sc_upper_triangles, self.sc_r2t_matrices = load_sc(parcellation, hemi, sc_metric_type, HCP_dir, sc_apply_log1p)
         
-        # Include subjects that common to metadata, FC, SC, and freesurfer dataframes
+        # Include subjects common to metadata, FC, SC, and freesurfer dataframes
         canonical_subject_ids = sorted(set(self.all_subject_ids) & set(self.fc_subject_ids) & set(self.sc_subject_ids) & set(self.freesurfer_df['subject']))
         canonical_meta_indices = self.subject_indices_from_id(self.all_subject_ids, canonical_subject_ids)
         canonical_freesurfer_indices = self.subject_indices_from_id(self.freesurfer_df['subject'].tolist(), canonical_subject_ids)
@@ -112,7 +111,7 @@ class HCP_Base():
         canonical_sc_indices = self.subject_indices_from_id(self.sc_subject_ids, canonical_subject_ids)
         
         self.metadata_df = self.metadata_df.iloc[canonical_meta_indices]
-        self.covariate_one_hot_tuple = tuple(x[canonical_meta_indices] for x in self.covariate_one_hot_tuple)
+        _cov_arrays = {k: v[canonical_meta_indices] for k, v in _cov_arrays.items()}
         self.freesurfer_df = self.freesurfer_df.iloc[canonical_freesurfer_indices]
         self.fc_matrices = self.fc_matrices[canonical_fc_indices]
         self.fc_upper_triangles = self.fc_upper_triangles[canonical_fc_indices]
@@ -125,18 +124,14 @@ class HCP_Base():
         )
         
         # Compute r x r correlation matrix for each subject's r2t matrix, replace NaNs with 0s in place
-        if self.sc_r2t_matrices is None:
-            self.sc_r2t_corr_matrices = None
-            self.sc_r2t_corr_upper_triangles = None
-        else:
-            self.sc_r2t_corr_matrices = np.stack(
-                [np.nan_to_num(np.corrcoef(mat), nan=0.0) for mat in self.sc_r2t_matrices],
-                axis=0,
-            )
-            tri_indices = np.triu_indices(self.sc_r2t_corr_matrices.shape[1], k=1)
-            self.sc_r2t_corr_upper_triangles = self.sc_r2t_corr_matrices[:, tri_indices[0], tri_indices[1]]
+        self.sc_r2t_corr_matrices = np.stack(
+            [np.nan_to_num(np.corrcoef(mat), nan=0.0) for mat in self.sc_r2t_matrices],
+            axis=0,
+        )
+        tri_indices = np.triu_indices(self.sc_r2t_corr_matrices.shape[1], k=1)
+        self.sc_r2t_corr_upper_triangles = self.sc_r2t_corr_matrices[:, tri_indices[0], tri_indices[1]]
         
-
+        # Build train/val/test split indices and ids
         self.trainvaltest_partition_indices = {
             "train": self.subject_indices_from_id(self.all_subject_ids, self.metadata_df[self.metadata_df["train_val_test"] == "train"]["subject"].tolist()),
             "val": self.subject_indices_from_id(self.all_subject_ids, self.metadata_df[self.metadata_df["train_val_test"] == "val"]["subject"].tolist()),
@@ -149,7 +144,7 @@ class HCP_Base():
             "test": self.metadata_df[self.metadata_df["train_val_test"] == "test"]["subject"].tolist(),
         }
 
-        # Build aligned FreeSurfer feature matrix and normalize using train split statistics.
+        # Build aligned FreeSurfer feature matrix and normalize using train split statistics
         self.fs_feature_columns = [col for col in self.freesurfer_df.columns if col != "subject"]
         self.fs_features_all = self.freesurfer_df[self.fs_feature_columns].to_numpy(dtype=np.float32, copy=True)
         train_indices = self.trainvaltest_partition_indices["train"]
@@ -158,41 +153,33 @@ class HCP_Base():
         self.fs_train_std[self.fs_train_std == 0] = 1.0
         self.fs_features_z = (self.fs_features_all - self.fs_train_mean) / self.fs_train_std
 
-        # Precompute FS volume subset (if available)
-        available_volume_cols = [col for col in FS_VOLUME_COLUMNS if col in self.freesurfer_df.columns]
-        self.fs_volume_columns = available_volume_cols
-        if available_volume_cols:
-            fs_vol = self.freesurfer_df[available_volume_cols].to_numpy(dtype=np.float32, copy=True)
-            self.fs_vol_train_mean = fs_vol[train_indices].mean(axis=0)
-            self.fs_vol_train_std = fs_vol[train_indices].std(axis=0)
-            self.fs_vol_train_std[self.fs_vol_train_std == 0] = 1.0
-            self.fs_volumes_z = (fs_vol - self.fs_vol_train_mean) / self.fs_vol_train_std
-        else:
-            self.fs_volumes_z = None
+        # Precompute FS volume subset   
+        self.fs_volume_columns = [col for col in FS_VOLUME_COLUMNS if col in self.freesurfer_df.columns]
+        fs_vol = self.freesurfer_df[self.fs_volume_columns].to_numpy(dtype=np.float32, copy=True)
+        self.fs_vol_train_mean = fs_vol[train_indices].mean(axis=0)
+        self.fs_vol_train_std = fs_vol[train_indices].std(axis=0)
+        self.fs_vol_train_std[self.fs_vol_train_std == 0] = 1.0
+        self.fs_volumes_z = (fs_vol - self.fs_vol_train_mean) / self.fs_vol_train_std
 
-        # Precompute one-hot covariate matrix and optional embedding ids.
-        if self.covariate_one_hot_tuple:
-            cov_one_hot = np.concatenate(self.covariate_one_hot_tuple, axis=1).astype(np.float32)
-            self.cov_one_hot_matrix = cov_one_hot
-            # Build a compact id per unique one-hot tuple for embedding lookup.
-            unique_rows, inverse = np.unique(cov_one_hot, axis=0, return_inverse=True)
-            self.cov_one_hot_ids = inverse.astype(np.int64)
-            self.cov_one_hot_vocab_size = unique_rows.shape[0]
-        else:
-            self.cov_one_hot_matrix = None
-            self.cov_one_hot_ids = None
-            self.cov_one_hot_vocab_size = 0
+        # Factored demographic covariates.
+        # Age is z-scored using training-set statistics (consistent with FS features).
+        age_raw = _cov_arrays["age"].reshape(-1, 1).astype(np.float32)
+        age_train_mean = age_raw[train_indices].mean()
+        age_train_std  = age_raw[train_indices].std()
+        if age_train_std == 0:
+            age_train_std = 1.0
+        self.age_z        = ((age_raw - age_train_mean) / age_train_std).astype(np.float32)
+        self.sex_oh       = _cov_arrays["sex"].astype(np.float32)
+        self.race_eth_oh  = _cov_arrays["race_eth"].astype(np.float32)
 
         # Covariate dimension registry for model construction.
         self.cov_dims = {}
-        self.cov_dims["fs_all"] = int(self.fs_features_z.shape[1])
+        self.cov_dims["fs_all"]    = int(self.fs_features_z.shape[1])
         if self.fs_volumes_z is not None:
             self.cov_dims["fs_volumes"] = int(self.fs_volumes_z.shape[1])
-        if self.cov_one_hot_mode == "embedding":
-            self.cov_dims["covariate_one_hot_vocab_size"] = int(self.cov_one_hot_vocab_size)
-        else:
-            if self.cov_one_hot_matrix is not None:
-                self.cov_dims["covariate_one_hot"] = int(self.cov_one_hot_matrix.shape[1])
+        self.cov_dims["age"]      = 1
+        self.cov_dims["sex"]      = int(self.sex_oh.shape[1])
+        self.cov_dims["race_eth"] = int(self.race_eth_oh.shape[1])
         
         # Compute mean and PCA for training subjects for FC and SC
         self.sc_train_avg,  self.sc_train_loadings, self.sc_train_scores = population_mean_pca(self.sc_upper_triangles[train_indices])
@@ -211,6 +198,8 @@ class HCP_Partition(Dataset):
                 and global arrays for this run.
             partition: One of ["train", "val", "test"] specifying which split for this dataset.
         """
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         self.base = base
         self.partition = partition
         self.indices = base.trainvaltest_partition_indices[partition] # global idx list like: [2, 4, 15, 19, 21, 24...]
@@ -220,8 +209,6 @@ class HCP_Partition(Dataset):
         self.source_modalities = list(base.source_modalities)
         self.target = base.target
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
         self.sc_upper_triangles = torch.tensor(base.sc_upper_triangles, dtype=torch.float32, device=self.device)
         self.fc_upper_triangles = torch.tensor(base.fc_upper_triangles, dtype=torch.float32, device=self.device)
         self.sc_r2t_corr_upper_triangles = (
@@ -229,7 +216,8 @@ class HCP_Partition(Dataset):
             if base.sc_r2t_corr_upper_triangles is not None
             else None
         )
-        # Prebuild covariate tensors for requested sources.
+        
+        # Prebuild covariate tensors for requested sources
         self.cov_sources = list(base.cov_sources)
         self.cov_tensors = {}
         if "fs_all" in self.cov_sources:
@@ -238,15 +226,12 @@ class HCP_Partition(Dataset):
             if base.fs_volumes_z is None:
                 raise ValueError("fs_volumes requested but FS volume columns are unavailable.")
             self.cov_tensors["fs_volumes"] = torch.tensor(base.fs_volumes_z, dtype=torch.float32, device=self.device)
-        if "covariate_one_hot" in self.cov_sources:
-            if base.cov_one_hot_mode == "embedding":
-                if base.cov_one_hot_ids is None:
-                    raise ValueError("covariate_one_hot requested but IDs are unavailable.")
-                self.cov_tensors["covariate_one_hot"] = torch.tensor(base.cov_one_hot_ids, dtype=torch.long, device=self.device)
-            else:
-                if base.cov_one_hot_matrix is None:
-                    raise ValueError("covariate_one_hot requested but matrix is unavailable.")
-                self.cov_tensors["covariate_one_hot"] = torch.tensor(base.cov_one_hot_matrix, dtype=torch.float32, device=self.device)
+        if "age" in self.cov_sources:
+            self.cov_tensors["age"] = torch.tensor(base.age_z, dtype=torch.float32, device=self.device)
+        if "sex" in self.cov_sources:
+            self.cov_tensors["sex"] = torch.tensor(base.sex_oh, dtype=torch.float32, device=self.device)
+        if "race_eth" in self.cov_sources:
+            self.cov_tensors["race_eth"] = torch.tensor(base.race_eth_oh, dtype=torch.float32, device=self.device)
     
     def _get_modality_tensor(self, modality, global_idx):
         if modality == "SC":

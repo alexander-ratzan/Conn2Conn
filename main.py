@@ -220,8 +220,6 @@ class Sim:
         self.shuffle_seed = data_cfg["shuffle_seed"]
 
         cov_sources = (self.config.get("model", {}) or {}).get("cov_sources", ["fs_all"])
-        cov_projectors = (self.config.get("model", {}) or {}).get("cov_projectors", {}) or {}
-        cov_one_hot_mode = (cov_projectors.get("covariate_one_hot", {}) or {}).get("type", "embedding")
         self.base = HCP_Base(
             parcellation=self.parcellation,
             hemi=self.hemi,
@@ -229,14 +227,11 @@ class Sim:
             source=self.source,
             target=self.target,
             cov_sources=cov_sources,
-            cov_one_hot_mode=cov_one_hot_mode,
         )
 
         # Loggable covariate metadata for wandb filtering.
-        cov_sources_str = "+".join(cov_sources)
         self.config.setdefault("model", {})
-        self.config["model"]["cov_sources_str"] = cov_sources_str
-        self.config["model"]["cov_one_hot_mode"] = cov_one_hot_mode
+        self.config["model"]["cov_sources_str"] = "+".join(cov_sources)
         self.config["model"]["cov_dims"] = getattr(self.base, "cov_dims", {})
         self.train_ds = HCP_Partition(self.base, "train")
         self.val_ds = HCP_Partition(self.base, "val")
@@ -607,10 +602,23 @@ class Sim:
         default_flat["data.hemi"] = self.hemi
         default_flat["data.shuffle_seed"] = self.shuffle_seed
 
+        # Expose scalar summary keys for dict-valued hparams so W&B table/filter works cleanly.
+        # cov_projectors and cov_fusion are tune.choice over full dicts; a string tag lets you
+        # group/filter trials without unpacking nested objects in the W&B UI.
+        _cov_proj_default = default.get("model", {}).get("cov_projectors") or {}
+        default_flat["cov_projectors_tag"] = "|".join(
+            f"{src}:{cfg.get('out_dim', '?')}" for src, cfg in sorted(_cov_proj_default.items())
+        )
+        _cov_fusion_default = default.get("model", {}).get("cov_fusion") or {}
+        default_flat["cov_fusion_tag"] = (
+            _cov_fusion_default.get("type", "linear")
+            + (f"_{'x'.join(str(d) for d in _cov_fusion_default['hidden_dims'])}"
+               if _cov_fusion_default.get("hidden_dims") else "")
+            + ("_ln" if _cov_fusion_default.get("layer_norm") else "")
+        )
+
         fixed_data_cfg = deepcopy(default.get("data", {}))
         fixed_cov_sources = (default.get("model", {}) or {}).get("cov_sources", ["fs_all"])
-        fixed_cov_projectors = (default.get("model", {}) or {}).get("cov_projectors", {}) or {}
-        fixed_cov_one_hot_mode = (fixed_cov_projectors.get("covariate_one_hot", {}) or {}).get("type", "embedding")
         fixed_batch_size = default.get("trainer", {}).get("batch_size", 128)
         print(f"Fixed Tune batch_size: {fixed_batch_size}", flush=True)
        
@@ -673,6 +681,20 @@ class Sim:
             config_flat["name"] = model_name
             config_flat = resolve_source_dependent_config(config_flat)
             config = _flat_to_nested(config_flat, model_name)
+            # Recompute scalar W&B filter tags from the sampled dict-valued hparams.
+            _sampled_proj = config_flat.get("cov_projectors") or {}
+            if isinstance(_sampled_proj, dict):
+                config_flat["cov_projectors_tag"] = "|".join(
+                    f"{src}:{cfg.get('out_dim', '?')}" for src, cfg in sorted(_sampled_proj.items())
+                )
+            _sampled_fusion = config_flat.get("cov_fusion") or {}
+            if isinstance(_sampled_fusion, dict):
+                config_flat["cov_fusion_tag"] = (
+                    _sampled_fusion.get("type", "linear")
+                    + (f"_{'x'.join(str(d) for d in _sampled_fusion['hidden_dims'])}"
+                       if _sampled_fusion.get("hidden_dims") else "")
+                    + ("_ln" if _sampled_fusion.get("layer_norm") else "")
+                )
             trial_id = tune.get_context().get_trial_id()
             if "base" not in _WORKER_CACHE:
                 print(f"[tune] {trial_id}: building HCP_Base and DataLoaders in worker", flush=True)
@@ -683,7 +705,6 @@ class Sim:
                     source=fixed_data_cfg.get("source", "SC"),
                     target=fixed_data_cfg.get("target", "FC"),
                     cov_sources=fixed_cov_sources,
-                    cov_one_hot_mode=fixed_cov_one_hot_mode,
                 )
                 b = _WORKER_CACHE["base"]
                 _WORKER_CACHE["train_ds"] = HCP_Partition(b, "train")

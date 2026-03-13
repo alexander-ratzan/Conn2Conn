@@ -8,6 +8,8 @@ Predicts one connectome modality from another on HCP-derived data (default `SC -
 - Supports multi-source inputs via `--source` (for example `SC+SC_r2t`), with a single target modality via `--target`
 - Family-aware train/val/test partitioning with configurable `--shuffle_seed`
 - Evaluation on train/val/test with optional markdown report export
+- Identifiability heatmaps with subject ordering by `original`, `family`, `demographic` (sex × race_eth), or `age`
+- Interactive (notebook) training via `Sim` class with `--mode dev`; Trainer strategy auto-adapts to the environment
 
 ## Models
 
@@ -17,8 +19,20 @@ Implemented in `models/models.py` and configured in `models/configs/*.yml`:
 - `CrossModal_PLS_SVD`
 - `CrossModal_PCA_PLS` (closed-form PCA+PLS)
 - `CrossModal_PCA_PLS_learnable` (trainable PCA/PLS-initialized linear map)
-- `CrossModal_PCA_PLS_CovProjector` (covariate residual projector variant)
+- `CrossModal_PCA_PLS_CovProjector` (covariate residual projector variant — see below)
 - `CrossModalVAE`
+
+### CrossModal_PCA_PLS_CovProjector
+
+Extends the PCA+PLS baseline with a learned residual correction branch conditioned on demographic and structural covariates. Key design points:
+
+- **Covariate sources** (`cov_sources`): `fs_all`, `fs_volumes`, `age`, `sex`, `race_eth`. Each source is independently projected to a small embedding, then fused by a configurable MLP (`cov_fusion`).
+- **Demographic covariates** are handled as factored inputs rather than a combined identity embedding:
+  - `age` — continuous, z-scored to zero mean / unit variance
+  - `sex` — 2-category one-hot
+  - `race_eth` — one-hot over broader categories; rare categories (< 10 training subjects) are collapsed into an "Other" group at load time
+- **`cov_fusion` MLP** supports optional Layer Normalization (`layer_norm: true/false`) and dropout, configurable via the YAML search space.
+- **Target leakage test** (`use_target_scores_in_projector: true`): optionally feeds true PCA target scores into the projector as an extra covariate. Intended as a sanity check on learning capacity only; leave `false` for normal use.
 
 ## Run
 

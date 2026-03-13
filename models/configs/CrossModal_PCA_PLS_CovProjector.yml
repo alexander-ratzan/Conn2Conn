@@ -8,33 +8,30 @@ default:
     name: CrossModal_PCA_PLS_CovProjector
     n_components_pca_source: 256
     n_components_pca_target: 256
-    n_components_pls: 16
+    n_components_pls: 32
     learn_encoder: false
-    learn_mid: true
+    learn_mid: false
     learn_decoder: false
     random_init: false
     l1_l2_tuple: [0.0, 0.0001]
-    dropout: 0.2
-    learn_means: false
-    cov_sources: [fs_all, fs_volumes, covariate_one_hot]
+    dropout: 0.1
+    cov_sources: [fs_all, fs_volumes, age, sex, race_eth]
     cov_projectors:
-      fs_all: {type: linear, out_dim: 64}
-      covariate_one_hot: {type: embedding, out_dim: 16}
-      fs_volumes: {type: linear, out_dim: 32}
+      fs_all:     {type: linear, out_dim: 64}
+      fs_volumes: {type: linear, out_dim: 16}
+      age:        {type: linear, out_dim: 4}
+      sex:        {type: linear, out_dim: 4}
+      race_eth:   {type: linear, out_dim: 8}
     cov_fusion:
       type: mlp
       hidden_dims: [64]
-      dropout: 0.0
-    cov_out_dim: 256
-    cov_residual_scale_init: 1.0
-    learn_cov_scale: false
-    use_target_scores_in_projector: false  # sanity-check: feed true FC latent scores into projector (target leakage)
+      dropout: 0.1
+      layer_norm: true
+    use_target_scores_in_projector: false  # sanity-check: feed true FC latent scores into projector (induces target leakage)
     device: null
   trainer:
     lr: 1.0e-4
-    loss_type: demeaned_mse
-    loss_alpha: 0.5
-    loss_beta: 1.0
+    loss_type: mse
     max_epochs: 200
     batch_size: 64
     log_every: 5
@@ -54,27 +51,26 @@ search_space:
     type: choice
     values:
       - {type: linear}
-      - {type: mlp, hidden_dims: [64], dropout: 0.0}
-      - {type: mlp, hidden_dims: [128], dropout: 0.1}
+      - {type: mlp, hidden_dims: [64],  dropout: 0.1, layer_norm: false}
+      - {type: mlp, hidden_dims: [64],  dropout: 0.1, layer_norm: true}
+      - {type: mlp, hidden_dims: [64, 32],  dropout: 0.1, layer_norm: true}
+      - {type: mlp, hidden_dims: [128], dropout: 0.2, layer_norm: true}
   dropout:
     type: uniform
     lower: 0.0
     upper: 0.4
-  learn_cov_scale:
-    type: choice
-    values: [false, true]
   l1_l2_tuple:
     type: quniform
     lower: [0.0, 0.0]
-    upper: [0.001, 0.001]
-    q: [0.0001, 0.0001]
+    upper: [0.0001, 0.001]
+    q: [0.00005, 0.00005]
   lr:
     type: loguniform
     lower: 1.0e-5
     upper: 1.0e-2
   loss_type:
     type: choice
-    values: [mse, demeaned_mse]
+    values: [mse]
   max_epochs:
     type: choice
     values: [50, 100, 150, 200, 250]

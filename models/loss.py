@@ -246,22 +246,26 @@ def evaluate_model(model, data_loader, target_train_mean, device):
         for batch in data_loader:
             x = get_model_input(batch)
             y = batch["y"].to(device)
-            
+
             if getattr(model, "uses_cov", False):
-                out = model(x, cov=get_batch_cov(batch))
+                kwargs = {"cov": get_batch_cov(batch)}
+                # For the target-leakage sanity test: let the projector see the true targets here too
+                if getattr(model, "use_target_scores_in_projector", False) and "y" in batch:
+                    kwargs["y"] = batch["y"]
+                out = model(x, **kwargs)
             else:
                 out = model(x)
             y_pred = out[0] if isinstance(out, tuple) else out
-            
+
             mse = F.mse_loss(y_pred, y).item()
             total_mse += mse
-            
+
             pearson_r = compute_pearson_r(y_pred, y)
             total_pearson_r += pearson_r
-            
+
             demeaned_r = compute_demeaned_pearson_r(y_pred, y, target_mean_tensor)
             total_demeaned_r += demeaned_r
-            
+
             n_batches += 1
     
     return {
@@ -308,6 +312,7 @@ class ValidationEvalCallback(pl.Callback):
         cm = trainer.callback_metrics
         model = pl_module.model
         device = pl_module.device
+        
         # Always run full val evaluate_model so plotted val metrics are from one consistent path (avoids sawtooth from mixing Lightning step vs full pass).
         val_metrics = evaluate_model(
             model, self.val_loader, self.target_train_mean, device
@@ -354,7 +359,7 @@ def train_model(
     loss_alpha=0.5,
     loss_beta=1.0,
     max_epochs=100,
-    logger=True, # remove at some point
+    logger=True,
     pl_logger=None,
     enable_progress_bar=False,
 ):

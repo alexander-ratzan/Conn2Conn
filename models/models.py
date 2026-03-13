@@ -11,6 +11,33 @@ import torch.nn as nn
 from models.loss import create_loss_fn
 
 # QUICK HELPERS
+
+def _build_mlp(in_dim, hidden_dims, out_dim, dropout_p=0.1, use_layer_norm=True):
+    """
+    Build MLP: in_dim -> hidden_dims -> out_dim.
+
+    Each hidden transition is:  Linear -> ReLU -> [LayerNorm] -> [Dropout]
+    The final Linear has no activation, norm, or dropout.
+
+    Args:
+        use_layer_norm: If True, insert LayerNorm after the activation of every
+            hidden layer.  Normalises intermediate representations, which reduces
+            internal covariate shift and acts as a mild regulariser — especially
+            useful for auxiliary branches trained on small/structured datasets.
+    """
+    layers = []
+    dims = [in_dim] + list(hidden_dims) + [out_dim]
+    for i in range(len(dims) - 1):
+        layers.append(nn.Linear(dims[i], dims[i + 1]))
+        if i < len(dims) - 2:
+            layers.append(nn.ReLU())
+            if use_layer_norm:
+                layers.append(nn.LayerNorm(dims[i + 1]))
+            if dropout_p > 0:
+                layers.append(nn.Dropout(p=dropout_p))
+    return nn.Sequential(*layers)
+
+
 def compute_reg_loss(parameters, l1_l2_tuple=(0.0, 0.0)):
     """
     Compute L1/L2 regularization loss for given parameters.
@@ -178,10 +205,13 @@ def predict_from_loader(model, data_loader, device=None):
     with torch.no_grad():
         for batch in data_loader:
             x = get_model_input(batch)
-            y = batch["y"]
-            y = y.to(device)
+            y = batch["y"].to(device)
             if getattr(model, "uses_cov", False):
-                out = model(x, cov=get_batch_cov(batch))
+                kwargs = {"cov": get_batch_cov(batch)}
+                # For the target-leakage sanity test: also feed true targets into the projector
+                if getattr(model, "use_target_scores_in_projector", False) and "y" in batch:
+                    kwargs["y"] = batch["y"]
+                out = model(x, **kwargs)
             else:
                 out = model(x)
             preds = out[0] if isinstance(out, tuple) else out
@@ -559,7 +589,6 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
         n_components_pca_target: Decoder input dimension (latent dim for target).
         n_components_pls: PLS components (only used if random_init=False).
         device: torch device.
-        learn_means: Make means learnable. Default False.
         learn_encoder: Make W_enc learnable. Default True.
         learn_mid: Make W_mid learnable. Default True.
         learn_decoder: Make W_dec learnable. Default True.
@@ -569,7 +598,7 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
         **kwargs: Ignored (lr, epochs, loss_fn, loss_alpha passed to Lightning module).
     """
     def __init__(self, base, n_components_pca_source=256, n_components_pca_target=256, 
-                 n_components_pls=64, device=None, learn_means=False,
+                 n_components_pls=64, device=None,
                  learn_encoder=False, learn_mid=True, learn_decoder=False,
                  random_init=False, dropout=0.3, l1_l2_tuple=(0.0, 0.001), **kwargs):
         super().__init__()
@@ -621,8 +650,11 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
             else:
                 return nn.Parameter(torch.tensor(pca_pls_data, dtype=torch.float32, device=device), requires_grad=learnable)
 
-        # Means (always from data, optionally learnable)
-        self.target_mean = nn.Parameter(torch.tensor(target_mean, dtype=torch.float32, device=device), requires_grad=learn_means)
+        # Means (always from data, kept fixed to avoid overfitting)
+        self.target_mean = nn.Parameter(
+            torch.tensor(target_mean, dtype=torch.float32, device=device),
+            requires_grad=False,
+        )
         for modality in self.source_modalities:
             modality_data = data["sources"][modality]
             source_mean = modality_data["mean"]
@@ -634,7 +666,7 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
 
             self.source_means[modality] = nn.Parameter(
                 torch.tensor(source_mean, dtype=torch.float32, device=device),
-                requires_grad=learn_means,
+                requires_grad=False,
             )
             self.source_encoders[modality] = init_weight(
                 (d_source_mod, k_src_mod),
@@ -694,7 +726,7 @@ class CrossModal_PCA_PLS_CovProjector(nn.Module):
     Architecture:
         z_src = concat_i((x_i - mu_i) @ W_enc_i)
         z_base = dropout(z_src) @ W_mid.T
-        z_cov = fusion(concat_j(encoder_j(cov_j)))
+        z_cov = fu sion(concat_j(encoder_j(cov_j)))
         z_target = z_base + alpha * z_cov
         y_hat = z_target @ W_dec + mu_target
     """
@@ -705,7 +737,6 @@ class CrossModal_PCA_PLS_CovProjector(nn.Module):
         n_components_pca_target=256,
         n_components_pls=64,
         device=None,
-        learn_means=False,
         learn_encoder=False,
         learn_mid=True,
         learn_decoder=False,
@@ -715,16 +746,17 @@ class CrossModal_PCA_PLS_CovProjector(nn.Module):
         cov_sources=("fs_all",),
         cov_projectors=None,
         cov_fusion=None,
-        cov_out_dim=256,
-        cov_residual_scale_init=1.0,
-        learn_cov_scale=True,
         use_target_scores_in_projector=False,
+        target_scores_projector=None,
         **kwargs,
     ):
         super().__init__()
+        
         self.uses_cov = True
         self.use_target_scores_in_projector = bool(use_target_scores_in_projector)
-        self.source_modalities = list(getattr(base, "source_modalities", [base.source]))
+        self.target_scores_projector = target_scores_projector or {"type": "linear"}
+        
+        self.source_modalities = list(getattr(base, "source_modalities",[base.source]))
         self.target_modality = getattr(base, "target", None)
         if self.target_modality is None:
             self.target_modality = getattr(base, "target_modalities", [base.target])[0]
@@ -732,10 +764,10 @@ class CrossModal_PCA_PLS_CovProjector(nn.Module):
         self.n_components_pca_target = n_components_pca_target
         self.random_init = random_init
         self.dropout_p = dropout
+        
         self.cov_sources = list(cov_sources) if cov_sources is not None else ["fs_all"]
         self.cov_projectors = cov_projectors or {}
         self.cov_fusion = cov_fusion or {"type": "linear"}
-        self.cov_out_dim = int(cov_out_dim)
         self.l1_reg, self.l2_reg = l1_l2_tuple
         self.l1_l2_tuple = l1_l2_tuple
 
@@ -774,9 +806,10 @@ class CrossModal_PCA_PLS_CovProjector(nn.Module):
                 return nn.Parameter(w, requires_grad=True)
             return nn.Parameter(torch.tensor(pca_pls_data, dtype=torch.float32, device=device), requires_grad=learnable)
 
+        # Means are fixed PCA means (not learned) to avoid overfitting.
         self.target_mean = nn.Parameter(
             torch.tensor(target_mean, dtype=torch.float32, device=device),
-            requires_grad=learn_means,
+            requires_grad=False,
         )
 
         for modality in self.source_modalities:
@@ -790,7 +823,7 @@ class CrossModal_PCA_PLS_CovProjector(nn.Module):
 
             self.source_means[modality] = nn.Parameter(
                 torch.tensor(source_mean, dtype=torch.float32, device=device),
-                requires_grad=learn_means,
+                requires_grad=False,
             )
             self.source_encoders[modality] = init_weight(
                 (d_source_mod, k_src_mod),
@@ -824,15 +857,11 @@ class CrossModal_PCA_PLS_CovProjector(nn.Module):
                 if in_dim <= 0:
                     raise ValueError(f"Covariate source '{source}' is unavailable in base.")
                 hidden = spec.get("hidden_dims", [out_dim])
-                layers = []
-                dims = [in_dim] + list(hidden) + [out_dim]
-                for i in range(len(dims) - 1):
-                    layers.append(nn.Linear(dims[i], dims[i + 1]))
-                    if i < len(dims) - 2:
-                        layers.append(nn.ReLU())
-                        if spec.get("dropout", 0.0) > 0:
-                            layers.append(nn.Dropout(p=spec["dropout"]))
-                self.cov_encoders[source] = nn.Sequential(*layers)
+                self.cov_encoders[source] = _build_mlp(
+                    in_dim, hidden, out_dim,
+                    dropout_p=float(spec.get("dropout", 0.0)),
+                    use_layer_norm=bool(spec.get("layer_norm", False)),
+                )
             else:
                 in_dim = int(cov_dims.get(source, 0))
                 if in_dim <= 0:
@@ -840,42 +869,30 @@ class CrossModal_PCA_PLS_CovProjector(nn.Module):
                 self.cov_encoders[source] = nn.Linear(in_dim, out_dim)
 
         fused_cov_dim = sum(self.cov_embed_dims.values())
+        # Cov fusion output must match target latent dim (z_cov is added to z_base).
         fusion_type = (self.cov_fusion or {}).get("type", "linear")
         if fusion_type == "mlp":
-            hidden = (self.cov_fusion or {}).get("hidden_dims", [self.cov_out_dim])
+            hidden = (self.cov_fusion or {}).get("hidden_dims", [k_tgt])
             dropout_p = float((self.cov_fusion or {}).get("dropout", 0.0))
-            dims = [fused_cov_dim] + list(hidden) + [self.cov_out_dim]
-            layers = []
-            for i in range(len(dims) - 1):
-                layers.append(nn.Linear(dims[i], dims[i + 1]))
-                if i < len(dims) - 2:
-                    layers.append(nn.ReLU())
-                    if dropout_p > 0:
-                        layers.append(nn.Dropout(p=dropout_p))
-            self.cov_fusion_net = nn.Sequential(*layers)
+            use_ln = bool((self.cov_fusion or {}).get("layer_norm", False))
+            self.cov_fusion_net = _build_mlp(fused_cov_dim, hidden, k_tgt, dropout_p=dropout_p, use_layer_norm=use_ln)
         else:
-            self.cov_fusion_net = nn.Linear(fused_cov_dim, self.cov_out_dim)
+            self.cov_fusion_net = nn.Linear(fused_cov_dim, k_tgt)
 
-        if self.cov_out_dim != k_tgt:
-            raise ValueError(
-                f"cov_out_dim ({self.cov_out_dim}) must match n_components_pca_target ({k_tgt}) for residual add."
-            )
-
-        if learn_cov_scale:
-            self.cov_residual_scale = nn.Parameter(
-                torch.tensor(float(cov_residual_scale_init), dtype=torch.float32, device=device)
-            )
-        else:
-            self.register_buffer(
-                "cov_residual_scale",
-                torch.tensor(float(cov_residual_scale_init), dtype=torch.float32, device=device),
-            )
-
-        # Sanity-check option: feed true target PCA scores (FC latents) into the projector (target leakage).
+        # Sanity-check option: feed true target PCA scores (FC latents)
+        # into a projector and add to z_cov (target leakage).
+        self.target_scores_proj = None
         if self.use_target_scores_in_projector:
-            self.target_scores_proj = nn.Linear(k_tgt, self.cov_out_dim, device=device)
-        else:
-            self.target_scores_proj = None
+            spec = self.target_scores_projector or {}
+            proj_type = spec.get("type", "linear")
+            hidden = spec.get("hidden_dims", [k_tgt])
+            dropout_p = float(spec.get("dropout", 0.0))
+
+            if proj_type == "mlp":
+                use_ln = bool(spec.get("layer_norm", False))
+                self.target_scores_proj = _build_mlp(k_tgt, hidden, k_tgt, dropout_p=dropout_p, use_layer_norm=use_ln)
+            else:
+                self.target_scores_proj = nn.Linear(k_tgt, k_tgt)
 
         print(
             f"CovProjector init: source_dims={self.n_components_pca_source_by_modality}, "
@@ -940,7 +957,7 @@ class CrossModal_PCA_PLS_CovProjector(nn.Module):
         z_src = self._encode_sources(source_inputs)
         z_base = self._predict_target_latent_from_sources(z_src)
         z_cov = self.cov_fusion_net(self._encode_covariates(cov))
-        z_target = z_base + self.cov_residual_scale * z_cov
+        z_target = z_base + z_cov
         return {
             "z_base": z_base,
             "z_cov": z_cov,
@@ -956,8 +973,8 @@ class CrossModal_PCA_PLS_CovProjector(nn.Module):
             device = self.target_mean.device
             y_ = y.to(device).to(torch.float32)
             target_scores = torch.matmul(y_ - self.target_mean, self.W_dec.T)
-            z_cov = self.target_scores_proj(target_scores) # replace z_cov with target scores
-        z_target = z_base + self.cov_residual_scale * z_cov
+            z_cov = self.target_scores_proj(target_scores)
+        z_target = z_base + z_cov
         return self._decode_target_latent(z_target)
 
     def get_reg_loss(self):
@@ -970,25 +987,12 @@ class CrossModal_PCA_PLS_CovProjector(nn.Module):
                 params.append(encoder.weight)
             else:
                 params.extend(p for p in encoder.parameters())
-        if isinstance(self.cov_residual_scale, nn.Parameter):
-            params.append(self.cov_residual_scale)
         return compute_reg_loss(params, self.l1_l2_tuple)
 
     def get_num_params(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
 
-def _build_mlp(in_dim, hidden_dims, out_dim, dropout_p=0.1):
-    """Build MLP: in_dim -> hidden_dims -> out_dim with ReLU and dropout."""
-    layers = []
-    dims = [in_dim] + list(hidden_dims) + [out_dim]
-    for i in range(len(dims) - 1):
-        layers.append(nn.Linear(dims[i], dims[i + 1]))
-        if i < len(dims) - 2:
-            layers.append(nn.ReLU())
-            if dropout_p > 0:
-                layers.append(nn.Dropout(p=dropout_p))
-    return nn.Sequential(*layers)
 
 
 class CrossModalVAE(nn.Module):

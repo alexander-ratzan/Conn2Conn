@@ -318,7 +318,8 @@ class Evaluator:
             order_by: str, one of:
                 - 'original': keep original order
                 - 'family': group by Family_ID from dataset.metadata_df
-                - 'demographic': group by unique demographic categories from one_hot_covariate
+                - 'demographic': group by unique (sex × race_eth) categories
+                - 'age': sort by z-scored age (youngest to oldest)
         
         Returns:
             np.ndarray: indices for reordering subjects
@@ -339,28 +340,25 @@ class Evaluator:
             return sort_order
         
         elif order_by == 'demographic':
-            # Get one_hot_covariate tuple and concatenate to form unique demographic category
-            one_hot_tuple = self.dataset.covariate_one_hot_tuple
-            # Subset each array in the one_hot_tuple to correspond to subjects in this partition
-            partition_covariates = []
-            for cov_array in one_hot_tuple:
-                cov_array_np = cov_array.numpy() if isinstance(cov_array, torch.Tensor) else np.asarray(cov_array)
-                # self.subject_indices comes from the current dataset partition
-                partition_covariates.append(cov_array_np[self.subject_indices])
-            
-            # Concatenate all one-hot arrays to make a [num_subjects, total_covariate_dim] array
-            concat_covariates = np.concatenate(partition_covariates, axis=1)
-            
-            # Assign a categorical demographic value (integer) to each subject by unique row
-            # This produces: categories - an array of labels; unique_rows - the set of unique category rows
+            # Sort subjects by (sex, race_eth) demographic group.
+            # Concatenate sex and race_eth one-hot arrays, find unique rows, then sort.
+            base = self.dataset
+            sex_np      = np.asarray(base.sex_oh)[self.subject_indices]
+            race_eth_np = np.asarray(base.race_eth_oh)[self.subject_indices]
+            concat_covariates = np.concatenate([sex_np, race_eth_np], axis=1)
             unique_rows, categories = np.unique(concat_covariates, axis=0, return_inverse=True)
-            print(f"Number of unique categories: {len(unique_rows)}")
-            # Now sort by group/category so that all same-category subjects are together
+            print(f"Number of unique demographic categories: {len(unique_rows)}")
             sort_order = np.argsort(categories)
             return sort_order
-        
+
+        elif order_by == 'age':
+            base = self.dataset
+            age_vals = np.asarray(base.age_z)[self.subject_indices].ravel()
+            sort_order = np.argsort(age_vals)
+            return sort_order
+
         else:
-            raise ValueError(f"Unknown order_by: {order_by}. Use 'original', 'family', or 'demographic'.")
+            raise ValueError(f"Unknown order_by: {order_by}. Use 'original', 'family', 'demographic', or 'age'.")
 
     def plot_identifiability_heatmaps(self, order_by='original', include_black_circles=True,
                                        include_blue_dots=True, demeaned=False, 
@@ -378,7 +376,8 @@ class Evaluator:
             order_by: str, subject ordering method:
                 - 'original': original order (default)
                 - 'family': group by Family_ID
-                - 'demographic': group by demographic categories
+                - 'demographic': group by (sex × race_eth) categories
+                - 'age': sort by age (youngest to oldest)
             include_black_circles: bool, if True, plot black circles for max
                 similarity prediction per target (default True)
             include_blue_dots: bool, if True, plot blue dots for predictions
@@ -1182,7 +1181,7 @@ class Evaluator:
                     print(f"{pretty_names.get(key, key):25s}: {val}")
         print("=" * 50)
 
-    def analyze_results(self, verbose=False, filepath=None, output_format='md', model_name=None):
+    def analyze_results(self, verbose=False, filepath=None, output_format='md', model_name=None, order_by='demographic'):
         """
         Main analysis function to generate a comprehensive prediction analysis report.
         
@@ -1237,7 +1236,7 @@ class Evaluator:
         if verbose:
             # Non-demeaned heatmaps
             fig_hm_raw, metrics_hm_raw = self.plot_identifiability_heatmaps(
-                order_by='family', demeaned=False, 
+                order_by=order_by, demeaned=False, 
                 include_black_circles=True, include_blue_dots=False, 
                 dpi=150, figsize=(12, 9), show=show_inline
             )
@@ -1254,7 +1253,7 @@ class Evaluator:
         
         # Demeaned heatmaps (always)
         fig_hm_dm, metrics_hm_dm = self.plot_identifiability_heatmaps(
-            order_by='family', demeaned=True, 
+            order_by=order_by, demeaned=True, 
             include_black_circles=True, include_blue_dots=False, 
             dpi=150, figsize=(12, 9), show=show_inline
         )

@@ -239,31 +239,31 @@ def load_freesurfer_data():
     
     return freesurfer_df
 
-def load_metadata(shuffle_seed=0, age_bin_size=2):
+def load_metadata(shuffle_seed=0, rare_race_eth_threshold=10):
     """
     Loads and merges metadata from participants.tsv and HCP1200_RESTRICTED.csv.
-    
+
+    Age is returned as a raw continuous float array (z-scoring is deferred to HCP_Base
+    so it is computed on the training split only).  Sex and race_eth are one-hot encoded.
+    Race/ethnicity categories with fewer than ``rare_race_eth_threshold`` training subjects
+    are collapsed into an "Other" bucket, guaranteeing val/test coverage.
+
     Args:
-        shuffle_seed: Random seed for train/val/test split generation. 
+        shuffle_seed: Random seed for train/val/test split generation.
                       If shuffle_seed=0, uses the original split from participants.tsv.
-                      If shuffle_seed != 0, generates a new family-preserving split using that seed.
-        age_bin_size: Bin size (years) for age windowing. If None, no bin column is added.
-    
+                      If shuffle_seed != 0, generates a new family-preserving split using
+                      that seed.
+        rare_race_eth_threshold: Race/ethnicity categories whose training-set count is
+                      below this value are merged into "Other".  Defaults to 10.
+
     Returns:
-        metadata_df: DataFrame containing all subject metadata with columns:
-            - subject: Subject ID as integer
-            - train_val_test: Split assignment (train/val/test)
-            - age: Age in years
-            - age_{age_bin_size}y_bin: Age bin label (if age_bin_size is provided; label is left edge of bin)
-            - sex: Sex (M/F)
-            - Race_Ethnicity: Combined race and ethnicity information
-            - Family_Relation: Family relationship category (MZ, DZ, NotTwin, NoRelation)
-                - MZ: Monozygotic twins (from ZygosityGT or ZygositySR)
-                - DZ: Dizygotic twins (from ZygosityGT or ZygositySR)
-                - NotTwin: Siblings or other family members (share Family_ID with others)
-                - NoRelation: No family relation (unique Family_ID or missing data)
-            - Family_ID: Family identifier
-        covariate_one_hot_tuple: Tuple of (age_bin_one_hot, sex_one_hot, race_ethnicity_one_hot) numpy arrays
+        metadata_df: DataFrame with columns:
+            - subject, train_val_test, age, sex, Race_Ethnicity,
+              Family_Relation, Family_ID
+        covariate_arrays: dict with keys:
+            - "age"      : float32 array  (N,)   — continuous age in years
+            - "sex"      : float32 array  (N, 2) — one-hot [F, M]
+            - "race_eth" : float32 array  (N, k) — collapsed race/eth one-hot
     """
     participants_path = "/scratch/asr655/neuroinformatics/Conn2Conn/krakencoder/example_data/HCP-YA_dataset/participants.tsv"
     restricted_path = "/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/HCP1200_RESTRICTED.csv"
@@ -328,35 +328,37 @@ def load_metadata(shuffle_seed=0, age_bin_size=2):
     if shuffle_seed != 0:
         metadata_df = generate_train_val_test(metadata_df, random_seed=shuffle_seed)
 
-    # Concise age-binning and column selection
-    if age_bin_size is not None:
-        bin_col = f"age_{age_bin_size}y_bin"
-        bins = np.arange(metadata_df['age'].min(), metadata_df['age'].max() + age_bin_size, age_bin_size)
-        labels = [f"{int(bins[i])}-{int(bins[i] + age_bin_size - 1)}" for i in range(len(bins)-1)]
-        metadata_df.insert(
-            metadata_df.columns.get_loc('age') + 1,
-            bin_col,
-            pd.cut(metadata_df["age"], bins=bins, labels=labels, right=False, include_lowest=True)
-        )
-    
-    cols = ['subject', 'train_val_test', 'age']
-    if age_bin_size is not None:
-        cols += [bin_col]
-    cols += ['sex', 'Race_Ethnicity', 'Family_Relation', 'Family_ID']
+    cols = ['subject', 'train_val_test', 'age', 'sex', 'Race_Ethnicity', 'Family_Relation', 'Family_ID']
     metadata_df = metadata_df[cols]
 
-    # --- Covariate one-hot tuple ---
-    # Only construct tuple if all needed columns are present
-    # See toy.ipynb for structure/intent of this code
-    if age_bin_size is not None:
-        age_bin_oh_np = pd.get_dummies(metadata_df[bin_col], dtype=np.float32).to_numpy()
-    else:
-        age_bin_oh_np = None
-    sex_oh_np = pd.get_dummies(metadata_df['sex'], dtype=np.float32).to_numpy()
-    race_eth_oh_np = pd.get_dummies(metadata_df['Race_Ethnicity'], dtype=np.float32).to_numpy()
-    covariate_one_hot_tuple = (age_bin_oh_np, sex_oh_np, race_eth_oh_np)
+    # --- Continuous age ---
+    age_np = metadata_df['age'].to_numpy(dtype=np.float32)
 
-    return metadata_df, covariate_one_hot_tuple
+    # --- Sex one-hot (always exactly 2 categories: F, M) ---
+    sex_oh_np = pd.get_dummies(metadata_df['sex'], dtype=np.float32).to_numpy()
+
+    # --- Race/ethnicity one-hot with rare-category collapsing ---
+    # Count per category in training subjects only; merge rare ones into "Other"
+    # so that every category seen in val/test is guaranteed present in training.
+    train_mask = metadata_df['train_val_test'] == 'train'
+    train_counts = metadata_df.loc[train_mask, 'Race_Ethnicity'].value_counts()
+    rare_categories = set(train_counts[train_counts < rare_race_eth_threshold].index)
+    # Also collapse categories entirely absent from training.
+    all_train_cats = set(train_counts.index)
+    all_cats = set(metadata_df['Race_Ethnicity'].unique())
+    rare_categories |= (all_cats - all_train_cats)
+    race_eth_collapsed = metadata_df['Race_Ethnicity'].apply(
+        lambda x: 'Other' if x in rare_categories else x
+    )
+    race_eth_oh_np = pd.get_dummies(race_eth_collapsed, dtype=np.float32).to_numpy()
+
+    covariate_arrays = {
+        "age":      age_np,
+        "sex":      sex_oh_np,
+        "race_eth": race_eth_oh_np,
+    }
+
+    return metadata_df, covariate_arrays
 
 def generate_train_val_test(metadata_df, random_seed=42):
     """
