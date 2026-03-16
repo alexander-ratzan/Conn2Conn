@@ -1,0 +1,68 @@
+learned: true
+
+default:
+  data:
+    source: SC_r2t
+    target: FC
+  model:
+    name: CrossModal_PCA_PLS_learnable
+    n_components_pca_source: 256
+    n_components_pca_target: 256
+    n_components_pls: 16
+    learn_encoder: false
+    learn_mid: true
+    learn_decoder: false
+    random_init: false
+    l1_l2_tuple: [0.0, 0.0001]
+    dropout: 0.2
+    device: null
+  trainer:
+    lr: 1.0e-4
+    loss_type: mse
+    max_epochs: 200
+    batch_size: 64
+    log_every: 5
+
+search_space:
+  n_components_pca_source:
+    type: choice
+    values: [64, 128, 256, 512]
+  n_components_pca_target:
+    type: choice
+    values: [64, 128, 256, 512]
+  n_components_pls:
+    type: choice
+    values: [4, 8, 16, 32, 64]
+  learn_encoder:
+    type: choice
+    values: [false, true]
+  learn_mid:
+    type: choice
+    values: [true, false]
+  learn_decoder:
+    type: choice
+    values: [false, true]
+  l1_reg:
+    type: choice
+    values: [0.0, 1.0e-5, 1.0e-4, 1.0e-3]
+  l2_reg:
+    type: loguniform
+    lower: 1.0e-6
+    upper: 1.0e-2
+  random_init:
+    type: choice
+    values: [false, true]
+  dropout:
+    type: uniform
+    lower: 0.0
+    upper: 0.4
+  lr:
+    type: loguniform
+    lower: 1.0e-5
+    upper: 1.0e-2
+  loss_type:
+    type: choice
+    values: [mse, demeaned_mse]
+  max_epochs:
+    type: choice
+    values: [50, 100, 150, 200, 250]

@@ -11,7 +11,6 @@ import torch.nn as nn
 from models.loss import create_loss_fn
 
 # QUICK HELPERS
-
 def _build_mlp(in_dim, hidden_dims, out_dim, dropout_p=0.1, use_layer_norm=True):
     """
     Build MLP: in_dim -> hidden_dims -> out_dim.
@@ -602,6 +601,19 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
                  learn_encoder=False, learn_mid=True, learn_decoder=False,
                  random_init=False, dropout=0.3, l1_l2_tuple=(0.0, 0.001), **kwargs):
         super().__init__()
+        # If all learn_* flags are False, nothing will be trainable and Lightning/Adam
+        # will error out when calling backward. Instead of silently failing, flip all
+        # three to True with a warning so this configuration is still usable.
+        if not (learn_encoder or learn_mid or learn_decoder):
+            print(
+                "CrossModal_PCA_PLS_learnable: learn_encoder=learn_mid=learn_decoder=False; "
+                "enabling all three to make the model trainable.",
+                flush=True,
+            )
+            learn_encoder = True
+            learn_mid = True
+            learn_decoder = True
+
         self.source_modalities = list(getattr(base, "source_modalities", [base.source]))
         self.target_modality = getattr(base, "target", None)
         if self.target_modality is None:
@@ -675,11 +687,40 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
             )
             source_pls_parts.append(source_scores[:, :k_src_mod])
 
-        # Fit PLS (needed for non-random mid layer initialization)
+        # Fit PLS (needed for non-random mid layer initialization).
+        # X_pls: concatenated source PCA scores with dimension fused_source_dim.
+        # Y_pls: target PCA scores with dimension k_tgt.
+        X_pls = np.concatenate(source_pls_parts, axis=1)
+        Y_pls = target_scores[:, :k_tgt]
+
+        # Validate that requested n_components_pls is mathematically valid for PLS.
+        if n_components_pls > min(fused_source_dim, k_tgt):
+            raise ValueError(
+                f"CrossModal_PCA_PLS_learnable: n_components_pls={n_components_pls} "
+                f"is larger than min(fused_source_dim={fused_source_dim}, "
+                f"n_components_pca_target={k_tgt}). Reduce n_components_pls or increase "
+                f"the PCA dimensions."
+            )
+
         pls = PLSRegression(n_components=n_components_pls)
-        pls.fit(np.concatenate(source_pls_parts, axis=1), target_scores[:, :k_tgt])
-        
-        self.W_mid = init_weight((fused_source_dim, k_tgt), pls.coef_, learn_mid)
+        pls.fit(X_pls, Y_pls)
+
+        # sklearn PLSRegression.coef_ has shape (n_targets, n_features) and is used as
+        #   y ≈ X @ coef_.T + intercept
+        # with X shape (n_samples, n_features=fused_source_dim) and
+        # y shape (n_samples, n_targets=k_tgt).
+        # We want a mid-layer weight that maps fused source latent (fused_source_dim)
+        # to target latent (k_tgt) via z @ W_mid, so W_mid must be (fused_source_dim, k_tgt).
+        coef = pls.coef_
+        if coef.shape != (k_tgt, fused_source_dim):
+            raise ValueError(
+                "CrossModal_PCA_PLS_learnable: Unexpected PLS coef_ shape "
+                f"{coef.shape}; expected ({k_tgt}, {fused_source_dim}) per "
+                "sklearn.PLSRegression documentation."
+            )
+        W_mid_data = coef.T  # (fused_source_dim, k_tgt)
+
+        self.W_mid = init_weight((fused_source_dim, k_tgt), W_mid_data, learn_mid)
         self.W_dec = init_weight((k_tgt, d_target), target_loadings[:, :k_tgt].T, learn_decoder)
         
         # Log initialization
@@ -707,7 +748,7 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
             z_parts.append(torch.matmul(x_mod - self.source_means[modality], self.source_encoders[modality]))
         z = torch.cat(z_parts, dim=1)
         z = self.dropout(z)
-        z = torch.matmul(z, self.W_mid.T)
+        z = torch.matmul(z, self.W_mid)
         z = self.dropout(z)
         return torch.matmul(z, self.W_dec) + self.target_mean
 

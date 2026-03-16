@@ -9,6 +9,8 @@ import yaml
 # Keys that belong to trainer config (used when splitting flat Tune config).
 TRAINER_KEYS = {"lr", "loss_type", "loss_alpha", "loss_beta", "max_epochs", "batch_size", "log_every"}
 DATA_KEYS = {"parcellation", "hemi", "source", "target", "shuffle_seed"}
+# Keys injected into the flat config for W&B/logging purposes only — never model constructor args.
+FLAT_METADATA_KEYS = {"cov_sources_str", "cov_dims", "cov_projectors_tag", "cov_fusion_tag"}
 
 _CONFIGS_DIR = os.path.join(os.path.dirname(__file__), "configs")
 
@@ -159,11 +161,18 @@ def build_model(base, model_name: str = None, model_kwargs: dict = None):
     name = model_name or model_kwargs.pop("name", None)
     if not name:
         raise ValueError("model_name or model_kwargs['name'] required")
-    kwargs = {k: v for k, v in model_kwargs.items() if k != "name"}
+    _drop_keys = {"name"} | FLAT_METADATA_KEYS
+    kwargs = {k: v for k, v in model_kwargs.items() if k not in _drop_keys}
     # YAML may give lists for tuples (e.g. l1_l2_tuple, hidden_dims)
     for k in ("l1_l2_tuple", "hidden_dims", "fs_hidden_dims"):
         if k in kwargs and isinstance(kwargs[k], list):
             kwargs[k] = tuple(kwargs[k])
+    # Reconstruct l1_l2_tuple from individually-tuned scalar params if present.
+    # l1_reg and l2_reg are the searchable split form; l1_l2_tuple is the model API.
+    if "l1_reg" in kwargs or "l2_reg" in kwargs:
+        l1 = float(kwargs.pop("l1_reg", 0.0))
+        l2 = float(kwargs.pop("l2_reg", 0.0))
+        kwargs.setdefault("l1_l2_tuple", (l1, l2))
     if kwargs.get("device") is None:
         kwargs["device"] = None
     cls = getattr(models_module, name)

@@ -49,7 +49,9 @@ singularity exec --nv \
       --use_tune \
       --source SC+SC_r2t \
       --target FC \
-      --num_samples 16 \
+      --shuffle_seed 0 \
+      --num_samples 30 \
+      --search_alg optuna \
       --max_concurrent_trials ${MAX_CONCURRENT_TRIALS} \
       --tune_cpus_per_trial ${TUNE_CPUS_PER_TRIAL} \
       --tune_gpus_per_trial ${TUNE_GPUS_PER_TRIAL} \

@@ -25,6 +25,10 @@ import ray
 from ray import tune
 from ray.tune import Checkpoint
 from ray.tune.schedulers import ASHAScheduler
+try:
+    from ray.tune.search.optuna import OptunaSearch
+except ImportError:
+    OptunaSearch = None
 from ray.tune import CLIReporter
 from ray.tune.integration.pytorch_lightning import TuneReportCallback, TuneReportCheckpointCallback
 from ray.air.integrations.wandb import WandbLoggerCallback
@@ -46,6 +50,7 @@ from models.config import (
     resolve_source_dependent_config,
     TRAINER_KEYS,
     DATA_KEYS,
+    FLAT_METADATA_KEYS,
 )
 
 # Ensure project root is on path when run as script
@@ -118,7 +123,8 @@ def _flat_to_nested(flat: dict, model_name: str) -> dict:
     """Split flat config (e.g. from Tune) into nested {data, model, trainer}."""
     trainer = {k: flat[k] for k in TRAINER_KEYS if k in flat}
     data = {k: flat[k] for k in DATA_KEYS if k in flat}
-    model = {"name": model_name, **{k: flat[k] for k in flat if k not in TRAINER_KEYS and k != "name"}}
+    _model_exclude = TRAINER_KEYS | FLAT_METADATA_KEYS | {"name"}
+    model = {"name": model_name, **{k: flat[k] for k in flat if k not in _model_exclude}}
     for key in DATA_KEYS:
         model.pop(key, None)
     for key in list(model):
@@ -515,10 +521,11 @@ class Sim:
         save_checkpoint: bool = False,
         metric: str = "val_demeaned_r",
         mode: str = "max",
-        max_epochs: int = 100,
+        max_epochs: int = None,
         cpus_per_trial: float = 2.0,
         gpus_per_trial: float = 1.0,
         max_concurrent_trials: int = None,
+        search_alg: str = "random",
         persist_final_artifacts: bool = False,
     ):
         """
@@ -850,6 +857,15 @@ class Sim:
                 raise RuntimeError(f"Trainable closure too large ({size_mb:.0f} MB); will exceed Ray 2 GB limit.")
         except ImportError:
             pass
+        _search_alg = None
+        if search_alg == "optuna":
+            if OptunaSearch is None:
+                raise RuntimeError("optuna is not installed. pip install optuna")
+            _search_alg = OptunaSearch(metric=metric, mode=mode)
+            print(f"Tune search algorithm: OptunaSearch (Bayesian optimization)", flush=True)
+        else:
+            print(f"Tune search algorithm: random", flush=True)
+
         print("Tune starting...", flush=True)
         tuner = tune.Tuner(
             train_with_resources,
@@ -860,7 +876,8 @@ class Sim:
                 mode=mode,
                 max_concurrent_trials=max_concurrent_trials,
                 reuse_actors=True,
-                scheduler=ASHAScheduler(max_t=scheduler_max_t, grace_period=50, reduction_factor=2) if learned else None,
+                search_alg=_search_alg,
+                scheduler=ASHAScheduler(max_t=scheduler_max_t, grace_period=scheduler_max_t / 3, reduction_factor=2) if learned else None,
             ),
             run_config=run_config,
         )
@@ -1101,6 +1118,12 @@ def _parse_args():
     p.add_argument("--use_tune", action="store_true")
     p.add_argument("--num_samples", type=int, default=10)
     p.add_argument(
+        "--search_alg",
+        default="random",
+        choices=["random", "optuna"],
+        help="Hyperparameter search algorithm. 'random' = pure random (default). 'optuna' = Bayesian optimization via Optuna.",
+    )
+    p.add_argument(
         "--max_concurrent_trials",
         type=int,
         default=None,
@@ -1158,6 +1181,7 @@ if __name__ == "__main__":
             cpus_per_trial=args.tune_cpus_per_trial,
             gpus_per_trial=args.tune_gpus_per_trial,
             max_concurrent_trials=args.max_concurrent_trials,
+            search_alg=args.search_alg,
             persist_final_artifacts=(args.save_checkpoint or args.report_best_after_tune or args.store_eval_md),
         )
         if args.report_best_after_tune or args.store_eval_md:

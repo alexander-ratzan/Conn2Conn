@@ -1,0 +1,70 @@
+learned: true
+
+# Test variant: fs_volumes structural covariates only
+# Source: SC → FC
+
+default:
+  data:
+    source: SC
+    target: FC
+  model:
+    name: CrossModal_PCA_PLS_CovProjector
+    n_components_pca_source: 256
+    n_components_pca_target: 256
+    n_components_pls: 16
+    learn_encoder: false
+    learn_mid: false
+    learn_decoder: false
+    random_init: false
+    l1_l2_tuple: [0.0, 0.0001]
+    dropout: 0.1
+    cov_sources: [fs_volumes]
+    cov_projectors:
+      fs_volumes: {type: linear, out_dim: 16}
+    cov_fusion:
+      type: mlp
+      hidden_dims: [32]
+      dropout: 0.1
+      layer_norm: true
+    use_target_scores_in_projector: false
+    device: null
+  trainer:
+    lr: 1.0e-4
+    loss_type: mse
+    max_epochs: 200
+    batch_size: 64
+    log_every: 5
+
+search_space:
+  n_components_pca_source:
+    type: choice
+    values: [128, 256]
+  n_components_pca_target:
+    type: choice
+    values: [128, 256]
+  n_components_pls:
+    type: choice
+    values: [8, 16, 32]
+  cov_projectors:
+    type: choice
+    values:
+      - {fs_volumes: {type: linear, out_dim: 8}}
+      - {fs_volumes: {type: linear, out_dim: 16}}
+      - {fs_volumes: {type: linear, out_dim: 32}}
+  cov_fusion:
+    type: choice
+    values:
+      - {type: linear}
+      - {type: mlp, hidden_dims: [32], dropout: 0.1, layer_norm: true}
+      - {type: mlp, hidden_dims: [64], dropout: 0.1, layer_norm: true}
+  dropout:
+    type: uniform
+    lower: 0.0
+    upper: 0.3
+  lr:
+    type: loguniform
+    lower: 1.0e-5
+    upper: 1.0e-3
+  max_epochs:
+    type: choice
+    values: [100, 150, 200]

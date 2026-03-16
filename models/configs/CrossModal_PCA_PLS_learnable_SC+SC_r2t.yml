@@ -19,8 +19,6 @@ default:
   trainer:
     lr: 1.0e-4
     loss_type: mse
-    loss_alpha: 0.5
-    loss_beta: 1.0
     max_epochs: 150
     batch_size: 128
     log_every: 5
@@ -55,6 +53,13 @@ search_space:
     type: uniform
     lower: 0.0
     upper: 0.4
+  l1_reg:
+    type: choice
+    values: [0.0, 1.0e-5, 1.0e-4, 1.0e-3]
+  l2_reg:
+    type: loguniform
+    lower: 1.0e-6
+    upper: 1.0e-2
   lr:
     type: loguniform
     lower: 1.0e-5
