@@ -118,6 +118,38 @@ class WeightedMSELoss(nn.Module):
         return self.alpha * mse_normalized + (1 - self.alpha) * demeaned_normalized
 
 
+class SarwarMSECorrLoss(nn.Module):
+    """
+    MSE plus inter-subject correlation matching penalty.
+
+    Loss = MSE(y_pred, y_true) + corr_weight * |mean_pair_corr(y_pred) - corr_target|
+    """
+    def __init__(self, corr_target=0.4, corr_weight=1e-3, eps=1e-8):
+        super().__init__()
+        self.name = "sarwar_mse_corr"
+        self.corr_target = float(corr_target)
+        self.corr_weight = float(corr_weight)
+        self.eps = float(eps)
+
+    def _mean_pairwise_corr(self, y_pred):
+        bsz = y_pred.shape[0]
+        if bsz < 2:
+            return y_pred.new_tensor(0.0)
+
+        centered = y_pred - y_pred.mean(dim=1, keepdim=True)
+        norms = torch.sqrt(torch.sum(centered * centered, dim=1, keepdim=True) + self.eps)
+        normalized = centered / norms
+        corr_mat = normalized @ normalized.t()
+        off_diag_sum = corr_mat.sum() - torch.diagonal(corr_mat).sum()
+        return off_diag_sum / (bsz * (bsz - 1))
+
+    def forward(self, y_pred, y_true, **kwargs):
+        mse = F.mse_loss(y_pred, y_true)
+        mean_corr = self._mean_pairwise_corr(y_pred)
+        corr_penalty = torch.abs(mean_corr - self.corr_target)
+        return mse + self.corr_weight * corr_penalty
+
+
 class VAELoss(nn.Module):
     """
     VAE loss: reconstruction (MSE) + beta * KLD to standard Gaussian prior.
@@ -140,7 +172,7 @@ class VAELoss(nn.Module):
         return recon
 
 
-def create_loss_fn(loss_type, base=None, alpha=0.5, beta=1.0):
+def create_loss_fn(loss_type, base=None, alpha=0.5, beta=1.0, corr_target=0.4, corr_weight=1e-3):
     """
     Factory function to create loss functions.
     
@@ -149,7 +181,9 @@ def create_loss_fn(loss_type, base=None, alpha=0.5, beta=1.0):
         base: Dataset base object (required for demeaned losses)
         alpha: weight for weighted_mse (default 0.5)
         beta: weight for VAE KLD term (default 1.0)
-    
+        corr_target: target mean inter-subject correlation for sarwar_mse_corr.
+        corr_weight: penalty strength for sarwar_mse_corr.
+
     Returns:
         Loss function module
     """
@@ -167,8 +201,10 @@ def create_loss_fn(loss_type, base=None, alpha=0.5, beta=1.0):
         return WeightedMSELoss(target_mean, alpha=alpha)
     elif loss_type == "vae":
         return VAELoss(beta=beta)
+    elif loss_type == "sarwar_mse_corr":
+        return SarwarMSECorrLoss(corr_target=corr_target, corr_weight=corr_weight)
     else:
-        raise ValueError(f"Unknown loss type: {loss_type}. Choose from 'mse', 'demeaned_mse', 'weighted_mse', 'vae'")
+        raise ValueError(f"Unknown loss type: {loss_type}. Choose from 'mse', 'demeaned_mse', 'weighted_mse', 'vae', 'sarwar_mse_corr'")
 
 
 def compute_pearson_r(y_pred, y_true):
@@ -358,6 +394,8 @@ def train_model(
     loss_type="mse",
     loss_alpha=0.5,
     loss_beta=1.0,
+    loss_corr_target=0.4,
+    loss_corr_weight=1e-3,
     max_epochs=100,
     logger=True,
     pl_logger=None,
@@ -376,6 +414,8 @@ def train_model(
         loss_type: one of 'mse', 'demeaned_mse', 'weighted_mse', 'vae'.
         loss_alpha: weight for weighted_mse (passed to Lightning module).
         loss_beta: KLD weight for VAE loss (passed to Lightning module).
+        loss_corr_target: target inter-subject correlation for sarwar_mse_corr.
+        loss_corr_weight: penalty strength for sarwar_mse_corr.
         max_epochs: number of epochs (Trainer max_epochs).
         logger: If True, use CSVLogger (writes to disk). If False, no logging to disk (dev mode).
         pl_logger: Optional Lightning logger (e.g. WandbLogger). If set, overrides logger/CSVLogger.
@@ -393,6 +433,8 @@ def train_model(
         loss_type=loss_type,
         loss_alpha=loss_alpha,
         loss_beta=loss_beta,
+        loss_corr_target=loss_corr_target,
+        loss_corr_weight=loss_corr_weight,
     )
     target_train_mean = get_target_train_mean(base)
     callback = ValidationEvalCallback(

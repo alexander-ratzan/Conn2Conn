@@ -1,0 +1,222 @@
+# Conn2Conn — Agent Context
+
+This is the fast technical context for AI agents and developers. Use this first for triage, then open code.
+
+For user-facing usage/setup, see `README.md`.
+
+---
+
+## Mission
+
+`Conn2Conn` predicts one connectome modality from another on HCP-derived data (default `SC -> FC`) and compares:
+- closed-form baselines (PCA/PLS family)
+- learned variants (learnable map, covariate-conditioned residual projector, VAE)
+- precomputed Krakencoder baseline
+
+The main evaluation axis is performance across `(model, source, shuffle_seed)` with W&B-backed experiment tracking.
+
+---
+
+## Fast Triage
+
+When a task arrives, start in this order:
+1. `main.py` for orchestration and experiment mode behavior.
+2. `models/configs/<model>.yml` for ground-truth defaults/search space.
+3. `models/config.py` for config resolution and model construction.
+4. `models/models.py` for architecture details.
+5. `results/results_scraper.py` for results aggregation logic.
+
+If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after `main.py`.
+
+---
+
+## Canonical Entrypoints
+
+- `main.py`
+  - single runs (closed-form vs learned)
+  - Ray Tune sweeps (`--use_tune`)
+  - best-trial rerun/report (`--report_best_after_tune`)
+- `models/configs/*.yml`
+  - one YAML per model variant; includes `learned`, `default`, `search_space`
+- `models/config.py`
+  - `load_config`, `get_default_config`, `get_search_space`, `build_model`
+  - source-dependent PCA dim normalization
+- `results/results_scraper.py`
+  - W&B best-trial scraping + table builders
+- `README.md`
+  - user-level commands + workflow
+
+---
+
+## Core Execution Model (`main.py`)
+
+`Sim.run()` dispatches by model type:
+- learned model -> `_run_learned_single(...)`
+- closed-form model -> `_run_closed_form_single(...)`
+
+Common eval path:
+- `_evaluate_model(...)`
+- uses `predict_from_loader(...)` for normal models
+- uses `predict_split(...)` for precomputed models with `is_precomputed=True`
+
+Tune path:
+- `run_tune(...)` builds flat Ray param space
+- tune runs are tagged in W&B with `ray_tune_id:{id}` and `tune`
+
+Best-trial path:
+- `report_best_tune_trial(...)` reruns best config in prod mode
+- best-trial run is tagged with `best_trial_report`
+
+---
+
+## Model Inventory
+
+Closed-form (`learned: false`):
+- `CrossModalPCA`
+- `CrossModal_PLS_SVD`
+- `CrossModal_PCA_PLS`
+- `Krakencoder_precomputed` (precomputed artifacts, no training; class `KrakencoderPrecomputed`)
+
+Learned (`learned: true`):
+- `CrossModal_PCA_PLS_learnable`
+- `CrossModal_PCA_PLS_CovProjector`
+- `CrossModalVAE`
+
+### Special: `Krakencoder_precomputed`
+
+CLI/YAML model ID: `Krakencoder_precomputed`  
+Implementation class in `models/models.py`: `KrakencoderPrecomputed`.
+
+Behavior:
+- loads per-seed inference `.mat` predictions
+- stores full prediction matrix + FC targets from `base`
+- serves split-specific `(preds, targets)` via `predict_split(split)`
+- raises if `forward()` is called directly
+
+Input assumptions:
+- default artifact dir: `krakencoder/example_data/`
+- file pattern: `mydata_kraken_seed{seed}_source_{parc}.{conn_type}.mat`
+- supported source keys currently map to `SC` and `FC`
+
+Naming note:
+- config file is `models/configs/Krakencoder_precomputed.yml`
+- YAML model name is `Krakencoder_precomputed`
+- class name is `KrakencoderPrecomputed`
+- `build_model()` resolves classes by exact attribute name
+- keep this path validated in smoke tests after refactors
+
+---
+
+## Data + Partitioning
+
+`data/hcp_dataset.py` provides:
+- `HCP_Base` for loading modalities + covariates
+- `HCP_Partition` for family-aware train/val/test partitioning
+- support for composite sources like `SC+SC_r2t`
+
+Covariates used by projector variants include demographics and FreeSurfer features; category collapsing for sparse `race_eth` occurs at partition time.
+
+---
+
+## W&B Schema (Important)
+
+Two run types exist:
+
+1. Tune trial runs
+- tags include: model name, `tune`, `ray_tune_id:{id}`
+- config shape: flat/dot-notation keys
+
+2. Best-trial prod runs (primary reporting target)
+- tags include: model name, `prod`, `best_trial_report`, `ray_tune_id:{id}`
+- config shape: nested (`data`, `model`, `trainer`) + top-level metadata
+- summary includes train/val metrics and `eval_test/*` metrics
+
+Do not use W&B `group` as sweep identity. Use `ray_tune_id:{id}`.
+
+---
+
+## Results Scraper (`results/results_scraper.py`)
+
+Status: active development; already functional for best-trial aggregation.
+
+Primary API:
+- `fetch_best_trial_runs(model_name)`
+- `parse_run_record(run)`
+- `build_experiment_records(models, sources, seeds, ...)`
+- `records_to_df(records)`
+- `build_status_table(records)`
+- `build_metric_table(records, metric=...)`
+- `enrich_records_with_local(records)`
+- `load_local_artifact_df(records)`
+
+Key behaviors:
+- handles nested and flat W&B config formats
+- fallback for legacy runs via local checkpoint config
+- resolves local artifact directories under `results/ray_results/`
+
+### Testing Priorities For Scraper
+
+When editing scraper logic, validate:
+1. run-type filtering (`best_trial_report` only for core tables)
+2. config extraction order for source/seed
+3. duplicate run deduping (latest `created_at` wins)
+4. metric extraction (`eval_test/` prefix stripping)
+5. missing-cell fill across full model x source x seed grid
+6. local enrichment merge precedence (W&B metrics should win base keys)
+
+Suggested quick smoke workflow:
+- build records for 1–2 models, all three sources, seeds `[0,1]`
+- check `build_status_table` shape/content
+- check `build_metric_table(metric="demeaned_pearson")`
+- run `enrich_records_with_local` and verify added non-W&B fields
+
+---
+
+## Config System Notes (`models/config.py`)
+
+- `FLAT_METADATA_KEYS` are logging/display keys and must not reach model constructors.
+- `l1_reg`/`l2_reg` are recombined into `l1_l2_tuple` in `build_model`.
+- source-dependent PCA dims are normalized by `resolve_source_dependent_config`.
+- YAML `search_space` is converted to Ray Tune objects by `search_space_to_tune`.
+
+---
+
+## HPC / Workflow Guardrails
+
+- Prefer targeted reads over recursive scans.
+- Avoid heavy artifact trees unless task explicitly needs them:
+  - `results/ray_results/`
+  - `results/ray_checkpoints/`
+  - `wandb/`
+  - large notebooks
+- Use SLURM scripts for large jobs; avoid long compute on login nodes.
+
+---
+
+## High-Risk Gotchas
+
+1. W&B `group` is not sweep-level identity in this repo.
+2. Tune configs are flat; best-trial configs are nested.
+3. Multi-source PCA settings may be scalar or dict; resolve before model build.
+4. Precomputed model path bypasses DataLoader-based prediction.
+5. Krakencoder config/class naming should be verified before relying on automated runs.
+
+---
+
+## Minimal Task Recipes
+
+Add/modify model:
+1. edit class in `models/models.py`
+2. add/update YAML in `models/configs/`
+3. ensure `build_model()` can resolve class name
+4. run one dev/prod dry run with fixed seed
+
+Update experiment reporting:
+1. patch `results/results_scraper.py`
+2. run smoke table builds (`records_to_df`, `build_status_table`, `build_metric_table`)
+3. verify local enrichment still merges correctly
+
+Debug missing results cell:
+1. confirm best-trial run exists in W&B with expected tags
+2. inspect parsed source/seed path (nested vs flat fallback)
+3. verify model/source/seed is included in requested grid

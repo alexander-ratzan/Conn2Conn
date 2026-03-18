@@ -28,6 +28,8 @@ class CrossModalLightningModule(pl.LightningModule):
         loss_type: str = "mse",
         loss_alpha: float = 0.5,
         loss_beta: float = 1.0,
+        loss_corr_target: float = 0.4,
+        loss_corr_weight: float = 1e-3,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["model", "base"])
@@ -37,6 +39,8 @@ class CrossModalLightningModule(pl.LightningModule):
         self.loss_type = loss_type
         self.loss_alpha = loss_alpha
         self.loss_beta = loss_beta
+        self.loss_corr_target = loss_corr_target
+        self.loss_corr_weight = loss_corr_weight
         self._target_train_mean = None
         self.loss_fn = None
 
@@ -47,6 +51,8 @@ class CrossModalLightningModule(pl.LightningModule):
             base=self.base,
             alpha=self.loss_alpha,
             beta=self.loss_beta,
+            corr_target=self.loss_corr_target,
+            corr_weight=self.loss_corr_weight,
         )
         if self.loss_fn is not None:
             self.loss_fn = self.loss_fn.to(self.device)

@@ -1,0 +1,11 @@
+learned: false
+
+default:
+  model:
+    name: Krakencoder_precomputed
+    # Directory containing mydata_kraken_seed{seed}_source_{parc}.{SC|FC}.mat files.
+    # null = auto-resolved to <repo_root>/krakencoder/example_data/ at runtime.
+    kraken_predictions_dir: null
+
+# Intentionally empty — run_tune raises ValueError immediately for this model.
+search_space: {}

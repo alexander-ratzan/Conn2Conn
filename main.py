@@ -79,9 +79,14 @@ def _extract_ray_tune_id(name_or_path: str) -> Optional[str]:
 class TrialFamilyWandbLoggerCallback(WandbLoggerCallback):
     """Minimal WandB callback wrapper to attach Ray Tune IDs and group by trial family."""
 
+    def __init__(self, *args, extra_config: dict = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._extra_config = extra_config or {}
+
     def log_trial_start(self, trial):
         config = trial.config.copy()
         config.pop("callbacks", None)
+        config.update(self._extra_config)
 
         exclude_results = self._exclude_results.copy()
         exclude_results += self.excludes
@@ -304,9 +309,15 @@ class Sim:
         test_report_path: str = None,
         model_name: str = None,
     ):
-        train_preds, train_targets = predict_from_loader(model, self.train_loader)
-        val_preds, val_targets = predict_from_loader(model, self.val_loader)
-        test_preds, test_targets = predict_from_loader(model, self.test_loader)
+        if getattr(model, "is_precomputed", False):
+            # Bypass DataLoader iteration; slice precomputed arrays by split indices directly.
+            train_preds, train_targets = model.predict_split("train")
+            val_preds,   val_targets   = model.predict_split("val")
+            test_preds,  test_targets  = model.predict_split("test")
+        else:
+            train_preds, train_targets = predict_from_loader(model, self.train_loader)
+            val_preds, val_targets = predict_from_loader(model, self.val_loader)
+            test_preds, test_targets = predict_from_loader(model, self.test_loader)
         train_partition = HCP_Partition(self.base, "train")
         val_partition = HCP_Partition(self.base, "val")
         test_partition = HCP_Partition(self.base, "test")
@@ -351,6 +362,8 @@ class Sim:
         loss_type = trainer_cfg.get("loss_type", "mse")
         loss_alpha = trainer_cfg.get("loss_alpha", 0.5)
         loss_beta = trainer_cfg.get("loss_beta", 1.0)
+        loss_corr_target = trainer_cfg.get("loss_corr_target", 0.4)
+        loss_corr_weight = trainer_cfg.get("loss_corr_weight", 1e-3)
         max_epochs = trainer_cfg.get("max_epochs", 100)
         log_every = trainer_cfg.get("log_every", 5)
 
@@ -386,6 +399,8 @@ class Sim:
                 loss_type=loss_type,
                 loss_alpha=loss_alpha,
                 loss_beta=loss_beta,
+                loss_corr_target=loss_corr_target,
+                loss_corr_weight=loss_corr_weight,
                 max_epochs=max_epochs,
                 logger=False if mode == "dev" else (pl_logger is None),
                 pl_logger=pl_logger,
@@ -403,6 +418,8 @@ class Sim:
                 loss_type=loss_type,
                 loss_alpha=loss_alpha,
                 loss_beta=loss_beta,
+                loss_corr_target=loss_corr_target,
+                loss_corr_weight=loss_corr_weight,
             )
             pl_module.load_state_dict(ckpt_state["state_dict"], strict=False)
             model = pl_module.model
@@ -601,13 +618,6 @@ class Sim:
         for k, v in default.get("trainer", {}).items():
             default_flat[k] = v
 
-        # Explicitly expose data.* fields in the flat Tune config for wandb / analysis.
-        # This mirrors the prod-level logging where DATA.SOURCE/TARGET/PARCELLATION/HEMI/SHUFFLE_SEED exist.
-        default_flat["data.source"] = self.source
-        default_flat["data.target"] = self.target
-        default_flat["data.parcellation"] = self.parcellation
-        default_flat["data.hemi"] = self.hemi
-        default_flat["data.shuffle_seed"] = self.shuffle_seed
 
         # Expose scalar summary keys for dict-valued hparams so W&B table/filter works cleanly.
         # cov_projectors and cov_fusion are tune.choice over full dicts; a string tag lets you
@@ -744,6 +754,8 @@ class Sim:
                     loss_type=trainer_cfg.get("loss_type", "mse"),
                     loss_alpha=trainer_cfg.get("loss_alpha", 0.5),
                     loss_beta=trainer_cfg.get("loss_beta", 1.0),
+                    loss_corr_target=trainer_cfg.get("loss_corr_target", 0.4),
+                    loss_corr_weight=trainer_cfg.get("loss_corr_weight", 1e-3),
                 )
                 tune_metrics = {
                     "train_loss": "train_loss",
@@ -834,6 +846,13 @@ class Sim:
                     group=f"{self.model_name}_tune",
                     tags=[self.model_name, "tune"] + ([f"ray_tune_id:{ray_tune_id}"] if ray_tune_id else []),
                     log_config=True,
+                    extra_config={
+                        "data.source": self.source,
+                        "data.target": self.target,
+                        "data.parcellation": self.parcellation,
+                        "data.hemi": self.hemi,
+                        "data.shuffle_seed": self.shuffle_seed,
+                    },
                 )
             )
         
@@ -989,6 +1008,9 @@ class Sim:
                 wandb_metadata={
                     "ray_tune_id": ray_tune_id,
                     "ray_trial_id": best_trial_id,
+                    "source": self.source,
+                    "shuffle_seed": self.shuffle_seed,
+                    "target": self.target,
                 },
                 store_eval_md=store_eval_md,
             )
@@ -1024,6 +1046,9 @@ class Sim:
                 wandb_metadata={
                     "ray_tune_id": ray_tune_id,
                     "ray_trial_id": best_trial_id,
+                    "source": self.source,
+                    "shuffle_seed": self.shuffle_seed,
+                    "target": self.target,
                 },
                 store_eval_md=store_eval_md,
             )

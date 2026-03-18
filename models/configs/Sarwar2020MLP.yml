@@ -1,0 +1,64 @@
+learned: true
+
+default:
+  data:
+    source: SC
+    target: FC
+  model:
+    name: Sarwar2020MLP
+    hidden_dim: 1024
+    num_hidden_layers: 7
+    dropout: 0.5
+    activation_mode: alternating
+    leaky_relu_slope: 0.2
+    output_tanh: true
+    l1_l2_tuple: [0.0, 0.0]
+    device: null
+  trainer:
+    lr: 1.0e-5
+    loss_type: sarwar_mse_corr
+    loss_corr_target: 0.4
+    loss_corr_weight: 1.0e-3
+    max_epochs: 300
+    batch_size: 32
+    log_every: 5
+
+search_space:
+  hidden_dim:
+    type: choice
+    values: [256, 512, 768, 1024]
+  num_hidden_layers:
+    type: choice
+    values: [3, 5, 7]
+  dropout:
+    type: uniform
+    lower: 0.1
+    upper: 0.6
+  activation_mode:
+    type: choice
+    values: [alternating, leaky_relu, tanh]
+  output_tanh:
+    type: choice
+    values: [true, false]
+  l1_reg:
+    type: choice
+    values: [0.0, 1.0e-7, 1.0e-6, 1.0e-5]
+  l2_reg:
+    type: loguniform
+    lower: 1.0e-8
+    upper: 1.0e-4
+  lr:
+    type: loguniform
+    lower: 1.0e-6
+    upper: 5.0e-4
+  loss_corr_target:
+    type: uniform
+    lower: 0.05
+    upper: 0.7
+  loss_corr_weight:
+    type: loguniform
+    lower: 1.0e-6
+    upper: 1.0e-1
+  max_epochs:
+    type: choice
+    values: [100, 200, 300, 500]
