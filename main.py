@@ -38,6 +38,7 @@ from lightning.pytorch.loggers import WandbLogger
 
 
 from data.hcp_dataset import HCP_Base, HCP_Partition
+from data.dataset_utils import DEFAULT_CONN2CONN_CACHE_ROOT
 from models.models import predict_from_loader
 from models.loss import train_model, get_target_train_mean
 from models.eval import Evaluator
@@ -170,6 +171,9 @@ class Sim:
         source: str = "SC",
         target: str = "FC",
         shuffle_seed: int = 0,
+        data_load_mode: str = None,
+        precompute_cache_root: str = None,
+        write_manual_cache: bool = None,
         batch_size: int = 128,
     ):
         """
@@ -219,6 +223,20 @@ class Sim:
                 "shuffle_seed": shuffle_seed,
             }
         )
+        if data_load_mode is not None:
+            self.config["data"]["data_load_mode"] = data_load_mode
+        if precompute_cache_root is not None:
+            self.config["data"]["precompute_cache_root"] = precompute_cache_root
+        if write_manual_cache is not None:
+            self.config["data"]["write_manual_cache"] = bool(write_manual_cache)
+
+        # Convenience defaults for cached-data runs.
+        # If the caller selects precomputed mode, automatically point to the
+        # canonical cache root and disable manual cache writes.
+        effective_load_mode = self.config["data"].get("data_load_mode")
+        if effective_load_mode == "precomputed":
+            self.config["data"].setdefault("precompute_cache_root", DEFAULT_CONN2CONN_CACHE_ROOT)
+            self.config["data"]["write_manual_cache"] = False
         self.config = resolve_source_dependent_config(self.config)
         data_cfg = deepcopy(self.config.get("data", {}))
         self.config["data"] = data_cfg
@@ -230,20 +248,40 @@ class Sim:
         self.target = data_cfg["target"]
         self.shuffle_seed = data_cfg["shuffle_seed"]
 
-        cov_sources = (self.config.get("model", {}) or {}).get("cov_sources", ["fs_all"])
-        self.base = HCP_Base(
-            parcellation=self.parcellation,
-            hemi=self.hemi,
-            shuffle_seed=self.shuffle_seed,
-            source=self.source,
-            target=self.target,
-            cov_sources=cov_sources,
-        )
+        model_cfg = self.config.get("model", {}) or {}
+        self._cov_sources_explicit = "cov_sources" in model_cfg
+        cov_sources = list(model_cfg.get("cov_sources") or []) if self._cov_sources_explicit else []
+        self._cov_sources = cov_sources
+        hcp_base_kwargs = {
+            "parcellation": self.parcellation,
+            "hemi": self.hemi,
+            "shuffle_seed": self.shuffle_seed,
+            "source": self.source,
+            "target": self.target,
+            "cov_sources": cov_sources,
+        }
+        for _k in (
+            "HCP_dir",
+            "sc_metric_type",
+            "sc_apply_log1p",
+            "volume_feature_type",
+            "centroid_feature_type",
+            "data_load_mode",
+            "precompute_cache_root",
+            "write_manual_cache",
+        ):
+            if _k in data_cfg:
+                hcp_base_kwargs[_k] = data_cfg[_k]
+        self.base = HCP_Base(**hcp_base_kwargs)
 
         # Loggable covariate metadata for wandb filtering.
         self.config.setdefault("model", {})
-        self.config["model"]["cov_sources_str"] = "+".join(cov_sources)
-        self.config["model"]["cov_dims"] = getattr(self.base, "cov_dims", {})
+        self.config["model"]["cov_sources_str"] = (
+            "+".join(cov_sources) if self._cov_sources_explicit else ""
+        )
+        self.config["model"]["cov_dims"] = (
+            getattr(self.base, "cov_dims", {}) if self._cov_sources_explicit else {}
+        )
         self.train_ds = HCP_Partition(self.base, "train")
         self.val_ds = HCP_Partition(self.base, "val")
         self.test_ds = HCP_Partition(self.base, "test")
@@ -622,20 +660,27 @@ class Sim:
         # Expose scalar summary keys for dict-valued hparams so W&B table/filter works cleanly.
         # cov_projectors and cov_fusion are tune.choice over full dicts; a string tag lets you
         # group/filter trials without unpacking nested objects in the W&B UI.
-        _cov_proj_default = default.get("model", {}).get("cov_projectors") or {}
-        default_flat["cov_projectors_tag"] = "|".join(
-            f"{src}:{cfg.get('out_dim', '?')}" for src, cfg in sorted(_cov_proj_default.items())
-        )
-        _cov_fusion_default = default.get("model", {}).get("cov_fusion") or {}
-        default_flat["cov_fusion_tag"] = (
-            _cov_fusion_default.get("type", "linear")
-            + (f"_{'x'.join(str(d) for d in _cov_fusion_default['hidden_dims'])}"
-               if _cov_fusion_default.get("hidden_dims") else "")
-            + ("_ln" if _cov_fusion_default.get("layer_norm") else "")
-        )
+        if self._cov_sources_explicit:
+            _cov_proj_default = default.get("model", {}).get("cov_projectors") or {}
+            default_flat["cov_projectors_tag"] = "|".join(
+                f"{src}:{cfg.get('out_dim', '?')}" for src, cfg in sorted(_cov_proj_default.items())
+            )
+            _cov_fusion_default = default.get("model", {}).get("cov_fusion") or {}
+            default_flat["cov_fusion_tag"] = (
+                _cov_fusion_default.get("type", "linear")
+                + (f"_{'x'.join(str(d) for d in _cov_fusion_default['hidden_dims'])}"
+                if _cov_fusion_default.get("hidden_dims") else "")
+                + ("_ln" if _cov_fusion_default.get("layer_norm") else "")
+            )
+        else:
+            default_flat["cov_projectors_tag"] = ""
+            default_flat["cov_fusion_tag"] = ""
 
         fixed_data_cfg = deepcopy(default.get("data", {}))
-        fixed_cov_sources = (default.get("model", {}) or {}).get("cov_sources", ["fs_all"])
+        fixed_cov_sources = (
+            list(((default.get("model", {}) or {}).get("cov_sources") or []))
+            if self._cov_sources_explicit else []
+        )
         fixed_batch_size = default.get("trainer", {}).get("batch_size", 128)
         print(f"Fixed Tune batch_size: {fixed_batch_size}", flush=True)
        
@@ -699,30 +744,47 @@ class Sim:
             config_flat = resolve_source_dependent_config(config_flat)
             config = _flat_to_nested(config_flat, model_name)
             # Recompute scalar W&B filter tags from the sampled dict-valued hparams.
-            _sampled_proj = config_flat.get("cov_projectors") or {}
-            if isinstance(_sampled_proj, dict):
-                config_flat["cov_projectors_tag"] = "|".join(
-                    f"{src}:{cfg.get('out_dim', '?')}" for src, cfg in sorted(_sampled_proj.items())
-                )
-            _sampled_fusion = config_flat.get("cov_fusion") or {}
-            if isinstance(_sampled_fusion, dict):
-                config_flat["cov_fusion_tag"] = (
-                    _sampled_fusion.get("type", "linear")
-                    + (f"_{'x'.join(str(d) for d in _sampled_fusion['hidden_dims'])}"
-                       if _sampled_fusion.get("hidden_dims") else "")
-                    + ("_ln" if _sampled_fusion.get("layer_norm") else "")
-                )
+            if self._cov_sources_explicit:
+                _sampled_proj = config_flat.get("cov_projectors") or {}
+                if isinstance(_sampled_proj, dict):
+                    config_flat["cov_projectors_tag"] = "|".join(
+                        f"{src}:{cfg.get('out_dim', '?')}" for src, cfg in sorted(_sampled_proj.items())
+                    )
+                _sampled_fusion = config_flat.get("cov_fusion") or {}
+                if isinstance(_sampled_fusion, dict):
+                    config_flat["cov_fusion_tag"] = (
+                        _sampled_fusion.get("type", "linear")
+                        + (f"_{'x'.join(str(d) for d in _sampled_fusion['hidden_dims'])}"
+                        if _sampled_fusion.get("hidden_dims") else "")
+                        + ("_ln" if _sampled_fusion.get("layer_norm") else "")
+                    )
+            else:
+                config_flat["cov_projectors_tag"] = ""
+                config_flat["cov_fusion_tag"] = ""
             trial_id = tune.get_context().get_trial_id()
             if "base" not in _WORKER_CACHE:
                 print(f"[tune] {trial_id}: building HCP_Base and DataLoaders in worker", flush=True)
-                _WORKER_CACHE["base"] = HCP_Base(
-                    parcellation=fixed_data_cfg.get("parcellation", "Glasser"),
-                    hemi=fixed_data_cfg.get("hemi", "both"),
-                    shuffle_seed=fixed_data_cfg.get("shuffle_seed", 0),
-                    source=fixed_data_cfg.get("source", "SC"),
-                    target=fixed_data_cfg.get("target", "FC"),
-                    cov_sources=fixed_cov_sources,
-                )
+                _worker_hcp_kwargs = {
+                    "parcellation": fixed_data_cfg.get("parcellation", "Glasser"),
+                    "hemi": fixed_data_cfg.get("hemi", "both"),
+                    "shuffle_seed": fixed_data_cfg.get("shuffle_seed", 0),
+                    "source": fixed_data_cfg.get("source", "SC"),
+                    "target": fixed_data_cfg.get("target", "FC"),
+                    "cov_sources": fixed_cov_sources,
+                }
+                for _k in (
+                    "HCP_dir",
+                    "sc_metric_type",
+                    "sc_apply_log1p",
+                    "volume_feature_type",
+                    "centroid_feature_type",
+                    "data_load_mode",
+                    "precompute_cache_root",
+                    "write_manual_cache",
+                ):
+                    if _k in fixed_data_cfg:
+                        _worker_hcp_kwargs[_k] = fixed_data_cfg[_k]
+                _WORKER_CACHE["base"] = HCP_Base(**_worker_hcp_kwargs)
                 b = _WORKER_CACHE["base"]
                 _WORKER_CACHE["train_ds"] = HCP_Partition(b, "train")
                 _WORKER_CACHE["val_ds"] = HCP_Partition(b, "val")

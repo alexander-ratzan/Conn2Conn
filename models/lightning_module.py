@@ -32,7 +32,20 @@ class CrossModalLightningModule(pl.LightningModule):
         loss_corr_weight: float = 1e-3,
     ):
         super().__init__()
-        self.save_hyperparameters(ignore=["model", "base"])
+        # Persist only loss hyperparameters relevant to the selected loss_type.
+        # This avoids logging unrelated defaults for other model/loss families.
+        hparams_to_save = {
+            "lr": lr,
+            "loss_type": loss_type,
+        }
+        if loss_type == "weighted_mse":
+            hparams_to_save["loss_alpha"] = loss_alpha
+        elif loss_type == "vae":
+            hparams_to_save["loss_beta"] = loss_beta
+        elif loss_type == "sarwar_mse_corr":
+            hparams_to_save["loss_corr_target"] = loss_corr_target
+            hparams_to_save["loss_corr_weight"] = loss_corr_weight
+        self.save_hyperparameters(hparams_to_save)
         self.model = model
         self.base = base
         self.lr = lr

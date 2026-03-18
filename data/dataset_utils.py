@@ -9,6 +9,121 @@ from data.data_utils import *
 from concurrent.futures import ThreadPoolExecutor
 from sklearn.decomposition import PCA
 
+DEFAULT_CONN2CONN_CACHE_ROOT = "/scratch/asr655/neuroinformatics/Conn2Conn_data"
+
+
+def _sanitize_token(token):
+    return str(token).replace("/", "_").replace(" ", "_").replace("+", "p")
+
+
+def _write_npy_cache(cache_dir, arrays):
+    os.makedirs(cache_dir, exist_ok=True)
+    for name, arr in arrays.items():
+        if arr is None:
+            continue
+        np.save(os.path.join(cache_dir, f"{name}.npy"), arr)
+
+def _read_required_npy(path):
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Missing precomputed cache file: {path}")
+    return np.load(path)
+
+
+def _cache_dir_fc(cache_root, parcellation, hemi):
+    return os.path.join(
+        cache_root,
+        "fc",
+        f"parc-{_sanitize_token(parcellation)}_hemi-{_sanitize_token(hemi)}",
+    )
+
+
+def _cache_dir_sc(cache_root, parcellation, hemi, metric_type, apply_log1p):
+    return os.path.join(
+        cache_root,
+        "sc",
+        (
+            f"parc-{_sanitize_token(parcellation)}_hemi-{_sanitize_token(hemi)}"
+            f"_metric-{_sanitize_token(metric_type)}_log1p-{int(bool(apply_log1p))}"
+        ),
+    )
+
+
+def _cache_dir_parcel_node_features(cache_root, parcellation, hemi, volume_feature_type, centroid_feature_type):
+    return os.path.join(
+        cache_root,
+        "parcel_node_features",
+        (
+            f"parc-{_sanitize_token(parcellation)}_hemi-{_sanitize_token(hemi)}"
+            f"_vol-{_sanitize_token(volume_feature_type)}_cent-{_sanitize_token(centroid_feature_type)}"
+        ),
+    )
+
+
+def load_fc_precomputed(
+    parcellation='Glasser',
+    hemi='both',
+    cache_root=DEFAULT_CONN2CONN_CACHE_ROOT,
+):
+    """Load FC arrays from precomputed npy cache."""
+    cache_dir = _cache_dir_fc(cache_root, parcellation, hemi)
+    subject_ids = _read_required_npy(os.path.join(cache_dir, "subject_ids.npy")).astype(np.int64).tolist()
+    fc_matrices = _read_required_npy(os.path.join(cache_dir, "matrices.npy")).astype(np.float32)
+    tri_path = os.path.join(cache_dir, "upper_triangles.npy")
+    if os.path.exists(tri_path):
+        fc_triangles = np.load(tri_path).astype(np.float32)
+    else:
+        tri_indices = np.triu_indices(fc_matrices.shape[1], k=1)
+        fc_triangles = fc_matrices[:, tri_indices[0], tri_indices[1]].astype(np.float32)
+    return subject_ids, fc_matrices, fc_triangles
+
+
+def load_sc_precomputed(
+    parcellation='Glasser',
+    hemi='both',
+    metric_type='sift_invnodevol_radius2_count_connectivity',
+    apply_log1p=False,
+    cache_root=DEFAULT_CONN2CONN_CACHE_ROOT,
+):
+    """Load SC arrays (and optional r2t) from precomputed npy cache."""
+    cache_dir = _cache_dir_sc(cache_root, parcellation, hemi, metric_type, apply_log1p)
+    subject_ids = _read_required_npy(os.path.join(cache_dir, "subject_ids.npy")).astype(np.int64).tolist()
+    sc_matrices = _read_required_npy(os.path.join(cache_dir, "matrices.npy")).astype(np.float32)
+    tri_path = os.path.join(cache_dir, "upper_triangles.npy")
+    if os.path.exists(tri_path):
+        sc_triangles = np.load(tri_path).astype(np.float32)
+    else:
+        tri_indices = np.triu_indices(sc_matrices.shape[1], k=1)
+        sc_triangles = sc_matrices[:, tri_indices[0], tri_indices[1]].astype(np.float32)
+    r2t_path = os.path.join(cache_dir, "r2t_matrices.npy")
+    sc_r2t_matrices = np.load(r2t_path).astype(np.float32) if os.path.exists(r2t_path) else None
+    return subject_ids, sc_matrices, sc_triangles, sc_r2t_matrices
+
+
+def load_parcel_volume_centroids_precomputed(
+    parcellation='Glasser',
+    hemi='both',
+    volume_feature_type='volume_mm3',
+    centroid_feature_type='centroid_mm',
+    cache_root=DEFAULT_CONN2CONN_CACHE_ROOT,
+):
+    """Load cached per-node parcel features from precomputed npy cache."""
+    cache_dir = _cache_dir_parcel_node_features(
+        cache_root,
+        parcellation,
+        hemi,
+        volume_feature_type,
+        centroid_feature_type,
+    )
+    subject_ids = _read_required_npy(os.path.join(cache_dir, "subject_ids.npy")).astype(np.int64).tolist()
+    parcel_volume = _read_required_npy(os.path.join(cache_dir, "parcel_volume.npy")).astype(np.float32)
+    parcel_centroids = _read_required_npy(os.path.join(cache_dir, "parcel_centroids.npy")).astype(np.float32)
+    node_path = os.path.join(cache_dir, "parcel_node_features.npy")
+    if os.path.exists(node_path):
+        parcel_node_features = np.load(node_path).astype(np.float32)
+    else:
+        parcel_node_features = np.concatenate([parcel_volume[..., None], parcel_centroids], axis=-1).astype(np.float32)
+    return subject_ids, parcel_volume, parcel_centroids, parcel_node_features
+
 
 def _load_single_fc_file(args):
     """Helper function to load a single FC file - designed for parallel execution"""
@@ -28,7 +143,14 @@ def _load_single_fc_file(args):
         print(f"[load_fc] Error loading file for subject {subject_id} at {tsv_path}: {e}. Skipping.")
         return None, None
 
-def load_fc(parcellation='Glasser', hemi='both', HCP_dir='/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/', n_jobs=None):
+def load_fc(
+    parcellation='Glasser',
+    hemi='both',
+    HCP_dir='/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/',
+    n_jobs=None,
+    write_cache=False,
+    cache_root=DEFAULT_CONN2CONN_CACHE_ROOT,
+):
     """
     Load FC matrices with parallel file I/O for faster loading.
     
@@ -84,6 +206,17 @@ def load_fc(parcellation='Glasser', hemi='both', HCP_dir='/scratch/asr655/neuroi
     tri_indices = np.triu_indices(fc_matrices.shape[1], k=1)
     fc_triangles = fc_matrices[:, tri_indices[0], tri_indices[1]]
     
+    if write_cache:
+        cache_dir = _cache_dir_fc(cache_root, parcellation, hemi)
+        _write_npy_cache(
+            cache_dir,
+            {
+                "subject_ids": np.asarray(subject_ids, dtype=np.int64),
+                "matrices": fc_matrices.astype(np.float32),
+                "upper_triangles": fc_triangles.astype(np.float32),
+            },
+        )
+
     return subject_ids, fc_matrices, fc_triangles
 
 def _load_single_sc_file(args):
@@ -136,7 +269,8 @@ def _load_single_sc_file(args):
 
 def load_sc(parcellation='Glasser', hemi='both', metric_type='sift_invnodevol_radius2_count_connectivity', 
             HCP_dir='/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/', 
-            apply_log1p=False, n_jobs=None):
+            apply_log1p=False, n_jobs=None, write_cache=False,
+            cache_root=DEFAULT_CONN2CONN_CACHE_ROOT):
     """
     Load SC matrices with parallel file I/O for faster loading.
     
@@ -211,7 +345,192 @@ def load_sc(parcellation='Glasser', hemi='both', metric_type='sift_invnodevol_ra
     tri_indices = np.triu_indices(sc_matrices.shape[1], k=1)
     sc_triangles = sc_matrices[:, tri_indices[0], tri_indices[1]]
 
+    if write_cache:
+        cache_dir = _cache_dir_sc(cache_root, parcellation, hemi, metric_type, apply_log1p)
+        _write_npy_cache(
+            cache_dir,
+            {
+                "subject_ids": np.asarray(subject_ids, dtype=np.int64),
+                "matrices": sc_matrices.astype(np.float32),
+                "upper_triangles": sc_triangles.astype(np.float32),
+                "r2t_matrices": None if sc_r2t_matrices is None else sc_r2t_matrices.astype(np.float32),
+            },
+        )
+
     return subject_ids, sc_matrices, sc_triangles, sc_r2t_matrices
+
+
+def _resolve_volume_column(volume_feature_type: str) -> str:
+    if volume_feature_type == "volume_mm3":
+        return "volume_mm3"
+    if volume_feature_type in {"normalized", "normalized_voxel_count"}:
+        return "normalized_voxel_count"
+    raise ValueError(
+        f"Unknown volume_feature_type='{volume_feature_type}'. "
+        "Choose from {'volume_mm3', 'normalized'}."
+    )
+
+
+def _resolve_centroid_columns(centroid_feature_type: str):
+    if centroid_feature_type == "centroid_mm":
+        return ["centroid_x_mm", "centroid_y_mm", "centroid_z_mm"]
+    if centroid_feature_type == "medoid":
+        return ["medoid_x_mm", "medoid_y_mm", "medoid_z_mm"]
+    raise ValueError(
+        f"Unknown centroid_feature_type='{centroid_feature_type}'. "
+        "Choose from {'centroid_mm', 'medoid'}."
+    )
+
+
+def _load_single_volume_centroid_file(args):
+    """Helper to load one subject's per-parcel volume/centroid CSV."""
+    HCP_dir, subj_folder, parcellation, volume_feature_type, centroid_feature_type = args
+    subject_id = subj_folder.replace("sub-", "")
+
+    csv_path = os.path.join(
+        HCP_dir,
+        "HCP1200_DTI/qsirecon",
+        subj_folder,
+        "anat",
+        "T1",
+        f"{subj_folder}_space-T1w_seg-{parcellation}_dseg_volumes_centroids.csv",
+    )
+    if not os.path.exists(csv_path):
+        return None, None, None
+
+    try:
+        df = pd.read_csv(csv_path)
+        if "atlas" in df.columns:
+            df = df[df["atlas"] == parcellation].copy()
+        if "label" in df.columns:
+            df = df.sort_values("label")
+
+        vol_col = _resolve_volume_column(volume_feature_type)
+        centroid_cols = _resolve_centroid_columns(centroid_feature_type)
+
+        missing = [c for c in [vol_col, *centroid_cols] if c not in df.columns]
+        if missing:
+            raise ValueError(
+                f"Missing required columns {missing} in {csv_path}."
+            )
+
+        volume_vals = df[vol_col].to_numpy(dtype=np.float32)
+        centroid_vals = df[centroid_cols].to_numpy(dtype=np.float32)
+        return subject_id, volume_vals, centroid_vals
+    except Exception as e:
+        print(f"[load_parcel_volume_centroids] Error loading {csv_path}: {e}. Skipping.")
+        return None, None, None
+
+
+def load_parcel_volume_centroids(
+    parcellation='Glasser',
+    hemi='both',
+    HCP_dir='/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/',
+    volume_feature_type='volume_mm3',
+    centroid_feature_type='centroid_mm',
+    n_jobs=None,
+    write_cache=False,
+    cache_root=DEFAULT_CONN2CONN_CACHE_ROOT,
+):
+    """
+    Load per-subject per-node volume and centroid features from T1 segmentation CSVs.
+
+    Args:
+        parcellation: 'Glasser' or '4S456Parcels'
+        hemi: 'left' | 'right' | 'both'
+        volume_feature_type:
+            - 'volume_mm3' (default)
+            - 'normalized' (maps to normalized_voxel_count)
+        centroid_feature_type:
+            - 'centroid_mm' (default; centroid_x/y/z_mm)
+            - 'medoid' (medoid_x/y/z_mm)
+        n_jobs: number of parallel workers
+
+    Returns:
+        subject_ids: list[int]
+        parcel_volume: np.ndarray [n_subjects, n_roi]
+        parcel_centroids: np.ndarray [n_subjects, n_roi, 3]
+        parcel_node_features: np.ndarray [n_subjects, n_roi, 4]
+            concatenation of [volume, centroid_xyz]
+    """
+    subjects_dir = os.path.join(HCP_dir, "HCP1200_fMRI/xcpd-0-9-1/")
+    subject_folders = [d for d in os.listdir(subjects_dir) if d.startswith("sub-")]
+    subject_folders = sorted(subject_folders)
+
+    args_list = [
+        (HCP_dir, subj_folder, parcellation, volume_feature_type, centroid_feature_type)
+        for subj_folder in subject_folders
+    ]
+    n_jobs = min(len(subject_folders), os.cpu_count() or 4) if n_jobs is None else n_jobs
+
+    # Hemisphere mask from atlas metadata (same indexing convention as FC/SC loaders).
+    roi_df = pd.read_csv(
+        f'/scratch/asr655/neuroinformatics/Conn2Conn/data/atlas_info/{parcellation}_dseg_reformatted.csv'
+    )
+    if hemi == 'left':
+        roi_mask = roi_df['hemisphere'].str.contains('L')
+    elif hemi == 'right':
+        roi_mask = roi_df['hemisphere'].str.contains('R')
+    else:
+        roi_mask = np.ones(len(roi_df), dtype=bool)
+    roi_indices = np.where(roi_mask)[0]
+
+    subject_ids = []
+    volume_list = []
+    centroid_list = []
+
+    with ThreadPoolExecutor(max_workers=n_jobs) as executor:
+        results = executor.map(_load_single_volume_centroid_file, args_list)
+
+    for subject_id, volume_vals, centroid_vals in results:
+        if subject_id is None:
+            continue
+        if volume_vals is None or centroid_vals is None:
+            continue
+        if volume_vals.shape[0] <= roi_indices.max() or centroid_vals.shape[0] <= roi_indices.max():
+            print(
+                f"[load_parcel_volume_centroids] Subject {subject_id}: feature rows "
+                f"({volume_vals.shape[0]}) do not match expected ROI indexing "
+                f"(max idx {roi_indices.max()}). Skipping."
+            )
+            continue
+        volume_vals = volume_vals[roi_indices]
+        centroid_vals = centroid_vals[roi_indices, :]
+        subject_ids.append(int(subject_id))
+        volume_list.append(volume_vals)
+        centroid_list.append(centroid_vals)
+
+    if len(subject_ids) == 0:
+        raise RuntimeError(
+            "No subject volume/centroid files found or loaded. "
+            "Check T1 CSV generation and parcellation."
+        )
+
+    parcel_volume = np.stack(volume_list, axis=0).astype(np.float32)
+    parcel_centroids = np.stack(centroid_list, axis=0).astype(np.float32)
+    parcel_node_features = np.concatenate(
+        [parcel_volume[..., None], parcel_centroids], axis=-1
+    ).astype(np.float32)
+
+    if write_cache:
+        cache_dir = _cache_dir_parcel_node_features(
+            cache_root,
+            parcellation,
+            hemi,
+            volume_feature_type,
+            centroid_feature_type,
+        )
+        _write_npy_cache(
+            cache_dir,
+            {
+                "subject_ids": np.asarray(subject_ids, dtype=np.int64),
+                "parcel_volume": parcel_volume.astype(np.float32),
+                "parcel_centroids": parcel_centroids.astype(np.float32),
+                "parcel_node_features": parcel_node_features.astype(np.float32),
+            },
+        )
+
+    return subject_ids, parcel_volume, parcel_centroids, parcel_node_features
 
 def load_freesurfer_data():
     """

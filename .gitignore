@@ -22,4 +22,5 @@ run_ray_tune_ssl_balanced_1gpu.sbatch
 wav2vec_incremental_multi_gpu_raytunessl.py
 
 # context packages
+context_packages/
 *_context/

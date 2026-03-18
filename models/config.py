@@ -8,7 +8,7 @@ import yaml
 
 # Keys that belong to trainer config (used when splitting flat Tune config).
 TRAINER_KEYS = {"lr", "loss_type", "loss_alpha", "loss_beta", "loss_corr_target", "loss_corr_weight", "max_epochs", "batch_size", "log_every"}
-DATA_KEYS = {"parcellation", "hemi", "source", "target", "shuffle_seed"}
+DATA_KEYS = {"parcellation", "hemi", "source", "target", "shuffle_seed", "HCP_dir", "sc_metric_type", "sc_apply_log1p", "volume_feature_type", "centroid_feature_type", "data_load_mode", "precompute_cache_root", "write_manual_cache"}
 # Keys injected into the flat config for W&B/logging purposes only — never model constructor args.
 FLAT_METADATA_KEYS = {"cov_sources_str", "cov_dims", "cov_projectors_tag", "cov_fusion_tag"}
 

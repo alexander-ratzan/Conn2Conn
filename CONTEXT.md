@@ -10,7 +10,7 @@ For user-facing usage/setup, see `README.md`.
 
 `Conn2Conn` predicts one connectome modality from another on HCP-derived data (default `SC -> FC`) and compares:
 - closed-form baselines (PCA/PLS family)
-- learned variants (learnable map, covariate-conditioned residual projector, VAE)
+- learned variants (learnable map, covariate-conditioned residual projector, VAE, Sarwar MLP, Chen GCN)
 - precomputed Krakencoder baseline
 
 The main evaluation axis is performance across `(model, source, shuffle_seed)` with W&B-backed experiment tracking.
@@ -23,7 +23,7 @@ When a task arrives, start in this order:
 1. `main.py` for orchestration and experiment mode behavior.
 2. `models/configs/<model>.yml` for ground-truth defaults/search space.
 3. `models/config.py` for config resolution and model construction.
-4. `models/models.py` for architecture details.
+4. `models/models.py` for architecture details (plus standalone files for some baselines).
 5. `results/results_scraper.py` for results aggregation logic.
 
 If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after `main.py`.
@@ -81,6 +81,8 @@ Learned (`learned: true`):
 - `CrossModal_PCA_PLS_learnable`
 - `CrossModal_PCA_PLS_CovProjector`
 - `CrossModalVAE`
+- `Sarwar2020MLP` (implemented in `models/sarwar2020_mlp.py`)
+- `Chen2024GCN` (implemented in `models/chen2024_gnn.py`)
 
 ### Special: `Krakencoder_precomputed`
 
@@ -113,6 +115,17 @@ Naming note:
 - `HCP_Base` for loading modalities + covariates
 - `HCP_Partition` for family-aware train/val/test partitioning
 - support for composite sources like `SC+SC_r2t`
+
+Data-loading modes in `HCP_Base`:
+- `manual` (default): load raw source files
+- `precomputed`: load cached `.npy` arrays from cache root
+
+Cache defaults:
+- cache root: `/scratch/asr655/neuroinformatics/Conn2Conn_data`
+- `write_manual_cache=False` by default
+
+Performance note:
+- `HCP_Partition` now reuses shared base-level tensors across train/val/test partitions (avoids triple full-dataset tensor copies per split).
 
 Covariates used by projector variants include demographics and FreeSurfer features; category collapsing for sparse `race_eth` occurs at partition time.
 
@@ -200,13 +213,15 @@ Suggested quick smoke workflow:
 3. Multi-source PCA settings may be scalar or dict; resolve before model build.
 4. Precomputed model path bypasses DataLoader-based prediction.
 5. Krakencoder config/class naming should be verified before relying on automated runs.
+6. `Chen2024GCN` requires `torch-geometric` in the runtime environment.
+7. `precomputed` data_load_mode only works when cache files already exist at the resolved cache root.
 
 ---
 
 ## Minimal Task Recipes
 
 Add/modify model:
-1. edit class in `models/models.py`
+1. edit class in `models/models.py` or standalone model file (e.g., `models/sarwar2020_mlp.py`, `models/chen2024_gnn.py`)
 2. add/update YAML in `models/configs/`
 3. ensure `build_model()` can resolve class name
 4. run one dev/prod dry run with fixed seed

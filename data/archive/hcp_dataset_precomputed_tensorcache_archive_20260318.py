@@ -282,10 +282,21 @@ class HCP_Base():
         self.sc_train_avg,  self.sc_train_loadings, self.sc_train_scores = population_mean_pca(self.sc_upper_triangles[train_indices])
         self.fc_train_avg, self.fc_train_loadings, self.fc_train_scores = population_mean_pca(self.fc_upper_triangles[train_indices])
         self.sc_r2t_corr_train_avg, self.sc_r2t_corr_train_loadings, self.sc_r2t_corr_train_scores = population_mean_pca(self.sc_r2t_corr_upper_triangles[train_indices])
+        self._tensor_cache = {}
 
     @staticmethod
     def subject_indices_from_id(subject_list, target_subjects):
         return [i for i, subj in enumerate(subject_list) if subj in target_subjects]
+
+    def get_cached_tensor(self, name, array, device, dtype=torch.float32):
+        """
+        Return a shared tensor cache entry so train/val/test partitions reuse one
+        full tensor per modality/covariate instead of each creating its own copy.
+        """
+        cache_key = (name, str(device), str(dtype))
+        if cache_key not in self._tensor_cache:
+            self._tensor_cache[cache_key] = torch.as_tensor(array, dtype=dtype, device=device)
+        return self._tensor_cache[cache_key]
 
 class HCP_Partition(Dataset):
     def __init__(self, base, partition):
@@ -306,10 +317,22 @@ class HCP_Partition(Dataset):
         self.source_modalities = list(base.source_modalities)
         self.target = base.target
 
-        self.sc_upper_triangles = torch.tensor(base.sc_upper_triangles, dtype=torch.float32, device=self.device)
-        self.fc_upper_triangles = torch.tensor(base.fc_upper_triangles, dtype=torch.float32, device=self.device)
+        self.sc_upper_triangles = base.get_cached_tensor(
+            "sc_upper_triangles",
+            base.sc_upper_triangles,
+            self.device,
+        )
+        self.fc_upper_triangles = base.get_cached_tensor(
+            "fc_upper_triangles",
+            base.fc_upper_triangles,
+            self.device,
+        )
         self.sc_r2t_corr_upper_triangles = (
-            torch.tensor(base.sc_r2t_corr_upper_triangles, dtype=torch.float32, device=self.device)
+            base.get_cached_tensor(
+                "sc_r2t_corr_upper_triangles",
+                base.sc_r2t_corr_upper_triangles,
+                self.device,
+            )
             if base.sc_r2t_corr_upper_triangles is not None
             else None
         )
@@ -318,17 +341,37 @@ class HCP_Partition(Dataset):
         self.cov_sources = list(base.cov_sources)
         self.cov_tensors = {}
         if "fs_all" in self.cov_sources:
-            self.cov_tensors["fs_all"] = torch.tensor(base.fs_features_z, dtype=torch.float32, device=self.device)
+            self.cov_tensors["fs_all"] = base.get_cached_tensor(
+                "cov_fs_all",
+                base.fs_features_z,
+                self.device,
+            )
         if "fs_volumes" in self.cov_sources:
             if base.fs_volumes_z is None:
                 raise ValueError("fs_volumes requested but FS volume columns are unavailable.")
-            self.cov_tensors["fs_volumes"] = torch.tensor(base.fs_volumes_z, dtype=torch.float32, device=self.device)
+            self.cov_tensors["fs_volumes"] = base.get_cached_tensor(
+                "cov_fs_volumes",
+                base.fs_volumes_z,
+                self.device,
+            )
         if "age" in self.cov_sources:
-            self.cov_tensors["age"] = torch.tensor(base.age_z, dtype=torch.float32, device=self.device)
+            self.cov_tensors["age"] = base.get_cached_tensor(
+                "cov_age",
+                base.age_z,
+                self.device,
+            )
         if "sex" in self.cov_sources:
-            self.cov_tensors["sex"] = torch.tensor(base.sex_oh, dtype=torch.float32, device=self.device)
+            self.cov_tensors["sex"] = base.get_cached_tensor(
+                "cov_sex",
+                base.sex_oh,
+                self.device,
+            )
         if "race_eth" in self.cov_sources:
-            self.cov_tensors["race_eth"] = torch.tensor(base.race_eth_oh, dtype=torch.float32, device=self.device)
+            self.cov_tensors["race_eth"] = base.get_cached_tensor(
+                "cov_race_eth",
+                base.race_eth_oh,
+                self.device,
+            )
     
     def _get_modality_tensor(self, modality, global_idx):
         if modality == "SC":

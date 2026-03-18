@@ -1,19 +1,16 @@
 #!/bin/bash
-# Array: 2 sources x 5 seeds = 10 tasks (0-9)
-# task_id = seed_idx * 2 + source_idx
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=16
 #SBATCH --time=4:00:00
 #SBATCH --mem=96GB
-#SBATCH --gres=gpu:1
-#SBATCH --job-name=tune_sarwar_array
-#SBATCH --output=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_sarwar_array_%A_%a.out
-#SBATCH --error=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_sarwar_array_%A_%a.err
+#SBATCH --gres=gpu:4
+#SBATCH --job-name=tune_chen_SCr2t
+#SBATCH --output=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_chen_SCr2t_%j.out
+#SBATCH --error=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_chen_SCr2t_%j.err
 #SBATCH --mail-type=END
 #SBATCH --mail-user=asr655@nyu.edu
-#SBATCH --array=0-9
 
 set -euo pipefail
 
@@ -27,21 +24,13 @@ export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 
+# Heavier model than PCA-PLS-learnable, keep one GPU per trial.
+# 4 GPUs allocated => run up to 4 concurrent trials.
 export TUNE_CPUS_PER_TRIAL=4
 export TUNE_GPUS_PER_TRIAL=1
-export MAX_CONCURRENT_TRIALS=1
+export MAX_CONCURRENT_TRIALS=4
 
-SOURCES=("SC" "SC_r2t")
-NUM_SOURCES=2
-SEEDS=(0 1 2 3 4)
-
-IDX=${SLURM_ARRAY_TASK_ID}
-SRC_IDX=$((IDX % NUM_SOURCES))
-SEED=${SEEDS[$((IDX / NUM_SOURCES))]}
-SOURCE=${SOURCES[$SRC_IDX]}
-
-echo "Starting job ${SLURM_JOB_ID} (task ${SLURM_ARRAY_TASK_ID}) on $(hostname) at $(date)"
-echo "Model=Sarwar2020MLP  Source=${SOURCE}  Seed=${SEED}"
+echo "Starting job ${SLURM_JOB_ID} on $(hostname) at $(date)"
 
 singularity exec --nv \
   --overlay "/scratch/$USER/envs/kraken_env/overlay-15GB-500K.ext3:ro" \
@@ -55,15 +44,15 @@ singularity exec --nv \
     cd ${CONN2CONN_DIR}
     python main.py \
       --mode prod \
-      --model Sarwar2020MLP \
-      --config models/configs/Sarwar2020MLP.yml \
-      --source ${SOURCE} \
+      --model Chen2024GCN \
+      --config models/configs/Chen2024GCN.yml \
+      --source SC_r2t \
       --target FC \
-      --shuffle_seed ${SEED} \
+      --shuffle_seed 0 \
       --save_checkpoint \
       --use_tune \
       --search_alg optuna \
-      --num_samples 16 \
+      --num_samples 24 \
       --max_concurrent_trials ${MAX_CONCURRENT_TRIALS} \
       --tune_cpus_per_trial ${TUNE_CPUS_PER_TRIAL} \
       --tune_gpus_per_trial ${TUNE_GPUS_PER_TRIAL} \

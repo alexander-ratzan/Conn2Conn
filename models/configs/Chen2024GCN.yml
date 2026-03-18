@@ -17,7 +17,7 @@ default:
     lr: 1.0e-3
     loss_type: mse
     max_epochs: 400
-    batch_size: 2
+    batch_size: 4
     log_every: 20
 
 search_space:
@@ -26,10 +26,10 @@ search_space:
     values: [2, 3]
   conv_dim:
     type: choice
-    values: [64, 128, 256]
+    values: [32, 64, 128, 256]
   dnn_dim:
     type: choice
-    values: [32, 64, 128]
+    values: [16, 32, 64, 128]
   node_feature_type:
     type: choice
     values: [identity, sc_row]
@@ -43,4 +43,4 @@ search_space:
     upper: 5.0e-3
   max_epochs:
     type: choice
-    values: [200, 300, 400]
+    values: [100, 200, 300, 400]

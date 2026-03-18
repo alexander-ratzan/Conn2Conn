@@ -1,25 +1,13 @@
 import torch
 import torch.nn as nn
+from torch_geometric.nn import GCNConv
 
 from data.graph_adapter import (
     infer_num_nodes_from_upper_triangle_dim,
     upper_triangle_to_symmetric,
     get_label_edge_index,
-    build_message_passing_adjacency,
 )
 from models.gnn_features import build_node_features
-
-
-class DenseGCNLayer(nn.Module):
-    """Dense GCN layer: H' = A_norm @ H @ W"""
-
-    def __init__(self, in_dim: int, out_dim: int):
-        super().__init__()
-        self.lin = nn.Linear(in_dim, out_dim)
-
-    def forward(self, h: torch.Tensor, a_norm: torch.Tensor) -> torch.Tensor:
-        # h: [B, N, Fin], a_norm: [B, N, N]
-        return torch.matmul(a_norm, self.lin(h))
 
 
 class Chen2024GCN(nn.Module):
@@ -64,19 +52,39 @@ class Chen2024GCN(nn.Module):
 
         source_ut_dim = int(base.sc_upper_triangles.shape[1])
         self.num_nodes = infer_num_nodes_from_upper_triangle_dim(source_ut_dim)
+        self.num_edges_upper = source_ut_dim
 
-        # Label edges (target FC upper-triangle) follow Conn2Conn target vectorization order.
-        self.register_buffer("label_edge_index", get_label_edge_index(self.num_nodes, device=device))
+        # Cached topology templates:
+        # - label_edge_index: upper-triangle FC edges to predict
+        # - mp_edge_index_template: symmetric SC edges used for message passing
+        label_edge_index = get_label_edge_index(self.num_nodes, device=device)
+        self.register_buffer("label_edge_index", label_edge_index)
+        mp_edge_index_template = torch.cat(
+            [
+                label_edge_index,
+                torch.stack([label_edge_index[1], label_edge_index[0]], dim=0),
+            ],
+            dim=1,
+        )
+        self.register_buffer("mp_edge_index_template", mp_edge_index_template)
+        self.register_buffer(
+            "identity_node_features",
+            torch.eye(self.num_nodes, device=device, dtype=torch.float32),
+        )
 
         # Determine feature dimensionality based on chosen node feature type.
         feature_dim = self.num_nodes if self.node_feature_type == "identity" else self.num_nodes
 
         self.convs = nn.ModuleList()
         self.prelus = nn.ModuleList()
-        self.convs.append(DenseGCNLayer(feature_dim, self.conv_dim))
+        self.convs.append(
+            GCNConv(feature_dim, self.conv_dim, add_self_loops=self.add_self_loops, normalize=True)
+        )
         self.prelus.append(nn.PReLU())
         for _ in range(self.layer_num - 1):
-            self.convs.append(DenseGCNLayer(self.conv_dim, self.conv_dim))
+            self.convs.append(
+                GCNConv(self.conv_dim, self.conv_dim, add_self_loops=self.add_self_loops, normalize=True)
+            )
             self.prelus.append(nn.PReLU())
 
         self.edge_mlp = nn.Sequential(
@@ -95,22 +103,37 @@ class Chen2024GCN(nn.Module):
         return x
 
     def forward(self, x):
-        x_ut = self._resolve_input(x).to(torch.float32)
+        model_device = self.edge_mlp[0].weight.device
+        x_ut = self._resolve_input(x).to(device=model_device, dtype=torch.float32)
         if x_ut.ndim == 1:
             x_ut = x_ut.unsqueeze(0)
+        bsz = x_ut.shape[0]
+        device = model_device
 
-        sc_dense = upper_triangle_to_symmetric(x_ut, self.num_nodes)
-        a_norm = build_message_passing_adjacency(sc_dense, add_self_loops=self.add_self_loops)
-        h = build_node_features(sc_dense, feature_type=self.node_feature_type)
+        # Build node features.
+        if self.node_feature_type == "identity":
+            h = self.identity_node_features.to(device).unsqueeze(0).expand(bsz, -1, -1)
+        else:
+            # Optional alternative for experiments; identity is the Chen-style default.
+            sc_dense = upper_triangle_to_symmetric(x_ut, self.num_nodes)
+            h = build_node_features(sc_dense, feature_type=self.node_feature_type)
+        h = h.reshape(bsz * self.num_nodes, -1)
+
+        # Build batched sparse graph from cached topology + per-subject SC edge weights.
+        offsets = (torch.arange(bsz, device=device, dtype=torch.long) * self.num_nodes).view(bsz, 1, 1)
+        mp_edge_template = self.mp_edge_index_template.to(device)
+        mp_edge_index = (mp_edge_template.unsqueeze(0) + offsets).permute(1, 0, 2).reshape(2, -1)
+        mp_edge_weight = torch.cat([x_ut, x_ut], dim=1).reshape(-1)
 
         for conv, prelu in zip(self.convs, self.prelus):
-            h = prelu(conv(h, a_norm))
+            h = prelu(conv(h, mp_edge_index, mp_edge_weight))
 
-        edge_idx = self.label_edge_index
-        h_i = h[:, edge_idx[0], :]
-        h_j = h[:, edge_idx[1], :]
-        edge_feat = torch.cat([h_i, h_j], dim=-1)
-        y_hat = self.edge_mlp(edge_feat).squeeze(-1)
+        label_edge_template = self.label_edge_index.to(device)
+        label_edge_index = (label_edge_template.unsqueeze(0) + offsets).permute(1, 0, 2).reshape(2, -1)
+        h_i = h[label_edge_index[0]]
+        h_j = h[label_edge_index[1]]
+        edge_feat = torch.cat([h_i, h_j], dim=-1)  # [B * E, 2*conv_dim]
+        y_hat = self.edge_mlp(edge_feat).squeeze(-1).reshape(bsz, self.num_edges_upper)
         return y_hat
 
     def get_reg_loss(self):

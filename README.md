@@ -16,6 +16,8 @@ Predicts one connectome modality from another on HCP-derived data (default `SC �
 | `CrossModal_PCA_PLS_learnable` | Learned | PCA/PLS-initialized linear map, fine-tuned end-to-end |
 | `CrossModal_PCA_PLS_CovProjector` | Learned | PCA+PLS + residual correction conditioned on subject covariates |
 | `CrossModalVAE` | Learned | Variational autoencoder cross-modal mapping |
+| `Sarwar2020MLP` | Learned | Fully non-linear MLP baseline with correlation-aware loss option |
+| `Chen2024GCN` | Learned | Edge-level GCN baseline (`SC` graph message passing, FC edge regression) |
 | `Krakencoder_precomputed` | Closed-form / Precomputed | Precomputed Krakencoder baseline (implemented by class `KrakencoderPrecomputed`) |
 
 ---
@@ -26,6 +28,8 @@ Predicts one connectome modality from another on HCP-derived data (default `SC �
 conda env create -f kraken_env.yml
 conda activate kraken
 wandb login   # authenticate once with your W&B API key
+# required for Chen2024GCN
+pip install torch-geometric
 ```
 
 Data paths are configured in `data/hcp_dataset.py` and require local access to HCP-derived connectome and covariate files.
@@ -54,8 +58,25 @@ Target modality is currently single-input only (default `FC`).
 - SC data
 - FC data
 - FreeSurfer covariates
+- parcel-level node features (volume + centroid; optional cached source)
 
 Only subjects present in all required sources are kept.
+
+### Data Loading Modes
+
+`HCP_Base` supports two data-loading modes:
+- `manual` (default): original raw-file loading path from HCP-derived files
+- `precomputed`: load cached `.npy` arrays from `precompute_cache_root` (fast startup)
+
+Cache behavior:
+- default cache root: `/scratch/asr655/neuroinformatics/Conn2Conn_data`
+- default `write_manual_cache`: `False` (manual mode does **not** write cache unless explicitly enabled)
+- if `data_load_mode='precomputed'` is passed through `Sim`, cache root defaults to the path above and manual cache writing is forced off
+
+`Sim(...)` accepts:
+- `data_load_mode`
+- `precompute_cache_root`
+- `write_manual_cache`
 
 ### Train / Val / Test Splitting
 
@@ -142,14 +163,14 @@ python main.py --mode prod --model CrossModal_PCA_PLS_learnable \
 **Multi-seed / multi-source array scripts** (run from repo root):
 
 ```bash
-sbatch tune_array_pca_SC_SCr2t_seeds.sh
-sbatch tune_array_pls_svd_SC_SCr2t_seeds.sh
-sbatch tune_array_pca_pls_SC_SCr2t_SCpSCr2t_seeds.sh
-sbatch tune_array_pca_pls_learnable_SC_SCr2t_SCpSCr2t_seeds.sh
-sbatch tune_array_projector_SC_cov_types_seeds.sh
+sbatch sbatch/Sarwar2020MLP/tune_array_sarwar2020_SC_SCr2t_seeds.sh
+sbatch sbatch/Chen2024GCN/tune_array_chen2024gcn_SC_SCr2t_seeds.sh
 ```
 
-One-off per-source scripts live in `sbatch/<ModelName>/`.
+Parallel per-source scripts live in:
+- `sbatch/Sarwar2020MLP/`
+- `sbatch/Chen2024GCN/`
+- plus existing model folders under `sbatch/`
 
 ---
 
@@ -213,10 +234,15 @@ Conn2Conn/
 │   ├── ray_checkpoints/             # Best-trial checkpoints
 │   └── logs/                        # SLURM stdout/stderr
 ├── sbatch/                          # Per-model one-off SLURM scripts
-├── tune_array_*.sh                  # Multi-seed array scripts
+│   ├── Sarwar2020MLP/
+│   ├── Chen2024GCN/
+│   └── ...
+├── tune_array_*.sh                  # Optional top-level array wrappers
 ├── scrape_results.ipynb             # Results analysis notebook
 ├── test_learnable_model.ipynb       # Learnable model dev notebook
 ├── test_proj_model.ipynb            # CovProjector dev notebook
+├── test_sarwar2020_model.ipynb      # Sarwar baseline dev notebook
+├── test_chen2024_model.ipynb        # Chen GCN baseline dev notebook
 ├── notebooks/                       # Exploratory and evaluation notebooks
 └── krakencoder/                     # Bundled KrakenEncoder codebase
 ```

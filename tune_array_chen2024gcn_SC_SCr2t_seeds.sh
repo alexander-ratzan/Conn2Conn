@@ -8,9 +8,9 @@
 #SBATCH --time=4:00:00
 #SBATCH --mem=96GB
 #SBATCH --gres=gpu:1
-#SBATCH --job-name=tune_sarwar_array
-#SBATCH --output=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_sarwar_array_%A_%a.out
-#SBATCH --error=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_sarwar_array_%A_%a.err
+#SBATCH --job-name=tune_chen_array
+#SBATCH --output=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_chen_array_%A_%a.out
+#SBATCH --error=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_chen_array_%A_%a.err
 #SBATCH --mail-type=END
 #SBATCH --mail-user=asr655@nyu.edu
 #SBATCH --array=0-9
@@ -41,7 +41,7 @@ SEED=${SEEDS[$((IDX / NUM_SOURCES))]}
 SOURCE=${SOURCES[$SRC_IDX]}
 
 echo "Starting job ${SLURM_JOB_ID} (task ${SLURM_ARRAY_TASK_ID}) on $(hostname) at $(date)"
-echo "Model=Sarwar2020MLP  Source=${SOURCE}  Seed=${SEED}"
+echo "Model=Chen2024GCN  Source=${SOURCE}  Seed=${SEED}"
 
 singularity exec --nv \
   --overlay "/scratch/$USER/envs/kraken_env/overlay-15GB-500K.ext3:ro" \
@@ -55,8 +55,8 @@ singularity exec --nv \
     cd ${CONN2CONN_DIR}
     python main.py \
       --mode prod \
-      --model Sarwar2020MLP \
-      --config models/configs/Sarwar2020MLP.yml \
+      --model Chen2024GCN \
+      --config models/configs/Chen2024GCN.yml \
       --source ${SOURCE} \
       --target FC \
       --shuffle_seed ${SEED} \

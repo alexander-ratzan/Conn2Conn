@@ -2,10 +2,10 @@
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=16
 #SBATCH --time=4:00:00
 #SBATCH --mem=96GB
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:4
 #SBATCH --job-name=tune_sarwar_SCr2t
 #SBATCH --output=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_sarwar_SCr2t_%j.out
 #SBATCH --error=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_sarwar_SCr2t_%j.err
@@ -25,9 +25,10 @@ export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 
 # Heavier model than PCA-PLS-learnable, keep one GPU per trial.
+# 4 GPUs allocated => run up to 4 concurrent trials.
 export TUNE_CPUS_PER_TRIAL=4
 export TUNE_GPUS_PER_TRIAL=1
-export MAX_CONCURRENT_TRIALS=2
+export MAX_CONCURRENT_TRIALS=4
 
 echo "Starting job ${SLURM_JOB_ID} on $(hostname) at $(date)"
 
