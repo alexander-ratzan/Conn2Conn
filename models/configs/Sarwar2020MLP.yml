@@ -26,14 +26,14 @@ default:
 search_space:
   hidden_dim:
     type: choice
-    values: [256, 512, 768, 1024]
+    values: [128, 256, 512, 1024]
   num_hidden_layers:
     type: choice
-    values: [3, 5, 7]
+    values: [3, 5, 6]
   dropout:
     type: uniform
     lower: 0.1
-    upper: 0.6
+    upper: 0.4
   activation_mode:
     type: choice
     values: [alternating, leaky_relu, tanh]
@@ -42,23 +42,23 @@ search_space:
     values: [true, false]
   l1_reg:
     type: choice
-    values: [0.0, 1.0e-7, 1.0e-6, 1.0e-5]
+    values: [0.0, 1.0e-7, 1.0e-6]
   l2_reg:
     type: loguniform
-    lower: 1.0e-8
-    upper: 1.0e-4
+    lower: 1.0e-6
+    upper: 1.0e-2
   lr:
     type: loguniform
     lower: 1.0e-6
     upper: 5.0e-4
   loss_corr_target:
     type: uniform
-    lower: 0.05
-    upper: 0.7
+    lower: 0.3
+    upper: 0.9
   loss_corr_weight:
     type: loguniform
     lower: 1.0e-6
-    upper: 1.0e-1
+    upper: 1.0e-3
   max_epochs:
     type: choice
-    values: [100, 200, 300, 500]
+    values: [100, 200, 300, 500, 700]

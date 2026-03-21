@@ -42,13 +42,14 @@ singularity exec --nv \
     cd ${CONN2CONN_DIR}
     python main.py \
       --mode prod \
+      --data_load_mode precomputed \
       --model CrossModal_PLS_SVD \
       --config models/configs/CrossModal_PLS_SVD.yml \
       --source SC \
       --target FC \
       --save_checkpoint \
       --use_tune \
-      --num_samples 12 \
+      --num_samples 3 \
       --max_concurrent_trials ${MAX_CONCURRENT_TRIALS} \
       --tune_cpus_per_trial ${TUNE_CPUS_PER_TRIAL} \
       --tune_gpus_per_trial ${TUNE_GPUS_PER_TRIAL} \

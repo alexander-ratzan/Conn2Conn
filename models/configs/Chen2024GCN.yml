@@ -7,18 +7,18 @@ default:
   model:
     name: Chen2024GCN
     layer_num: 2
-    conv_dim: 256
-    dnn_dim: 64
+    conv_dim: 64
+    dnn_dim: 32
     node_feature_type: identity
     reg: 1.0e-4
     add_self_loops: true
     device: null
   trainer:
-    lr: 1.0e-3
+    lr: 2.0e-3
     loss_type: mse
-    max_epochs: 400
+    max_epochs: 1000
     batch_size: 4
-    log_every: 20
+    log_every: 1
 
 search_space:
   layer_num:
@@ -26,21 +26,21 @@ search_space:
     values: [2, 3]
   conv_dim:
     type: choice
-    values: [32, 64, 128, 256]
+    values: [32, 64, 128]
   dnn_dim:
     type: choice
-    values: [16, 32, 64, 128]
+    values: [16, 32, 64]
   node_feature_type:
     type: choice
-    values: [identity, sc_row]
+    values: [identity]
   reg:
     type: loguniform
-    lower: 1.0e-6
+    lower: 1.0e-5
     upper: 1.0e-3
   lr:
     type: loguniform
-    lower: 1.0e-4
+    lower: 5.0e-4
     upper: 5.0e-3
   max_epochs:
     type: choice
-    values: [100, 200, 300, 400]
+    values: [500, 750, 1000]

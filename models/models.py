@@ -207,14 +207,15 @@ def predict_from_loader(model, data_loader, device=None):
         for batch in data_loader:
             x = get_model_input(batch)
             y = batch["y"].to(device)
+            kwargs = {}
             if getattr(model, "uses_cov", False):
-                kwargs = {"cov": get_batch_cov(batch)}
+                kwargs["cov"] = get_batch_cov(batch)
                 # For the target-leakage sanity test: also feed true targets into the projector
                 if getattr(model, "use_target_scores_in_projector", False) and "y" in batch:
                     kwargs["y"] = batch["y"]
-                out = model(x, **kwargs)
-            else:
-                out = model(x)
+            if getattr(model, "uses_node_features", False) and "node_features" in batch:
+                kwargs["node_features"] = batch["node_features"]
+            out = model(x, **kwargs) if kwargs else model(x)
             preds = out[0] if isinstance(out, tuple) else out
             all_preds.append(preds.cpu())
             all_targets.append(y.cpu())
@@ -1210,7 +1211,7 @@ class KrakencoderPrecomputed(nn.Module):
 
     is_precomputed = True
 
-    def __init__(self, base, kraken_predictions_dir=None):
+    def __init__(self, base, kraken_predictions_dir=None, **kwargs):
         super().__init__()
 
         seed = base.shuffle_seed

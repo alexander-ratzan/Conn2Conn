@@ -18,6 +18,7 @@ Predicts one connectome modality from another on HCP-derived data (default `SC �
 | `CrossModalVAE` | Learned | Variational autoencoder cross-modal mapping |
 | `Sarwar2020MLP` | Learned | Fully non-linear MLP baseline with correlation-aware loss option |
 | `Chen2024GCN` | Learned | Edge-level GCN baseline (`SC` graph message passing, FC edge regression) |
+| `NodalGNN` | Learned | SC-conditioned GNN using subject-specific parcel node features (volume, centroid, `SC_r2t`) |
 | `Krakencoder_precomputed` | Closed-form / Precomputed | Precomputed Krakencoder baseline (implemented by class `KrakencoderPrecomputed`) |
 
 ---
@@ -28,7 +29,7 @@ Predicts one connectome modality from another on HCP-derived data (default `SC �
 conda env create -f kraken_env.yml
 conda activate kraken
 wandb login   # authenticate once with your W&B API key
-# required for Chen2024GCN
+# required for GNN baselines
 pip install torch-geometric
 ```
 
@@ -58,7 +59,7 @@ Target modality is currently single-input only (default `FC`).
 - SC data
 - FC data
 - FreeSurfer covariates
-- parcel-level node features (volume + centroid; optional cached source)
+- parcel-level node features (volume + centroid + appended `SC_r2t` tract-profile channels)
 
 Only subjects present in all required sources are kept.
 
@@ -94,6 +95,13 @@ Each dataset item returns:
 - `y`: target modality tensor
 - `cov`: covariate dict for requested covariate sources
 - `subject_id`: HCP subject identifier
+
+For models that explicitly request parcel node features (currently `NodalGNN`), each sample also includes:
+- `node_features`: `[num_nodes, num_features]` tensor built from parcel volume, parcel centroid coordinates, and appended local `SC_r2t` node features
+
+Node-feature loading options exposed through `HCP_Base` / `Sim`:
+- `volume_feature_type`: default `volume_mm3`, optional normalized volume variant
+- `centroid_feature_type`: default `centroid_mm`, optional medoid coordinates
 
 ### Covariates
 
@@ -151,6 +159,7 @@ python main.py --mode prod --model CrossModal_PCA_PLS_learnable \
 | `--source` | Input modality: `SC`, `SC_r2t`, or `SC+SC_r2t` |
 | `--target` | Output modality (default `FC`) |
 | `--shuffle_seed` | Train/val/test split seed (0–4 for multi-seed evaluation) |
+| `--data_load_mode` | `manual` raw loading or `precomputed` cached-array loading |
 | `--use_tune` | Enable Ray Tune HPO |
 | `--num_samples` | Number of Ray Tune trials |
 | `--report_best_after_tune` | Re-run and fully evaluate the best trial after tuning |
@@ -160,16 +169,19 @@ python main.py --mode prod --model CrossModal_PCA_PLS_learnable \
 
 ## Batch Jobs (SLURM)
 
-**Multi-seed / multi-source array scripts** (run from repo root):
+**Top-level seed array scripts** (run from repo root):
 
 ```bash
-sbatch sbatch/Sarwar2020MLP/tune_array_sarwar2020_SC_SCr2t_seeds.sh
-sbatch sbatch/Chen2024GCN/tune_array_chen2024gcn_SC_SCr2t_seeds.sh
+sbatch tune_array_sarwar2020_SC_seeds.sh
+sbatch tune_array_sarwar2020_SCr2t_seeds.sh
+sbatch tune_array_chen2024gcn_SC_seeds.sh
+sbatch tune_array_nodalgnn_SC_seeds.sh
 ```
 
 Parallel per-source scripts live in:
 - `sbatch/Sarwar2020MLP/`
 - `sbatch/Chen2024GCN/`
+- `sbatch/NodalGNN/`
 - plus existing model folders under `sbatch/`
 
 ---
@@ -243,6 +255,7 @@ Conn2Conn/
 ├── test_proj_model.ipynb            # CovProjector dev notebook
 ├── test_sarwar2020_model.ipynb      # Sarwar baseline dev notebook
 ├── test_chen2024_model.ipynb        # Chen GCN baseline dev notebook
+├── test_nodal_gnn_model.ipynb       # NodalGNN baseline dev notebook
 ├── notebooks/                       # Exploratory and evaluation notebooks
 └── krakencoder/                     # Bundled KrakenEncoder codebase
 ```

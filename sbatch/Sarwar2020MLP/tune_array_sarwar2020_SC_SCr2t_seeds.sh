@@ -1,5 +1,5 @@
 #!/bin/bash
-# Array: 2 sources x 5 seeds = 10 tasks (0-9)
+# Array: 2 sources x 10 seeds = 20 tasks (0-19)
 # task_id = seed_idx * 2 + source_idx
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced
@@ -13,7 +13,7 @@
 #SBATCH --error=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_sarwar_array_%A_%a.err
 #SBATCH --mail-type=END
 #SBATCH --mail-user=asr655@nyu.edu
-#SBATCH --array=0-9
+#SBATCH --array=0-19
 
 set -euo pipefail
 
@@ -33,7 +33,7 @@ export MAX_CONCURRENT_TRIALS=1
 
 SOURCES=("SC" "SC_r2t")
 NUM_SOURCES=2
-SEEDS=(0 1 2 3 4)
+SEEDS=(0 1 2 3 4 5 6 7 8 9)
 
 IDX=${SLURM_ARRAY_TASK_ID}
 SRC_IDX=$((IDX % NUM_SOURCES))
@@ -60,10 +60,11 @@ singularity exec --nv \
       --source ${SOURCE} \
       --target FC \
       --shuffle_seed ${SEED} \
+      --data_load_mode precomputed \
       --save_checkpoint \
       --use_tune \
       --search_alg optuna \
-      --num_samples 24 \
+      --num_samples 8 \
       --max_concurrent_trials ${MAX_CONCURRENT_TRIALS} \
       --tune_cpus_per_trial ${TUNE_CPUS_PER_TRIAL} \
       --tune_gpus_per_trial ${TUNE_GPUS_PER_TRIAL} \

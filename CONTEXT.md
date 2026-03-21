@@ -11,6 +11,7 @@ For user-facing usage/setup, see `README.md`.
 `Conn2Conn` predicts one connectome modality from another on HCP-derived data (default `SC -> FC`) and compares:
 - closed-form baselines (PCA/PLS family)
 - learned variants (learnable map, covariate-conditioned residual projector, VAE, Sarwar MLP, Chen GCN)
+- nodal-feature GNN baseline (`NodalGNN`)
 - precomputed Krakencoder baseline
 
 The main evaluation axis is performance across `(model, source, shuffle_seed)` with W&B-backed experiment tracking.
@@ -83,6 +84,7 @@ Learned (`learned: true`):
 - `CrossModalVAE`
 - `Sarwar2020MLP` (implemented in `models/sarwar2020_mlp.py`)
 - `Chen2024GCN` (implemented in `models/chen2024_gnn.py`)
+- `NodalGNN` (implemented in `models/nodal_gnn.py`)
 
 ### Special: `Krakencoder_precomputed`
 
@@ -116,6 +118,13 @@ Naming note:
 - `HCP_Partition` for family-aware train/val/test partitioning
 - support for composite sources like `SC+SC_r2t`
 
+Parcel-level node feature pipeline:
+- parcel volume and centroid CSVs are loaded per subject
+- feature selectors are controlled by `volume_feature_type` and `centroid_feature_type`
+- local `SC_r2t` node-wise tract features are appended to parcel node features
+- final node feature layout is:
+  - `[volume, centroid_x, centroid_y, centroid_z, sc_r2t_channels...]`
+
 Data-loading modes in `HCP_Base`:
 - `manual` (default): load raw source files
 - `precomputed`: load cached `.npy` arrays from cache root
@@ -126,6 +135,7 @@ Cache defaults:
 
 Performance note:
 - `HCP_Partition` now reuses shared base-level tensors across train/val/test partitions (avoids triple full-dataset tensor copies per split).
+- `Sim` enables `expose_node_features=True` only for `NodalGNN`, so other models do not pay for unused batch payloads.
 
 Covariates used by projector variants include demographics and FreeSurfer features; category collapsing for sparse `race_eth` occurs at partition time.
 
@@ -214,7 +224,9 @@ Suggested quick smoke workflow:
 4. Precomputed model path bypasses DataLoader-based prediction.
 5. Krakencoder config/class naming should be verified before relying on automated runs.
 6. `Chen2024GCN` requires `torch-geometric` in the runtime environment.
-7. `precomputed` data_load_mode only works when cache files already exist at the resolved cache root.
+7. `NodalGNN` also requires `torch-geometric`.
+8. `precomputed` data_load_mode only works when cache files already exist at the resolved cache root.
+9. Some root-level seed scripts intentionally duplicate older sbatch-folder workflows; prefer the top-level `tune_array_*_seeds.sh` scripts for current multi-seed launches.
 
 ---
 
@@ -225,6 +237,11 @@ Add/modify model:
 2. add/update YAML in `models/configs/`
 3. ensure `build_model()` can resolve class name
 4. run one dev/prod dry run with fixed seed
+
+For `NodalGNN` specifically:
+1. node features come from `batch["node_features"]`, not from `cov`
+2. `CrossModalLightningModule`, `predict_from_loader`, and loss/eval helpers already know how to pass `node_features`
+3. ablations are controlled in config via `use_volume`, `use_spatial`, and `use_r2t`
 
 Update experiment reporting:
 1. patch `results/results_scraper.py`

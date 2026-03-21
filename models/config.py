@@ -181,5 +181,12 @@ def build_model(base, model_name: str = None, model_kwargs: dict = None):
     if name == "Chen2024GCN":
         from models.chen2024_gnn import Chen2024GCN
         return Chen2024GCN(base, **kwargs)
+    if name == "NodalGNN":
+        from models.nodal_gnn import NodalGNN
+        return NodalGNN(base, **kwargs)
+    if name == "Krakencoder_precomputed":
+        kwargs.pop("device", None)
+        from models.models import KrakencoderPrecomputed
+        return KrakencoderPrecomputed(base, **kwargs)
     cls = getattr(models_module, name)
     return cls(base, **kwargs)

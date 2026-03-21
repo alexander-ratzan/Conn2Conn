@@ -259,6 +259,7 @@ class Sim:
             "source": self.source,
             "target": self.target,
             "cov_sources": cov_sources,
+            "expose_node_features": (self.model_name == "NodalGNN"),
         }
         for _k in (
             "HCP_dir",
@@ -626,6 +627,7 @@ class Sim:
         # Avoid capturing the full Sim instance (which can include large in-memory data) inside the Ray trainable closure.
         model_name = self.model_name
         learned = self.learned
+        cov_sources_explicit = bool(self._cov_sources_explicit)
         param_space = get_search_space(self.model_name, path=self.config_path)
         if not param_space:
             raise ValueError(f"No search_space for model: {self.model_name} in config YAML.")
@@ -660,7 +662,7 @@ class Sim:
         # Expose scalar summary keys for dict-valued hparams so W&B table/filter works cleanly.
         # cov_projectors and cov_fusion are tune.choice over full dicts; a string tag lets you
         # group/filter trials without unpacking nested objects in the W&B UI.
-        if self._cov_sources_explicit:
+        if cov_sources_explicit:
             _cov_proj_default = default.get("model", {}).get("cov_projectors") or {}
             default_flat["cov_projectors_tag"] = "|".join(
                 f"{src}:{cfg.get('out_dim', '?')}" for src, cfg in sorted(_cov_proj_default.items())
@@ -679,7 +681,7 @@ class Sim:
         fixed_data_cfg = deepcopy(default.get("data", {}))
         fixed_cov_sources = (
             list(((default.get("model", {}) or {}).get("cov_sources") or []))
-            if self._cov_sources_explicit else []
+            if cov_sources_explicit else []
         )
         fixed_batch_size = default.get("trainer", {}).get("batch_size", 128)
         print(f"Fixed Tune batch_size: {fixed_batch_size}", flush=True)
@@ -744,7 +746,7 @@ class Sim:
             config_flat = resolve_source_dependent_config(config_flat)
             config = _flat_to_nested(config_flat, model_name)
             # Recompute scalar W&B filter tags from the sampled dict-valued hparams.
-            if self._cov_sources_explicit:
+            if cov_sources_explicit:
                 _sampled_proj = config_flat.get("cov_projectors") or {}
                 if isinstance(_sampled_proj, dict):
                     config_flat["cov_projectors_tag"] = "|".join(
@@ -771,6 +773,7 @@ class Sim:
                     "source": fixed_data_cfg.get("source", "SC"),
                     "target": fixed_data_cfg.get("target", "FC"),
                     "cov_sources": fixed_cov_sources,
+                    "expose_node_features": (model_name == "NodalGNN"),
                 }
                 for _k in (
                     "HCP_dir",
@@ -1201,6 +1204,12 @@ def _parse_args():
         default=0,
         help="Shuffle seed for family-aware train/val/test repartitioning. Use 0 for the original split.",
     )
+    p.add_argument(
+        "--data_load_mode",
+        choices=["manual", "precomputed"],
+        default=None,
+        help="Data loading mode. 'manual' reads raw source files; 'precomputed' reads cached npy arrays.",
+    )
     p.add_argument("--save_checkpoint", action="store_true")
     p.add_argument("--use_tune", action="store_true")
     p.add_argument("--num_samples", type=int, default=10)
@@ -1259,6 +1268,7 @@ if __name__ == "__main__":
         source=args.source,
         target=args.target,
         shuffle_seed=args.shuffle_seed,
+        data_load_mode=args.data_load_mode,
     )
 
     if args.use_tune and args.mode == "prod":

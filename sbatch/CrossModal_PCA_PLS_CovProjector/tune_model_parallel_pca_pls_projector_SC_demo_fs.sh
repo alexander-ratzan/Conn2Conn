@@ -43,13 +43,14 @@ singularity exec --nv \
     cd ${CONN2CONN_DIR}
     python main.py \
       --mode prod \
+      --data_load_mode precomputed \
       --model CrossModal_PCA_PLS_CovProjector \
       --config models/configs/CrossModal_PCA_PLS_CovProjector_SC_demo_fs.yml \
       --save_checkpoint \
       --use_tune \
       --source SC \
       --target FC \
-      --num_samples 24 \
+      --num_samples 3 \
       --search_alg optuna \
       --max_concurrent_trials ${MAX_CONCURRENT_TRIALS} \
       --tune_cpus_per_trial ${TUNE_CPUS_PER_TRIAL} \

@@ -68,6 +68,7 @@ class HCP_Base():
     volume_feature_type='volume_mm3', centroid_feature_type='centroid_mm',
     data_load_mode='manual', precompute_cache_root=DEFAULT_CONN2CONN_CACHE_ROOT,
     write_manual_cache=False,
+    expose_node_features=False,
     cov_sources=None):
         """
         Load and cache all global HCP data for one fixed experiment data setup.
@@ -97,6 +98,9 @@ class HCP_Base():
         self.data_load_mode = data_load_mode
         self.precompute_cache_root = precompute_cache_root
         self.write_manual_cache = bool(write_manual_cache)
+        self.expose_node_features = bool(expose_node_features)
+        self.enable_partition_tensor_cache = (self.data_load_mode == "precomputed")
+        self._tensor_cache = {} if self.enable_partition_tensor_cache else None
         self.cov_sources = list(cov_sources) if cov_sources is not None else ["fs_all"]
 
         if self.data_load_mode not in {"manual", "precomputed"}:
@@ -287,6 +291,19 @@ class HCP_Base():
     def subject_indices_from_id(subject_list, target_subjects):
         return [i for i, subj in enumerate(subject_list) if subj in target_subjects]
 
+    def get_cached_tensor(self, name, array, device, dtype=torch.float32):
+        """
+        Shared tensor cache for partition construction.
+        Enabled only for precomputed data_load_mode so manual mode behavior remains unchanged.
+        """
+        if not self.enable_partition_tensor_cache:
+            return torch.tensor(array, dtype=dtype, device=device)
+
+        cache_key = (name, str(device), str(dtype))
+        if cache_key not in self._tensor_cache:
+            self._tensor_cache[cache_key] = torch.as_tensor(array, dtype=dtype, device=device)
+        return self._tensor_cache[cache_key]
+
 class HCP_Partition(Dataset):
     def __init__(self, base, partition):
         """
@@ -305,11 +322,32 @@ class HCP_Partition(Dataset):
 
         self.source_modalities = list(base.source_modalities)
         self.target = base.target
+        self.node_features = (
+            base.get_cached_tensor(
+                "parcel_node_features",
+                base.parcel_node_features,
+                self.device,
+            )
+            if getattr(base, "expose_node_features", False)
+            else None
+        )
 
-        self.sc_upper_triangles = torch.tensor(base.sc_upper_triangles, dtype=torch.float32, device=self.device)
-        self.fc_upper_triangles = torch.tensor(base.fc_upper_triangles, dtype=torch.float32, device=self.device)
+        self.sc_upper_triangles = base.get_cached_tensor(
+            "sc_upper_triangles",
+            base.sc_upper_triangles,
+            self.device,
+        )
+        self.fc_upper_triangles = base.get_cached_tensor(
+            "fc_upper_triangles",
+            base.fc_upper_triangles,
+            self.device,
+        )
         self.sc_r2t_corr_upper_triangles = (
-            torch.tensor(base.sc_r2t_corr_upper_triangles, dtype=torch.float32, device=self.device)
+            base.get_cached_tensor(
+                "sc_r2t_corr_upper_triangles",
+                base.sc_r2t_corr_upper_triangles,
+                self.device,
+            )
             if base.sc_r2t_corr_upper_triangles is not None
             else None
         )
@@ -318,17 +356,37 @@ class HCP_Partition(Dataset):
         self.cov_sources = list(base.cov_sources)
         self.cov_tensors = {}
         if "fs_all" in self.cov_sources:
-            self.cov_tensors["fs_all"] = torch.tensor(base.fs_features_z, dtype=torch.float32, device=self.device)
+            self.cov_tensors["fs_all"] = base.get_cached_tensor(
+                "cov_fs_all",
+                base.fs_features_z,
+                self.device,
+            )
         if "fs_volumes" in self.cov_sources:
             if base.fs_volumes_z is None:
                 raise ValueError("fs_volumes requested but FS volume columns are unavailable.")
-            self.cov_tensors["fs_volumes"] = torch.tensor(base.fs_volumes_z, dtype=torch.float32, device=self.device)
+            self.cov_tensors["fs_volumes"] = base.get_cached_tensor(
+                "cov_fs_volumes",
+                base.fs_volumes_z,
+                self.device,
+            )
         if "age" in self.cov_sources:
-            self.cov_tensors["age"] = torch.tensor(base.age_z, dtype=torch.float32, device=self.device)
+            self.cov_tensors["age"] = base.get_cached_tensor(
+                "cov_age",
+                base.age_z,
+                self.device,
+            )
         if "sex" in self.cov_sources:
-            self.cov_tensors["sex"] = torch.tensor(base.sex_oh, dtype=torch.float32, device=self.device)
+            self.cov_tensors["sex"] = base.get_cached_tensor(
+                "cov_sex",
+                base.sex_oh,
+                self.device,
+            )
         if "race_eth" in self.cov_sources:
-            self.cov_tensors["race_eth"] = torch.tensor(base.race_eth_oh, dtype=torch.float32, device=self.device)
+            self.cov_tensors["race_eth"] = base.get_cached_tensor(
+                "cov_race_eth",
+                base.race_eth_oh,
+                self.device,
+            )
     
     def _get_modality_tensor(self, modality, global_idx):
         if modality == "SC":
@@ -359,13 +417,16 @@ class HCP_Partition(Dataset):
         else:
             model_input = source_modalities
 
-        return {
+        out = {
             "x": model_input,
             "x_modalities": source_modalities,
             "y": target_data,
             "cov": cov_data,
             "subject_id": self.ids[idx],
         }
+        if self.node_features is not None:
+            out["node_features"] = self.node_features[global_idx]
+        return out
     
     def __len__(self):
         return len(self.indices)

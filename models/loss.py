@@ -283,14 +283,15 @@ def evaluate_model(model, data_loader, target_train_mean, device):
             x = get_model_input(batch)
             y = batch["y"].to(device)
 
+            kwargs = {}
             if getattr(model, "uses_cov", False):
-                kwargs = {"cov": get_batch_cov(batch)}
+                kwargs["cov"] = get_batch_cov(batch)
                 # For the target-leakage sanity test: let the projector see the true targets here too
                 if getattr(model, "use_target_scores_in_projector", False) and "y" in batch:
                     kwargs["y"] = batch["y"]
-                out = model(x, **kwargs)
-            else:
-                out = model(x)
+            if getattr(model, "uses_node_features", False) and "node_features" in batch:
+                kwargs["node_features"] = batch["node_features"]
+            out = model(x, **kwargs) if kwargs else model(x)
             y_pred = out[0] if isinstance(out, tuple) else out
 
             mse = F.mse_loss(y_pred, y).item()

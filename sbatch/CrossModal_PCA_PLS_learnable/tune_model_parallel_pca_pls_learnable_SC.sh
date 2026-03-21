@@ -50,7 +50,7 @@ singularity exec --nv \
       --source SC \
       --target FC \
       --shuffle_seed 0 \
-      --num_samples 30 \
+      --num_samples 3 \
       --search_alg optuna \
       --max_concurrent_trials ${MAX_CONCURRENT_TRIALS} \
       --tune_cpus_per_trial ${TUNE_CPUS_PER_TRIAL} \

@@ -52,7 +52,7 @@ singularity exec --nv \
       --save_checkpoint \
       --use_tune \
       --search_alg optuna \
-      --num_samples 24 \
+      --num_samples 32 \
       --max_concurrent_trials ${MAX_CONCURRENT_TRIALS} \
       --tune_cpus_per_trial ${TUNE_CPUS_PER_TRIAL} \
       --tune_gpus_per_trial ${TUNE_GPUS_PER_TRIAL} \
