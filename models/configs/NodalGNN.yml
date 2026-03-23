@@ -20,8 +20,8 @@ default:
   trainer:
     lr: 2.0e-3
     loss_type: mse
-    max_epochs: 1000
-    batch_size: 4
+    max_epochs: 750
+    batch_size: 8
     log_every: 1
 
 search_space:
