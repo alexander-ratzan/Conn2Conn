@@ -10,7 +10,7 @@ Pairwise correlation matrices between predicted and target connectomes. Diagonal
 
 **Top-1 Accuracy:** Fraction of subjects whose own prediction is the best match.
 
-$$\text{Top-1 Acc} = \frac{1}{N}\sum_{i=1}^{N} \mathbb{1}[\arg\max_j \, r(\hat{y}_i, y_j) = i]$$
+$$\text{Top-1 Acc} = \frac{1}{N}\sum_{i=1}^{N} \mathbb{1}[\arg\max_j \, r(\hat{X}_i, X_j) = i]$$
 
 **Avg Rank %ile:** For each subject, count how many other subjects' predictions have lower correlation with their target than their own prediction does.
 
