@@ -1,0 +1,9 @@
+{
+  "trial_id": "Krakencoder_precomputed",
+  "learned": false,
+  "config_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/local_results/Krakencoder_precomputed/final/config.json",
+  "model_path": null,
+  "metrics_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/local_results/Krakencoder_precomputed/final/metrics_final.json",
+  "report_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/local_results/Krakencoder_precomputed/final/eval_test.md",
+  "history_path": null
+}

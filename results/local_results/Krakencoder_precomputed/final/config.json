@@ -1,0 +1,14 @@
+{
+  "data": {
+    "parcellation": "Glasser",
+    "hemi": "both",
+    "source": "SC",
+    "target": "FC",
+    "shuffle_seed": 0
+  },
+  "model": {
+    "name": "Krakencoder_precomputed",
+    "prediction_source": "/scratch/asr655/neuroinformatics/Conn2Conn/krakencoder/example_data/mydata_kraken_source_Glasser.SC.mat",
+    "prediction_key": "predicted_alltypes[1] -> FCcorr_Glasser_hpf"
+  }
+}
