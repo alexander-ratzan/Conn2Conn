@@ -12,6 +12,15 @@ __pycache__/
 .DS_Store
 
 results/
+# Ignore everything in results
+results/**
+
+# Re-allow traversal to the target folder (but don't track contents yet)
+!results/local_results/
+!results/local_results/Krakencoder_precomputed/
+
+# Track ONLY the contents of that folder
+!results/local_results/Krakencoder_precomputed/**
 
 wandb/
 checkpoints/

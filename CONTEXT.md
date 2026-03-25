@@ -252,3 +252,6 @@ Debug missing results cell:
 1. confirm best-trial run exists in W&B with expected tags
 2. inspect parsed source/seed path (nested vs flat fallback)
 3. verify model/source/seed is included in requested grid
+
+## Recent Changes
+- Analysis/figure schematics and context images now live under `context_packages/schematics/` (for example `SC_results.png`, `cov_dl_results.PNG`, `matrix_gif.jpg`, and `demeaned_plot/`).
