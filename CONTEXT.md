@@ -46,6 +46,10 @@ If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after 
   - W&B best-trial scraping + table builders
 - `README.md`
   - user-level commands + workflow
+- `notebooks/results_scrape/*.ipynb`
+  - active experiment-table / plotting notebooks
+- `data/data_viz.py`, `data/demeaned_viz.py`
+  - reusable visualization helpers used by lightweight notebooks
 
 ---
 
@@ -154,6 +158,11 @@ Two run types exist:
 - config shape: nested (`data`, `model`, `trainer`) + top-level metadata
 - summary includes train/val metrics and `eval_test/*` metrics
 
+3. Direct prod runs (used selectively)
+- tags include: model name, `prod`
+- used for notebook-driven or no-tune evaluation flows
+- scraper can now opt specific models into this fetch path (currently used for `NodalGNN` in cov/deep comparison notebooks)
+
 Do not use W&B `group` as sweep identity. Use `ray_tune_id:{id}`.
 
 ---
@@ -164,6 +173,7 @@ Status: active development; already functional for best-trial aggregation.
 
 Primary API:
 - `fetch_best_trial_runs(model_name)`
+- `fetch_direct_prod_runs(model_name)`
 - `parse_run_record(run)`
 - `build_experiment_records(models, sources, seeds, ...)`
 - `records_to_df(records)`
@@ -176,13 +186,15 @@ Key behaviors:
 - handles nested and flat W&B config formats
 - fallback for legacy runs via local checkpoint config
 - resolves local artifact directories under `results/ray_results/`
+- can mix best-trial and direct-prod fetch paths per model via `direct_prod_models`
+- includes experiment-specific helpers for SC-type and covariate/deep-model summary tables and plots
 
 ### Testing Priorities For Scraper
 
 When editing scraper logic, validate:
 1. run-type filtering (`best_trial_report` only for core tables)
 2. config extraction order for source/seed
-3. duplicate run deduping (latest `created_at` wins)
+3. duplicate run deduping (best validation metric wins for the requested selector)
 4. metric extraction (`eval_test/` prefix stripping)
 5. missing-cell fill across full model x source x seed grid
 6. local enrichment merge precedence (W&B metrics should win base keys)
@@ -226,7 +238,7 @@ Suggested quick smoke workflow:
 6. `Chen2024GCN` requires `torch-geometric` in the runtime environment.
 7. `NodalGNN` also requires `torch-geometric`.
 8. `precomputed` data_load_mode only works when cache files already exist at the resolved cache root.
-9. Some root-level seed scripts intentionally duplicate older sbatch-folder workflows; prefer the top-level `tune_array_*_seeds.sh` scripts for current multi-seed launches.
+9. Active multi-seed SLURM launchers live under `sbatch/<ModelName>/`; older root-level wrappers should not be treated as canonical.
 
 ---
 
@@ -255,3 +267,12 @@ Debug missing results cell:
 
 ## Recent Changes
 - Analysis/figure schematics and context images now live under `context_packages/schematics/` (for example `SC_results.png`, `cov_dl_results.PNG`, `matrix_gif.jpg`, and `demeaned_plot/`).
+- Results-analysis workflow now centers on:
+  - `notebooks/results_scrape/scrape_SCtype_results.ipynb`
+  - `notebooks/results_scrape/scrape_covtype_results.ipynb`
+- Lightweight visualization helpers were moved into:
+  - `data/data_viz.py`
+  - `data/demeaned_viz.py`
+- `notebooks/kraken/track_krakencoder_model.ipynb` can log W&B runs and optionally save local markdown reports under `results/local_results/Krakencoder_precomputed/`.
+
+Last updated at: 2026-03-31 15:10:31 EDT

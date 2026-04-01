@@ -169,20 +169,25 @@ python main.py --mode prod --model CrossModal_PCA_PLS_learnable \
 
 ## Batch Jobs (SLURM)
 
-**Top-level seed array scripts** (run from repo root):
+Active multi-seed array scripts live under per-model folders in `sbatch/`:
 
 ```bash
-sbatch tune_array_sarwar2020_SC_seeds.sh
-sbatch tune_array_sarwar2020_SCr2t_seeds.sh
-sbatch tune_array_chen2024gcn_SC_seeds.sh
-sbatch tune_array_nodalgnn_SC_seeds.sh
+sbatch sbatch/Sarwar2020MLP/tune_array_sarwar2020_SC_seeds.sh
+sbatch sbatch/Sarwar2020MLP/tune_array_sarwar2020_SCr2t_seeds.sh
+sbatch sbatch/Chen2024GCN/tune_array_chen2024gcn_SC_seeds.sh
+sbatch sbatch/NodalGNN/tune_array_nodalgnn_SC_seeds.sh
+sbatch sbatch/NodalGNN/run_array_nodalgnn_SC_default_seeds.sh
 ```
 
-Parallel per-source scripts live in:
+Current model folders include:
 - `sbatch/Sarwar2020MLP/`
 - `sbatch/Chen2024GCN/`
+- `sbatch/CrossModalPCA/`
+- `sbatch/CrossModal_PCA_PLS/`
+- `sbatch/CrossModal_PCA_PLS_learnable/`
+- `sbatch/CrossModal_PCA_PLS_CovProjector/`
+- `sbatch/CrossModal_PLS_SVD/`
 - `sbatch/NodalGNN/`
-- plus existing model folders under `sbatch/`
 
 ---
 
@@ -205,11 +210,17 @@ All runs log to W&B project `conn2conn`.
 
 Primary results API: `results/results_scraper.py` (active development surface).
 - fetches best-trial prod runs from W&B
+- optionally fetches direct `prod` runs for models that are logged outside the best-trial report path (currently used for `NodalGNN`)
 - resolves `(model, source, seed)` records (including missing cells)
 - builds flat DataFrames and model-vs-source pivot tables
+- builds covariate-projector / deep-model comparison tables and plotting DataFrames
 - can enrich records with local Ray artifact metrics (`metrics_final.json`)
 
-Notebook surface: `scrape_results.ipynb` for ad hoc analysis and plotting.
+Notebook surface:
+- `notebooks/results_scrape/scrape_SCtype_results.ipynb`
+- `notebooks/results_scrape/scrape_covtype_results.ipynb`
+- `notebooks/kraken/track_krakencoder_model.ipynb`
+- `notebooks/kraken_eval.ipynb`
 
 ```python
 from results.results_scraper import (
@@ -237,25 +248,32 @@ Conn2Conn/
 ├── kraken_env.yml                   # Conda environment spec
 ├── CONTEXT.md                       # Technical reference for agents and developers
 │
-├── data/                            # HCP dataset loading and partitioning
+├── data/
+│   ├── hcp_dataset.py               # HCP loading, alignment, cached-precompute path
+│   ├── dataset_utils.py             # Precomputed cache loaders
+│   ├── data_viz.py                  # Matrix overview plotting / gif helpers
+│   └── demeaned_viz.py              # Demeaned FC / prediction visualization helpers
 ├── models/                          # Model definitions, configs, loss, eval, Lightning module
 │   └── configs/                     # Per-model YAML (default + search_space)
 ├── results/
 │   ├── results_scraper.py           # W&B results scraper
 │   ├── ray_results/                 # Ray Tune trial artifacts
 │   ├── ray_checkpoints/             # Best-trial checkpoints
+│   ├── local_results/               # Notebook / local evaluation artifacts and markdown reports
 │   └── logs/                        # SLURM stdout/stderr
-├── sbatch/                          # Per-model one-off SLURM scripts
+├── sbatch/                          # Per-model SLURM scripts and seed arrays
 │   ├── Sarwar2020MLP/
 │   ├── Chen2024GCN/
 │   └── ...
-├── tune_array_*.sh                  # Optional top-level array wrappers
-├── scrape_results.ipynb             # Results analysis notebook
-├── test_learnable_model.ipynb       # Learnable model dev notebook
-├── test_proj_model.ipynb            # CovProjector dev notebook
-├── test_sarwar2020_model.ipynb      # Sarwar baseline dev notebook
-├── test_chen2024_model.ipynb        # Chen GCN baseline dev notebook
-├── test_nodal_gnn_model.ipynb       # NodalGNN baseline dev notebook
 ├── notebooks/                       # Exploratory and evaluation notebooks
+│   ├── results_scrape/
+│   ├── kraken/
+│   ├── data_overview_matrices.ipynb
+│   ├── demeaned_prediction_overview.ipynb
+│   ├── test_sarwar2020_model.ipynb
+│   ├── test_chen2024_model.ipynb
+│   └── test_nodal_gnn_model.ipynb
 └── krakencoder/                     # Bundled KrakenEncoder codebase
 ```
+
+Last updated at: 2026-03-31 15:10:31 EDT
