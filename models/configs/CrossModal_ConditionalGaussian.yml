@@ -1,0 +1,33 @@
+learned: false
+
+default:
+  data:
+    source: SC
+    target: FC
+  model:
+    name: CrossModal_ConditionalGaussian
+    fit_domain: pca
+    n_components_pca: 128
+    lambda_ridge: 1.0e-3
+    covariance_estimator: empirical
+    zscore_pca_scores: false
+    device: null
+  trainer: {}
+
+search_space:
+  fit_domain:
+    type: choice
+    values: [pca, raw_edges]
+  n_components_pca:
+    type: choice
+    values: [32, 64, 128, 256]
+  lambda_ridge:
+    type: loguniform
+    lower: 1.0e-5
+    upper: 1.0e1
+  covariance_estimator:
+    type: choice
+    values: [empirical, ledoit_wolf, oas]
+  zscore_pca_scores:
+    type: choice
+    values: [false, true]

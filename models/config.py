@@ -190,6 +190,9 @@ def build_model(base, model_name: str = None, model_kwargs: dict = None):
     if name == "LatentAttnMasked":
         from models.latent_attn_masked import LatentAttnMasked
         return LatentAttnMasked(base, **kwargs)
+    if name == "CrossModal_ConditionalGaussian":
+        from models.conditional_gaussian import CrossModal_ConditionalGaussian
+        return CrossModal_ConditionalGaussian(base, **kwargs)
     if name == "Krakencoder_precomputed":
         kwargs.pop("device", None)
         from models.models import KrakencoderPrecomputed

@@ -295,6 +295,7 @@ class Sim:
         mode: str = "dev",
         save_checkpoint: bool = False,
         run_dir: str = None,
+        config_override: dict = None,
         store_eval_md: bool = False,
         run_eval: bool = True,
     ):
@@ -319,6 +320,7 @@ class Sim:
                     mode,
                     save_checkpoint,
                     run_dir,
+                    config_override=config_override,
                     run_eval=run_eval,
                     store_eval_md=store_eval_md,
                 )
@@ -327,6 +329,7 @@ class Sim:
                     mode,
                     save_checkpoint,
                     run_dir,
+                    config_override=config_override,
                     run_eval=run_eval,
                     store_eval_md=store_eval_md,
                 )
