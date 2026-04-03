@@ -32,6 +32,7 @@ class LatentAttnMasked(nn.Module):
         readout_hidden_dim=None,
         attention_activation="softmax",
         residual_mode="none",
+        residual_gain_init=1.0e-3,
         zscore_pca_scores=False,
         attention_dropout=0.0,
         sc_token_dropout=0.0,
@@ -59,6 +60,7 @@ class LatentAttnMasked(nn.Module):
         self.readout_type = str(readout_type)
         self.attention_activation = str(attention_activation)
         self.residual_mode = str(residual_mode)
+        self.residual_gain_init = float(residual_gain_init)
         self.zscore_pca_scores = bool(zscore_pca_scores)
         self.attention_dropout_p = float(attention_dropout)
         self.sc_token_dropout_p = float(sc_token_dropout)
@@ -235,16 +237,8 @@ class LatentAttnMasked(nn.Module):
         self.attn_dropout = nn.Dropout(self.attention_dropout_p) if self.attention_dropout_p > 0 else nn.Identity()
         self.sc_token_dropout = nn.Dropout(self.sc_token_dropout_p) if self.sc_token_dropout_p > 0 else nn.Identity()
         self.residual_gain = None if self.residual_mode == "none" else nn.Parameter(
-            torch.zeros(1, dtype=torch.float32, device=device)
+            torch.tensor([self.residual_gain_init], dtype=torch.float32, device=device)
         )
-        if self.residual_gain is not None and self.readout_head is not None:
-            if self.readout_type == "linear":
-                nn.init.zeros_(self.readout_head.weight)
-                nn.init.zeros_(self.readout_head.bias)
-            else:
-                final_layer = self.readout_head[-1]
-                nn.init.zeros_(final_layer.weight)
-                nn.init.zeros_(final_layer.bias)
 
         self.fc_mask_value = nn.Parameter(torch.zeros(1))
 
@@ -258,7 +252,7 @@ class LatentAttnMasked(nn.Module):
             f"LatentAttnMasked init | src={self.source_modality} tgt={self.target_modality} "
             f"| k={self.n_components_pca} pls={self.n_components_pls} "
             f"| token_embedding_type={self.token_embedding_type} token_embedding_dim={self.token_embedding_dim} "
-            f"| residual_mode={self.residual_mode} "
+            f"| residual_mode={self.residual_mode} residual_gain_init={self.residual_gain_init} "
             f"| attn_dim={self.attn_dim} value_dim={self.value_dim} "
             f"| readout_type={self.readout_type} readout_hidden_dim={self.readout_hidden_dim} "
             f"| attention_activation={self.attention_activation} "

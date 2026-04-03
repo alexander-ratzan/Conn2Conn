@@ -32,6 +32,7 @@ class LatentAttnTranslation(nn.Module):
         readout_hidden_dim=None,
         attention_activation="softmax",
         residual_mode="none",
+        residual_gain_init=1.0e-3,
         zscore_pca_scores=False,
         attention_dropout=0.0,
         reg=1.0e-4,
@@ -56,6 +57,7 @@ class LatentAttnTranslation(nn.Module):
         self.readout_type = str(readout_type)
         self.attention_activation = str(attention_activation)
         self.residual_mode = str(residual_mode)
+        self.residual_gain_init = float(residual_gain_init)
         self.zscore_pca_scores = bool(zscore_pca_scores)
         self.attention_dropout_p = float(attention_dropout)
         self.reg = float(reg)
@@ -215,14 +217,9 @@ class LatentAttnTranslation(nn.Module):
         if self.residual_mode == "none":
             self.residual_gain = None
         else:
-            self.residual_gain = nn.Parameter(torch.zeros(1, dtype=torch.float32, device=device))
-            if self.readout_type == "linear":
-                nn.init.zeros_(self.readout_head.weight)
-                nn.init.zeros_(self.readout_head.bias)
-            else:
-                final_layer = self.readout_head[-1]
-                nn.init.zeros_(final_layer.weight)
-                nn.init.zeros_(final_layer.bias)
+            self.residual_gain = nn.Parameter(
+                torch.tensor([self.residual_gain_init], dtype=torch.float32, device=device)
+            )
 
         self.last_attention = None
         self.last_latent_pred = None
@@ -233,7 +230,7 @@ class LatentAttnTranslation(nn.Module):
             f"LatentAttnTranslation init | src={self.source_modality} tgt={self.target_modality} "
             f"| d_source={d_source} d_target={d_target} | k={self.n_components_pca} "
             f"| token_embedding_type={self.token_embedding_type} token_embedding_dim={self.token_embedding_dim} "
-            f"| residual_mode={self.residual_mode} "
+            f"| residual_mode={self.residual_mode} residual_gain_init={self.residual_gain_init} "
             f"| attn_dim={self.attn_dim} value_dim={self.value_dim} "
             f"| readout_type={self.readout_type} readout_hidden_dim={self.readout_hidden_dim} "
             f"| attention_activation={self.attention_activation} "
@@ -279,8 +276,8 @@ class LatentAttnTranslation(nn.Module):
 
     def predict_target_latents(self, x, return_attention=False):
         c_source = self.encode_source_latents(x)
-        tokens = self._build_tokens(c_source)
         c_target_base = self._compute_residual_base(c_source)
+        tokens = self._build_tokens(c_source)
 
         Q = self.W_Q(tokens)
         K = self.W_K(tokens)

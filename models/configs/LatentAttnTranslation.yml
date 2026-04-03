@@ -16,6 +16,7 @@ default:
     readout_hidden_dim: 16
     attention_activation: softmax
     residual_mode: pls_residual
+    residual_gain_init: 1.0e-3
     zscore_pca_scores: false
     attention_dropout: 0.0
     reg: 1.0e-4
@@ -62,6 +63,9 @@ search_space:
   residual_mode:
     type: choice
     values: [none, pls_residual, linear_residual]
+  residual_gain_init:
+    type: choice
+    values: [0.0, 1.0e-4, 1.0e-3, 1.0e-2]
   zscore_pca_scores:
     type: choice
     values: [false, true]

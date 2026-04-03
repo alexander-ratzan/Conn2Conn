@@ -6,12 +6,14 @@ default:
     target: FC
   model:
     name: CrossModal_ConditionalGaussian
-    fit_domain: pca
-    n_components_pca: 128
-    lambda_ridge: 1.0e-3
-    covariance_estimator: empirical
-    zscore_pca_scores: false
-    device: null
+    fit_domain: pca                  # pca or raw_edges
+    n_components_pca: 128            # retained PCA components (used directly in pca mode; also for preview/uncertainty summaries in raw_edges mode)
+    lambda_ridge: 1.0e-3             # ridge/Tikhonov regularization strength
+    covariance_estimator: empirical  # empirical, ledoit_wolf, oas (raw_edges currently supports empirical only)
+    zscore_pca_scores: false         # componentwise z-scoring of PCA scores before fitting (pca mode)
+    use_covariates: false            # if true, concatenate requested covariates directly into the conditioning variable
+    cov_sources: []                  # any subset of [fs_all, fs_volumes, age, sex, race_eth]
+    device: cpu
   trainer: {}
 
 search_space:
@@ -20,7 +22,7 @@ search_space:
     values: [pca, raw_edges]
   n_components_pca:
     type: choice
-    values: [32, 64, 128, 256]
+    values: [32, 64, 128, 256, 512]
   lambda_ridge:
     type: loguniform
     lower: 1.0e-5

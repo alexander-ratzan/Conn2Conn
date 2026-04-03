@@ -1,0 +1,36 @@
+learned: false
+
+# Covariate sweep variant: fs_volumes structural covariates only
+# Source: SC -> FC
+# Domain: PCA-space conditional Gaussian
+
+default:
+  data:
+    source: SC
+    target: FC
+  model:
+    name: CrossModal_ConditionalGaussian
+    fit_domain: pca
+    n_components_pca: 256
+    lambda_ridge: 1.0e-3
+    covariance_estimator: ledoit_wolf
+    zscore_pca_scores: false
+    use_covariates: true
+    cov_sources: [fs_volumes]
+    device: cpu
+  trainer: {}
+
+search_space:
+  n_components_pca:
+    type: choice
+    values: [64, 128, 256, 512]
+  lambda_ridge:
+    type: loguniform
+    lower: 1.0e-6
+    upper: 1.0e0
+  covariance_estimator:
+    type: choice
+    values: [empirical, ledoit_wolf, oas]
+  zscore_pca_scores:
+    type: choice
+    values: [false, true]

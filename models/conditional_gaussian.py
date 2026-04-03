@@ -23,6 +23,8 @@ class CrossModal_ConditionalGaussian(nn.Module):
         covariance_estimator="empirical",
         zscore_pca_scores=False,
         fit_domain="pca",
+        use_covariates=False,
+        cov_sources=None,
         device=None,
         **kwargs,
     ):
@@ -38,6 +40,9 @@ class CrossModal_ConditionalGaussian(nn.Module):
         self.covariance_estimator = str(covariance_estimator)
         self.zscore_pca_scores = bool(zscore_pca_scores)
         self.fit_domain = str(fit_domain)
+        self.use_covariates = bool(use_covariates)
+        self.cov_sources = list(cov_sources) if cov_sources is not None else []
+        self.uses_cov = self.use_covariates
 
         if self.lambda_ridge < 0:
             raise ValueError(f"lambda_ridge must be non-negative, got {self.lambda_ridge}.")
@@ -55,6 +60,8 @@ class CrossModal_ConditionalGaussian(nn.Module):
                 "Raw-edge conditional Gaussian currently supports covariance_estimator='empirical' only. "
                 "Shrinkage estimators are only implemented for fit_domain='pca' in v1."
             )
+        if self.use_covariates and not self.cov_sources:
+            raise ValueError("use_covariates=True requires a non-empty cov_sources list.")
 
         if device is None:
             default_device = "cpu" if self.fit_domain == "raw_edges" else ("cuda" if torch.cuda.is_available() else "cpu")
@@ -66,6 +73,44 @@ class CrossModal_ConditionalGaussian(nn.Module):
         else:
             self._init_raw_edge_domain(base, device)
         self.to(device)
+
+    def _get_full_covariate_matrix(self, base):
+        if not self.use_covariates:
+            return None
+        cov_parts = []
+        for source in self.cov_sources:
+            if source == "fs_all":
+                cov_parts.append(np.asarray(base.fs_features_z, dtype=np.float64))
+            elif source == "fs_volumes":
+                if base.fs_volumes_z is None:
+                    raise ValueError("fs_volumes requested but FS volume covariates are unavailable.")
+                cov_parts.append(np.asarray(base.fs_volumes_z, dtype=np.float64))
+            elif source == "age":
+                cov_parts.append(np.asarray(base.age_z, dtype=np.float64))
+            elif source == "sex":
+                cov_parts.append(np.asarray(base.sex_oh, dtype=np.float64))
+            elif source == "race_eth":
+                cov_parts.append(np.asarray(base.race_eth_oh, dtype=np.float64))
+            else:
+                raise ValueError(f"Unknown covariate source '{source}'.")
+        return np.concatenate(cov_parts, axis=1)
+
+    def _prepare_cov_batch(self, cov):
+        if not self.use_covariates:
+            return None
+        if cov is None:
+            raise ValueError("Covariate-conditioned Gaussian model requires cov input at prediction time.")
+        device_ref = getattr(self, "source_mean", None)
+        if device_ref is None:
+            device_ref = getattr(self, "raw_source_mean", None)
+        if device_ref is None:
+            raise RuntimeError("Could not determine device reference for covariate batch preparation.")
+        cov_parts = []
+        for source in self.cov_sources:
+            if source not in cov:
+                raise ValueError(f"Missing covariate source '{source}' in batch.")
+            cov_parts.append(cov[source].to(device_ref.device).to(torch.float32))
+        return torch.cat(cov_parts, dim=1)
 
     def _cov_to_corr(self, cov):
         std = np.sqrt(np.clip(np.diag(cov), a_min=1.0e-12, a_max=None))
@@ -121,6 +166,13 @@ class CrossModal_ConditionalGaussian(nn.Module):
             Z_sc = source_scores_k
             Z_fc = target_scores_k
 
+        full_cov = self._get_full_covariate_matrix(base)
+        cov_train = None
+        if self.use_covariates:
+            train_indices = np.asarray(base.trainvaltest_partition_indices["train"])
+            cov_train = np.asarray(full_cov[train_indices], dtype=np.float64)
+            Z_sc = np.concatenate([Z_sc, cov_train], axis=1)
+
         mu_sc = Z_sc.mean(axis=0)
         mu_fc = Z_fc.mean(axis=0)
         Z_joint = np.concatenate([Z_sc, Z_fc], axis=1)
@@ -138,11 +190,12 @@ class CrossModal_ConditionalGaussian(nn.Module):
             shrinkage_value = float(est.shrinkage_)
 
         k = self.n_components_pca
-        Sigma_11 = Sigma[:k, :k]
-        Sigma_12 = Sigma[:k, k:]
-        Sigma_21 = Sigma[k:, :k]
-        Sigma_22 = Sigma[k:, k:]
-        reg_eye = self.lambda_ridge * np.eye(k, dtype=np.float64)
+        source_dim = Z_sc.shape[1]
+        Sigma_11 = Sigma[:source_dim, :source_dim]
+        Sigma_12 = Sigma[:source_dim, source_dim:]
+        Sigma_21 = Sigma[source_dim:, :source_dim]
+        Sigma_22 = Sigma[source_dim:, source_dim:]
+        reg_eye = self.lambda_ridge * np.eye(source_dim, dtype=np.float64)
         Sigma_11_reg = Sigma_11 + reg_eye
         W_t = np.linalg.solve(Sigma_11_reg.T, Sigma_21.T)
         W = W_t.T
@@ -187,16 +240,21 @@ class CrossModal_ConditionalGaussian(nn.Module):
         self.register_buffer("target_pca_scores_train", torch.tensor(target_scores_k, dtype=torch.float32, device=device))
         self.register_buffer("source_pca_scores_train_fit", torch.tensor(Z_sc, dtype=torch.float32, device=device))
         self.register_buffer("target_pca_scores_train_fit", torch.tensor(Z_fc, dtype=torch.float32, device=device))
+        if cov_train is not None:
+            self.register_buffer("covariates_train_fit", torch.tensor(cov_train, dtype=torch.float32, device=device))
 
         self.condition_number = float(np.linalg.cond(Sigma_11_reg))
         self.shrinkage_value = shrinkage_value
-        self.feature_dim = int(k)
+        self.feature_dim = int(source_dim)
+        self.source_latent_dim = int(k)
+        self.covariate_dim = int(0 if cov_train is None else cov_train.shape[1])
         self.n_train = int(Z_sc.shape[0])
 
         print(
             f"CrossModal_ConditionalGaussian init | domain=pca | src={self.source_modality} tgt={self.target_modality} "
             f"| k={self.n_components_pca} | cov_estimator={self.covariance_estimator} "
             f"| lambda_ridge={self.lambda_ridge} | zscore_pca_scores={self.zscore_pca_scores} "
+            f"| use_covariates={self.use_covariates} cov_dim={self.covariate_dim} "
             f"| cond(Sigma_11+lamI)={self.condition_number:.3e}"
             + (f" | shrinkage={self.shrinkage_value:.4f}" if np.isfinite(self.shrinkage_value) else ""),
             flush=True,
@@ -210,6 +268,11 @@ class CrossModal_ConditionalGaussian(nn.Module):
 
         X_train = np.asarray(source_data["upper_triangles"][train_indices], dtype=np.float64)
         Y_train = np.asarray(target_data["upper_triangles"][train_indices], dtype=np.float64)
+        cov_train = None
+        if self.use_covariates:
+            full_cov = self._get_full_covariate_matrix(base)
+            cov_train = np.asarray(full_cov[train_indices], dtype=np.float64)
+            X_train = np.concatenate([X_train, cov_train], axis=1)
         source_mean = X_train.mean(axis=0)
         target_mean = Y_train.mean(axis=0)
         X_centered = X_train - source_mean
@@ -251,6 +314,8 @@ class CrossModal_ConditionalGaussian(nn.Module):
         self.register_buffer("target_pca_explained_fraction", torch.tensor(explained_fraction, dtype=torch.float32, device=device))
         self.register_buffer("source_pca_scores_train", torch.tensor(np.asarray(source_data["scores"][:, :self.n_components_pca], dtype=np.float64), dtype=torch.float32, device=device))
         self.register_buffer("target_pca_scores_train", torch.tensor(np.asarray(target_data["scores"][:, :self.n_components_pca], dtype=np.float64), dtype=torch.float32, device=device))
+        if cov_train is not None:
+            self.register_buffer("covariates_train_fit", torch.tensor(cov_train, dtype=torch.float32, device=device))
 
         small_k = min(self.n_components_pca, n_train)
         X_lat_small = np.asarray(source_data["scores"][:, :small_k], dtype=np.float64)
@@ -266,11 +331,14 @@ class CrossModal_ConditionalGaussian(nn.Module):
         self.condition_number = float(np.linalg.cond(gram_reg))
         self.shrinkage_value = np.nan
         self.feature_dim = int(X_centered.shape[1])
+        self.source_latent_dim = int(self.n_components_pca)
+        self.covariate_dim = int(0 if cov_train is None else cov_train.shape[1])
         self.n_train = int(n_train)
 
         print(
             f"CrossModal_ConditionalGaussian init | domain=raw_edges | src={self.source_modality} tgt={self.target_modality} "
             f"| edges={self.feature_dim} | n_train={self.n_train} | lambda_ridge={self.lambda_ridge} "
+            f"| use_covariates={self.use_covariates} cov_dim={self.covariate_dim} "
             f"| cond(K+lamI)={self.condition_number:.3e}",
             flush=True,
         )
@@ -289,10 +357,13 @@ class CrossModal_ConditionalGaussian(nn.Module):
             z_fc = (z_fc - self.target_score_mean) / self.target_score_std
         return z_fc
 
-    def predict_target_latents(self, x):
+    def predict_target_latents(self, x, cov=None):
         if self.fit_domain != "pca":
             raise RuntimeError("predict_target_latents is only defined for fit_domain='pca'.")
         z_sc = self.encode_source_latents(x)
+        cov_batch = self._prepare_cov_batch(cov)
+        if cov_batch is not None:
+            z_sc = torch.cat([z_sc, cov_batch], dim=1)
         return torch.matmul(z_sc, self.W.t()) + self.b
 
     def predict_target_uncertainty(self):
@@ -316,16 +387,19 @@ class CrossModal_ConditionalGaussian(nn.Module):
             z_fc_hat = z_fc_hat * self.target_score_std + self.target_score_mean
         return torch.matmul(z_fc_hat, self.target_loadings_k.t()) + self.target_mean
 
-    def _predict_raw_edges(self, x):
+    def _predict_raw_edges(self, x, cov=None):
         x = x.to(self.raw_source_mean.device).to(torch.float32)
+        cov_batch = self._prepare_cov_batch(cov)
+        if cov_batch is not None:
+            x = torch.cat([x, cov_batch], dim=1)
         x_centered = x - self.raw_source_mean
         k_x = torch.matmul(x_centered, self.X_train_centered.t())
         return torch.matmul(k_x, self.dual_coef) + self.raw_target_mean
 
-    def forward(self, x):
+    def forward(self, x, cov=None):
         if self.fit_domain == "pca":
-            return self.decode_target_latents(self.predict_target_latents(x))
-        return self._predict_raw_edges(x)
+            return self.decode_target_latents(self.predict_target_latents(x, cov=cov))
+        return self._predict_raw_edges(x, cov=cov)
 
     def get_diagnostics(self):
         out = {
@@ -333,7 +407,11 @@ class CrossModal_ConditionalGaussian(nn.Module):
             "condition_number": self.condition_number,
             "shrinkage_value": self.shrinkage_value,
             "feature_dim": self.feature_dim,
+            "source_latent_dim": self.source_latent_dim,
+            "covariate_dim": self.covariate_dim,
             "n_train": self.n_train,
+            "use_covariates": self.use_covariates,
+            "cov_sources": list(self.cov_sources),
             "Sigma_joint": self.Sigma_joint,
             "joint_correlation": self.joint_correlation,
             "source_correlation": self.source_correlation,

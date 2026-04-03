@@ -290,6 +290,59 @@ class Sim:
         self.val_loader = DataLoader(self.val_ds, batch_size=batch_size, shuffle=False)
         self.test_loader = DataLoader(self.test_ds, batch_size=batch_size, shuffle=False)
 
+    def _build_runtime_data_context(self, cfg: dict):
+        data_cfg = deepcopy(cfg.get("data", {}))
+        model_cfg = deepcopy(cfg.get("model", {}))
+        trainer_cfg = deepcopy(cfg.get("trainer", {}))
+
+        runtime_cov_sources = list(model_cfg.get("cov_sources") or [])
+        current_cov_sources = list(getattr(self.base, "cov_sources", []) or [])
+        current_cov_set = set(current_cov_sources)
+        runtime_cov_set = set(runtime_cov_sources)
+        needs_rebuild = not runtime_cov_set.issubset(current_cov_set)
+
+        if not needs_rebuild:
+            return {
+                "base": self.base,
+                "train_loader": self.train_loader,
+                "val_loader": self.val_loader,
+                "test_loader": self.test_loader,
+            }
+
+        batch_size = trainer_cfg.get("batch_size", 128)
+        hcp_base_kwargs = {
+            "parcellation": data_cfg.get("parcellation", self.parcellation),
+            "hemi": data_cfg.get("hemi", self.hemi),
+            "shuffle_seed": data_cfg.get("shuffle_seed", self.shuffle_seed),
+            "source": data_cfg.get("source", self.source),
+            "target": data_cfg.get("target", self.target),
+            "cov_sources": runtime_cov_sources,
+            "expose_node_features": (self.model_name == "NodalGNN"),
+        }
+        for _k in (
+            "HCP_dir",
+            "sc_metric_type",
+            "sc_apply_log1p",
+            "volume_feature_type",
+            "centroid_feature_type",
+            "data_load_mode",
+            "precompute_cache_root",
+            "write_manual_cache",
+        ):
+            if _k in data_cfg:
+                hcp_base_kwargs[_k] = data_cfg[_k]
+
+        runtime_base = HCP_Base(**hcp_base_kwargs)
+        train_ds = HCP_Partition(runtime_base, "train")
+        val_ds = HCP_Partition(runtime_base, "val")
+        test_ds = HCP_Partition(runtime_base, "test")
+        return {
+            "base": runtime_base,
+            "train_loader": DataLoader(train_ds, batch_size=batch_size, shuffle=True),
+            "val_loader": DataLoader(val_ds, batch_size=batch_size, shuffle=False),
+            "test_loader": DataLoader(test_ds, batch_size=batch_size, shuffle=False),
+        }
+
     def run_single(
         self,
         mode: str = "dev",
@@ -353,22 +406,30 @@ class Sim:
         mode: str = "dev",
         test_report_path: str = None,
         model_name: str = None,
+        base=None,
+        train_loader=None,
+        val_loader=None,
+        test_loader=None,
     ):
+        base = base or self.base
+        train_loader = train_loader or self.train_loader
+        val_loader = val_loader or self.val_loader
+        test_loader = test_loader or self.test_loader
         if getattr(model, "is_precomputed", False):
             # Bypass DataLoader iteration; slice precomputed arrays by split indices directly.
             train_preds, train_targets = model.predict_split("train")
             val_preds,   val_targets   = model.predict_split("val")
             test_preds,  test_targets  = model.predict_split("test")
         else:
-            train_preds, train_targets = predict_from_loader(model, self.train_loader)
-            val_preds, val_targets = predict_from_loader(model, self.val_loader)
-            test_preds, test_targets = predict_from_loader(model, self.test_loader)
-        train_partition = HCP_Partition(self.base, "train")
-        val_partition = HCP_Partition(self.base, "val")
-        test_partition = HCP_Partition(self.base, "test")
-        train_eval = Evaluator(train_preds, train_targets, train_partition, self.base)
-        val_eval = Evaluator(val_preds, val_targets, val_partition, self.base)
-        test_eval = Evaluator(test_preds, test_targets, test_partition, self.base)
+            train_preds, train_targets = predict_from_loader(model, train_loader)
+            val_preds, val_targets = predict_from_loader(model, val_loader)
+            test_preds, test_targets = predict_from_loader(model, test_loader)
+        train_partition = HCP_Partition(base, "train")
+        val_partition = HCP_Partition(base, "val")
+        test_partition = HCP_Partition(base, "test")
+        train_eval = Evaluator(train_preds, train_targets, train_partition, base)
+        val_eval = Evaluator(val_preds, val_targets, val_partition, base)
+        test_eval = Evaluator(test_preds, test_targets, test_partition, base)
         test_metrics = test_eval.analyze_results(
             verbose=(mode == "prod"),
             filepath=test_report_path,
@@ -401,6 +462,11 @@ class Sim:
         store_eval_md: bool = False,
     ):
         cfg = self._merge_config(config_override)
+        data_ctx = self._build_runtime_data_context(cfg)
+        run_base = data_ctx["base"]
+        run_train_loader = data_ctx["train_loader"]
+        run_val_loader = data_ctx["val_loader"]
+        run_test_loader = data_ctx["test_loader"]
         model_cfg = cfg["model"].copy()
         model_cfg.pop("name")
         trainer_cfg = cfg.get("trainer", {})
@@ -417,7 +483,7 @@ class Sim:
         max_epochs = trainer_cfg.get("max_epochs", 100)
         log_every = trainer_cfg.get("log_every", 5)
 
-        model = build_model(self.base, self.model_name, model_cfg)
+        model = build_model(run_base, self.model_name, model_cfg)
         pl_logger = None
         train_result = None
         
@@ -441,9 +507,9 @@ class Sim:
         if train_from_scratch:
             train_result = train_model(
                 model,
-                self.train_loader,
-                self.val_loader,
-                base=self.base,
+                run_train_loader,
+                run_val_loader,
+                base=run_base,
                 log_every=log_every,
                 lr=lr,
                 loss_type=loss_type,
@@ -467,7 +533,7 @@ class Sim:
             ckpt_state = torch.load(checkpoint_path, map_location="cpu")
             pl_module = CrossModalLightningModule(
                 model=model,
-                base=self.base,
+                base=run_base,
                 lr=lr,
                 loss_type=loss_type,
                 loss_alpha=loss_alpha,
@@ -499,6 +565,10 @@ class Sim:
                 mode=mode,
                 test_report_path=test_filepath,
                 model_name=self.model_name,
+                base=run_base,
+                train_loader=run_train_loader,
+                val_loader=run_val_loader,
+                test_loader=run_test_loader,
             )
             test_metrics = eval_out["test_metrics"]
 
@@ -538,9 +608,14 @@ class Sim:
         store_eval_md: bool = False,
     ):
         cfg = self._merge_config(config_override)
+        data_ctx = self._build_runtime_data_context(cfg)
+        run_base = data_ctx["base"]
+        run_train_loader = data_ctx["train_loader"]
+        run_val_loader = data_ctx["val_loader"]
+        run_test_loader = data_ctx["test_loader"]
         model_cfg = cfg["model"].copy()
         model_cfg.pop("name")
-        model = build_model(self.base, self.model_name, model_cfg)
+        model = build_model(run_base, self.model_name, model_cfg)
         eval_out = {
             "evaluators": None,
             "metrics": {"train": None, "val": None, "test": None},
@@ -557,6 +632,10 @@ class Sim:
                 mode=mode,
                 test_report_path=test_filepath,
                 model_name=self.model_name,
+                base=run_base,
+                train_loader=run_train_loader,
+                val_loader=run_val_loader,
+                test_loader=run_test_loader,
             )
             test_metrics = eval_out["test_metrics"]
 
