@@ -670,6 +670,28 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
             torch.tensor(target_mean, dtype=torch.float32, device=device),
             requires_grad=False,
         )
+        self.register_buffer(
+            "target_latent_encoder",
+            torch.tensor(target_loadings[:, :k_tgt], dtype=torch.float32, device=device),
+        )
+        latent_variance = np.var(target_scores[:, :k_tgt], axis=0, dtype=np.float32)
+        latent_variance = np.maximum(latent_variance, 1.0e-8)
+        latent_weights = latent_variance / float(np.mean(latent_variance))
+        self.register_buffer(
+            "latent_loss_weights",
+            torch.tensor(latent_weights, dtype=torch.float32, device=device),
+        )
+        self.register_buffer(
+            "target_latent_encoder",
+            torch.tensor(target_loadings[:, :k_tgt], dtype=torch.float32, device=device),
+        )
+        latent_variance = np.var(target_scores[:, :k_tgt], axis=0, dtype=np.float32)
+        latent_variance = np.maximum(latent_variance, 1.0e-8)
+        latent_weights = latent_variance / float(np.mean(latent_variance))
+        self.register_buffer(
+            "latent_loss_weights",
+            torch.tensor(latent_weights, dtype=torch.float32, device=device),
+        )
         for modality in self.source_modalities:
             modality_data = data["sources"][modality]
             source_mean = modality_data["mean"]
@@ -735,15 +757,20 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
         # Dropout layers
         self.dropout = nn.Dropout(p=dropout) if dropout > 0 else nn.Identity()
 
-    def forward(self, x):
-        # Use parameter device so model works after being moved by Lightning (self.device can be stale)
-        device = self.target_mean.device
+    def _resolve_source_inputs(self, x):
         if isinstance(x, dict):
-            source_inputs = x
-        elif len(self.source_modalities) == 1:
-            source_inputs = {self.source_modalities[0]: x}
-        else:
-            raise TypeError("Expected dict input for multi-source CrossModal_PCA_PLS_learnable.")
+            return x
+        if len(self.source_modalities) == 1:
+            return {self.source_modalities[0]: x}
+        raise TypeError("Expected dict input for multi-source CrossModal_PCA_PLS_learnable.")
+
+    def encode_target_latents(self, y):
+        y = y.to(self.target_mean.device).to(torch.float32)
+        return torch.matmul(y - self.target_mean, self.target_latent_encoder)
+
+    def predict_target_latents(self, x):
+        device = self.target_mean.device
+        source_inputs = self._resolve_source_inputs(x)
 
         z_parts = []
         for modality in self.source_modalities:
@@ -753,6 +780,10 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
         z = self.dropout(z)
         z = torch.matmul(z, self.W_mid)
         z = self.dropout(z)
+        return z
+
+    def forward(self, x):
+        z = self.predict_target_latents(x)
         return torch.matmul(z, self.W_dec) + self.target_mean
 
     def get_reg_loss(self):
@@ -996,6 +1027,20 @@ class CrossModal_PCA_PLS_CovProjector(nn.Module):
     def _decode_target_latent(self, z_target):
         return torch.matmul(z_target, self.W_dec) + self.target_mean
 
+    def encode_target_latents(self, y):
+        y = y.to(self.target_mean.device).to(torch.float32)
+        return torch.matmul(y - self.target_mean, self.target_latent_encoder)
+
+    def predict_target_latents(self, x, cov=None, y=None):
+        source_inputs, cov = self._resolve_inputs(x, cov=cov)
+        z_src = self._encode_sources(source_inputs)
+        z_base = self._predict_target_latent_from_sources(z_src)
+        z_cov = self.cov_fusion_net(self._encode_covariates(cov))
+        if self.use_target_scores_in_projector and self.target_scores_proj is not None and y is not None:
+            target_scores = self.encode_target_latents(y)
+            z_cov = self.target_scores_proj(target_scores)
+        return z_base + z_cov
+
     def predict_latents(self, batch):
         source_inputs, cov = self._resolve_inputs(batch)
         z_src = self._encode_sources(source_inputs)
@@ -1009,16 +1054,7 @@ class CrossModal_PCA_PLS_CovProjector(nn.Module):
         }
 
     def forward(self, x, cov=None, y=None):
-        source_inputs, cov = self._resolve_inputs(x, cov=cov)
-        z_src = self._encode_sources(source_inputs)
-        z_base = self._predict_target_latent_from_sources(z_src)
-        z_cov = self.cov_fusion_net(self._encode_covariates(cov))
-        if self.use_target_scores_in_projector and self.target_scores_proj is not None and y is not None:
-            device = self.target_mean.device
-            y_ = y.to(device).to(torch.float32)
-            target_scores = torch.matmul(y_ - self.target_mean, self.W_dec.T)
-            z_cov = self.target_scores_proj(target_scores)
-        z_target = z_base + z_cov
+        z_target = self.predict_target_latents(x, cov=cov, y=y)
         return self._decode_target_latent(z_target)
 
     def get_reg_loss(self):

@@ -5,9 +5,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import lightning.pytorch as pl
+from lightning.pytorch.callbacks.progress import TQDMProgressBar
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from collections import OrderedDict
 
 
 def get_model_input(batch):
@@ -43,29 +45,6 @@ class MSELoss(nn.Module):
     
     def forward(self, y_pred, y_true, **kwargs):
         return F.mse_loss(y_pred, y_true)
-
-
-class DemeanedMSELoss(nn.Module):
-    """
-    MSE loss on demeaned predictions and targets.
-    Measures how well the model captures deviations from the training mean.
-    
-    Loss = MSE(y_pred - μ_train, y_true - μ_train)
-    
-    Args:
-        target_train_mean: (d,) numpy array or tensor, training set mean for target modality
-    """
-    def __init__(self, target_train_mean):
-        super().__init__()
-        self.name = "demeaned_mse"
-        if isinstance(target_train_mean, np.ndarray):
-            target_train_mean = torch.tensor(target_train_mean, dtype=torch.float32)
-        self.register_buffer('target_mean', target_train_mean)
-    
-    def forward(self, y_pred, y_true, **kwargs):
-        y_pred_demeaned = y_pred - self.target_mean
-        y_true_demeaned = y_true - self.target_mean
-        return F.mse_loss(y_pred_demeaned, y_true_demeaned)
 
 
 class WeightedMSELoss(nn.Module):
@@ -150,6 +129,44 @@ class SarwarMSECorrLoss(nn.Module):
         return mse + self.corr_weight * corr_penalty
 
 
+def compute_var_match_loss(y_pred, y_true, axis=0, relative_to_true=True):
+    """
+    Match prediction variance to target variance.
+
+    By default this uses the relative formulation from Krakencoder:
+    ((var_true - var_pred) / var_true)^2
+    """
+    true_var = torch.mean((y_true - y_true.mean(dim=axis, keepdim=True)) ** 2)
+    pred_var = torch.mean((y_pred - y_pred.mean(dim=axis, keepdim=True)) ** 2)
+    if relative_to_true:
+        return ((true_var - pred_var) / (true_var + 1e-10)) ** 2
+    return (true_var - pred_var) ** 2
+
+
+class MSEVarMatchLoss(nn.Module):
+    """
+    Joint objective: edge-space MSE plus a small variance-matching penalty.
+
+    This is aimed at combating prediction shrinkage / under-dispersion.
+    """
+
+    def __init__(self, var_weight=0.01, relative_to_true=True):
+        super().__init__()
+        self.name = "joint_mse_varmatch"
+        self.var_weight = float(var_weight)
+        self.relative_to_true = bool(relative_to_true)
+
+    def forward(self, y_pred, y_true, **kwargs):
+        mse = F.mse_loss(y_pred, y_true)
+        var_loss = compute_var_match_loss(
+            y_pred,
+            y_true,
+            axis=0,
+            relative_to_true=self.relative_to_true,
+        )
+        return mse + self.var_weight * var_loss
+
+
 class VAELoss(nn.Module):
     """
     VAE loss: reconstruction (MSE) + beta * KLD to standard Gaussian prior.
@@ -172,13 +189,21 @@ class VAELoss(nn.Module):
         return recon
 
 
-def create_loss_fn(loss_type, base=None, alpha=0.5, beta=1.0, corr_target=0.4, corr_weight=1e-3):
+def create_loss_fn(
+    loss_type,
+    base=None,
+    alpha=0.5,
+    beta=1.0,
+    corr_target=0.4,
+    corr_weight=1e-3,
+    var_weight=0.01,
+):
     """
     Factory function to create loss functions.
     
     Args:
-        loss_type: one of 'mse', 'demeaned_mse', 'weighted_mse', 'vae'
-        base: Dataset base object (required for demeaned losses)
+        loss_type: one of 'mse', 'weighted_mse', 'vae', 'sarwar_mse_corr', 'joint_mse_varmatch'
+        base: Dataset base object (required for weighted_mse)
         alpha: weight for weighted_mse (default 0.5)
         beta: weight for VAE KLD term (default 1.0)
         corr_target: target mean inter-subject correlation for sarwar_mse_corr.
@@ -189,11 +214,6 @@ def create_loss_fn(loss_type, base=None, alpha=0.5, beta=1.0, corr_target=0.4, c
     """
     if loss_type == "mse":
         return MSELoss()
-    elif loss_type == "demeaned_mse":
-        if base is None:
-            raise ValueError("base is required for demeaned_mse loss")
-        target_mean = get_target_train_mean(base)
-        return DemeanedMSELoss(target_mean)
     elif loss_type == "weighted_mse":
         if base is None:
             raise ValueError("base is required for weighted_mse loss")
@@ -203,8 +223,44 @@ def create_loss_fn(loss_type, base=None, alpha=0.5, beta=1.0, corr_target=0.4, c
         return VAELoss(beta=beta)
     elif loss_type == "sarwar_mse_corr":
         return SarwarMSECorrLoss(corr_target=corr_target, corr_weight=corr_weight)
+    elif loss_type == "joint_mse_varmatch":
+        return MSEVarMatchLoss(var_weight=var_weight, relative_to_true=True)
     else:
-        raise ValueError(f"Unknown loss type: {loss_type}. Choose from 'mse', 'demeaned_mse', 'weighted_mse', 'vae', 'sarwar_mse_corr'")
+        raise ValueError(
+            f"Unknown loss type: {loss_type}. Choose from "
+            "'mse', 'weighted_mse', 'vae', 'sarwar_mse_corr', 'joint_mse_varmatch'"
+        )
+
+
+def compute_latent_reconstruction_loss(c_pred, c_true, loss_type, weights=None, mask=None):
+    """
+    Latent-space reconstruction loss helpers for models that explicitly predict
+    target PCA coefficients.
+
+    Args:
+        c_pred: predicted latent coefficients, shape (B, k)
+        c_true: target latent coefficients, shape (B, k)
+        loss_type: 'latent_mse' or 'latent_weighted_mse'
+        weights: optional per-component weights, shape (k,)
+    """
+    diff_sq = (c_pred - c_true) ** 2
+    if mask is not None:
+        mask = mask.to(c_pred.device).to(c_pred.dtype)
+        if mask.ndim == 1:
+            mask = mask.view(1, -1)
+        diff_sq = diff_sq * mask
+        denom = mask.sum().clamp_min(1.0)
+    else:
+        denom = torch.tensor(diff_sq.numel(), device=c_pred.device, dtype=c_pred.dtype)
+    if loss_type == "latent_mse":
+        return diff_sq.sum() / denom
+    if loss_type == "latent_weighted_mse":
+        if weights is None:
+            raise ValueError("latent_weighted_mse requires per-component weights.")
+        weights = weights.view(1, -1).to(c_pred.device).to(c_pred.dtype)
+        diff_sq = diff_sq * weights
+        return diff_sq.sum() / denom
+    raise ValueError(f"Unknown latent loss type: {loss_type}. Choose from 'latent_mse', 'latent_weighted_mse'.")
 
 
 def compute_pearson_r(y_pred, y_true):
@@ -257,6 +313,159 @@ def compute_demeaned_pearson_r(y_pred, y_true, target_train_mean):
     return r.mean().item()
 
 
+def compute_prediction_variance_ratio(y_pred, y_true):
+    """
+    Compare mean across-feature subject variance in predictions vs targets.
+
+    Ratio < 1 suggests under-dispersed predictions across subjects.
+    Ratio > 1 suggests over-dispersed predictions.
+    """
+    pred_var = torch.var(y_pred, dim=0, unbiased=False).mean()
+    true_var = torch.var(y_true, dim=0, unbiased=False).mean()
+    return (pred_var / (true_var + 1e-10)).item()
+
+
+def compute_prediction_norm_ratio(y_pred, y_true):
+    """
+    Compare average per-subject prediction norm to target norm.
+
+    Ratio < 1 suggests globally shrunken predictions.
+    Ratio > 1 suggests globally amplified predictions.
+    """
+    pred_norm = torch.norm(y_pred, dim=1).mean()
+    true_norm = torch.norm(y_true, dim=1).mean()
+    return (pred_norm / (true_norm + 1e-10)).item()
+
+
+DEFAULT_HISTORY_LOSS_PAIRS = [
+    ("train_loss", "val_loss", "Loss"),
+]
+
+LATENT_HISTORY_LOSS_PAIRS = [
+    ("train_loss", "val_loss", "Active Loss"),
+    ("train_edge_mse", "val_edge_mse", "Edge MSE"),
+    ("train_var_match_loss", "val_var_match_loss", "Var Match"),
+    ("train_latent_mse", "val_latent_mse", "Latent MSE"),
+    ("train_latent_weighted_mse", "val_latent_weighted_mse", "Latent Weighted MSE"),
+    ("train_joint_edge_term", "val_joint_edge_term", "Joint Edge Term"),
+    ("train_joint_latent_term", "val_joint_latent_term", "Joint Latent Term"),
+]
+
+DEFAULT_HISTORY_CORR_PAIRS = [
+    ("train_pearson_r", "val_pearson_r", "Pearson r"),
+    ("train_demeaned_r", "val_demeaned_r", "Demeaned r"),
+    ("train_variance_ratio", "val_variance_ratio", "Pred/Target Variance"),
+    ("train_norm_ratio", "val_norm_ratio", "Pred/Target Norm"),
+]
+
+
+def _available_history_pairs(df, pairs):
+    out = []
+    for train_key, val_key, label in pairs:
+        if train_key in df.columns and df[train_key].notna().any():
+            out.append((train_key, val_key if val_key in df.columns else None, label))
+        elif val_key in df.columns and df[val_key].notna().any():
+            out.append((train_key if train_key in df.columns else None, val_key, label))
+    return out
+
+
+def summarize_history_columns(history_df):
+    df = history_df if isinstance(history_df, pd.DataFrame) else pd.DataFrame(history_df)
+    cols = []
+    for col in df.columns:
+        if col == "epoch":
+            continue
+        if df[col].notna().any():
+            cols.append(col)
+    return cols
+
+
+def plot_training_history(history_df, style="default", figsize=None, marker_size=3, grid_alpha=0.3):
+    """
+    Plot training history from TrainResult.history_df.
+
+    style:
+    - 'default': classic view with loss, Pearson r, and demeaned r
+    - 'latent': losses on the top row and correlation metrics below
+    """
+    if history_df is None:
+        raise ValueError("history_df is None")
+    df = history_df if isinstance(history_df, pd.DataFrame) else pd.DataFrame(history_df)
+    if df.empty:
+        raise ValueError("history_df is empty")
+    if "epoch" not in df.columns:
+        raise ValueError("history_df must contain an 'epoch' column")
+
+    epochs = df["epoch"]
+
+    if style == "default":
+        pairs = _available_history_pairs(df, DEFAULT_HISTORY_LOSS_PAIRS + DEFAULT_HISTORY_CORR_PAIRS)
+        if figsize is None:
+            figsize = (12, 4)
+        fig, axes = plt.subplots(1, 3, figsize=figsize)
+        axes = np.atleast_1d(axes)
+        plot_pairs = [
+            _available_history_pairs(df, DEFAULT_HISTORY_LOSS_PAIRS),
+            _available_history_pairs(df, [DEFAULT_HISTORY_CORR_PAIRS[0]]),
+            _available_history_pairs(df, [DEFAULT_HISTORY_CORR_PAIRS[1]]),
+        ]
+        for ax, pair_group in zip(axes, plot_pairs):
+            if not pair_group:
+                ax.axis("off")
+                continue
+            train_key, val_key, title = pair_group[0]
+            if train_key is not None and train_key in df.columns and df[train_key].notna().any():
+                ax.plot(epochs, df[train_key], "b-o", label="Train", markersize=marker_size)
+            if val_key is not None and val_key in df.columns and df[val_key].notna().any():
+                ax.plot(epochs, df[val_key], "r-o", label="Val", markersize=marker_size)
+            ax.set_title(title)
+            ax.set_xlabel("Epoch")
+            ax.grid(True, alpha=grid_alpha)
+            ax.legend()
+        fig.tight_layout()
+        return fig, axes
+
+    if style == "latent":
+        loss_pairs = _available_history_pairs(df, LATENT_HISTORY_LOSS_PAIRS)
+        corr_pairs = _available_history_pairs(df, DEFAULT_HISTORY_CORR_PAIRS)
+        ncols = max(len(loss_pairs), len(corr_pairs), 1)
+        if figsize is None:
+            figsize = (5 * ncols, 7)
+        fig, axes = plt.subplots(2, ncols, figsize=figsize, squeeze=False)
+        for ax_idx in range(ncols):
+            if ax_idx < len(loss_pairs):
+                train_key, val_key, title = loss_pairs[ax_idx]
+                ax = axes[0, ax_idx]
+                if train_key is not None and train_key in df.columns and df[train_key].notna().any():
+                    ax.plot(epochs, df[train_key], "b-o", label="Train", markersize=marker_size)
+                if val_key is not None and val_key in df.columns and df[val_key].notna().any():
+                    ax.plot(epochs, df[val_key], "r-o", label="Val", markersize=marker_size)
+                ax.set_title(title)
+                ax.set_xlabel("Epoch")
+                ax.grid(True, alpha=grid_alpha)
+                ax.legend()
+            else:
+                axes[0, ax_idx].axis("off")
+
+            if ax_idx < len(corr_pairs):
+                train_key, val_key, title = corr_pairs[ax_idx]
+                ax = axes[1, ax_idx]
+                if train_key is not None and train_key in df.columns and df[train_key].notna().any():
+                    ax.plot(epochs, df[train_key], "b-o", label="Train", markersize=marker_size)
+                if val_key is not None and val_key in df.columns and df[val_key].notna().any():
+                    ax.plot(epochs, df[val_key], "r-o", label="Val", markersize=marker_size)
+                ax.set_title(title)
+                ax.set_xlabel("Epoch")
+                ax.grid(True, alpha=grid_alpha)
+                ax.legend()
+            else:
+                axes[1, ax_idx].axis("off")
+        fig.tight_layout()
+        return fig, axes
+
+    raise ValueError("Unknown plot style. Choose from {'default', 'latent'}.")
+
+
 def evaluate_model(model, data_loader, target_train_mean, device):
     """
     Evaluate model on a data loader.
@@ -274,6 +483,8 @@ def evaluate_model(model, data_loader, target_train_mean, device):
     total_mse = 0.0
     total_pearson_r = 0.0
     total_demeaned_r = 0.0
+    total_variance_ratio = 0.0
+    total_norm_ratio = 0.0
     n_batches = 0
     
     target_mean_tensor = torch.tensor(target_train_mean, dtype=torch.float32, device=device)
@@ -299,16 +510,24 @@ def evaluate_model(model, data_loader, target_train_mean, device):
 
             pearson_r = compute_pearson_r(y_pred, y)
             total_pearson_r += pearson_r
-
+            
             demeaned_r = compute_demeaned_pearson_r(y_pred, y, target_mean_tensor)
             total_demeaned_r += demeaned_r
 
+            variance_ratio = compute_prediction_variance_ratio(y_pred, y)
+            total_variance_ratio += variance_ratio
+
+            norm_ratio = compute_prediction_norm_ratio(y_pred, y)
+            total_norm_ratio += norm_ratio
+            
             n_batches += 1
     
     return {
         'mse': total_mse / n_batches,
         'pearson_r': total_pearson_r / n_batches,
         'demeaned_r': total_demeaned_r / n_batches,
+        'variance_ratio': total_variance_ratio / n_batches,
+        'norm_ratio': total_norm_ratio / n_batches,
     }
 
 
@@ -357,14 +576,34 @@ class ValidationEvalCallback(pl.Callback):
         record = {
             "epoch": trainer.current_epoch,
             "train_loss": cm.get("train_loss"),
-            "val_loss": val_metrics["mse"],  # use same val source as pearson/demeaned for consistent curve
+            "val_loss": cm.get("val_loss"),
+            "train_edge_mse": cm.get("train_edge_mse"),
+            "val_edge_mse": cm.get("val_edge_mse"),
+            "train_var_match_loss": cm.get("train_var_match_loss"),
+            "val_var_match_loss": cm.get("val_var_match_loss"),
+            "train_latent_mse": cm.get("train_latent_mse"),
+            "val_latent_mse": cm.get("val_latent_mse"),
+            "train_latent_weighted_mse": cm.get("train_latent_weighted_mse"),
+            "val_latent_weighted_mse": cm.get("val_latent_weighted_mse"),
+            "train_joint_edge_term": cm.get("train_joint_edge_term"),
+            "val_joint_edge_term": cm.get("val_joint_edge_term"),
+            "train_joint_latent_term": cm.get("train_joint_latent_term"),
+            "val_joint_latent_term": cm.get("val_joint_latent_term"),
+            "train_edge_loss_ref": cm.get("train_edge_loss_ref"),
+            "val_edge_loss_ref": cm.get("val_edge_loss_ref"),
+            "train_latent_loss_ref": cm.get("train_latent_loss_ref"),
+            "val_latent_loss_ref": cm.get("val_latent_loss_ref"),
             "val_mse": val_metrics["mse"],
             "val_pearson_r": val_metrics["pearson_r"],
             "val_demeaned_r": val_metrics["demeaned_r"],
+            "val_variance_ratio": val_metrics["variance_ratio"],
+            "val_norm_ratio": val_metrics["norm_ratio"],
         }
         pl_module.log("val_mse", val_metrics["mse"], on_epoch=True)
         pl_module.log("val_pearson_r", val_metrics["pearson_r"], on_epoch=True)
-        pl_module.log("val_demeaned_r", val_metrics["demeaned_r"], on_epoch=True)
+        pl_module.log("val_demeaned_r", val_metrics["demeaned_r"], on_epoch=True, prog_bar=True)
+        pl_module.log("val_variance_ratio", val_metrics["variance_ratio"], on_epoch=True)
+        pl_module.log("val_norm_ratio", val_metrics["norm_ratio"], on_epoch=True)
         if trainer.current_epoch % self.log_every == 0 or trainer.current_epoch == 0:
             if self.log_train and self.train_loader is not None:
                 train_metrics = evaluate_model(
@@ -373,9 +612,13 @@ class ValidationEvalCallback(pl.Callback):
                 record["train_mse"] = train_metrics["mse"]
                 record["train_pearson_r"] = train_metrics["pearson_r"]
                 record["train_demeaned_r"] = train_metrics["demeaned_r"]
+                record["train_variance_ratio"] = train_metrics["variance_ratio"]
+                record["train_norm_ratio"] = train_metrics["norm_ratio"]
                 pl_module.log("train_mse", train_metrics["mse"], on_epoch=True)
                 pl_module.log("train_pearson_r", train_metrics["pearson_r"], on_epoch=True)
                 pl_module.log("train_demeaned_r", train_metrics["demeaned_r"], on_epoch=True)
+                pl_module.log("train_variance_ratio", train_metrics["variance_ratio"], on_epoch=True)
+                pl_module.log("train_norm_ratio", train_metrics["norm_ratio"], on_epoch=True)
             if self.log_gpu:
                 gpu_alloc, gpu_reserved = get_gpu_memory_usage()
                 record["gpu_allocated_mb"] = gpu_alloc
@@ -383,6 +626,39 @@ class ValidationEvalCallback(pl.Callback):
                 pl_module.log("gpu_allocated_mb", float(gpu_alloc), on_epoch=True)
                 pl_module.log("gpu_reserved_mb", float(gpu_reserved), on_epoch=True)
         self.history.append(record)
+
+
+class OrderedMetricsProgressBar(TQDMProgressBar):
+    """
+    Progress bar with stable metric ordering and concise display names.
+    """
+
+    DISPLAY_ORDER = [
+        ("train_loss", "train_loss"),
+        ("val_loss", "val_loss"),
+        ("train_demeaned_r", "train_demeaned"),
+        ("val_demeaned_r", "val_demeaned"),
+        ("train_pearson_r", "train_r"),
+        ("val_pearson_r", "val_r"),
+    ]
+
+    def get_metrics(self, trainer, pl_module):
+        base_metrics = super().get_metrics(trainer, pl_module)
+        ordered = OrderedDict()
+
+        if "v_num" in base_metrics:
+            ordered["v_num"] = base_metrics["v_num"]
+
+        for raw_key, display_key in self.DISPLAY_ORDER:
+            if raw_key in base_metrics:
+                ordered[display_key] = base_metrics[raw_key]
+
+        display_source_keys = {raw_key for raw_key, _ in self.DISPLAY_ORDER}
+        for key, value in base_metrics.items():
+            if key == "v_num" or key in display_source_keys:
+                continue
+            ordered[key] = value
+        return ordered
 
 
 def train_model(
@@ -397,6 +673,10 @@ def train_model(
     loss_beta=1.0,
     loss_corr_target=0.4,
     loss_corr_weight=1e-3,
+    loss_var_weight=0.01,
+    loss_latent_weight=0.25,
+    loss_scale_ema_decay=0.95,
+    loss_scale_warmup_steps=100,
     max_epochs=100,
     logger=True,
     pl_logger=None,
@@ -412,11 +692,15 @@ def train_model(
         base: Dataset base object (e.g., HCP_Base) with target modality info.
         log_every: run full evaluate_model and log refined metrics every N epochs.
         lr: learning rate (passed to Lightning module).
-        loss_type: one of 'mse', 'demeaned_mse', 'weighted_mse', 'vae'.
+        loss_type: one of 'mse', 'weighted_mse', 'vae', 'sarwar_mse_corr'.
         loss_alpha: weight for weighted_mse (passed to Lightning module).
         loss_beta: KLD weight for VAE loss (passed to Lightning module).
         loss_corr_target: target inter-subject correlation for sarwar_mse_corr.
         loss_corr_weight: penalty strength for sarwar_mse_corr.
+        loss_var_weight: weight on the variance-matching term for joint_mse_varmatch.
+        loss_latent_weight: weight on latent reconstruction term for joint edge+latent losses.
+        loss_scale_ema_decay: EMA decay for automatic loss scaling in joint_edge_latent_mse_scaled.
+        loss_scale_warmup_steps: number of training steps used to calibrate EMA loss scales.
         max_epochs: number of epochs (Trainer max_epochs).
         logger: If True, use CSVLogger (writes to disk). If False, no logging to disk (dev mode).
         pl_logger: Optional Lightning logger (e.g. WandbLogger). If set, overrides logger/CSVLogger.
@@ -436,6 +720,10 @@ def train_model(
         loss_beta=loss_beta,
         loss_corr_target=loss_corr_target,
         loss_corr_weight=loss_corr_weight,
+        loss_var_weight=loss_var_weight,
+        loss_latent_weight=loss_latent_weight,
+        loss_scale_ema_decay=loss_scale_ema_decay,
+        loss_scale_warmup_steps=loss_scale_warmup_steps,
     )
     target_train_mean = get_target_train_mean(base)
     callback = ValidationEvalCallback(
@@ -463,13 +751,17 @@ def train_model(
         strategy = "ddp_notebook"
     else:
         strategy = "ddp"
+    callbacks = [callback]
+    if enable_progress_bar:
+        callbacks.append(OrderedMetricsProgressBar())
+
     trainer = pl.Trainer(
         accelerator="gpu",
         devices=devices,
         strategy=strategy,
         max_epochs=max_epochs,
         logger=logger_pl,
-        callbacks=[callback],
+        callbacks=callbacks,
         enable_progress_bar=enable_progress_bar,
         enable_model_summary=True,
     )
@@ -504,41 +796,11 @@ def train_model(
             self.callback = callback
             self.history_df = history_df
 
-        def plot(self):
-            """Plot training history: loss, Pearson r, demeaned r (train and val)."""
-            df = self.history_df
-            if df.empty:
+        def plot(self, style="default", **kwargs):
+            """Plot training history; use style='default' or style='latent'."""
+            if self.history_df.empty:
                 return
-            fig, axes = plt.subplots(1, 3, figsize=(12, 4))
-            epochs = df["epoch"]
-            if "train_loss" in df.columns and df["train_loss"].notna().any():
-                axes[0].plot(epochs, df["train_loss"], "b-o", label="Train", markersize=3)
-            if "val_loss" in df.columns and df["val_loss"].notna().any():
-                axes[0].plot(epochs, df["val_loss"], "r-o", label="Val", markersize=3)
-            axes[0].set_xlabel("Epoch")
-            axes[0].set_ylabel("Loss")
-            axes[0].set_title("Loss")
-            axes[0].legend()
-            axes[0].grid(True, alpha=0.3)
-            if "train_pearson_r" in df.columns and df["train_pearson_r"].notna().any():
-                axes[1].plot(epochs, df["train_pearson_r"], "b-o", label="Train", markersize=3)
-            if "val_pearson_r" in df.columns and df["val_pearson_r"].notna().any():
-                axes[1].plot(epochs, df["val_pearson_r"], "r-o", label="Val", markersize=3)
-            axes[1].set_xlabel("Epoch")
-            axes[1].set_ylabel("Pearson r")
-            axes[1].set_title("Pearson r")
-            axes[1].legend()
-            axes[1].grid(True, alpha=0.3)
-            if "train_demeaned_r" in df.columns and df["train_demeaned_r"].notna().any():
-                axes[2].plot(epochs, df["train_demeaned_r"], "b-o", label="Train", markersize=3)
-            if "val_demeaned_r" in df.columns and df["val_demeaned_r"].notna().any():
-                axes[2].plot(epochs, df["val_demeaned_r"], "r-o", label="Val", markersize=3)
-            axes[2].set_xlabel("Epoch")
-            axes[2].set_ylabel("Demeaned Pearson r")
-            axes[2].set_title("Demeaned r")
-            axes[2].legend()
-            axes[2].grid(True, alpha=0.3)
-            fig.tight_layout()
+            fig, _ = plot_training_history(self.history_df, style=style, **kwargs)
             plt.show()
 
     return TrainResult(pl_module, trainer, callback, history_df)

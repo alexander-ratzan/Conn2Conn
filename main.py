@@ -296,6 +296,7 @@ class Sim:
         save_checkpoint: bool = False,
         run_dir: str = None,
         store_eval_md: bool = False,
+        run_eval: bool = True,
     ):
         """
         Run a single configuration (one model, one training run). No Ray; runs in this process.
@@ -318,6 +319,7 @@ class Sim:
                     mode,
                     save_checkpoint,
                     run_dir,
+                    run_eval=run_eval,
                     store_eval_md=store_eval_md,
                 )
             else: 
@@ -325,6 +327,7 @@ class Sim:
                     mode,
                     save_checkpoint,
                     run_dir,
+                    run_eval=run_eval,
                     store_eval_md=store_eval_md,
                 )
         finally:
@@ -391,6 +394,7 @@ class Sim:
         wandb_group: str = None,
         wandb_tags: list = None,
         wandb_metadata: dict = None,
+        run_eval: bool = True,
         store_eval_md: bool = False,
     ):
         cfg = self._merge_config(config_override)
@@ -403,6 +407,10 @@ class Sim:
         loss_beta = trainer_cfg.get("loss_beta", 1.0)
         loss_corr_target = trainer_cfg.get("loss_corr_target", 0.4)
         loss_corr_weight = trainer_cfg.get("loss_corr_weight", 1e-3)
+        loss_var_weight = trainer_cfg.get("loss_var_weight", 0.01)
+        loss_latent_weight = trainer_cfg.get("loss_latent_weight", 0.25)
+        loss_scale_ema_decay = trainer_cfg.get("loss_scale_ema_decay", 0.95)
+        loss_scale_warmup_steps = trainer_cfg.get("loss_scale_warmup_steps", 100)
         max_epochs = trainer_cfg.get("max_epochs", 100)
         log_every = trainer_cfg.get("log_every", 5)
 
@@ -440,6 +448,10 @@ class Sim:
                 loss_beta=loss_beta,
                 loss_corr_target=loss_corr_target,
                 loss_corr_weight=loss_corr_weight,
+                loss_var_weight=loss_var_weight,
+                loss_latent_weight=loss_latent_weight,
+                loss_scale_ema_decay=loss_scale_ema_decay,
+                loss_scale_warmup_steps=loss_scale_warmup_steps,
                 max_epochs=max_epochs,
                 logger=False if mode == "dev" else (pl_logger is None),
                 pl_logger=pl_logger,
@@ -459,24 +471,35 @@ class Sim:
                 loss_beta=loss_beta,
                 loss_corr_target=loss_corr_target,
                 loss_corr_weight=loss_corr_weight,
+                loss_var_weight=loss_var_weight,
+                loss_latent_weight=loss_latent_weight,
+                loss_scale_ema_decay=loss_scale_ema_decay,
+                loss_scale_warmup_steps=loss_scale_warmup_steps,
             )
             pl_module.load_state_dict(ckpt_state["state_dict"], strict=False)
             model = pl_module.model
 
-        test_filepath = None
-        if run_dir:
-            os.makedirs(run_dir, exist_ok=True)
-            if save_checkpoint or (store_eval_md and (not train_from_scratch and checkpoint_path)):
-                test_filepath = os.path.join(run_dir, test_report_basename)
-        eval_out = self._evaluate_model(
-            model,
-            mode=mode,
-            test_report_path=test_filepath,
-            model_name=self.model_name,
-        )
-        test_metrics = eval_out["test_metrics"]
+        eval_out = {
+            "evaluators": None,
+            "metrics": {"train": None, "val": None, "test": None},
+            "test_metrics": None,
+        }
+        test_metrics = None
+        if run_eval:
+            test_filepath = None
+            if run_dir:
+                os.makedirs(run_dir, exist_ok=True)
+                if save_checkpoint or (store_eval_md and (not train_from_scratch and checkpoint_path)):
+                    test_filepath = os.path.join(run_dir, test_report_basename)
+            eval_out = self._evaluate_model(
+                model,
+                mode=mode,
+                test_report_path=test_filepath,
+                model_name=self.model_name,
+            )
+            test_metrics = eval_out["test_metrics"]
 
-        if mode == "prod" and pl_logger is not None:
+        if mode == "prod" and pl_logger is not None and test_metrics is not None:
             metrics_to_log = {}
             for k, v in (test_metrics.get("base_metrics") or {}).items():
                 if isinstance(v, (int, float, np.floating)):
@@ -508,23 +531,31 @@ class Sim:
         wandb_group: str = None,
         wandb_tags: list = None,
         wandb_metadata: dict = None,
+        run_eval: bool = True,
         store_eval_md: bool = False,
     ):
         cfg = self._merge_config(config_override)
         model_cfg = cfg["model"].copy()
         model_cfg.pop("name")
         model = build_model(self.base, self.model_name, model_cfg)
-        test_filepath = None
-        if run_dir and (save_checkpoint or store_eval_md):
-            os.makedirs(run_dir, exist_ok=True)
-            test_filepath = os.path.join(run_dir, test_report_basename)
-        eval_out = self._evaluate_model(
-            model,
-            mode=mode,
-            test_report_path=test_filepath,
-            model_name=self.model_name,
-        )
-        test_metrics = eval_out["test_metrics"]
+        eval_out = {
+            "evaluators": None,
+            "metrics": {"train": None, "val": None, "test": None},
+            "test_metrics": None,
+        }
+        test_metrics = None
+        if run_eval:
+            test_filepath = None
+            if run_dir and (save_checkpoint or store_eval_md):
+                os.makedirs(run_dir, exist_ok=True)
+                test_filepath = os.path.join(run_dir, test_report_basename)
+            eval_out = self._evaluate_model(
+                model,
+                mode=mode,
+                test_report_path=test_filepath,
+                model_name=self.model_name,
+            )
+            test_metrics = eval_out["test_metrics"]
 
         wandb_started_here = False
         if mode == "prod" and wandb is not None and wandb.run is None:
@@ -544,7 +575,7 @@ class Sim:
                 wandb.config.update(_to_serializable(wandb_metadata), allow_val_change=True)
             wandb_started_here = True
 
-        if mode == "prod" and wandb is not None and wandb.run is not None:
+        if mode == "prod" and wandb is not None and wandb.run is not None and test_metrics is not None:
             # Log train and val metrics
             train_metrics = eval_out["metrics"]["train"]
             val_metrics = eval_out["metrics"]["val"]
@@ -821,6 +852,7 @@ class Sim:
                     loss_beta=trainer_cfg.get("loss_beta", 1.0),
                     loss_corr_target=trainer_cfg.get("loss_corr_target", 0.4),
                     loss_corr_weight=trainer_cfg.get("loss_corr_weight", 1e-3),
+                    loss_var_weight=trainer_cfg.get("loss_var_weight", 0.01),
                 )
                 tune_metrics = {
                     "train_loss": "train_loss",

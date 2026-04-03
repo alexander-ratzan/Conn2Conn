@@ -31,7 +31,7 @@ default:
     device: null
   trainer:
     lr: 1.0e-4
-    loss_type: demeaned_mse
+    loss_type: mse
     loss_alpha: 0.5
     loss_beta: 1.0
     max_epochs: 200
@@ -73,7 +73,7 @@ search_space:
     upper: 1.0e-2
   loss_type:
     type: choice
-    values: [mse, demeaned_mse]
+    values: [mse, latent_mse, latent_weighted_mse]
   max_epochs:
     type: choice
     values: [50, 100, 150, 200, 250]
