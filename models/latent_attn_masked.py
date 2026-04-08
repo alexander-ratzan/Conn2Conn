@@ -9,14 +9,117 @@ from models.loss import compute_latent_reconstruction_loss
 from models.models import compute_reg_loss, get_modality_data
 
 
+class MultiHeadTokenSelfAttention(nn.Module):
+    def __init__(
+        self,
+        input_dim,
+        attn_dim,
+        value_dim,
+        num_heads=1,
+        attention_activation="softmax",
+        dropout=0.0,
+        use_input_as_value=False,
+    ):
+        super().__init__()
+        self.input_dim = int(input_dim)
+        self.attn_dim = int(attn_dim)
+        self.use_input_as_value = bool(use_input_as_value)
+        self.value_dim = int(self.input_dim if self.use_input_as_value else value_dim)
+        self.num_heads = int(num_heads)
+        self.attention_activation = str(attention_activation)
+        self.dropout_p = float(dropout)
+
+        if self.num_heads <= 0:
+            raise ValueError(f"num_heads must be positive, got {self.num_heads}.")
+        if self.attn_dim % self.num_heads != 0:
+            raise ValueError(
+                f"attn_dim={self.attn_dim} must be divisible by num_heads={self.num_heads}."
+            )
+        if self.value_dim % self.num_heads != 0:
+            raise ValueError(
+                f"value_dim={self.value_dim} must be divisible by num_heads={self.num_heads}."
+            )
+        if self.attention_activation not in {"softmax", "identity"}:
+            raise ValueError(
+                f"Unknown attention_activation='{self.attention_activation}'. "
+                "Choose from {'softmax', 'identity'}."
+            )
+
+        self.q_head_dim = self.attn_dim // self.num_heads
+        self.v_head_dim = self.value_dim // self.num_heads
+
+        self.W_Q = nn.Linear(self.input_dim, self.attn_dim, bias=False)
+        self.W_K = nn.Linear(self.input_dim, self.attn_dim, bias=False)
+        self.W_V = None if self.use_input_as_value else nn.Linear(self.input_dim, self.value_dim, bias=False)
+        self.attn_dropout = nn.Dropout(self.dropout_p) if self.dropout_p > 0 else nn.Identity()
+
+    def forward(self, tokens):
+        batch_size, num_tokens, _ = tokens.shape
+        Q = self.W_Q(tokens).view(batch_size, num_tokens, self.num_heads, self.q_head_dim).transpose(1, 2)
+        K = self.W_K(tokens).view(batch_size, num_tokens, self.num_heads, self.q_head_dim).transpose(1, 2)
+        V_input = tokens if self.W_V is None else self.W_V(tokens)
+        V = V_input.view(batch_size, num_tokens, self.num_heads, self.v_head_dim).transpose(1, 2)
+
+        attn_logits = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.q_head_dim)
+        if self.attention_activation == "softmax":
+            attn = torch.softmax(attn_logits, dim=-1)
+        else:
+            attn = attn_logits
+        attn = self.attn_dropout(attn)
+        Z = torch.matmul(attn, V)
+        Z = Z.transpose(1, 2).contiguous().view(batch_size, num_tokens, self.value_dim)
+        return Z, attn
+
+
+class TransformerTokenBlock(nn.Module):
+    def __init__(self, token_dim, attn_dim, num_heads=1, dropout=0.0, attention_activation="softmax", ff_hidden_dim=None):
+        super().__init__()
+        self.token_dim = int(token_dim)
+        self.attn_dim = int(attn_dim)
+        ff_hidden_dim = int(ff_hidden_dim or (4 * self.token_dim))
+        self.norm1 = nn.LayerNorm(self.token_dim)
+        self.self_attn = MultiHeadTokenSelfAttention(
+            input_dim=self.token_dim,
+            attn_dim=self.attn_dim,
+            value_dim=self.attn_dim,
+            num_heads=num_heads,
+            attention_activation=attention_activation,
+            dropout=dropout,
+        )
+        self.attn_out_proj = nn.Linear(self.attn_dim, self.token_dim, bias=False)
+        self.attn_resid_dropout = nn.Dropout(dropout) if dropout > 0 else nn.Identity()
+        self.norm2 = nn.LayerNorm(self.token_dim)
+        self.ffn = nn.Sequential(
+            nn.Linear(self.token_dim, ff_hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout) if dropout > 0 else nn.Identity(),
+            nn.Linear(ff_hidden_dim, self.token_dim),
+        )
+        self.ffn_resid_dropout = nn.Dropout(dropout) if dropout > 0 else nn.Identity()
+
+    def forward(self, tokens):
+        attn_in = self.norm1(tokens)
+        attn_out, attn = self.self_attn(attn_in)
+        tokens = tokens + self.attn_resid_dropout(self.attn_out_proj(attn_out))
+        ffn_in = self.norm2(tokens)
+        tokens = tokens + self.ffn_resid_dropout(self.ffn(ffn_in))
+        return tokens, attn
+
+
 class LatentAttnMasked(nn.Module):
     """
     Joint SC/FC latent attention model with masked FC reconstruction.
 
     The model predicts target PCA coefficients through:
-    1. An optional latent-space backbone (`none`, `pls_residual`, `linear_residual`).
-    2. A masked FC attention branch that predicts a residual correction.
+    1. A latent-space backbone (`attention_only`, `none`, `pls_residual`, `linear_residual`).
+    2. An optional masked FC attention branch that predicts a residual correction.
     3. Fixed decoding back to full target edge space through the target PCA basis.
+
+    `residual_mode` semantics:
+    - `attention_only`: zero backbone, active attention branch
+    - `none`: linear backbone only, no attention branch
+    - `pls_residual`: PLS backbone plus attention residual
+    - `linear_residual`: learned linear backbone plus attention residual
     """
 
     def __init__(
@@ -28,10 +131,12 @@ class LatentAttnMasked(nn.Module):
         token_embedding_dim=None,
         attn_dim=16,
         value_dim=16,
+        transformer_layers=0,
+        num_heads=1,
         readout_type="linear",
         readout_hidden_dim=None,
         attention_activation="softmax",
-        residual_mode="none",
+        residual_mode="attention_only",
         residual_gain_init=1.0e-3,
         zscore_pca_scores=False,
         attention_dropout=0.0,
@@ -57,6 +162,8 @@ class LatentAttnMasked(nn.Module):
         self.token_embedding_type = "learned"
         self.attn_dim = int(attn_dim)
         self.value_dim = int(value_dim)
+        self.transformer_layers = int(transformer_layers)
+        self.num_heads = int(num_heads)
         self.readout_type = str(readout_type)
         self.attention_activation = str(attention_activation)
         self.residual_mode = str(residual_mode)
@@ -74,15 +181,19 @@ class LatentAttnMasked(nn.Module):
             raise ValueError(
                 f"Unknown readout_type='{self.readout_type}'. Choose from {'linear', 'mlp', 'concat_mlp', 'scalar_slot'}."
             )
+        if self.transformer_layers < 0:
+            raise ValueError(f"transformer_layers must be >= 0, got {self.transformer_layers}.")
+        if self.num_heads <= 0:
+            raise ValueError(f"num_heads must be positive, got {self.num_heads}.")
         if self.attention_activation not in {"softmax", "identity"}:
             raise ValueError(
                 f"Unknown attention_activation='{self.attention_activation}'. "
                 "Choose from {'softmax', 'identity'}."
             )
-        if self.residual_mode not in {"none", "pls_residual", "linear_residual"}:
+        if self.residual_mode not in {"attention_only", "none", "pls_residual", "linear_residual"}:
             raise ValueError(
                 f"Unknown residual_mode='{self.residual_mode}'. "
-                "Choose from {'none', 'pls_residual', 'linear_residual'}."
+                "Choose from {'attention_only', 'none', 'pls_residual', 'linear_residual'}."
             )
         if not (0.0 <= self.sc_token_dropout_p < 1.0):
             raise ValueError(f"sc_token_dropout must be in [0, 1), got {self.sc_token_dropout_p}.")
@@ -184,9 +295,14 @@ class LatentAttnMasked(nn.Module):
             torch.zeros(target_scores_k.shape[0], self.n_components_pls, dtype=torch.float32, device=device),
         )
 
-        self.residual_linear = None
+        self.backbone_linear = None
+        if self.residual_mode in {"none", "linear_residual"}:
+            self.backbone_linear = nn.Linear(self.n_components_pca, self.n_components_pca, bias=True)
+        self.residual_linear = self.backbone_linear
         if self.residual_mode == "linear_residual":
-            self.residual_linear = nn.Linear(self.n_components_pca, self.n_components_pca, bias=True)
+            pass
+        elif self.residual_mode == "none":
+            pass
         elif self.residual_mode == "pls_residual":
             pls = PLSRegression(n_components=self.n_components_pls)
             pls.fit(X_pls, Y_pls)
@@ -206,21 +322,58 @@ class LatentAttnMasked(nn.Module):
 
         self.sc_component_embedding = nn.Embedding(self.n_components_pca, self.token_embedding_dim)
         self.fc_component_embedding = nn.Embedding(self.n_components_pca, self.token_embedding_dim)
+        self.use_attention_residual = self.residual_mode in {"attention_only", "pls_residual", "linear_residual"}
 
         token_dim = 1 + self.token_embedding_dim
-        self.W_Q = nn.Linear(token_dim, self.attn_dim, bias=False)
-        self.W_K = nn.Linear(token_dim, self.attn_dim, bias=False)
-        self.W_V = None if self.readout_type == "scalar_slot" else nn.Linear(token_dim, self.value_dim, bias=False)
+        self.token_dim = token_dim
+        self.transformer_blocks = None
+        self.raw_attention = None
+        self.raw_attention_value_dim = None
+        if self.transformer_layers > 0:
+            self.transformer_blocks = nn.ModuleList(
+                [
+                    TransformerTokenBlock(
+                        token_dim=self.token_dim,
+                        attn_dim=self.attn_dim,
+                        num_heads=self.num_heads,
+                        dropout=self.attention_dropout_p,
+                        attention_activation=self.attention_activation,
+                    )
+                    for _ in range(self.transformer_layers)
+                ]
+            )
+            self.transformer_output_norm = nn.LayerNorm(self.token_dim)
+            self.W_Q = None
+            self.W_K = None
+            self.W_V = None
+        else:
+            use_input_as_value = self.readout_type == "scalar_slot"
+            raw_value_dim = self.token_dim if use_input_as_value else self.value_dim
+            self.raw_attention_value_dim = raw_value_dim
+            self.raw_attention = MultiHeadTokenSelfAttention(
+                input_dim=self.token_dim,
+                attn_dim=self.attn_dim,
+                value_dim=raw_value_dim,
+                num_heads=self.num_heads,
+                attention_activation=self.attention_activation,
+                dropout=self.attention_dropout_p,
+                use_input_as_value=use_input_as_value,
+            )
+            self.W_Q = self.raw_attention.W_Q
+            self.W_K = self.raw_attention.W_K
+            self.W_V = self.raw_attention.W_V
+            self.transformer_output_norm = None
+        self.readout_context_dim = self.token_dim if self.transformer_layers > 0 else self.raw_attention_value_dim
         if readout_hidden_dim is None:
-            readout_hidden_dim = self.value_dim
+            readout_hidden_dim = self.readout_context_dim
         self.readout_hidden_dim = int(readout_hidden_dim)
         if self.readout_type == "scalar_slot":
             self.readout_head = None
         elif self.readout_type == "linear":
-            self.readout_head = nn.Linear(self.value_dim, 1, bias=True)
+            self.readout_head = nn.Linear(self.readout_context_dim, 1, bias=True)
         elif self.readout_type == "mlp":
             self.readout_head = nn.Sequential(
-                nn.Linear(self.value_dim, self.readout_hidden_dim),
+                nn.Linear(self.readout_context_dim, self.readout_hidden_dim),
                 nn.PReLU(),
                 nn.Linear(self.readout_hidden_dim, self.readout_hidden_dim),
                 nn.PReLU(),
@@ -228,15 +381,14 @@ class LatentAttnMasked(nn.Module):
             )
         else:
             self.readout_head = nn.Sequential(
-                nn.Linear(token_dim + self.value_dim, self.readout_hidden_dim),
+                nn.Linear(self.token_dim + self.readout_context_dim, self.readout_hidden_dim),
                 nn.PReLU(),
                 nn.Linear(self.readout_hidden_dim, self.readout_hidden_dim),
                 nn.PReLU(),
                 nn.Linear(self.readout_hidden_dim, 1),
             )
-        self.attn_dropout = nn.Dropout(self.attention_dropout_p) if self.attention_dropout_p > 0 else nn.Identity()
         self.sc_token_dropout = nn.Dropout(self.sc_token_dropout_p) if self.sc_token_dropout_p > 0 else nn.Identity()
-        self.residual_gain = None if self.residual_mode == "none" else nn.Parameter(
+        self.residual_gain = None if not self.use_attention_residual else nn.Parameter(
             torch.tensor([self.residual_gain_init], dtype=torch.float32, device=device)
         )
 
@@ -254,6 +406,7 @@ class LatentAttnMasked(nn.Module):
             f"| token_embedding_type={self.token_embedding_type} token_embedding_dim={self.token_embedding_dim} "
             f"| residual_mode={self.residual_mode} residual_gain_init={self.residual_gain_init} "
             f"| attn_dim={self.attn_dim} value_dim={self.value_dim} "
+            f"| transformer_layers={self.transformer_layers} num_heads={self.num_heads} "
             f"| readout_type={self.readout_type} readout_hidden_dim={self.readout_hidden_dim} "
             f"| attention_activation={self.attention_activation} "
             f"| zscore_pca_scores={self.zscore_pca_scores} "
@@ -283,11 +436,11 @@ class LatentAttnMasked(nn.Module):
         return torch.matmul(c_target_hat, self.target_loadings_k.t()) + self.target_mean
 
     def _compute_residual_base(self, c_source):
-        if self.residual_mode == "none":
+        if self.residual_mode == "attention_only":
             return torch.zeros_like(c_source)
         if self.residual_mode == "pls_residual":
             return torch.matmul(c_source, self.pls_residual_coef) + self.pls_residual_intercept
-        return self.residual_linear(c_source)
+        return self.backbone_linear(c_source)
 
     def predict_backbone_latents(self, x):
         c_source = self.encode_source_latents(x)
@@ -333,23 +486,39 @@ class LatentAttnMasked(nn.Module):
         fc_tokens = torch.cat([c_target_scalar.unsqueeze(-1), fc_emb], dim=-1)
         return torch.cat([sc_tokens, fc_tokens], dim=1), fc_mask
 
-    def _run_attention(self, tokens):
-        Q = self.W_Q(tokens)
-        K = self.W_K(tokens)
-        V = tokens if self.W_V is None else self.W_V(tokens)
-        attn_logits = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.attn_dim)
-        if self.attention_activation == "softmax":
-            attn = torch.softmax(attn_logits, dim=-1)
-        else:
-            attn = attn_logits
-        attn = self.attn_dropout(attn)
-        Z = torch.matmul(attn, V)
-        return Z, attn
+    def _run_attention_stack(self, tokens):
+        if self.transformer_layers > 0:
+            attn = None
+            hidden = tokens
+            for block in self.transformer_blocks:
+                hidden, attn = block(hidden)
+            hidden = self.transformer_output_norm(hidden)
+            return hidden, attn
+        return self.raw_attention(tokens)
 
     def predict_target_latents(self, x, y=None, return_attention=False, return_mask=False, force_all_masked=None):
         c_source = self.encode_source_latents(x)
         c_target_true = None if y is None else self.encode_target_latents(y)
         c_target_base = self._compute_residual_base(c_source)
+
+        if not self.use_attention_residual:
+            fc_mask = torch.ones(c_source.shape[0], self.n_components_pca, dtype=torch.bool, device=c_source.device)
+            c_target_delta = torch.zeros_like(c_target_base)
+            c_target_hat = c_target_base
+            self.last_attention = None
+            self.last_latent_pred = c_target_hat.detach()
+            self.last_fc_mask = fc_mask.detach()
+            self.last_residual_base = c_target_base.detach()
+            self.last_latent_delta = c_target_delta.detach()
+
+            outputs = [c_target_hat]
+            if return_attention:
+                outputs.append(None)
+            if return_mask:
+                outputs.append(fc_mask)
+            if len(outputs) == 1:
+                return outputs[0]
+            return tuple(outputs)
 
         if force_all_masked is None:
             force_all_masked = (y is None)
@@ -361,7 +530,7 @@ class LatentAttnMasked(nn.Module):
             fc_mask = self._sample_fc_mask(c_source.shape[0], c_source.device)
             tokens, fc_mask = self._build_joint_tokens(c_source, c_target_true=c_target_true, fc_mask=fc_mask)
 
-        Z, attn = self._run_attention(tokens)
+        Z, attn = self._run_attention_stack(tokens)
         fc_context = Z[:, self.n_components_pca:, :]
         fc_tokens = tokens[:, self.n_components_pca:, :]
         if self.readout_type == "scalar_slot":
@@ -375,7 +544,7 @@ class LatentAttnMasked(nn.Module):
             c_target_delta = self.residual_gain * c_target_delta
         c_target_hat = c_target_base + c_target_delta
 
-        self.last_attention = attn.detach()
+        self.last_attention = attn.detach() if attn is not None else None
         self.last_latent_pred = c_target_hat.detach()
         self.last_fc_mask = fc_mask.detach()
         self.last_residual_base = c_target_base.detach()
@@ -395,6 +564,23 @@ class LatentAttnMasked(nn.Module):
         c_target_true = None if y is None else self.encode_target_latents(y)
         c_target_base = self._compute_residual_base(c_source)
 
+        if not self.use_attention_residual:
+            fc_mask = torch.ones(c_source.shape[0], self.n_components_pca, dtype=torch.bool, device=c_source.device)
+            tokens, fc_mask = self._build_joint_tokens(c_source, c_target_true=None if force_all_masked or y is None else c_target_true, fc_mask=fc_mask)
+            c_target_delta = torch.zeros_like(c_target_base)
+            c_target_hat = c_target_base
+            return {
+                "c_source": c_source,
+                "c_target_true": c_target_true,
+                "c_target_base": c_target_base,
+                "c_target_delta": c_target_delta,
+                "tokens_pre": tokens,
+                "tokens_post": tokens,
+                "attention": None,
+                "fc_mask": fc_mask,
+                "c_target_hat": c_target_hat,
+            }
+
         if force_all_masked is None:
             force_all_masked = (y is None)
 
@@ -405,7 +591,7 @@ class LatentAttnMasked(nn.Module):
             fc_mask = self._sample_fc_mask(c_source.shape[0], c_source.device)
             tokens, fc_mask = self._build_joint_tokens(c_source, c_target_true=c_target_true, fc_mask=fc_mask)
 
-        token_context, attn = self._run_attention(tokens)
+        token_context, attn = self._run_attention_stack(tokens)
         fc_context = token_context[:, self.n_components_pca:, :]
         fc_tokens = tokens[:, self.n_components_pca:, :]
         if self.readout_type == "scalar_slot":
@@ -454,10 +640,16 @@ class LatentAttnMasked(nn.Module):
     def get_reg_loss(self):
         if self.reg <= 0:
             return 0.0
-        params = [self.W_Q.weight, self.W_K.weight, self.sc_component_embedding.weight, self.fc_component_embedding.weight]
-        if self.W_V is not None:
-            params.append(self.W_V.weight)
-        if self.readout_head is not None:
+        params = [self.sc_component_embedding.weight, self.fc_component_embedding.weight]
+        if self.use_attention_residual and self.raw_attention is not None:
+            params.extend([self.raw_attention.W_Q.weight, self.raw_attention.W_K.weight])
+            if self.raw_attention.W_V is not None:
+                params.append(self.raw_attention.W_V.weight)
+        if self.use_attention_residual and self.transformer_blocks is not None:
+            for block in self.transformer_blocks:
+                params.extend([p for p in block.parameters() if p.requires_grad])
+            params.extend([p for p in self.transformer_output_norm.parameters() if p.requires_grad])
+        if self.use_attention_residual and self.readout_head is not None:
             params.extend([p for p in self.readout_head.parameters() if p.requires_grad])
         if self.residual_linear is not None:
             params.extend([p for p in self.residual_linear.parameters() if p.requires_grad])

@@ -143,6 +143,135 @@ def compute_var_match_loss(y_pred, y_true, axis=0, relative_to_true=True):
     return (true_var - pred_var) ** 2
 
 
+def compute_pairwise_row_correlation(x, y, eps=1e-10):
+    """
+    Compute pairwise row correlations between x and y.
+
+    Returns a matrix where entry (i, j) is the correlation between row i of x
+    and row j of y.
+    """
+    x_centered = x - x.mean(dim=1, keepdim=True)
+    y_centered = y - y.mean(dim=1, keepdim=True)
+    x_norm = torch.sqrt(torch.sum(x_centered ** 2, dim=1, keepdim=True) + eps)
+    y_norm = torch.sqrt(torch.sum(y_centered ** 2, dim=1, keepdim=True) + eps)
+    x_unit = x_centered / x_norm
+    y_unit = y_centered / y_norm
+    return torch.matmul(x_unit, y_unit.t())
+
+
+def compute_correye_loss(y_pred, y_true):
+    """
+    Krakencoder-style identity matching loss on the subject-by-subject
+    correlation matrix. Encourages own-subject matches to dominate.
+    """
+    if y_pred.shape[0] < 2:
+        return y_pred.new_tensor(0.0)
+    cc = compute_pairwise_row_correlation(y_true, y_pred)
+    eye = torch.eye(cc.shape[0], device=cc.device, dtype=cc.dtype)
+    return torch.norm(cc - eye)
+
+
+def compute_neidist_loss(y_pred, y_true, margin=None):
+    """
+    Krakencoder-style nearest-neighbor distance loss.
+
+    Encourages each prediction to be closer to its own target than to nearby
+    competing targets from other subjects.
+    """
+    if y_pred.shape[0] < 2:
+        return y_pred.new_tensor(0.0)
+    d = torch.cdist(y_true, y_pred)
+    dtrace = torch.trace(d)
+    dself = dtrace / d.shape[0]
+    dnei = d + torch.eye(d.shape[0], device=d.device, dtype=d.dtype) * d.max()
+    dother = torch.mean((dnei.min(dim=0).values + dnei.min(dim=1).values) / 2.0)
+    if margin is not None:
+        dother = -torch.relu(torch.as_tensor(margin, device=d.device, dtype=d.dtype) - dother)
+    return dself - dother
+
+
+class BalancedCompositeLoss(nn.Module):
+    """
+    Sum a set of loss terms after normalizing each by an EMA-estimated scale.
+
+    This keeps heterogeneous losses on comparable magnitudes without hand-tuning
+    explicit weights in first-pass experiments.
+    """
+
+    VALID_TERMS = ("mse", "varmatch", "correye", "neidist")
+
+    def __init__(self, loss_terms, ema_decay=0.95, warmup_steps=100):
+        super().__init__()
+        if isinstance(loss_terms, str):
+            terms = [t.strip() for t in loss_terms.split("+") if t.strip()]
+        else:
+            terms = [str(t).strip() for t in (loss_terms or []) if str(t).strip()]
+        if not terms:
+            raise ValueError("BalancedCompositeLoss requires a non-empty loss_terms list.")
+        invalid = [t for t in terms if t not in self.VALID_TERMS]
+        if invalid:
+            raise ValueError(
+                f"Unknown composite loss terms {invalid}. Valid options: {list(self.VALID_TERMS)}"
+            )
+        # Preserve order but remove duplicates.
+        self.loss_terms = list(dict.fromkeys(terms))
+        self.ema_decay = float(ema_decay)
+        self.warmup_steps = int(warmup_steps)
+        self.register_buffer("_loss_scales", torch.ones(len(self.loss_terms), dtype=torch.float32))
+        self.register_buffer("_loss_scale_initialized", torch.zeros(len(self.loss_terms), dtype=torch.bool))
+        self.register_buffer("_loss_scale_updates", torch.tensor(0, dtype=torch.long))
+        self.last_raw_terms = OrderedDict()
+        self.last_norm_terms = OrderedDict()
+
+    def _compute_raw_term(self, name, y_pred, y_true):
+        if name == "mse":
+            return F.mse_loss(y_pred, y_true)
+        if name == "varmatch":
+            return compute_var_match_loss(y_pred, y_true, axis=0, relative_to_true=True)
+        if name == "correye":
+            return compute_correye_loss(y_pred, y_true)
+        if name == "neidist":
+            return compute_neidist_loss(y_pred, y_true)
+        raise ValueError(f"Unsupported composite loss term: {name}")
+
+    def _maybe_update_scales(self, raw_terms):
+        if not self.training:
+            return
+        if self._loss_scale_updates.item() >= self.warmup_steps:
+            return
+        for idx, raw_val in enumerate(raw_terms):
+            raw_val = torch.clamp(raw_val.detach(), min=1e-8).to(self._loss_scales.device)
+            if not bool(self._loss_scale_initialized[idx].item()):
+                self._loss_scales[idx] = raw_val
+                self._loss_scale_initialized[idx] = True
+            else:
+                decay = self.ema_decay
+                self._loss_scales[idx].mul_(decay).add_(raw_val * (1.0 - decay))
+        self._loss_scale_updates.add_(1)
+
+    def get_scale_dict(self):
+        return OrderedDict(
+            (name, self._loss_scales[idx].detach())
+            for idx, name in enumerate(self.loss_terms)
+        )
+
+    def forward(self, y_pred, y_true, **kwargs):
+        raw_terms = [self._compute_raw_term(name, y_pred, y_true) for name in self.loss_terms]
+        self._maybe_update_scales(raw_terms)
+        eps = 1e-8
+        norm_terms = []
+        for idx, raw_val in enumerate(raw_terms):
+            ref = torch.clamp(self._loss_scales[idx].detach().to(raw_val.device), min=eps)
+            norm_terms.append(raw_val / ref)
+        self.last_raw_terms = OrderedDict(
+            (name, value.detach()) for name, value in zip(self.loss_terms, raw_terms)
+        )
+        self.last_norm_terms = OrderedDict(
+            (name, value.detach()) for name, value in zip(self.loss_terms, norm_terms)
+        )
+        return torch.stack(norm_terms).sum()
+
+
 class MSEVarMatchLoss(nn.Module):
     """
     Joint objective: edge-space MSE plus a small variance-matching penalty.
@@ -197,12 +326,16 @@ def create_loss_fn(
     corr_target=0.4,
     corr_weight=1e-3,
     var_weight=0.01,
+    loss_terms=None,
+    loss_scale_ema_decay=0.95,
+    loss_scale_warmup_steps=100,
 ):
     """
     Factory function to create loss functions.
     
     Args:
-        loss_type: one of 'mse', 'weighted_mse', 'vae', 'sarwar_mse_corr', 'joint_mse_varmatch'
+        loss_type: one of 'mse', 'weighted_mse', 'vae', 'sarwar_mse_corr',
+            'joint_mse_varmatch', 'balanced_composite'
         base: Dataset base object (required for weighted_mse)
         alpha: weight for weighted_mse (default 0.5)
         beta: weight for VAE KLD term (default 1.0)
@@ -225,10 +358,16 @@ def create_loss_fn(
         return SarwarMSECorrLoss(corr_target=corr_target, corr_weight=corr_weight)
     elif loss_type == "joint_mse_varmatch":
         return MSEVarMatchLoss(var_weight=var_weight, relative_to_true=True)
+    elif loss_type == "balanced_composite":
+        return BalancedCompositeLoss(
+            loss_terms=loss_terms,
+            ema_decay=loss_scale_ema_decay,
+            warmup_steps=loss_scale_warmup_steps,
+        )
     else:
         raise ValueError(
             f"Unknown loss type: {loss_type}. Choose from "
-            "'mse', 'weighted_mse', 'vae', 'sarwar_mse_corr', 'joint_mse_varmatch'"
+            "'mse', 'weighted_mse', 'vae', 'sarwar_mse_corr', 'joint_mse_varmatch', 'balanced_composite'"
         )
 
 
@@ -341,6 +480,8 @@ DEFAULT_HISTORY_LOSS_PAIRS = [
     ("train_loss", "val_loss", "Loss"),
 ]
 
+REG_HISTORY_PAIR = ("train_reg_loss", "val_reg_loss", "Reg Loss")
+
 LATENT_HISTORY_LOSS_PAIRS = [
     ("train_loss", "val_loss", "Active Loss"),
     ("train_edge_mse", "val_edge_mse", "Edge MSE"),
@@ -359,6 +500,35 @@ DEFAULT_HISTORY_CORR_PAIRS = [
 ]
 
 
+def _label_from_loss_term(term_name):
+    mapping = {
+        "mse": "MSE Term",
+        "varmatch": "Var Match Term",
+        "correye": "CorrEye Term",
+        "neidist": "NeiDist Term",
+    }
+    return mapping.get(term_name, f"{term_name} Term")
+
+
+def _composite_loss_term_pairs(df):
+    term_names = []
+    for col in df.columns:
+        if col.startswith("train_loss_term_"):
+            term_names.append(col.removeprefix("train_loss_term_"))
+        elif col.startswith("val_loss_term_"):
+            term_names.append(col.removeprefix("val_loss_term_"))
+    seen = []
+    for name in term_names:
+        if name not in seen:
+            seen.append(name)
+    return [
+        (f"train_loss_term_{name}" if f"train_loss_term_{name}" in df.columns else None,
+         f"val_loss_term_{name}" if f"val_loss_term_{name}" in df.columns else None,
+         _label_from_loss_term(name))
+        for name in seen
+    ]
+
+
 def _available_history_pairs(df, pairs):
     out = []
     for train_key, val_key, label in pairs:
@@ -367,6 +537,48 @@ def _available_history_pairs(df, pairs):
         elif val_key in df.columns and df[val_key].notna().any():
             out.append((train_key if train_key in df.columns else None, val_key, label))
     return out
+
+
+def _set_robust_axis_limits(ax, series_list):
+    """
+    Set y-limits using a robust central range so one warmup/outlier epoch does not
+    flatten the rest of the trajectory. If there are too few valid points, fall
+    back to matplotlib autoscaling.
+    """
+    values = []
+    for series in series_list:
+        if series is None:
+            continue
+        arr = np.asarray(series, dtype=float)
+        arr = arr[np.isfinite(arr)]
+        if arr.size:
+            values.append(arr)
+    if not values:
+        return
+    vals = np.concatenate(values)
+    if vals.size < 4:
+        return
+
+    lo = np.quantile(vals, 0.05)
+    hi = np.quantile(vals, 0.95)
+    vmin = vals.min()
+    vmax = vals.max()
+
+    if not np.isfinite(lo) or not np.isfinite(hi):
+        return
+    if hi <= lo:
+        span = max(abs(lo), 1e-6) * 0.05 + 1e-6
+        ax.set_ylim(lo - span, hi + span)
+        return
+
+    robust_span = hi - lo
+    full_span = max(vmax - vmin, 1e-12)
+    # Only intervene when there is a meaningful outlier stretching the axis.
+    if full_span <= 3.0 * robust_span:
+        return
+
+    pad = 0.08 * robust_span
+    ax.set_ylim(lo - pad, hi + pad)
 
 
 def summarize_history_columns(history_df):
@@ -399,6 +611,57 @@ def plot_training_history(history_df, style="default", figsize=None, marker_size
     epochs = df["epoch"]
 
     if style == "default":
+        composite_pairs = _composite_loss_term_pairs(df)
+        if composite_pairs:
+            top_pairs = (
+                _available_history_pairs(df, DEFAULT_HISTORY_LOSS_PAIRS)
+                + _available_history_pairs(df, [REG_HISTORY_PAIR])
+                + _available_history_pairs(df, composite_pairs)
+            )
+            corr_pairs = _available_history_pairs(df, DEFAULT_HISTORY_CORR_PAIRS)
+            ncols = max(len(top_pairs), len(corr_pairs), 1)
+            if figsize is None:
+                figsize = (5 * ncols, 7)
+            fig, axes = plt.subplots(2, ncols, figsize=figsize, squeeze=False)
+            for ax_idx in range(ncols):
+                if ax_idx < len(top_pairs):
+                    train_key, val_key, title = top_pairs[ax_idx]
+                    ax = axes[0, ax_idx]
+                    plotted = []
+                    if train_key is not None and train_key in df.columns and df[train_key].notna().any():
+                        ax.plot(epochs, df[train_key], "b-o", label="Train", markersize=marker_size)
+                        plotted.append(df[train_key])
+                    if val_key is not None and val_key in df.columns and df[val_key].notna().any():
+                        ax.plot(epochs, df[val_key], "r-o", label="Val", markersize=marker_size)
+                        plotted.append(df[val_key])
+                    _set_robust_axis_limits(ax, plotted)
+                    ax.set_title(title)
+                    ax.set_xlabel("Epoch")
+                    ax.grid(True, alpha=grid_alpha)
+                    ax.legend()
+                else:
+                    axes[0, ax_idx].axis("off")
+
+                if ax_idx < len(corr_pairs):
+                    train_key, val_key, title = corr_pairs[ax_idx]
+                    ax = axes[1, ax_idx]
+                    plotted = []
+                    if train_key is not None and train_key in df.columns and df[train_key].notna().any():
+                        ax.plot(epochs, df[train_key], "b-o", label="Train", markersize=marker_size)
+                        plotted.append(df[train_key])
+                    if val_key is not None and val_key in df.columns and df[val_key].notna().any():
+                        ax.plot(epochs, df[val_key], "r-o", label="Val", markersize=marker_size)
+                        plotted.append(df[val_key])
+                    _set_robust_axis_limits(ax, plotted)
+                    ax.set_title(title)
+                    ax.set_xlabel("Epoch")
+                    ax.grid(True, alpha=grid_alpha)
+                    ax.legend()
+                else:
+                    axes[1, ax_idx].axis("off")
+            fig.tight_layout()
+            return fig, axes
+
         pairs = _available_history_pairs(df, DEFAULT_HISTORY_LOSS_PAIRS + DEFAULT_HISTORY_CORR_PAIRS)
         if figsize is None:
             figsize = (12, 4)
@@ -414,10 +677,14 @@ def plot_training_history(history_df, style="default", figsize=None, marker_size
                 ax.axis("off")
                 continue
             train_key, val_key, title = pair_group[0]
+            plotted = []
             if train_key is not None and train_key in df.columns and df[train_key].notna().any():
                 ax.plot(epochs, df[train_key], "b-o", label="Train", markersize=marker_size)
+                plotted.append(df[train_key])
             if val_key is not None and val_key in df.columns and df[val_key].notna().any():
                 ax.plot(epochs, df[val_key], "r-o", label="Val", markersize=marker_size)
+                plotted.append(df[val_key])
+            _set_robust_axis_limits(ax, plotted)
             ax.set_title(title)
             ax.set_xlabel("Epoch")
             ax.grid(True, alpha=grid_alpha)
@@ -436,10 +703,14 @@ def plot_training_history(history_df, style="default", figsize=None, marker_size
             if ax_idx < len(loss_pairs):
                 train_key, val_key, title = loss_pairs[ax_idx]
                 ax = axes[0, ax_idx]
+                plotted = []
                 if train_key is not None and train_key in df.columns and df[train_key].notna().any():
                     ax.plot(epochs, df[train_key], "b-o", label="Train", markersize=marker_size)
+                    plotted.append(df[train_key])
                 if val_key is not None and val_key in df.columns and df[val_key].notna().any():
                     ax.plot(epochs, df[val_key], "r-o", label="Val", markersize=marker_size)
+                    plotted.append(df[val_key])
+                _set_robust_axis_limits(ax, plotted)
                 ax.set_title(title)
                 ax.set_xlabel("Epoch")
                 ax.grid(True, alpha=grid_alpha)
@@ -450,10 +721,14 @@ def plot_training_history(history_df, style="default", figsize=None, marker_size
             if ax_idx < len(corr_pairs):
                 train_key, val_key, title = corr_pairs[ax_idx]
                 ax = axes[1, ax_idx]
+                plotted = []
                 if train_key is not None and train_key in df.columns and df[train_key].notna().any():
                     ax.plot(epochs, df[train_key], "b-o", label="Train", markersize=marker_size)
+                    plotted.append(df[train_key])
                 if val_key is not None and val_key in df.columns and df[val_key].notna().any():
                     ax.plot(epochs, df[val_key], "r-o", label="Val", markersize=marker_size)
+                    plotted.append(df[val_key])
+                _set_robust_axis_limits(ax, plotted)
                 ax.set_title(title)
                 ax.set_xlabel("Epoch")
                 ax.grid(True, alpha=grid_alpha)
@@ -589,6 +864,8 @@ class ValidationEvalCallback(pl.Callback):
             "val_joint_edge_term": cm.get("val_joint_edge_term"),
             "train_joint_latent_term": cm.get("train_joint_latent_term"),
             "val_joint_latent_term": cm.get("val_joint_latent_term"),
+            "train_reg_loss": cm.get("train_reg_loss"),
+            "val_reg_loss": cm.get("val_reg_loss"),
             "train_edge_loss_ref": cm.get("train_edge_loss_ref"),
             "val_edge_loss_ref": cm.get("val_edge_loss_ref"),
             "train_latent_loss_ref": cm.get("train_latent_loss_ref"),
@@ -599,6 +876,9 @@ class ValidationEvalCallback(pl.Callback):
             "val_variance_ratio": val_metrics["variance_ratio"],
             "val_norm_ratio": val_metrics["norm_ratio"],
         }
+        for key, value in cm.items():
+            if key.startswith(("train_loss_term_", "val_loss_term_", "train_loss_raw_", "val_loss_raw_", "train_loss_ref_", "val_loss_ref_")):
+                record[key] = value
         pl_module.log("val_mse", val_metrics["mse"], on_epoch=True)
         pl_module.log("val_pearson_r", val_metrics["pearson_r"], on_epoch=True)
         pl_module.log("val_demeaned_r", val_metrics["demeaned_r"], on_epoch=True, prog_bar=True)
@@ -675,6 +955,7 @@ def train_model(
     loss_corr_weight=1e-3,
     loss_var_weight=0.01,
     loss_latent_weight=0.25,
+    loss_terms=None,
     loss_scale_ema_decay=0.95,
     loss_scale_warmup_steps=100,
     max_epochs=100,
@@ -699,6 +980,7 @@ def train_model(
         loss_corr_weight: penalty strength for sarwar_mse_corr.
         loss_var_weight: weight on the variance-matching term for joint_mse_varmatch.
         loss_latent_weight: weight on latent reconstruction term for joint edge+latent losses.
+        loss_terms: component loss names used by balanced_composite.
         loss_scale_ema_decay: EMA decay for automatic loss scaling in joint_edge_latent_mse_scaled.
         loss_scale_warmup_steps: number of training steps used to calibrate EMA loss scales.
         max_epochs: number of epochs (Trainer max_epochs).
@@ -722,6 +1004,7 @@ def train_model(
         loss_corr_weight=loss_corr_weight,
         loss_var_weight=loss_var_weight,
         loss_latent_weight=loss_latent_weight,
+        loss_terms=loss_terms,
         loss_scale_ema_decay=loss_scale_ema_decay,
         loss_scale_warmup_steps=loss_scale_warmup_steps,
     )

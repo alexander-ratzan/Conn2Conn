@@ -478,6 +478,7 @@ class Sim:
         loss_corr_weight = trainer_cfg.get("loss_corr_weight", 1e-3)
         loss_var_weight = trainer_cfg.get("loss_var_weight", 0.01)
         loss_latent_weight = trainer_cfg.get("loss_latent_weight", 0.25)
+        loss_terms = trainer_cfg.get("loss_terms", None)
         loss_scale_ema_decay = trainer_cfg.get("loss_scale_ema_decay", 0.95)
         loss_scale_warmup_steps = trainer_cfg.get("loss_scale_warmup_steps", 100)
         max_epochs = trainer_cfg.get("max_epochs", 100)
@@ -519,6 +520,7 @@ class Sim:
                 loss_corr_weight=loss_corr_weight,
                 loss_var_weight=loss_var_weight,
                 loss_latent_weight=loss_latent_weight,
+                loss_terms=loss_terms,
                 loss_scale_ema_decay=loss_scale_ema_decay,
                 loss_scale_warmup_steps=loss_scale_warmup_steps,
                 max_epochs=max_epochs,
@@ -542,6 +544,7 @@ class Sim:
                 loss_corr_weight=loss_corr_weight,
                 loss_var_weight=loss_var_weight,
                 loss_latent_weight=loss_latent_weight,
+                loss_terms=loss_terms,
                 loss_scale_ema_decay=loss_scale_ema_decay,
                 loss_scale_warmup_steps=loss_scale_warmup_steps,
             )

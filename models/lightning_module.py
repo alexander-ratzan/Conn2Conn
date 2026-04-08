@@ -11,6 +11,7 @@ import lightning.pytorch as pl
 from models.loss import (
     get_target_train_mean,
     create_loss_fn,
+    BalancedCompositeLoss,
     compute_latent_reconstruction_loss,
     compute_var_match_loss,
     compute_pearson_r,
@@ -22,6 +23,7 @@ from models.models import get_model_input
 
 LATENT_LOSS_TYPES = {"latent_mse", "latent_weighted_mse"}
 JOINT_LOSS_TYPES = {"joint_edge_latent_mse", "joint_edge_latent_mse_scaled"}
+STRUCTURED_LOSS_TYPES = {"balanced_composite"}
 
 class CrossModalLightningModule(pl.LightningModule):
     """
@@ -40,6 +42,7 @@ class CrossModalLightningModule(pl.LightningModule):
         loss_corr_weight: float = 1e-3,
         loss_var_weight: float = 0.01,
         loss_latent_weight: float = 0.25,
+        loss_terms=None,
         loss_scale_ema_decay: float = 0.95,
         loss_scale_warmup_steps: int = 100,
     ):
@@ -59,6 +62,10 @@ class CrossModalLightningModule(pl.LightningModule):
             hparams_to_save["loss_corr_weight"] = loss_corr_weight
         elif loss_type == "joint_mse_varmatch":
             hparams_to_save["loss_var_weight"] = loss_var_weight
+        elif loss_type == "balanced_composite":
+            hparams_to_save["loss_terms"] = list(loss_terms or [])
+            hparams_to_save["loss_scale_ema_decay"] = loss_scale_ema_decay
+            hparams_to_save["loss_scale_warmup_steps"] = loss_scale_warmup_steps
         elif loss_type in JOINT_LOSS_TYPES:
             hparams_to_save["loss_latent_weight"] = loss_latent_weight
             if loss_type == "joint_edge_latent_mse_scaled":
@@ -75,6 +82,7 @@ class CrossModalLightningModule(pl.LightningModule):
         self.loss_corr_weight = loss_corr_weight
         self.loss_var_weight = loss_var_weight
         self.loss_latent_weight = loss_latent_weight
+        self.loss_terms = list(loss_terms or [])
         self.loss_scale_ema_decay = float(loss_scale_ema_decay)
         self.loss_scale_warmup_steps = int(loss_scale_warmup_steps)
         self._target_train_mean = None
@@ -97,6 +105,9 @@ class CrossModalLightningModule(pl.LightningModule):
                 corr_target=self.loss_corr_target,
                 corr_weight=self.loss_corr_weight,
                 var_weight=self.loss_var_weight,
+                loss_terms=self.loss_terms,
+                loss_scale_ema_decay=self.loss_scale_ema_decay,
+                loss_scale_warmup_steps=self.loss_scale_warmup_steps,
             )
             if self.loss_fn is not None:
                 self.loss_fn = self.loss_fn.to(self.device)
@@ -176,6 +187,28 @@ class CrossModalLightningModule(pl.LightningModule):
             aux["latent_weighted_mse"] = latent_weighted_mse.detach()
         return aux
 
+    def _log_structured_loss_terms(self, phase):
+        if not isinstance(self.loss_fn, BalancedCompositeLoss):
+            return
+        for name, value in self.loss_fn.last_raw_terms.items():
+            self.log(f"{phase}_loss_raw_{name}", value, on_step=False, on_epoch=True)
+        for name, value in self.loss_fn.last_norm_terms.items():
+            self.log(f"{phase}_loss_term_{name}", value, on_step=False, on_epoch=True)
+        for name, value in self.loss_fn.get_scale_dict().items():
+            self.log(f"{phase}_loss_ref_{name}", value, on_step=False, on_epoch=True)
+
+    def _compute_reg_loss(self, device):
+        if not hasattr(self.model, "get_reg_loss"):
+            return torch.tensor(0.0, device=device)
+        reg_loss = self.model.get_reg_loss()
+        if reg_loss is None:
+            return torch.tensor(0.0, device=device)
+        if not torch.is_tensor(reg_loss):
+            reg_loss = torch.tensor(float(reg_loss), device=device, dtype=torch.float32)
+        else:
+            reg_loss = reg_loss.to(device=device)
+        return reg_loss
+
     def _get_loss_ref_values(self, edge_mse, latent_mse):
         eps = 1e-8
         if bool(self._loss_ref_initialized.item()):
@@ -216,8 +249,8 @@ class CrossModalLightningModule(pl.LightningModule):
             loss = self._compute_joint_edge_latent_mse(batch, y_pred, y, phase="train")
         else:
             loss = self.loss_fn(y_pred, y, mu=mu, logvar=logvar)
-        if hasattr(self.model, "get_reg_loss"):
-            loss = loss + self.model.get_reg_loss()
+        reg_loss = self._compute_reg_loss(y_pred.device)
+        loss = loss + reg_loss
         
         target_mean = self._target_train_mean
         if isinstance(target_mean, np.ndarray):
@@ -235,8 +268,10 @@ class CrossModalLightningModule(pl.LightningModule):
         self.log("train_demeaned_r", dr, on_step=False, on_epoch=True, prog_bar=True)
         self.log("train_variance_ratio", vr, on_step=False, on_epoch=True)
         self.log("train_norm_ratio", nr, on_step=False, on_epoch=True)
+        self.log("train_reg_loss", reg_loss.detach(), on_step=False, on_epoch=True)
         self.log("train_edge_mse", aux_losses["edge_mse"], on_step=False, on_epoch=True)
         self.log("train_var_match_loss", aux_losses["var_match_loss"], on_step=False, on_epoch=True)
+        self._log_structured_loss_terms("train")
         if "latent_mse" in aux_losses:
             self.log("train_latent_mse", aux_losses["latent_mse"], on_step=False, on_epoch=True)
         if "latent_weighted_mse" in aux_losses:
@@ -259,6 +294,8 @@ class CrossModalLightningModule(pl.LightningModule):
             loss = self._compute_joint_edge_latent_mse(batch, y_pred, y, phase="val")
         else:
             loss = self.loss_fn(y_pred, y, mu=mu, logvar=logvar)
+        reg_loss = self._compute_reg_loss(y_pred.device)
+        loss = loss + reg_loss
         target_mean = self._target_train_mean
         if isinstance(target_mean, np.ndarray):
             target_mean = torch.tensor(
@@ -274,8 +311,10 @@ class CrossModalLightningModule(pl.LightningModule):
         self.log("val_demeaned_r", dr, on_step=False, on_epoch=True, prog_bar=True)
         self.log("val_variance_ratio", vr, on_step=False, on_epoch=True)
         self.log("val_norm_ratio", nr, on_step=False, on_epoch=True)
+        self.log("val_reg_loss", reg_loss.detach(), on_step=False, on_epoch=True)
         self.log("val_edge_mse", aux_losses["edge_mse"], on_step=False, on_epoch=True)
         self.log("val_var_match_loss", aux_losses["var_match_loss"], on_step=False, on_epoch=True)
+        self._log_structured_loss_terms("val")
         if "latent_mse" in aux_losses:
             self.log("val_latent_mse", aux_losses["latent_mse"], on_step=False, on_epoch=True)
         if "latent_weighted_mse" in aux_losses:
