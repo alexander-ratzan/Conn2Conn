@@ -21,6 +21,7 @@ results/**
 
 # Track ONLY the contents of that folder
 !results/local_results/Krakencoder_precomputed/**
+!results/local_results/test_structured_loss_model/**
 
 wandb/
 checkpoints/

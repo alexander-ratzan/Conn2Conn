@@ -328,7 +328,7 @@ def create_loss_fn(
     var_weight=0.01,
     loss_terms=None,
     loss_scale_ema_decay=0.95,
-    loss_scale_warmup_steps=100,
+    loss_scale_warmup_steps=20,
 ):
     """
     Factory function to create loss functions.
@@ -592,13 +592,23 @@ def summarize_history_columns(history_df):
     return cols
 
 
-def plot_training_history(history_df, style="default", figsize=None, marker_size=3, grid_alpha=0.3):
+def plot_training_history(
+    history_df,
+    style="default",
+    figsize=None,
+    marker_size=3,
+    grid_alpha=0.3,
+    skip_first_n_epochs=0,
+):
     """
     Plot training history from TrainResult.history_df.
 
     style:
     - 'default': classic view with loss, Pearson r, and demeaned r
     - 'latent': losses on the top row and correlation metrics below
+
+    skip_first_n_epochs:
+    - if > 0, drop all rows with epoch < skip_first_n_epochs before plotting
     """
     if history_df is None:
         raise ValueError("history_df is None")
@@ -607,6 +617,16 @@ def plot_training_history(history_df, style="default", figsize=None, marker_size
         raise ValueError("history_df is empty")
     if "epoch" not in df.columns:
         raise ValueError("history_df must contain an 'epoch' column")
+    skip_first_n_epochs = int(skip_first_n_epochs)
+    if skip_first_n_epochs < 0:
+        raise ValueError(f"skip_first_n_epochs must be >= 0, got {skip_first_n_epochs}")
+    if skip_first_n_epochs > 0:
+        df = df[df["epoch"] >= skip_first_n_epochs].copy()
+    if df.empty:
+        raise ValueError(
+            "No history remains after applying skip_first_n_epochs="
+            f"{skip_first_n_epochs}."
+        )
 
     epochs = df["epoch"]
 
@@ -957,7 +977,7 @@ def train_model(
     loss_latent_weight=0.25,
     loss_terms=None,
     loss_scale_ema_decay=0.95,
-    loss_scale_warmup_steps=100,
+    loss_scale_warmup_steps=20,
     max_epochs=100,
     logger=True,
     pl_logger=None,

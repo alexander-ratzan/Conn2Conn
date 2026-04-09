@@ -34,7 +34,7 @@ default:
     loss_var_weight: 0.01
     loss_latent_weight: 0.25
     loss_scale_ema_decay: 0.95
-    loss_scale_warmup_steps: 100
+    loss_scale_warmup_steps: 20
     max_epochs: 500
     batch_size: 128
     log_every: 1
@@ -116,7 +116,7 @@ search_space:
     values: [0.9, 0.95, 0.99]
   loss_scale_warmup_steps:
     type: choice
-    values: [25, 50, 100, 200]
+    values: [20, 25, 50, 100, 200]
   max_epochs:
     type: choice
     values: [300, 500, 750]

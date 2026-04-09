@@ -480,7 +480,7 @@ class Sim:
         loss_latent_weight = trainer_cfg.get("loss_latent_weight", 0.25)
         loss_terms = trainer_cfg.get("loss_terms", None)
         loss_scale_ema_decay = trainer_cfg.get("loss_scale_ema_decay", 0.95)
-        loss_scale_warmup_steps = trainer_cfg.get("loss_scale_warmup_steps", 100)
+        loss_scale_warmup_steps = trainer_cfg.get("loss_scale_warmup_steps", 20)
         max_epochs = trainer_cfg.get("max_epochs", 100)
         log_every = trainer_cfg.get("log_every", 5)
 

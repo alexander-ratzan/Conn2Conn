@@ -44,7 +44,7 @@ class CrossModalLightningModule(pl.LightningModule):
         loss_latent_weight: float = 0.25,
         loss_terms=None,
         loss_scale_ema_decay: float = 0.95,
-        loss_scale_warmup_steps: int = 100,
+        loss_scale_warmup_steps: int = 20,
     ):
         super().__init__()
         # Persist only loss hyperparameters relevant to the selected loss_type.
