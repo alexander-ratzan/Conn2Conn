@@ -10,6 +10,7 @@ default:
     n_components_pls: 16
     token_embedding_type: learned
     token_embedding_dim: 16
+    pca_barcode_dim: 32
     attn_dim: 16
     value_dim: 16
     transformer_layers: 0
@@ -48,10 +49,13 @@ search_space:
     values: [8, 16, 24]
   token_embedding_type:
     type: choice
-    values: [learned]
+    values: [learned, pls_encoded, pca_encoded]
   token_embedding_dim:
     type: choice
     values: [8, 16, 24]
+  pca_barcode_dim:
+    type: choice
+    values: [16, 32, 64]
   attn_dim:
     type: choice
     values: [8, 16, 32]

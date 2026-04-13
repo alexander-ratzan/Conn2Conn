@@ -122,6 +122,50 @@ class LatentAttnMasked(nn.Module):
     - `linear_residual`: learned linear backbone plus attention residual
     """
 
+    @staticmethod
+    def _normalize_readout_hidden_spec(spec, default_dim):
+        if spec is None:
+            return [int(default_dim)]
+        if isinstance(spec, np.ndarray):
+            spec = spec.tolist()
+        if isinstance(spec, (list, tuple)):
+            return [int(dim) for dim in spec]
+        return [int(spec)]
+
+    @staticmethod
+    def _build_scalar_readout(in_dim, hidden_dims):
+        dims = [int(in_dim)] + [int(dim) for dim in hidden_dims] + [1]
+        layers = []
+        for idx in range(len(dims) - 1):
+            layers.append(nn.Linear(dims[idx], dims[idx + 1]))
+            if idx < len(dims) - 2:
+                layers.append(nn.PReLU())
+        return nn.Sequential(*layers)
+
+    @staticmethod
+    def _sample_orthonormal_projector(input_dim, output_dim, device):
+        input_dim = int(input_dim)
+        output_dim = int(output_dim)
+        if output_dim <= 0:
+            raise ValueError(f"output_dim must be positive, got {output_dim}.")
+        if output_dim > input_dim:
+            raise ValueError(
+                f"Cannot build an orthonormal compression from input_dim={input_dim} "
+                f"to output_dim={output_dim} because output_dim must be <= input_dim."
+            )
+        basis, _ = torch.linalg.qr(torch.randn(input_dim, output_dim, device=device), mode="reduced")
+        return basis
+
+    @staticmethod
+    def _build_mlp(in_dim, hidden_dims, out_dim):
+        dims = [int(in_dim)] + [int(dim) for dim in hidden_dims] + [int(out_dim)]
+        layers = []
+        for idx in range(len(dims) - 1):
+            layers.append(nn.Linear(dims[idx], dims[idx + 1]))
+            if idx < len(dims) - 2:
+                layers.append(nn.PReLU())
+        return nn.Sequential(*layers)
+
     def __init__(
         self,
         base,
@@ -129,6 +173,7 @@ class LatentAttnMasked(nn.Module):
         n_components_pls=16,
         token_embedding_type="learned",
         token_embedding_dim=None,
+        pca_barcode_dim=32,
         attn_dim=16,
         value_dim=16,
         transformer_layers=0,
@@ -158,10 +203,18 @@ class LatentAttnMasked(nn.Module):
         self.target_modality = getattr(base, "target", None) or getattr(base, "target_modalities", [base.target])[0]
         self.n_components_pca = int(n_components_pca)
         self.n_components_pls = int(n_components_pls)
-        self.requested_token_embedding_type = str(token_embedding_type)
-        self.token_embedding_type = "learned"
+        self.requested_token_embedding_type = str(token_embedding_type).lower()
+        token_embedding_aliases = {
+            "pls_learned": "pls_encoded",
+            "pca_learned": "pca_encoded",
+        }
+        self.token_embedding_type = token_embedding_aliases.get(
+            self.requested_token_embedding_type,
+            self.requested_token_embedding_type,
+        )
         self.attn_dim = int(attn_dim)
         self.value_dim = int(value_dim)
+        self.pca_barcode_dim = int(pca_barcode_dim)
         self.transformer_layers = int(transformer_layers)
         self.num_heads = int(num_heads)
         self.readout_type = str(readout_type)
@@ -172,11 +225,16 @@ class LatentAttnMasked(nn.Module):
         self.attention_dropout_p = float(attention_dropout)
         self.sc_token_dropout_p = float(sc_token_dropout)
         self.reg = float(reg)
-        self.normalize_barcodes = False
+        self.normalize_barcodes = bool(normalize_barcodes)
         self.mask_ratio = float(mask_ratio)
         self.min_masked_components = int(min_masked_components)
         self.train_use_visible_fc_context = bool(train_use_visible_fc_context)
 
+        if self.token_embedding_type not in {"learned", "pls_encoded", "pca_encoded"}:
+            raise ValueError(
+                f"Unknown token_embedding_type='{token_embedding_type}'. "
+                "Choose from {'learned', 'pls_encoded', 'pca_encoded'}."
+            )
         if self.readout_type not in {"linear", "mlp", "concat_mlp", "scalar_slot"}:
             raise ValueError(
                 f"Unknown readout_type='{self.readout_type}'. Choose from {'linear', 'mlp', 'concat_mlp', 'scalar_slot'}."
@@ -212,6 +270,8 @@ class LatentAttnMasked(nn.Module):
         target_mean = target_data["mean"]
         target_loadings = target_data["loadings"]
         target_scores = target_data["scores"]
+        d_source = source_loadings.shape[0]
+        d_target = target_loadings.shape[0]
 
         max_source_k = source_scores.shape[1]
         max_target_k = target_scores.shape[1]
@@ -220,10 +280,17 @@ class LatentAttnMasked(nn.Module):
                 f"LatentAttnMasked requested n_components_pca={self.n_components_pca}, "
                 f"but train PCA scores only support min(source={max_source_k}, target={max_target_k})."
             )
-        if self.residual_mode == "pls_residual" and self.n_components_pls > self.n_components_pca:
+        if (
+            self.residual_mode == "pls_residual" or self.token_embedding_type == "pls_encoded"
+        ) and self.n_components_pls > self.n_components_pca:
             raise ValueError(
                 f"LatentAttnMasked requested n_components_pls={self.n_components_pls}, "
                 f"but only {self.n_components_pca} PCA components are retained."
+            )
+        if self.token_embedding_type == "pca_encoded" and self.pca_barcode_dim > min(d_source, d_target):
+            raise ValueError(
+                f"LatentAttnMasked requested pca_barcode_dim={self.pca_barcode_dim}, "
+                f"but it must be <= min(d_source={d_source}, d_target={d_target})."
             )
 
         source_scores_k = np.asarray(source_scores[:, :self.n_components_pca], dtype=np.float32)
@@ -261,6 +328,22 @@ class LatentAttnMasked(nn.Module):
         self.register_buffer("target_pca_scores_train", torch.tensor(target_scores_k, dtype=torch.float32, device=device))
         self.register_buffer("source_pca_scores_train_z", torch.tensor(X_pls, dtype=torch.float32, device=device))
         self.register_buffer("target_pca_scores_train_z", torch.tensor(Y_pls, dtype=torch.float32, device=device))
+        self.register_buffer(
+            "sc_pca_barcodes",
+            torch.tensor(source_loadings[:, :self.n_components_pca].T, dtype=torch.float32, device=device),
+        )
+        self.register_buffer(
+            "fc_pca_barcodes",
+            torch.tensor(target_loadings[:, :self.n_components_pca].T, dtype=torch.float32, device=device),
+        )
+        self.register_buffer(
+            "sc_pca_projector",
+            self._sample_orthonormal_projector(d_source, self.pca_barcode_dim, device=device),
+        )
+        self.register_buffer(
+            "fc_pca_projector",
+            self._sample_orthonormal_projector(d_target, self.pca_barcode_dim, device=device),
+        )
 
         if self.zscore_pca_scores:
             latent_weights = np.ones(self.n_components_pca, dtype=np.float32)
@@ -295,15 +378,12 @@ class LatentAttnMasked(nn.Module):
             torch.zeros(target_scores_k.shape[0], self.n_components_pls, dtype=torch.float32, device=device),
         )
 
+        need_pls_fit = (self.residual_mode == "pls_residual") or (self.token_embedding_type == "pls_encoded")
         self.backbone_linear = None
         if self.residual_mode in {"none", "linear_residual"}:
             self.backbone_linear = nn.Linear(self.n_components_pca, self.n_components_pca, bias=True)
         self.residual_linear = self.backbone_linear
-        if self.residual_mode == "linear_residual":
-            pass
-        elif self.residual_mode == "none":
-            pass
-        elif self.residual_mode == "pls_residual":
+        if need_pls_fit:
             pls = PLSRegression(n_components=self.n_components_pls)
             pls.fit(X_pls, Y_pls)
             # Build the exact affine latent map induced by sklearn's predict()
@@ -320,8 +400,28 @@ class LatentAttnMasked(nn.Module):
             self.sc_pls_scores.copy_(torch.tensor(np.asarray(pls.x_scores_, dtype=np.float32), dtype=torch.float32, device=device))
             self.fc_pls_scores.copy_(torch.tensor(np.asarray(pls.y_scores_, dtype=np.float32), dtype=torch.float32, device=device))
 
-        self.sc_component_embedding = nn.Embedding(self.n_components_pca, self.token_embedding_dim)
-        self.fc_component_embedding = nn.Embedding(self.n_components_pca, self.token_embedding_dim)
+        self.sc_component_embedding = None
+        self.fc_component_embedding = None
+        self.sc_barcode_encoder = None
+        self.fc_barcode_encoder = None
+        if self.token_embedding_type == "learned":
+            self.sc_component_embedding = nn.Embedding(self.n_components_pca, self.token_embedding_dim)
+            self.fc_component_embedding = nn.Embedding(self.n_components_pca, self.token_embedding_dim)
+        elif self.token_embedding_type == "pls_encoded":
+            self.sc_barcode_encoder = nn.Linear(self.n_components_pls, self.token_embedding_dim, bias=True)
+            self.fc_barcode_encoder = nn.Linear(self.n_components_pls, self.token_embedding_dim, bias=True)
+        else:
+            pca_hidden_dim = max(self.pca_barcode_dim, self.token_embedding_dim)
+            self.sc_barcode_encoder = self._build_mlp(
+                self.pca_barcode_dim,
+                [pca_hidden_dim],
+                self.token_embedding_dim,
+            )
+            self.fc_barcode_encoder = self._build_mlp(
+                self.pca_barcode_dim,
+                [pca_hidden_dim],
+                self.token_embedding_dim,
+            )
         self.use_attention_residual = self.residual_mode in {"attention_only", "pls_residual", "linear_residual"}
 
         token_dim = 1 + self.token_embedding_dim
@@ -364,28 +464,23 @@ class LatentAttnMasked(nn.Module):
             self.W_V = self.raw_attention.W_V
             self.transformer_output_norm = None
         self.readout_context_dim = self.token_dim if self.transformer_layers > 0 else self.raw_attention_value_dim
-        if readout_hidden_dim is None:
-            readout_hidden_dim = self.readout_context_dim
-        self.readout_hidden_dim = int(readout_hidden_dim)
+        self.readout_hidden_dims = self._normalize_readout_hidden_spec(
+            readout_hidden_dim,
+            default_dim=self.readout_context_dim,
+        )
         if self.readout_type == "scalar_slot":
             self.readout_head = None
         elif self.readout_type == "linear":
             self.readout_head = nn.Linear(self.readout_context_dim, 1, bias=True)
         elif self.readout_type == "mlp":
-            self.readout_head = nn.Sequential(
-                nn.Linear(self.readout_context_dim, self.readout_hidden_dim),
-                nn.PReLU(),
-                nn.Linear(self.readout_hidden_dim, self.readout_hidden_dim),
-                nn.PReLU(),
-                nn.Linear(self.readout_hidden_dim, 1),
+            self.readout_head = self._build_scalar_readout(
+                self.readout_context_dim,
+                self.readout_hidden_dims,
             )
         else:
-            self.readout_head = nn.Sequential(
-                nn.Linear(self.token_dim + self.readout_context_dim, self.readout_hidden_dim),
-                nn.PReLU(),
-                nn.Linear(self.readout_hidden_dim, self.readout_hidden_dim),
-                nn.PReLU(),
-                nn.Linear(self.readout_hidden_dim, 1),
+            self.readout_head = self._build_scalar_readout(
+                self.token_dim + self.readout_context_dim,
+                self.readout_hidden_dims,
             )
         self.sc_token_dropout = nn.Dropout(self.sc_token_dropout_p) if self.sc_token_dropout_p > 0 else nn.Identity()
         self.residual_gain = None if not self.use_attention_residual else nn.Parameter(
@@ -407,7 +502,7 @@ class LatentAttnMasked(nn.Module):
             f"| residual_mode={self.residual_mode} residual_gain_init={self.residual_gain_init} "
             f"| attn_dim={self.attn_dim} value_dim={self.value_dim} "
             f"| transformer_layers={self.transformer_layers} num_heads={self.num_heads} "
-            f"| readout_type={self.readout_type} readout_hidden_dim={self.readout_hidden_dim} "
+            f"| readout_type={self.readout_type} readout_hidden_dims={self.readout_hidden_dims} "
             f"| attention_activation={self.attention_activation} "
             f"| zscore_pca_scores={self.zscore_pca_scores} "
             f"| mask_ratio={self.mask_ratio} visible_fc_context={self.train_use_visible_fc_context} "
@@ -460,8 +555,25 @@ class LatentAttnMasked(nn.Module):
 
     def _get_component_embeddings(self, batch_size):
         idx = torch.arange(self.n_components_pca, device=self.source_mean.device)
-        sc_emb = self.sc_component_embedding(idx)
-        fc_emb = self.fc_component_embedding(idx)
+        if self.token_embedding_type == "learned":
+            sc_emb = self.sc_component_embedding(idx)
+            fc_emb = self.fc_component_embedding(idx)
+        elif self.token_embedding_type == "pls_encoded":
+            sc_barcode = self.sc_pls_loadings
+            fc_barcode = self.fc_pls_loadings
+            if self.normalize_barcodes:
+                sc_barcode = torch.nn.functional.normalize(sc_barcode, p=2, dim=-1, eps=1.0e-8)
+                fc_barcode = torch.nn.functional.normalize(fc_barcode, p=2, dim=-1, eps=1.0e-8)
+            sc_emb = self.sc_barcode_encoder(sc_barcode)
+            fc_emb = self.fc_barcode_encoder(fc_barcode)
+        else:
+            sc_barcode = torch.matmul(self.sc_pca_barcodes, self.sc_pca_projector)
+            fc_barcode = torch.matmul(self.fc_pca_barcodes, self.fc_pca_projector)
+            if self.normalize_barcodes:
+                sc_barcode = torch.nn.functional.normalize(sc_barcode, p=2, dim=-1, eps=1.0e-8)
+                fc_barcode = torch.nn.functional.normalize(fc_barcode, p=2, dim=-1, eps=1.0e-8)
+            sc_emb = self.sc_barcode_encoder(sc_barcode)
+            fc_emb = self.fc_barcode_encoder(fc_barcode)
         sc_emb = sc_emb.unsqueeze(0).expand(batch_size, -1, -1)
         fc_emb = fc_emb.unsqueeze(0).expand(batch_size, -1, -1)
         return sc_emb, fc_emb
@@ -640,7 +752,12 @@ class LatentAttnMasked(nn.Module):
     def get_reg_loss(self):
         if self.reg <= 0:
             return 0.0
-        params = [self.sc_component_embedding.weight, self.fc_component_embedding.weight]
+        params = []
+        if self.sc_component_embedding is not None:
+            params.extend([self.sc_component_embedding.weight, self.fc_component_embedding.weight])
+        if self.sc_barcode_encoder is not None:
+            params.extend([p for p in self.sc_barcode_encoder.parameters() if p.requires_grad])
+            params.extend([p for p in self.fc_barcode_encoder.parameters() if p.requires_grad])
         if self.use_attention_residual and self.raw_attention is not None:
             params.extend([self.raw_attention.W_Q.weight, self.raw_attention.W_K.weight])
             if self.raw_attention.W_V is not None:
