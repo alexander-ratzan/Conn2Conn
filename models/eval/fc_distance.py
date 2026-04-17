@@ -221,26 +221,3 @@ def pairwise_fc_distance(
     if method == "frobenius":
         return pairwise_frobenius_distance(mats_a, mats_b)
     raise ValueError(f"Unknown SPD distance method: {method}")
-
-
-def distance_top1_accuracy(dist_matrix):
-    """Top-1 self-match accuracy for a distance matrix (smaller is better)."""
-    dist = np.asarray(dist_matrix, dtype=np.float64)
-    topidx = np.argmin(dist, axis=1)
-    return float(np.mean(topidx == np.arange(dist.shape[0])))
-
-
-def distance_avg_rank(dist_matrix, return_ranklist=False):
-    """
-    Average self-match rank percentile for a distance matrix (smaller is better).
-    Returns values on the same 0-1 scale used by corr_avg_rank.
-    """
-    dist = np.asarray(dist_matrix, dtype=np.float64)
-    sidx = np.argsort(dist, axis=1)
-    selfidx = np.arange(dist.shape[0])[:, None]
-    srank = np.argmax(sidx == selfidx, axis=1)
-    ranklist = 1 - srank / dist.shape[0]
-    avgrank = 1 - np.mean(srank) / dist.shape[0]
-    if return_ranklist:
-        return float(avgrank), ranklist
-    return float(avgrank)

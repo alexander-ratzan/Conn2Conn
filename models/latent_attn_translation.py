@@ -1,2 +1,0 @@
-from models.architectures.latent_attention.latent_attn_translation import LatentAttnTranslation
-

@@ -39,11 +39,11 @@ from lightning.pytorch.loggers import WandbLogger
 
 from data.hcp_dataset import HCP_Base, HCP_Partition
 from data.dataset_utils import DEFAULT_CONN2CONN_CACHE_ROOT
-from models.models import predict_from_loader
-from models.loss import train_model, get_target_train_mean
-from models.eval import Evaluator
-from models.lightning_module import CrossModalLightningModule
-from models.config import (
+from models.utils import predict_from_loader
+from models.train.trainer import train_model
+from models.eval.evaluator import Evaluator
+from models.train.lightning_module import CrossModalLightningModule
+from models.registry import (
     load_config,
     get_default_config,
     get_search_space,
@@ -486,6 +486,7 @@ class Sim:
         loss_var_weight = trainer_cfg.get("loss_var_weight", 0.01)
         loss_latent_weight = trainer_cfg.get("loss_latent_weight", 0.25)
         loss_terms = trainer_cfg.get("loss_terms", None)
+        loss_normalize = trainer_cfg.get("loss_normalize", "ema")
         loss_scale_ema_decay = trainer_cfg.get("loss_scale_ema_decay", 0.95)
         loss_scale_warmup_steps = trainer_cfg.get("loss_scale_warmup_steps", 20)
         max_epochs = trainer_cfg.get("max_epochs", 100)
@@ -528,6 +529,7 @@ class Sim:
                 loss_var_weight=loss_var_weight,
                 loss_latent_weight=loss_latent_weight,
                 loss_terms=loss_terms,
+                loss_normalize=loss_normalize,
                 loss_scale_ema_decay=loss_scale_ema_decay,
                 loss_scale_warmup_steps=loss_scale_warmup_steps,
                 max_epochs=max_epochs,
@@ -552,6 +554,7 @@ class Sim:
                 loss_var_weight=loss_var_weight,
                 loss_latent_weight=loss_latent_weight,
                 loss_terms=loss_terms,
+                loss_normalize=loss_normalize,
                 loss_scale_ema_decay=loss_scale_ema_decay,
                 loss_scale_warmup_steps=loss_scale_warmup_steps,
             )
@@ -948,6 +951,11 @@ class Sim:
                     loss_corr_target=trainer_cfg.get("loss_corr_target", 0.4),
                     loss_corr_weight=trainer_cfg.get("loss_corr_weight", 1e-3),
                     loss_var_weight=trainer_cfg.get("loss_var_weight", 0.01),
+                    loss_latent_weight=trainer_cfg.get("loss_latent_weight", 0.25),
+                    loss_terms=trainer_cfg.get("loss_terms", None),
+                    loss_normalize=trainer_cfg.get("loss_normalize", "ema"),
+                    loss_scale_ema_decay=trainer_cfg.get("loss_scale_ema_decay", 0.95),
+                    loss_scale_warmup_steps=trainer_cfg.get("loss_scale_warmup_steps", 20),
                 )
                 tune_metrics = {
                     "train_loss": "train_loss",

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from models.models import get_modality_data, compute_reg_loss
+from models.architectures.utils import get_modality_data, compute_reg_loss
 
 
 class Sarwar2020MLP(nn.Module):

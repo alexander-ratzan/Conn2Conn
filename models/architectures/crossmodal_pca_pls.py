@@ -6,7 +6,7 @@ from sklearn.cross_decomposition import PLSRegression
 from scipy.io import loadmat
 from scipy.sparse.linalg import LinearOperator, svds
 
-from models.models import _build_mlp, compute_reg_loss, get_model_input, get_modality_data
+from models.architectures.utils import _build_mlp, compute_reg_loss, get_model_input, get_modality_data
 
 
 class CrossModalPCA(nn.Module):

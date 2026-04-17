@@ -1,2 +1,0 @@
-from models.architectures.latent_attention.conditional_gaussian import CrossModal_ConditionalGaussian
-

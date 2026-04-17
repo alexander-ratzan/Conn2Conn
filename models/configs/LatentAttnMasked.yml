@@ -31,7 +31,12 @@ default:
   trainer:
     lr: 1.0e-3
     loss_type: latent_mse
-    loss_terms: [mse, varmatch, correye, neidist]
+    loss_terms:
+      - {name: mse, weight: 1.0}
+      - {name: varmatch, weight: 1.0}
+      - {name: correye, weight: 1.0}
+      - {name: neidist, weight: 1.0}
+    loss_normalize: ema
     loss_var_weight: 0.01
     loss_latent_weight: 0.25
     loss_scale_ema_decay: 0.95
@@ -108,7 +113,7 @@ search_space:
     upper: 3.0e-3
   loss_type:
     type: choice
-    values: [mse, joint_mse_varmatch, balanced_composite, latent_mse, latent_weighted_mse, joint_edge_latent_mse, joint_edge_latent_mse_scaled]
+    values: [mse, joint_mse_varmatch, composite, latent_mse, latent_weighted_mse, joint_edge_latent_mse, joint_edge_latent_mse_scaled]
   loss_var_weight:
     type: choice
     values: [0.001, 0.005, 0.01, 0.02, 0.05]

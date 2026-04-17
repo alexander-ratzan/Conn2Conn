@@ -4,7 +4,8 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import torch
 
 from data.data_utils import tri2square
-from models.models import CrossModalPCA, KrakencoderPrecomputed
+from models.architectures.crossmodal_pca_pls import CrossModalPCA
+from models.architectures.krakencoder_precomputed import KrakencoderPrecomputed
 
 __all__ = [
     "resolve_subject_id_and_indices",

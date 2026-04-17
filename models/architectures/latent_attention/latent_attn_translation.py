@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from sklearn.cross_decomposition import PLSRegression
 
-from models.models import compute_reg_loss, get_modality_data
+from models.architectures.utils import compute_reg_loss, get_modality_data
 
 
 class LatentAttnTranslation(nn.Module):

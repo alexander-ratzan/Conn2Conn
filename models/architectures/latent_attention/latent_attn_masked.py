@@ -5,8 +5,8 @@ import torch
 import torch.nn as nn
 from sklearn.cross_decomposition import PLSRegression
 
-from models.loss import compute_latent_reconstruction_loss
-from models.models import compute_reg_loss, get_modality_data
+from models.train.loss import compute_latent_reconstruction_loss
+from models.architectures.utils import compute_reg_loss, get_modality_data
 
 
 class MultiHeadTokenSelfAttention(nn.Module):

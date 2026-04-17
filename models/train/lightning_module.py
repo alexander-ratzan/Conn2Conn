@@ -1,6 +1,6 @@
-"""
-PyTorch Lightning module for cross-modal Conn2Conn models.
-Creates loss via create_loss_fn and owns training/validation steps and optimizer.
+"""Lightning training wrapper.
+
+Defines batch-level train/validation behavior, optimizer setup, and metric logging.
 """
 import numpy as np
 import torch
@@ -8,22 +8,32 @@ import torch.nn as nn
 import torch.nn.functional as F
 import lightning.pytorch as pl
 
-from models.loss import (
+from models.train.loss import (
     get_target_train_mean,
     create_loss_fn,
-    BalancedCompositeLoss,
+    CompositeLoss,
     compute_latent_reconstruction_loss,
     compute_var_match_loss,
+)
+from models.eval.metrics import (
     compute_pearson_r,
     compute_demeaned_pearson_r,
     compute_prediction_variance_ratio,
     compute_prediction_norm_ratio,
 )
-from models.models import get_model_input
+from models.architectures.utils import get_model_input
 
 LATENT_LOSS_TYPES = {"latent_mse", "latent_weighted_mse"}
 JOINT_LOSS_TYPES = {"joint_edge_latent_mse", "joint_edge_latent_mse_scaled"}
-STRUCTURED_LOSS_TYPES = {"balanced_composite"}
+COMPOSITE_LOSS_TYPES = {"composite"}
+
+
+def _display_loss_terms(loss_terms):
+    if loss_terms is None:
+        return []
+    if isinstance(loss_terms, str):
+        return [loss_terms]
+    return list(loss_terms)
 
 class CrossModalLightningModule(pl.LightningModule):
     """
@@ -43,6 +53,7 @@ class CrossModalLightningModule(pl.LightningModule):
         loss_var_weight: float = 0.01,
         loss_latent_weight: float = 0.25,
         loss_terms=None,
+        loss_normalize: str = "ema",
         loss_scale_ema_decay: float = 0.95,
         loss_scale_warmup_steps: int = 20,
     ):
@@ -62,8 +73,9 @@ class CrossModalLightningModule(pl.LightningModule):
             hparams_to_save["loss_corr_weight"] = loss_corr_weight
         elif loss_type == "joint_mse_varmatch":
             hparams_to_save["loss_var_weight"] = loss_var_weight
-        elif loss_type == "balanced_composite":
-            hparams_to_save["loss_terms"] = list(loss_terms or [])
+        elif loss_type in COMPOSITE_LOSS_TYPES:
+            hparams_to_save["loss_terms"] = _display_loss_terms(loss_terms)
+            hparams_to_save["loss_normalize"] = loss_normalize
             hparams_to_save["loss_scale_ema_decay"] = loss_scale_ema_decay
             hparams_to_save["loss_scale_warmup_steps"] = loss_scale_warmup_steps
         elif loss_type in JOINT_LOSS_TYPES:
@@ -82,7 +94,8 @@ class CrossModalLightningModule(pl.LightningModule):
         self.loss_corr_weight = loss_corr_weight
         self.loss_var_weight = loss_var_weight
         self.loss_latent_weight = loss_latent_weight
-        self.loss_terms = list(loss_terms or [])
+        self.loss_terms = loss_terms
+        self.loss_normalize = str(loss_normalize or "ema")
         self.loss_scale_ema_decay = float(loss_scale_ema_decay)
         self.loss_scale_warmup_steps = int(loss_scale_warmup_steps)
         self._target_train_mean = None
@@ -106,6 +119,7 @@ class CrossModalLightningModule(pl.LightningModule):
                 corr_weight=self.loss_corr_weight,
                 var_weight=self.loss_var_weight,
                 loss_terms=self.loss_terms,
+                loss_normalize=self.loss_normalize,
                 loss_scale_ema_decay=self.loss_scale_ema_decay,
                 loss_scale_warmup_steps=self.loss_scale_warmup_steps,
             )
@@ -188,12 +202,14 @@ class CrossModalLightningModule(pl.LightningModule):
         return aux
 
     def _log_structured_loss_terms(self, phase):
-        if not isinstance(self.loss_fn, BalancedCompositeLoss):
+        if not isinstance(self.loss_fn, CompositeLoss):
             return
         for name, value in self.loss_fn.last_raw_terms.items():
             self.log(f"{phase}_loss_raw_{name}", value, on_step=False, on_epoch=True)
         for name, value in self.loss_fn.last_norm_terms.items():
             self.log(f"{phase}_loss_term_{name}", value, on_step=False, on_epoch=True)
+        for name, value in self.loss_fn.last_weighted_terms.items():
+            self.log(f"{phase}_loss_weighted_{name}", value, on_step=False, on_epoch=True)
         for name, value in self.loss_fn.get_scale_dict().items():
             self.log(f"{phase}_loss_ref_{name}", value, on_step=False, on_epoch=True)
 

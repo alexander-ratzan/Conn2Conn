@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from models.models import _build_mlp, compute_reg_loss, get_modality_data
+from models.architectures.utils import _build_mlp, compute_reg_loss, get_modality_data
 
 
 class CrossModalVAE(nn.Module):

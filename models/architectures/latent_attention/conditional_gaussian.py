@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from sklearn.covariance import LedoitWolf, OAS
 
-from models.models import get_modality_data
+from models.architectures.utils import get_modality_data
 
 
 class CrossModal_ConditionalGaussian(nn.Module):

@@ -25,8 +25,8 @@ The main evaluation axis is performance across `(model, source, shuffle_seed)` w
 When a task arrives, start in this order:
 1. `main.py` for orchestration and experiment mode behavior.
 2. `models/configs/<model>.yml` for ground-truth defaults/search space.
-3. `models/config.py` for config resolution and model construction.
-4. `models/models.py` for architecture details (plus standalone files for some baselines).
+3. `models/registry.py` for config resolution and model construction.
+4. `models/architectures/` for architecture details.
 5. `results/results_scraper.py` for results aggregation logic.
 
 If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after `main.py`.
@@ -41,9 +41,18 @@ If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after 
   - best-trial rerun/report (`--report_best_after_tune`)
 - `models/configs/*.yml`
   - one YAML per model variant; includes `learned`, `default`, `search_space`
-- `models/config.py`
+- `models/registry.py`
   - `load_config`, `get_default_config`, `get_search_space`, `build_model`
   - source-dependent PCA dim normalization
+- `models/utils.py`
+  - shared inference helpers (`predict_from_loader`) and small batch utilities
+- `models/architectures/`
+  - actual model classes grouped by architecture family
+  - shared architecture helpers live in `models/architectures/utils.py`
+- `models/train/`
+  - training orchestration, Lightning wrapper, losses, composite losses, and training plots
+- `models/eval/`
+  - evaluator, metrics, PCA analysis, FC distance utilities, visualization/markdown reporting
 - `results/results_scraper.py`
   - W&B best-trial scraping + table builders
 - `README.md`
@@ -89,19 +98,19 @@ Learned (`learned: true`):
 - `CrossModal_PCA_PLS_learnable`
 - `CrossModal_PCA_PLS_CovProjector`
 - `CrossModalVAE`
-- `LatentAttnMasked` (implemented in `models/latent_attn_masked.py`)
-- `LatentAttnTranslation` (implemented in `models/latent_attn_translation.py`)
-- `Sarwar2020MLP` (implemented in `models/sarwar2020_mlp.py`)
-- `Chen2024GCN` (implemented in `models/chen2024_gnn.py`)
-- `NodalGNN` (implemented in `models/nodal_gnn.py`)
+- `LatentAttnMasked` (implemented in `models/architectures/latent_attention/latent_attn_masked.py`)
+- `LatentAttnTranslation` (implemented in `models/architectures/latent_attention/latent_attn_translation.py`)
+- `Sarwar2020MLP` (implemented in `models/architectures/sarwar2020_mlp.py`)
+- `Chen2024GCN` (implemented in `models/architectures/graph_based/chen2024_gnn.py`)
+- `NodalGNN` (implemented in `models/architectures/graph_based/nodal_gnn.py`)
 
 Closed-form / hybrid special cases present in configs:
-- `CrossModal_ConditionalGaussian` (implemented in `models/conditional_gaussian.py`)
+- `CrossModal_ConditionalGaussian` (implemented in `models/architectures/latent_attention/conditional_gaussian.py`)
 
 ### Special: `Krakencoder_precomputed`
 
 CLI/YAML model ID: `Krakencoder_precomputed`  
-Implementation class in `models/models.py`: `KrakencoderPrecomputed`.
+Implementation class in `models/architectures/krakencoder_precomputed.py`: `KrakencoderPrecomputed`.
 
 Behavior:
 - loads per-seed inference `.mat` predictions
@@ -218,7 +227,7 @@ Suggested quick smoke workflow:
 ## Evaluation Notes
 
 - `Evaluator._metrics` / `base_metrics` are the default scalar summary surface used for returned `Sim` metrics and `eval_test/*` W&B logging.
-- Geodesic FC distance support lives in `models/FC_distance.py`.
+- Geodesic FC distance support lives in `models/eval/fc_distance.py`.
   - `affine_invariant` is the metric most faithful to the geometry-aware FC paper and the legacy `GeneEx2Conn/models/metrics/distance_FC.py` implementation.
   - `log_euclidean` is kept as a faster SPD-aware alternative.
 - `Evaluator.analyze_results(...)` can optionally append exploratory geodesic summary metrics into `base_metrics` via:
@@ -230,12 +239,26 @@ Suggested quick smoke workflow:
 
 ---
 
-## Config System Notes (`models/config.py`)
+## Config System Notes (`models/registry.py`)
 
 - `FLAT_METADATA_KEYS` are logging/display keys and must not reach model constructors.
 - `l1_reg`/`l2_reg` are recombined into `l1_l2_tuple` in `build_model`.
 - source-dependent PCA dims are normalized by `resolve_source_dependent_config`.
 - YAML `search_space` is converted to Ray Tune objects by `search_space_to_tune`.
+
+Trainer loss config currently supports standard atomic loss names plus `loss_type: composite`.
+Composite losses use structured `loss_terms`, for example:
+
+```yaml
+trainer:
+  loss_type: composite
+  loss_terms:
+    - {name: mse, weight: 1.0}
+    - {name: neidist, weight: 0.25}
+  loss_normalize: ema
+```
+
+Regularization remains model-owned through `model.get_reg_loss()` and is added separately by the Lightning module.
 
 ---
 
@@ -262,16 +285,23 @@ Suggested quick smoke workflow:
 7. `NodalGNN` also requires `torch-geometric`.
 8. `precomputed` data_load_mode only works when cache files already exist at the resolved cache root.
 9. Active multi-seed SLURM launchers live under `sbatch/<ModelName>/`; older root-level wrappers should not be treated as canonical.
+10. Sbatch scripts and input-feature subset configs are still duplicated by experiment variant; a future manifest/launcher layer should move grids out of copied shell/YAML files.
 
 ---
 
 ## Minimal Task Recipes
 
 Add/modify model:
-1. edit class in `models/models.py` or standalone model file (e.g., `models/sarwar2020_mlp.py`, `models/chen2024_gnn.py`)
+1. edit or add a class under `models/architectures/`
 2. add/update YAML in `models/configs/`
 3. ensure `build_model()` can resolve class name
 4. run one dev/prod dry run with fixed seed
+
+Add/modify loss behavior:
+1. add atomic terms or factories in `models/train/loss.py`
+2. route training behavior through `models/train/lightning_module.py`
+3. keep metric-only calculations in `models/eval/metrics.py` unless they are part of the differentiable training objective
+4. prefer `loss_type: composite` with structured `loss_terms` for weighted multi-term objectives
 
 For `NodalGNN` specifically:
 1. node features come from `batch["node_features"]`, not from `cov`
@@ -297,5 +327,7 @@ Debug missing results cell:
   - `data/data_viz.py`
   - `data/demeaned_viz.py`
 - `notebooks/kraken/track_krakencoder_model.ipynb` can log W&B runs and optionally save local markdown reports under `results/local_results/Krakencoder_precomputed/`.
+- Model code now lives under `models/architectures/`, training code under `models/train/`, and evaluation/reporting code under `models/eval/`.
+- Backward-compatibility shims for old top-level model/train/eval files are intentionally removed.
 
-Last updated at: 2026-04-17 14:35:00 EDT
+Last updated at: 2026-04-17 19:11:00 EDT

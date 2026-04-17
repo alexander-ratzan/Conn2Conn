@@ -119,7 +119,7 @@ Normalization uses **training-split statistics** to avoid leakage.
 
 ### Grouping / Ordering Strategies (Evaluation)
 
-For identifiability heatmaps and related diagnostics (`models/eval.py`), subject order can be set to:
+For identifiability heatmaps and related diagnostics (`models/eval/evaluator.py`), subject order can be set to:
 - `original`: preserve dataset order
 - `family`: group by `Family_ID`
 - `demographic`: group by `(sex × race_eth)` category
@@ -256,8 +256,19 @@ Conn2Conn/
 │   ├── dataset_utils.py             # Precomputed cache loaders
 │   ├── data_viz.py                  # Matrix overview plotting / gif helpers
 │   └── demeaned_viz.py              # Demeaned FC / prediction visualization helpers
-├── models/                          # Model definitions, configs, loss, eval, Lightning module
-│   └── configs/                     # Per-model YAML (default + search_space)
+├── models/
+│   ├── registry.py                  # Config loading, search-space conversion, model construction
+│   ├── utils.py                     # Shared prediction / batch covariance helpers
+│   ├── architectures/               # Model definitions grouped by architecture family
+│   │   ├── crossmodal_pca_pls.py    # PCA/PLS closed-form and learnable baselines
+│   │   ├── crossmodal_vae.py        # VAE baseline
+│   │   ├── krakencoder_precomputed.py
+│   │   ├── sarwar2020_mlp.py
+│   │   ├── latent_attention/        # Latent attention and conditional Gaussian models
+│   │   └── graph_based/             # Chen GCN, NodalGNN, graph feature builders
+│   ├── configs/                     # Per-model YAML (default + search_space)
+│   ├── train/                       # Training loop, Lightning wrapper, composite losses, training plots
+│   └── eval/                        # Evaluator, metrics, FC distance, PCA analysis, reports, plots
 ├── results/
 │   ├── results_scraper.py           # W&B results scraper
 │   ├── ray_results/                 # Ray Tune trial artifacts
@@ -279,4 +290,4 @@ Conn2Conn/
 └── krakencoder/                     # Bundled KrakenEncoder codebase
 ```
 
-Last updated at: 2026-04-17 14:35:00 EDT
+Last updated at: 2026-04-17 19:11:00 EDT

@@ -1,31 +1,386 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.patches import Patch
-from matplotlib.lines import Line2D
-from sklearn.metrics import r2_score, mean_squared_error
-from scipy.stats import pearsonr, spearmanr, ttest_1samp, ttest_ind, false_discovery_control
-from scipy.optimize import linear_sum_assignment, curve_fit
-import torch
-import torch.nn as nn
-from sklearn.decomposition import PCA
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib.lines import Line2D
-from matplotlib.gridspec import GridSpec
-import io
+"""Visualization and markdown report helpers for evaluator outputs."""
+
 import os
 from datetime import datetime
-from PIL import Image, ImageDraw, ImageFont
-import warnings
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.gridspec import GridSpec
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from scipy.optimize import curve_fit
+from scipy.stats import false_discovery_control, pearsonr, ttest_ind
+from sklearn.metrics import r2_score
 
 from data.data_utils import *
-from models.FC_distance import (
-    distance_avg_rank,
-    distance_top1_accuracy,
+from models.eval.eval_utils import (
+    extract_hungarian_metrics,
+    extract_sample_size_metrics,
+    extract_violin_metrics,
+    generate_mean_baseline,
+    generate_noise_baseline,
+    generate_report,
+)
+from models.eval.fc_distance import (
     pairwise_fc_distance,
     prepare_fc_matrices,
     reconstruct_fc_matrices,
 )
-from models.eval_utils import *
+from models.eval.metrics import (
+    compute_corr_matrix,
+    compute_identifiability,
+    corr_avg_rank,
+    corr_topn_accuracy,
+    distance_avg_rank,
+    distance_top1_accuracy,
+    hungarian_matching,
+    hungarian_matching_subsample,
+)
+from models.eval.pca_analysis import compute_normalized_sse_pc
+
+
+def generate_markdown_report(figures_dict, all_metrics, filepath, verbose=False):
+    """
+    Generate a Markdown report with embedded PNG figures.
+
+    Args:
+        figures_dict: dict mapping figure names to matplotlib figure objects
+        all_metrics: dict with all computed metrics
+        filepath: base path for output without extension
+        verbose: whether to include verbose report sections
+    """
+    model_type = all_metrics.get("model_name")
+    if not model_type:
+        filepath_base = os.path.basename(filepath)
+        if filepath_base.endswith("_results"):
+            model_type = filepath_base[:-8]
+        else:
+            model_type = filepath_base
+
+    plots_dir = f"{filepath}_plots"
+    os.makedirs(plots_dir, exist_ok=True)
+    plots_dirname = os.path.basename(plots_dir)
+
+    saved_figures = {}
+    for name, fig in figures_dict.items():
+        if fig is not None:
+            fig_path = os.path.join(plots_dir, f"{name}.png")
+            fig.savefig(fig_path, dpi=150, bbox_inches="tight", facecolor="white", edgecolor="none")
+            saved_figures[name] = f"{plots_dirname}/{name}.png"
+            plt.close(fig)
+
+    md_lines = []
+
+    md_lines.append("# FC Prediction Evaluation Report")
+    md_lines.append("")
+    md_lines.append(
+        f"**Model:** {model_type} | "
+        f"**Partition:** {all_metrics.get('partition', 'N/A')} | "
+        f"**N subjects:** {all_metrics.get('n_subjects', 'N/A')} | "
+        f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    )
+    md_lines.append("")
+    md_lines.append("---")
+    md_lines.append("")
+
+    md_lines.append("## Identifiability Heatmaps")
+    md_lines.append("")
+    md_lines.append(
+        "Pairwise correlation matrices between predicted and target connectomes. "
+        "Diagonal dominance indicates subject-specific predictions."
+    )
+    md_lines.append("")
+    md_lines.append("**Top-1 Accuracy:** Fraction of subjects whose own prediction is the best match.")
+    md_lines.append("")
+    md_lines.append(r"$$\text{Top-1 Acc} = \frac{1}{N}\sum_{i=1}^{N} \mathbb{1}[\arg\max_j \, r(\hat{y}_i, y_j) = i]$$")
+    md_lines.append("")
+    md_lines.append("**Avg Rank %ile:** For each subject, count how many other subjects' predictions have lower correlation with their target than their own prediction does.")
+    md_lines.append("")
+    md_lines.append(r"$$\text{avgrank} = \frac{1}{N}\sum_{s=1}^{N}\left(\frac{1}{N}\sum_{a \neq s}^{N} \mathbb{1}[r(X_s, \hat{X}_a) < r(X_s, \hat{X}_s)]\right)$$")
+    md_lines.append("")
+
+    if verbose and "identifiability_heatmaps" in saved_figures:
+        md_lines.append("<table><tr>")
+        md_lines.append(f'<td align="center"><b>Raw</b><br/><img src="{saved_figures.get("identifiability_heatmaps", "")}" width="450"/></td>')
+        md_lines.append(f'<td align="center"><b>Demeaned</b><br/><img src="{saved_figures.get("identifiability_heatmaps_demeaned", "")}" width="450"/></td>')
+        md_lines.append("</tr></table>")
+    elif "identifiability_heatmaps_demeaned" in saved_figures:
+        md_lines.append(f"![]({saved_figures['identifiability_heatmaps_demeaned']})")
+    md_lines.append("")
+
+    if verbose and "heatmaps_raw" in all_metrics:
+        md_lines.append("| Metric | Raw | Demeaned |")
+        md_lines.append("|--------|-----|----------|")
+        raw = all_metrics.get("heatmaps_raw", {})
+        dem = all_metrics.get("heatmaps_demeaned", {})
+        md_lines.append(f"| Mean Corr | {raw.get('raw_mean_corr', raw.get('mean_corr', np.nan)):.3f} | {dem.get('raw_mean_corr', dem.get('mean_corr', np.nan)):.3f} |")
+        md_lines.append(f"| Demeaned Mean Corr | {raw.get('demeaned_mean_corr', np.nan):.3f} | {dem.get('demeaned_mean_corr', np.nan):.3f} |")
+        md_lines.append(f"| Top-1 Acc | {raw.get('top1_acc', '-'):.3f} | {dem.get('top1_acc', '-'):.3f} |")
+        md_lines.append(f"| Avg Rank %ile | {raw.get('avg_rank_percentile', '-'):.3f} | {dem.get('avg_rank_percentile', '-'):.3f} |")
+    elif "heatmaps_demeaned" in all_metrics:
+        dem = all_metrics.get("heatmaps_demeaned", {})
+        md_lines.append("| Metric | Value |")
+        md_lines.append("|--------|-------|")
+        md_lines.append(f"| Mean Corr | {dem.get('raw_mean_corr', dem.get('mean_corr', np.nan)):.3f} |")
+        md_lines.append(f"| Demeaned Mean Corr | {dem.get('demeaned_mean_corr', np.nan):.3f} |")
+        md_lines.append(f"| Top-1 Acc | {dem.get('top1_acc', '-'):.3f} |")
+        md_lines.append(f"| Avg Rank %ile | {dem.get('avg_rank_percentile', '-'):.3f} |")
+    md_lines.append("")
+    md_lines.append("---")
+    md_lines.append("")
+
+    if "geodesic_heatmaps" in saved_figures:
+        md_lines.append("## SPD Geodesic Heatmaps")
+        md_lines.append("")
+        md_lines.append(
+            "Pairwise distances between full reconstructed FC matrices after SPD projection. "
+            "These plots use an SPD-aware matrix distance instead of edgewise correlation."
+        )
+        md_lines.append("")
+        md_lines.append(f"![]({saved_figures['geodesic_heatmaps']})")
+        md_lines.append("")
+        geo = all_metrics.get("geodesic", {})
+        md_lines.append("| Metric | Value |")
+        md_lines.append("|--------|-------|")
+        md_lines.append(f"| Method | {geo.get('method', '-')} |")
+        md_lines.append(f"| Mean Self Distance | {geo.get('mean_self_distance', np.nan):.3f} |")
+        md_lines.append(f"| Top-1 Acc | {geo.get('top1_acc', np.nan):.3f} |")
+        md_lines.append(f"| Avg Rank %ile | {geo.get('avg_rank_percentile', np.nan):.3f} |")
+        meta = geo.get("metadata", {})
+        if isinstance(meta, dict):
+            md_lines.append(f"| Target SPD Projection Rate | {meta.get('targets_fraction_projected', np.nan):.2%} |")
+            md_lines.append(f"| Pred SPD Projection Rate | {meta.get('preds_fraction_projected', np.nan):.2%} |")
+            md_lines.append(f"| Target Mean Clipped Eig Fraction | {meta.get('targets_mean_clipped_fraction', np.nan):.2%} |")
+            md_lines.append(f"| Pred Mean Clipped Eig Fraction | {meta.get('preds_mean_clipped_fraction', np.nan):.2%} |")
+            md_lines.append(f"| Target Mean Clip Mass | {meta.get('targets_mean_clip_mass', np.nan):.3f} |")
+            md_lines.append(f"| Pred Mean Clip Mass | {meta.get('preds_mean_clip_mass', np.nan):.3f} |")
+        md_lines.append("")
+        md_lines.append("---")
+        md_lines.append("")
+
+    md_lines.append("## Identifiability Violin")
+    md_lines.append("")
+    md_lines.append(
+        "Tests whether intraindividual correlations (subject's prediction vs their own target) "
+        "exceed interindividual correlations (vs other subjects' targets) using a **one-sample t-test**."
+    )
+    md_lines.append("")
+    md_lines.append("For each subject $i$, compute $d_i = r_{intra}(i) - r_{inter}(i)$, then test:")
+    md_lines.append("")
+    md_lines.append(r"$$H_0: \frac{1}{N}\sum_i d_i = 0 \quad \text{(one-sample t-test)}$$")
+    md_lines.append("")
+    md_lines.append("Significance ($*$) indicates the model captures individual-specific features beyond group average.")
+    md_lines.append("")
+
+    if verbose and "identifiability_violin" in saved_figures:
+        md_lines.append("<table><tr>")
+        md_lines.append(f'<td align="center"><b>Raw</b><br/><img src="{saved_figures.get("identifiability_violin", "")}" width="400"/></td>')
+        md_lines.append(f'<td align="center"><b>Demeaned</b><br/><img src="{saved_figures.get("identifiability_violin_demeaned", "")}" width="400"/></td>')
+        md_lines.append("</tr></table>")
+    elif "identifiability_violin_demeaned" in saved_figures:
+        md_lines.append(f"![]({saved_figures['identifiability_violin_demeaned']})")
+    md_lines.append("")
+
+    if verbose and "violin_raw" in all_metrics:
+        md_lines.append("| Metric | Raw | Demeaned |")
+        md_lines.append("|--------|-----|----------|")
+        raw = all_metrics.get("violin_raw", {})
+        dem = all_metrics.get("violin_demeaned", {})
+        md_lines.append(f"| pFC r_intra | {raw.get('pfc_mean_r_intra', '-'):.3f} | {dem.get('pfc_mean_r_intra', '-'):.3f} |")
+        md_lines.append(f"| pFC r_inter | {raw.get('pfc_mean_r_inter', '-'):.3f} | {dem.get('pfc_mean_r_inter', '-'):.3f} |")
+        md_lines.append(f"| pFC Cohen's d | {raw.get('pfc_cohen_d', '-'):.2f} | {dem.get('pfc_cohen_d', '-'):.2f} |")
+        md_lines.append(f"| pFC p-value (t-test) | {raw.get('pfc_p_value', '-'):.2e} | {dem.get('pfc_p_value', '-'):.2e} |")
+    elif "violin_demeaned" in all_metrics:
+        dem = all_metrics.get("violin_demeaned", {})
+        md_lines.append("| Metric | Value |")
+        md_lines.append("|--------|-------|")
+        md_lines.append(f"| pFC r_intra | {dem.get('pfc_mean_r_intra', '-'):.3f} |")
+        md_lines.append(f"| pFC r_inter | {dem.get('pfc_mean_r_inter', '-'):.3f} |")
+        md_lines.append(f"| pFC Cohen's d | {dem.get('pfc_cohen_d', '-'):.2f} |")
+        md_lines.append(f"| pFC p-value (t-test) | {dem.get('pfc_p_value', '-'):.2e} |")
+    md_lines.append("")
+    md_lines.append("---")
+    md_lines.append("")
+
+    if verbose:
+        md_lines.append("## Hungarian Matching")
+        md_lines.append("")
+        md_lines.append(
+            "The Hungarian algorithm derives an optimal **one-to-one** mapping between target (eFC) and predicted (pFC) matrices "
+            "that maximizes total similarity. Unlike greedy matching (which permits one-to-many assignments), "
+            "Hungarian matching ensures each prediction is assigned to exactly one target."
+        )
+        md_lines.append("")
+        md_lines.append("**Procedure:**")
+        md_lines.append("1. Compute similarity matrix $R_{ij} = r(X_i, \\hat{X}_j)$ between all target-prediction pairs")
+        md_lines.append("2. Find permutation $\\pi^*$ that maximizes total similarity:")
+        md_lines.append("")
+        md_lines.append(r"$$\pi^* = \arg\max_{\pi \in S_N} \sum_{i=1}^{N} R_{i,\pi(i)}$$")
+        md_lines.append("")
+        md_lines.append("3. **Top-1 Acc** = fraction of subjects assigned to themselves: $\\frac{1}{N}\\sum_i \\mathbb{1}[\\pi^*(i) = i]$")
+        md_lines.append("")
+        md_lines.append("**Null conditions:**")
+        md_lines.append("- **Null (noise):** Predictions replaced with mean + Gaussian noise")
+        md_lines.append("- **Null (permute):** Columns of similarity matrix randomly permuted (chance baseline)")
+        md_lines.append("")
+
+        if "hungarian_heatmaps" in saved_figures:
+            md_lines.append("<table><tr>")
+            md_lines.append(f'<td align="center"><b>Raw</b><br/><img src="{saved_figures.get("hungarian_heatmaps", "")}" width="500"/></td>')
+            md_lines.append(f'<td align="center"><b>Demeaned</b><br/><img src="{saved_figures.get("hungarian_heatmaps_demeaned", "")}" width="500"/></td>')
+            md_lines.append("</tr></table>")
+        md_lines.append("")
+
+        if "hungarian_raw" in all_metrics:
+            md_lines.append("| Condition | Raw Top-1 Acc | Demeaned Top-1 Acc |")
+            md_lines.append("|-----------|---------------|---------------------|")
+            raw = all_metrics.get("hungarian_raw", {})
+            dem = all_metrics.get("hungarian_demeaned", {})
+            md_lines.append(f"| pFC | {raw.get('pfc_accuracy', '-'):.3f} | {dem.get('pfc_accuracy', '-'):.3f} |")
+            md_lines.append(f"| Null (noise) | {raw.get('null_noise_accuracy', '-'):.3f} | {dem.get('null_noise_accuracy', '-'):.3f} |")
+            md_lines.append(f"| Null (permute) | {raw.get('null_permute_accuracy', '-'):.3f} | {dem.get('null_permute_accuracy', '-'):.3f} |")
+        md_lines.append("")
+        md_lines.append("---")
+        md_lines.append("")
+
+        md_lines.append("## Hungarian Sample Size Analysis")
+        md_lines.append("")
+        md_lines.append(
+            "Matching accuracy as a function of subset sample size. "
+            "Stars indicate sample sizes where pFC significantly exceeds both null baselines (FDR-corrected, two-sample t-test)."
+        )
+        md_lines.append("")
+
+        if "hungarian_sample_size" in saved_figures:
+            md_lines.append("<table><tr>")
+            md_lines.append(f'<td align="center"><b>Raw</b><br/><img src="{saved_figures.get("hungarian_sample_size", "")}" width="450"/></td>')
+            md_lines.append(f'<td align="center"><b>Demeaned</b><br/><img src="{saved_figures.get("hungarian_sample_size_demeaned", "")}" width="450"/></td>')
+            md_lines.append("</tr></table>")
+        md_lines.append("")
+        md_lines.append("---")
+        md_lines.append("")
+
+    md_lines.append("## PCA Structure")
+    md_lines.append("")
+    md_lines.append(
+        "Subject-mode PCA captures the main modes of inter-subject variation in connectivity. "
+        "High PC score correlations indicate the model preserves individual differences along each mode."
+    )
+    md_lines.append("")
+    md_lines.append("**Procedure:**")
+    md_lines.append("1. Mean-center data: $\\tilde{X} = X - \\bar{X}_{train}$ where $X \\in \\mathbb{R}^{N \\times E}$ (subjects $\\times$ edges)")
+    md_lines.append("2. Transpose for subject-mode PCA: $\\tilde{X}^T \\in \\mathbb{R}^{E \\times N}$")
+    md_lines.append("3. Compute eigenvectors $B_k$ (loadings) and project: $C_k = \\tilde{X}^T B_k$ (PC scores, length $E$)")
+    md_lines.append("4. Project predictions into same basis: $C^{pred}_k = \\tilde{\\hat{X}}^T B_k$")
+    md_lines.append("5. Correlate scores: $\\text{PC Corr}_k = r(C^{target}_k, C^{pred}_k)$")
+    md_lines.append("")
+    md_lines.append(r"$$\text{PC Corr}_k = \text{corr}(C^{target}_k, C^{pred}_k)$$")
+    md_lines.append("")
+
+    if "pca_line" in saved_figures:
+        md_lines.append(f"![]({saved_figures['pca_line']})")
+        md_lines.append("")
+    if "pca_spatial" in saved_figures:
+        md_lines.append(f"![]({saved_figures['pca_spatial']})")
+        md_lines.append("")
+
+    if "pca" in all_metrics:
+        pca = all_metrics["pca"]
+        md_lines.append("| Metric | Value |")
+        md_lines.append("|--------|-------|")
+        if "cutoff_idx_95" in pca:
+            md_lines.append(f"| PCs for 95% variance | {pca['cutoff_idx_95'] + 1} |")
+        if "pc_corrs" in pca and len(pca["pc_corrs"]) > 0:
+            md_lines.append(f"| PC1 Corr | {pca['pc_corrs'][0]:.3f} |")
+            if len(pca["pc_corrs"]) > 4:
+                md_lines.append(f"| PC5 Corr | {pca['pc_corrs'][4]:.3f} |")
+        if pca.get("exp_fit_params"):
+            exp = pca["exp_fit_params"]
+            md_lines.append(f"| Exp. decay rate (b) | {exp.get('b', '-'):.4f} |")
+    md_lines.append("")
+    md_lines.append("---")
+    md_lines.append("")
+
+    if "prediction_subset" in saved_figures:
+        md_lines.append("## Prediction Subset Viewer")
+        md_lines.append("")
+        md_lines.append(
+            "Compact row-wise viewer of selected subjects: target matrix, prediction matrix, "
+            "and edge-wise scatter with per-subject metrics."
+        )
+        md_lines.append("")
+        md_lines.append(f"![]({saved_figures['prediction_subset']})")
+        md_lines.append("")
+        subset = all_metrics.get("prediction_subset", {})
+        md_lines.append("| Metric | Value |")
+        md_lines.append("|--------|-------|")
+        md_lines.append(f"| Subjects Shown | {subset.get('n_subjects_shown', '-')} |")
+        modes = subset.get("display_modes", [])
+        if isinstance(modes, list):
+            md_lines.append(f"| Display Modes | {', '.join(map(str, modes))} |")
+        md_lines.append(f"| Include Best/Worst | {subset.get('include_best_worst', '-')} |")
+        selected_ids = subset.get("selected_subject_ids", [])
+        if isinstance(selected_ids, list):
+            md_lines.append(f"| Selected Subject IDs | {', '.join(map(str, selected_ids))} |")
+        md_lines.append("")
+        md_lines.append("---")
+        md_lines.append("")
+
+    md_lines.append("## Summary Metrics")
+    md_lines.append("")
+    md_lines.append("| Category | Metric | Value |")
+    md_lines.append("|----------|--------|-------|")
+
+    base = all_metrics.get("base_metrics", {})
+    md_lines.append(f"| Base | MSE | {base.get('mse', '-'):.4f} |")
+    md_lines.append(f"| Base | R2 | {base.get('r2', '-'):.4f} |")
+    md_lines.append(f"| Base | Pearson Corr | {base.get('pearson', '-'):.4f} |")
+    md_lines.append(f"| Base | Demeaned Pearson | {base.get('demeaned_pearson', '-'):.4f} |")
+    for geo_prefix, geo_label in (("geodesic_demeaned", "Geodesic Demeaned"), ("geodesic_raw", "Geodesic Raw")):
+        if f"{geo_prefix}_top1_acc" in base:
+            md_lines.append(
+                f"| Base (optional) | {geo_label} Top-1 Acc ({base.get(f'{geo_prefix}_method', '-')}) | "
+                f"{base.get(f'{geo_prefix}_top1_acc', np.nan):.4f} |"
+            )
+        if f"{geo_prefix}_avg_rank" in base:
+            md_lines.append(
+                f"| Base (optional) | {geo_label} Avg Rank %ile ({base.get(f'{geo_prefix}_method', '-')}) | "
+                f"{base.get(f'{geo_prefix}_avg_rank', np.nan):.4f} |"
+            )
+
+    raw_hm = all_metrics.get("heatmaps_raw", all_metrics.get("heatmaps_demeaned", {}))
+    md_lines.append(f"| Identifiability | Top-1 Acc | {raw_hm.get('top1_acc', '-'):.3f} |")
+    md_lines.append(f"| Identifiability | Avg Rank %ile | {raw_hm.get('avg_rank_percentile', '-'):.3f} |")
+
+    raw_vio = all_metrics.get("violin_raw", all_metrics.get("violin_demeaned", {}))
+    md_lines.append(f"| Violin | Cohen's d | {raw_vio.get('pfc_cohen_d', '-'):.2f} |")
+    md_lines.append(f"| Violin | p-value | {raw_vio.get('pfc_p_value', '-'):.2e} |")
+
+    if verbose and ("hungarian_raw" in all_metrics or "hungarian_demeaned" in all_metrics):
+        raw_hung = all_metrics.get("hungarian_raw", all_metrics.get("hungarian_demeaned", {}))
+        md_lines.append(f"| Hungarian | pFC Top-1 Acc | {raw_hung.get('pfc_accuracy', '-'):.3f} |")
+
+    if "pca" in all_metrics:
+        pca = all_metrics["pca"]
+        if "pc_corrs" in pca and len(pca["pc_corrs"]) >= 5:
+            pc_str = ", ".join([f"{pca['pc_corrs'][i]:.3f}" for i in range(5)])
+            md_lines.append(f"| PCA | PC1-5 Corr | {pc_str} |")
+        elif "pc_corrs" in pca and len(pca["pc_corrs"]) > 0:
+            pc_str = ", ".join([f"{c:.3f}" for c in pca["pc_corrs"][:5]])
+            md_lines.append(f"| PCA | PC Corrs | {pc_str} |")
+        if pca.get("exp_fit_params"):
+            md_lines.append(f"| PCA | Exp. decay rate (b) | {pca['exp_fit_params'].get('b', '-'):.4f} |")
+
+    md_lines.append("")
+
+    md_path = f"{filepath}.md"
+    with open(md_path, "w") as f:
+        f.write("\n".join(md_lines))
+
+    print(f"Markdown report saved to: {md_path}")
+    print(f"Figures saved to: {plots_dir}/")
+
 
 # ============================================================================
 # Global font configuration for better visibility
@@ -52,108 +407,8 @@ def set_plot_defaults():
 # Apply defaults on import
 set_plot_defaults()
 
-
-class Evaluator:
-    """
-    Evaluation class for prediction vs target analysis.
-
-    Args:
-        preds: torch.Tensor or np.ndarray, predictions (n_subjects x n_features)
-        targets: torch.Tensor or np.ndarray, targets (n_subjects x n_features)
-        dataset_partition: Dataset partition (e.g., train/val/test split) with .indices attribute
-        dataset: Full dataset object with train_mean attributes (fc_train_avg or sc_train_avg)
-    """
-    
-    def __init__(self, preds, targets, dataset_partition, dataset):
-        # Convert to numpy arrays
-        self.preds = preds.detach().cpu().numpy() if isinstance(preds, torch.Tensor) else np.asarray(preds)
-        self.targets = targets.detach().cpu().numpy() if isinstance(targets, torch.Tensor) else np.asarray(targets)
-    
-        # Store dataset references
-        self.dataset_partition = dataset_partition
-        self.dataset = dataset
-        self.subject_indices = dataset_partition.indices
-        self.numrois = dataset.fc_matrices.shape[1]
-        
-        # Get training mean and std (depends on target modality)
-        # Use upper_triangles (vectorized) since that's what the model predicts
-        train_indices = dataset.trainvaltest_partition_indices["train"]
-        if dataset.target == "FC":
-            self.train_mean = dataset.fc_train_avg
-            train_data = dataset.fc_upper_triangles[train_indices]
-        elif dataset.target == "SC":
-            self.train_mean = dataset.sc_train_avg
-            train_data = dataset.sc_upper_triangles[train_indices]
-        elif dataset.target == "SC_r2t":
-            self.train_mean = dataset.sc_r2t_corr_train_avg
-            train_data = dataset.sc_r2t_corr_upper_triangles[train_indices]
-        else:
-            raise ValueError(f"Unknown target modality: {dataset.target}")
-        if isinstance(train_data, torch.Tensor):
-            train_data = train_data.cpu().numpy()
-        self.train_std = np.std(train_data, axis=0)
-        # Compute correlation matrices (targets, preds) so rows=targets, cols=preds
-        # This answers: "for each target, which prediction matches best?"
-        self.corr_matrix = compute_corr_matrix(self.targets, self.preds)
-        self.corr_matrix_demeaned = compute_corr_matrix(
-            self.targets - self.train_mean, 
-            self.preds - self.train_mean
-        )
-    
-        self._metrics = self._compute_metrics()
-        
-        # PCA objects (computed lazily when evaluate_pca_structure is called)
-        self._pca_preds = None
-        self._pca_targets = None    
-        self._spd_matrix_cache = {}
-        self._fc_matrix_cache = {}
-    
-
-    def _compute_metrics(self):
-        """Compute all evaluation metrics."""
-        metrics = {}
-        
-        # MSE and R2
-        mse_values = mean_squared_error(self.targets, self.preds, multioutput='raw_values')
-        r2_values = r2_score(self.targets, self.preds, multioutput='raw_values')
-        
-        metrics['mse'] = np.mean(mse_values)
-        metrics['r2'] = np.mean(r2_values)
-        
-        # Correlation-based metrics
-        metrics['pearson'] = np.mean(np.diag(self.corr_matrix))
-        metrics['demeaned_pearson'] = np.mean(np.diag(self.corr_matrix_demeaned))
-        metrics['avg_rank'] = corr_avg_rank(cc=self.corr_matrix)
-        metrics['top1_acc'] = corr_topn_accuracy(cc=self.corr_matrix, topn=1)
-        
-        return metrics
-
-    
-    def _fit_pca(self):
-        """Fit PCA models for predictions and targets (subject-mode PCA)."""
-        # Mean center
-        targets_centered = self.targets - self.train_mean  # (n, d)
-        preds_centered = self.preds - self.train_mean  # (n, d)
-        
-        # Transpose to features x subjects (d, n) for subject-mode PCA
-        targets_transposed = targets_centered.T
-        preds_transposed = preds_centered.T
-        
-        # PCA for targets
-        self._pca_targets = PCA()
-        self._pca_targets.fit(targets_transposed)
-        
-        # PCA for predictions
-        self._pca_preds = PCA()
-        self._pca_preds.fit(preds_transposed)
-        
-        # Orthonormality check for bases (across subjects)
-        B_targets = self._pca_targets.components_
-        B_preds = self._pca_preds.components_
-        assert np.allclose(B_targets @ B_targets.T, np.eye(B_targets.shape[0]), atol=1e-6), \
-            "B_targets is not orthonormal"
-        assert np.allclose(B_preds @ B_preds.T, np.eye(B_preds.shape[0]), atol=1e-6), \
-            "B_preds is not orthonormal"
+class EvaluatorVizMarkdownMixin:
+    """Visualization and report methods mixed into Evaluator."""
 
     def evaluate_pca_structure(self, num_pcs=5, show_first_pcs=5, diagval=0, show_sse=True, show=True):
         """
@@ -2110,7 +2365,7 @@ class Evaluator:
                 demeaned=False, p_threshold=0.05,
                 dpi=150, figsize=(7, 5), show=show_inline
             )
-            all_metrics['violin_raw'] = self._extract_violin_metrics(metrics_vio_raw)
+            all_metrics['violin_raw'] = extract_violin_metrics(metrics_vio_raw)
             
             if save_to_file:
                 figures_dict['identifiability_violin'] = fig_vio_raw
@@ -2123,7 +2378,7 @@ class Evaluator:
             demeaned=True, p_threshold=0.05,
             dpi=150, figsize=(7, 5), show=show_inline
         )
-        all_metrics['violin_demeaned'] = self._extract_violin_metrics(metrics_vio_dm)
+        all_metrics['violin_demeaned'] = extract_violin_metrics(metrics_vio_dm)
         
         if save_to_file:
             figures_dict['identifiability_violin_demeaned'] = fig_vio_dm
@@ -2141,13 +2396,13 @@ class Evaluator:
             fig_hung_raw, metrics_hung_raw = self.plot_hungarian_heatmaps(
                 demeaned=False, dpi=150, figsize=(14, 4), show=show_inline
             )
-            all_metrics['hungarian_raw'] = self._extract_hungarian_metrics(metrics_hung_raw)
+            all_metrics['hungarian_raw'] = extract_hungarian_metrics(metrics_hung_raw)
             
             # Demeaned Hungarian heatmaps
             fig_hung_dm, metrics_hung_dm = self.plot_hungarian_heatmaps(
                 demeaned=True, dpi=150, figsize=(14, 4), show=show_inline
             )
-            all_metrics['hungarian_demeaned'] = self._extract_hungarian_metrics(metrics_hung_dm)
+            all_metrics['hungarian_demeaned'] = extract_hungarian_metrics(metrics_hung_dm)
             
             if save_to_file:
                 figures_dict['hungarian_heatmaps'] = fig_hung_raw
@@ -2160,13 +2415,13 @@ class Evaluator:
                 n_min=2, n_max=75, step=10, n_iterations=1000, 
                 demeaned=False, dpi=150, figsize=(9, 5), show=show_inline
             )
-            all_metrics['hungarian_sample_size_raw'] = self._extract_sample_size_metrics(metrics_ss_raw)
+            all_metrics['hungarian_sample_size_raw'] = extract_sample_size_metrics(metrics_ss_raw)
             
             fig_ss_dm, metrics_ss_dm = self.plot_hungarian_sample_size_analysis(
                 n_min=2, n_max=75, step=10, n_iterations=1000, 
                 demeaned=True, dpi=150, figsize=(9, 5), show=show_inline
             )
-            all_metrics['hungarian_sample_size_demeaned'] = self._extract_sample_size_metrics(metrics_ss_dm)
+            all_metrics['hungarian_sample_size_demeaned'] = extract_sample_size_metrics(metrics_ss_dm)
             
             if save_to_file:
                 figures_dict['hungarian_sample_size'] = fig_ss_raw
@@ -2216,10 +2471,10 @@ class Evaluator:
         if save_to_file:
             if output_format == 'md':
                 # New markdown output
-                self._generate_markdown_report(figures_dict, all_metrics, filepath, verbose=verbose)
+                generate_markdown_report(figures_dict, all_metrics, filepath, verbose=verbose)
             else:
                 # Legacy JPEG output
-                self._generate_report(figures_to_combine, figure_labels, filepath)
+                generate_report(figures_to_combine, figure_labels, filepath)
                 # Close all figures to free memory
                 for item in figures_to_combine:
                     layout_type, figs = item
@@ -2235,668 +2490,6 @@ class Evaluator:
         
         return all_metrics
     
-    def _extract_violin_metrics(self, results):
-        """Extract wandb-friendly metrics from violin plot results."""
-        extracted = {}
-        for condition, stats in results.items():
-            prefix = condition.lower().replace(' ', '_').replace('(', '').replace(')', '')
-            extracted[f'{prefix}_mean_r_intra'] = float(stats['mean_r_intra'])
-            extracted[f'{prefix}_mean_r_inter'] = float(stats['mean_r_inter'])
-            extracted[f'{prefix}_mean_d'] = float(stats['mean_d'])
-            extracted[f'{prefix}_t_stat'] = float(stats['t_stat'])
-            extracted[f'{prefix}_p_value'] = float(stats['p_value'])
-            extracted[f'{prefix}_cohen_d'] = float(stats['cohen_d'])
-        return extracted
-    
-    def _extract_hungarian_metrics(self, results):
-        """Extract wandb-friendly metrics from Hungarian matching results."""
-        extracted = {}
-        for condition, hung in results.items():
-            prefix = condition.lower().replace(' ', '_').replace('(', '').replace(')', '')
-            extracted[f'{prefix}_accuracy'] = float(hung['accuracy'])
-            extracted[f'{prefix}_n_correct'] = int(hung['n_correct'])
-        return extracted
-    
-    def _extract_sample_size_metrics(self, results):
-        """Extract wandb-friendly metrics from sample size analysis results."""
-        return {
-            'sample_sizes': results['sample_sizes'].tolist(),
-            'pfc_mean_accuracy': results['pFC']['mean'].tolist(),
-            'null_noise_mean_accuracy': results['Null (noise)']['mean'].tolist(),
-            'null_permute_mean_accuracy': results['Null (permute)']['mean'].tolist(),
-            'n_significant_vs_permute': int(np.sum(results['significant_permute'])),
-            'n_significant_vs_noise': int(np.sum(results['significant_noise'])),
-        }
-    
-    def _generate_report(self, figures_to_combine, figure_labels, filepath):
-        """
-        Generate a combined .jpg report from collected figures.
-        
-        Args:
-            figures_to_combine: list of tuples (layout_type, figs)
-                - 'single': single figure
-                - 'side_by_side': [left_fig, right_fig]
-                - 'stacked': [top_fig, bottom_fig]
-            figure_labels: list of str, section titles for each figure group
-            filepath: output path for the report
-        """
-        # Configuration
-        section_spacing = 120  # pixels between sections
-        title_height = 100  # height of title banner
-        title_bg_color = (230, 230, 235)  # light gray-blue background
-        title_text_color = (40, 40, 50)  # dark gray text
-        
-        # Convert figures to images
-        images = []
-        
-        for idx, (layout_type, figs) in enumerate(figures_to_combine):
-            if layout_type == 'single':
-                img = self._fig_to_image(figs)
-                images.append(img)
-            
-            elif layout_type == 'side_by_side':
-                left_img = self._fig_to_image(figs[0]) if figs[0] is not None else None
-                right_img = self._fig_to_image(figs[1]) if figs[1] is not None else None
-                
-                if left_img is not None and right_img is not None:
-                    # Resize to same height
-                    max_height = max(left_img.height, right_img.height)
-                    left_img = self._resize_to_height(left_img, max_height)
-                    right_img = self._resize_to_height(right_img, max_height)
-                    
-                    # Combine horizontally with small gap
-                    gap = 20
-                    combined = Image.new('RGB', 
-                                        (left_img.width + gap + right_img.width, max_height),
-                                        (255, 255, 255))
-                    combined.paste(left_img, (0, 0))
-                    combined.paste(right_img, (left_img.width + gap, 0))
-                    images.append(combined)
-                elif left_img is not None:
-                    images.append(left_img)
-                elif right_img is not None:
-                    images.append(right_img)
-            
-            elif layout_type == 'stacked':
-                top_img = self._fig_to_image(figs[0]) if figs[0] is not None else None
-                bottom_img = self._fig_to_image(figs[1]) if figs[1] is not None else None
-                
-                if top_img is not None and bottom_img is not None:
-                    # Resize to same width
-                    max_width = max(top_img.width, bottom_img.width)
-                    top_img = self._resize_to_width(top_img, max_width)
-                    bottom_img = self._resize_to_width(bottom_img, max_width)
-                    
-                    # Combine vertically with small gap
-                    gap = 15
-                    combined = Image.new('RGB',
-                                        (max_width, top_img.height + gap + bottom_img.height),
-                                        (255, 255, 255))
-                    combined.paste(top_img, (0, 0))
-                    combined.paste(bottom_img, (0, top_img.height + gap))
-                    images.append(combined)
-                elif top_img is not None:
-                    images.append(top_img)
-                elif bottom_img is not None:
-                    images.append(bottom_img)
-        
-        # Combine all rows vertically with titles and spacing
-        if not images:
-            warnings.warn("No images to combine for report")
-            return
-        
-        # Find max width for final combining
-        max_width = max(img.width for img in images)
-        
-        # Resize all to same width
-        resized_images = [self._resize_to_width(img, max_width) for img in images]
-        
-        # Create title banners using matplotlib (has bundled fonts)
-        title_images = []
-        for idx in range(len(resized_images)):
-            title = figure_labels[idx] if idx < len(figure_labels) else f"Section {idx + 1}"
-            title_img = self._create_title_banner(title, max_width, title_height, title_bg_color, title_text_color)
-            title_images.append(title_img)
-        
-        # Calculate total height including titles and spacing
-        n_sections = len(resized_images)
-        total_height = (
-            sum(img.height for img in resized_images) +
-            sum(img.height for img in title_images) +
-            (n_sections - 1) * section_spacing  # spacing between sections (not after last)
-        )
-        
-        final_report = Image.new('RGB', (max_width, total_height), (255, 255, 255))
-        
-        y_offset = 0
-        for idx, img in enumerate(resized_images):
-            # Paste title banner
-            final_report.paste(title_images[idx], (0, y_offset))
-            y_offset += title_images[idx].height
-            
-            # Paste the image
-            final_report.paste(img, (0, y_offset))
-            y_offset += img.height
-            
-            # Add spacing after section (except for last section)
-            if idx < n_sections - 1:
-                y_offset += section_spacing
-        
-        # Ensure filepath has .jpg extension
-        if not filepath.lower().endswith('.jpg') and not filepath.lower().endswith('.jpeg'):
-            filepath = filepath + '.jpg'
-        
-        # Save with high quality
-        final_report.save(filepath, 'JPEG', quality=95)
-        print(f"Report saved to: {filepath}")
-    
-    def _fig_to_image(self, fig):
-        """Convert matplotlib figure to PIL Image."""
-        buf = io.BytesIO()
-        fig.savefig(buf, format='png', dpi=150, bbox_inches='tight', 
-                    facecolor='white', edgecolor='none')
-        buf.seek(0)
-        img = Image.open(buf).convert('RGB')
-        return img
-    
-    def _resize_to_height(self, img, target_height):
-        """Resize image to target height maintaining aspect ratio."""
-        if img.height == target_height:
-            return img
-        ratio = target_height / img.height
-        new_width = int(img.width * ratio)
-        return img.resize((new_width, target_height), Image.Resampling.LANCZOS)
-    
-    def _resize_to_width(self, img, target_width):
-        """Resize image to target width maintaining aspect ratio."""
-        if img.width == target_width:
-            return img
-        ratio = target_width / img.width
-        new_height = int(img.height * ratio)
-        return img.resize((target_width, new_height), Image.Resampling.LANCZOS)
-    
-    def _create_title_banner(self, title, width, height, bg_color, text_color):
-        """
-        Create a title banner image using matplotlib for reliable font rendering.
-        
-        Args:
-            title: str, the title text
-            width: int, width of the banner in pixels
-            height: int, height of the banner in pixels
-            bg_color: tuple, RGB background color (0-255)
-            text_color: tuple, RGB text color (0-255)
-        
-        Returns:
-            PIL.Image: the title banner image
-        """
-        # Convert colors from 0-255 to 0-1 for matplotlib
-        bg_color_mpl = tuple(c / 255 for c in bg_color)
-        text_color_mpl = tuple(c / 255 for c in text_color)
-        
-        # Create figure with exact pixel dimensions
-        dpi = 100
-        fig_width = width / dpi
-        fig_height = height / dpi
-        
-        fig = plt.figure(figsize=(fig_width, fig_height), dpi=dpi, facecolor=bg_color_mpl)
-        ax = fig.add_axes([0, 0, 1, 1])
-        ax.set_facecolor(bg_color_mpl)
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
-        ax.axis('off')
-        
-        # Add centered title text
-        ax.text(0.5, 0.5, title, transform=ax.transAxes,
-                fontsize=28, fontweight='bold', color=text_color_mpl,
-                ha='center', va='center')
-        
-        # Convert to PIL Image
-        buf = io.BytesIO()
-        fig.savefig(buf, format='png', dpi=dpi, facecolor=bg_color_mpl, 
-                    edgecolor='none', bbox_inches='tight', pad_inches=0)
-        plt.close(fig)
-        buf.seek(0)
-        img = Image.open(buf).convert('RGB')
-        
-        # Resize to exact dimensions (bbox_inches='tight' may alter size slightly)
-        if img.width != width or img.height != height:
-            img = img.resize((width, height), Image.Resampling.LANCZOS)
-        
-        return img
-
-    def _format_metrics_table(self, metrics_dict, columns, headers=None):
-        """
-        Format metrics as a markdown table.
-        
-        Args:
-            metrics_dict: dict with metric values
-            columns: list of column keys to include
-            headers: optional list of header names (defaults to column keys)
-        
-        Returns:
-            str: markdown table string
-        """
-        if headers is None:
-            headers = columns
-        
-        # Build header row
-        header_row = "| Metric | " + " | ".join(headers) + " |"
-        separator = "|--------|" + "|".join(["-------"] * len(columns)) + "|"
-        
-        # Build data rows
-        rows = [header_row, separator]
-        
-        # Define metric display names
-        metric_names = {
-            'mean_corr': 'Mean Corr',
-            'top1_acc': 'Top-1 Accuracy',
-            'avg_rank_percentile': 'Avg Rank %ile',
-            'pfc_mean_r_intra': 'pFC r_intra',
-            'pfc_mean_r_inter': 'pFC r_inter',
-            'pfc_cohen_d': 'pFC Cohen\'s d',
-            'pfc_p_value': 'pFC p-value',
-            'null_mean_r_intra': 'Null r_intra',
-            'null_mean_r_inter': 'Null r_inter',
-            'pfc_accuracy': 'pFC Accuracy',
-            'null_noise_accuracy': 'Null (noise) Accuracy',
-            'null_permute_accuracy': 'Null (permute) Accuracy',
-        }
-        
-        # Collect all unique metrics across columns
-        all_metrics = set()
-        for col in columns:
-            if col in metrics_dict and isinstance(metrics_dict[col], dict):
-                all_metrics.update(metrics_dict[col].keys())
-        
-        # Filter to common important metrics
-        important_metrics = ['mean_corr', 'top1_acc', 'avg_rank_percentile']
-        
-        for metric in important_metrics:
-            if any(metric in metrics_dict.get(col, {}) for col in columns if isinstance(metrics_dict.get(col), dict)):
-                display_name = metric_names.get(metric, metric)
-                values = []
-                for col in columns:
-                    if col in metrics_dict and isinstance(metrics_dict[col], dict):
-                        val = metrics_dict[col].get(metric, '-')
-                        if isinstance(val, float):
-                            val = f"{val:.3f}"
-                        values.append(str(val))
-                    else:
-                        values.append('-')
-                rows.append(f"| {display_name} | " + " | ".join(values) + " |")
-        
-        return "\n".join(rows)
-
-    def _generate_markdown_report(self, figures_dict, all_metrics, filepath, verbose=False):
-        """
-        Generate a Markdown report with embedded PNG figures.
-        
-        Args:
-            figures_dict: dict mapping figure names to matplotlib figure objects
-            all_metrics: dict with all computed metrics
-            filepath: base path for output (without extension, must end in _results)
-            verbose: bool, whether verbose mode is enabled
-        """
-        # Prefer explicit model name; fall back to filepath-based inference.
-        model_type = all_metrics.get('model_name')
-        if not model_type:
-            filepath_base = os.path.basename(filepath)
-            if filepath_base.endswith('_results'):
-                model_type = filepath_base[:-8]  # Remove '_results' suffix
-            else:
-                model_type = filepath_base
-        
-        # Create plots directory
-        plots_dir = f"{filepath}_plots"
-        os.makedirs(plots_dir, exist_ok=True)
-        plots_dirname = os.path.basename(plots_dir)
-        
-        # Save all figures as PNGs
-        saved_figures = {}
-        for name, fig in figures_dict.items():
-            if fig is not None:
-                fig_path = os.path.join(plots_dir, f"{name}.png")
-                fig.savefig(fig_path, dpi=150, bbox_inches='tight', facecolor='white', edgecolor='none')
-                saved_figures[name] = f"{plots_dirname}/{name}.png"
-                plt.close(fig)
-        
-        # Build markdown content
-        md_lines = []
-        
-        # Header
-        md_lines.append("# FC Prediction Evaluation Report")
-        md_lines.append("")
-        md_lines.append(f"**Model:** {model_type} | "
-                       f"**Partition:** {all_metrics.get('partition', 'N/A')} | "
-                       f"**N subjects:** {all_metrics.get('n_subjects', 'N/A')} | "
-                       f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-        md_lines.append("")
-        md_lines.append("---")
-        md_lines.append("")
-        
-        # ========================================================================
-        # Section 1: Identifiability Heatmaps
-        # ========================================================================
-        md_lines.append("## Identifiability Heatmaps")
-        md_lines.append("")
-        md_lines.append("Pairwise correlation matrices between predicted and target connectomes. "
-                       "Diagonal dominance indicates subject-specific predictions.")
-        md_lines.append("")
-        md_lines.append("**Top-1 Accuracy:** Fraction of subjects whose own prediction is the best match.")
-        md_lines.append("")
-        md_lines.append(r"$$\text{Top-1 Acc} = \frac{1}{N}\sum_{i=1}^{N} \mathbb{1}[\arg\max_j \, r(\hat{y}_i, y_j) = i]$$")
-        md_lines.append("")
-        md_lines.append("**Avg Rank %ile:** For each subject, count how many other subjects' predictions have lower correlation with their target than their own prediction does.")
-        md_lines.append("")
-        md_lines.append(r"$$\text{avgrank} = \frac{1}{N}\sum_{s=1}^{N}\left(\frac{1}{N}\sum_{a \neq s}^{N} \mathbb{1}[r(X_s, \hat{X}_a) < r(X_s, \hat{X}_s)]\right)$$")
-        md_lines.append("")
-        
-        if verbose and 'identifiability_heatmaps' in saved_figures:
-            # Use HTML table for consistent sizing
-            md_lines.append('<table><tr>')
-            md_lines.append(f'<td align="center"><b>Raw</b><br/><img src="{saved_figures.get("identifiability_heatmaps", "")}" width="450"/></td>')
-            md_lines.append(f'<td align="center"><b>Demeaned</b><br/><img src="{saved_figures.get("identifiability_heatmaps_demeaned", "")}" width="450"/></td>')
-            md_lines.append('</tr></table>')
-        else:
-            if 'identifiability_heatmaps_demeaned' in saved_figures:
-                md_lines.append(f"![]({saved_figures['identifiability_heatmaps_demeaned']})")
-        md_lines.append("")
-        
-        # Metrics table for heatmaps
-        if verbose and 'heatmaps_raw' in all_metrics:
-            md_lines.append("| Metric | Raw | Demeaned |")
-            md_lines.append("|--------|-----|----------|")
-            raw = all_metrics.get('heatmaps_raw', {})
-            dem = all_metrics.get('heatmaps_demeaned', {})
-            md_lines.append(f"| Mean Corr | {raw.get('raw_mean_corr', raw.get('mean_corr', np.nan)):.3f} | {dem.get('raw_mean_corr', dem.get('mean_corr', np.nan)):.3f} |")
-            md_lines.append(f"| Demeaned Mean Corr | {raw.get('demeaned_mean_corr', np.nan):.3f} | {dem.get('demeaned_mean_corr', np.nan):.3f} |")
-            md_lines.append(f"| Top-1 Acc | {raw.get('top1_acc', '-'):.3f} | {dem.get('top1_acc', '-'):.3f} |")
-            md_lines.append(f"| Avg Rank %ile | {raw.get('avg_rank_percentile', '-'):.3f} | {dem.get('avg_rank_percentile', '-'):.3f} |")
-        elif 'heatmaps_demeaned' in all_metrics:
-            dem = all_metrics.get('heatmaps_demeaned', {})
-            md_lines.append("| Metric | Value |")
-            md_lines.append("|--------|-------|")
-            md_lines.append(f"| Mean Corr | {dem.get('raw_mean_corr', dem.get('mean_corr', np.nan)):.3f} |")
-            md_lines.append(f"| Demeaned Mean Corr | {dem.get('demeaned_mean_corr', np.nan):.3f} |")
-            md_lines.append(f"| Top-1 Acc | {dem.get('top1_acc', '-'):.3f} |")
-            md_lines.append(f"| Avg Rank %ile | {dem.get('avg_rank_percentile', '-'):.3f} |")
-        md_lines.append("")
-        md_lines.append("---")
-        md_lines.append("")
-
-        if 'geodesic_heatmaps' in saved_figures:
-            md_lines.append("## SPD Geodesic Heatmaps")
-            md_lines.append("")
-            md_lines.append(
-                "Pairwise distances between full reconstructed FC matrices after SPD projection. "
-                "These plots use an SPD-aware matrix distance instead of edgewise correlation."
-            )
-            md_lines.append("")
-            md_lines.append(f"![]({saved_figures['geodesic_heatmaps']})")
-            md_lines.append("")
-            geo = all_metrics.get('geodesic', {})
-            md_lines.append("| Metric | Value |")
-            md_lines.append("|--------|-------|")
-            md_lines.append(f"| Method | {geo.get('method', '-')} |")
-            md_lines.append(f"| Mean Self Distance | {geo.get('mean_self_distance', np.nan):.3f} |")
-            md_lines.append(f"| Top-1 Acc | {geo.get('top1_acc', np.nan):.3f} |")
-            md_lines.append(f"| Avg Rank %ile | {geo.get('avg_rank_percentile', np.nan):.3f} |")
-            meta = geo.get('metadata', {})
-            if isinstance(meta, dict):
-                md_lines.append(f"| Target SPD Projection Rate | {meta.get('targets_fraction_projected', np.nan):.2%} |")
-                md_lines.append(f"| Pred SPD Projection Rate | {meta.get('preds_fraction_projected', np.nan):.2%} |")
-                md_lines.append(f"| Target Mean Clipped Eig Fraction | {meta.get('targets_mean_clipped_fraction', np.nan):.2%} |")
-                md_lines.append(f"| Pred Mean Clipped Eig Fraction | {meta.get('preds_mean_clipped_fraction', np.nan):.2%} |")
-                md_lines.append(f"| Target Mean Clip Mass | {meta.get('targets_mean_clip_mass', np.nan):.3f} |")
-                md_lines.append(f"| Pred Mean Clip Mass | {meta.get('preds_mean_clip_mass', np.nan):.3f} |")
-            md_lines.append("")
-            md_lines.append("---")
-            md_lines.append("")
-        
-        # ========================================================================
-        # Section 2: Identifiability Violin
-        # ========================================================================
-        md_lines.append("## Identifiability Violin")
-        md_lines.append("")
-        md_lines.append("Tests whether intraindividual correlations (subject's prediction vs their own target) "
-                       "exceed interindividual correlations (vs other subjects' targets) using a **one-sample t-test**.")
-        md_lines.append("")
-        md_lines.append("For each subject $i$, compute $d_i = r_{intra}(i) - r_{inter}(i)$, then test:")
-        md_lines.append("")
-        md_lines.append(r"$$H_0: \frac{1}{N}\sum_i d_i = 0 \quad \text{(one-sample t-test)}$$")
-        md_lines.append("")
-        md_lines.append("Significance ($*$) indicates the model captures individual-specific features beyond group average.")
-        md_lines.append("")
-        
-        if verbose and 'identifiability_violin' in saved_figures:
-            md_lines.append('<table><tr>')
-            md_lines.append(f'<td align="center"><b>Raw</b><br/><img src="{saved_figures.get("identifiability_violin", "")}" width="400"/></td>')
-            md_lines.append(f'<td align="center"><b>Demeaned</b><br/><img src="{saved_figures.get("identifiability_violin_demeaned", "")}" width="400"/></td>')
-            md_lines.append('</tr></table>')
-        else:
-            if 'identifiability_violin_demeaned' in saved_figures:
-                md_lines.append(f"![]({saved_figures['identifiability_violin_demeaned']})")
-        md_lines.append("")
-        
-        # Metrics table for violin
-        if verbose and 'violin_raw' in all_metrics:
-            md_lines.append("| Metric | Raw | Demeaned |")
-            md_lines.append("|--------|-----|----------|")
-            raw = all_metrics.get('violin_raw', {})
-            dem = all_metrics.get('violin_demeaned', {})
-            md_lines.append(f"| pFC r_intra | {raw.get('pfc_mean_r_intra', '-'):.3f} | {dem.get('pfc_mean_r_intra', '-'):.3f} |")
-            md_lines.append(f"| pFC r_inter | {raw.get('pfc_mean_r_inter', '-'):.3f} | {dem.get('pfc_mean_r_inter', '-'):.3f} |")
-            md_lines.append(f"| pFC Cohen's d | {raw.get('pfc_cohen_d', '-'):.2f} | {dem.get('pfc_cohen_d', '-'):.2f} |")
-            md_lines.append(f"| pFC p-value (t-test) | {raw.get('pfc_p_value', '-'):.2e} | {dem.get('pfc_p_value', '-'):.2e} |")
-        elif 'violin_demeaned' in all_metrics:
-            dem = all_metrics.get('violin_demeaned', {})
-            md_lines.append("| Metric | Value |")
-            md_lines.append("|--------|-------|")
-            md_lines.append(f"| pFC r_intra | {dem.get('pfc_mean_r_intra', '-'):.3f} |")
-            md_lines.append(f"| pFC r_inter | {dem.get('pfc_mean_r_inter', '-'):.3f} |")
-            md_lines.append(f"| pFC Cohen's d | {dem.get('pfc_cohen_d', '-'):.2f} |")
-            md_lines.append(f"| pFC p-value (t-test) | {dem.get('pfc_p_value', '-'):.2e} |")
-        md_lines.append("")
-        md_lines.append("---")
-        md_lines.append("")
-        
-        # ========================================================================
-        # Section 3: Hungarian Matching (verbose only)
-        # ========================================================================
-        if verbose:
-            md_lines.append("## Hungarian Matching")
-            md_lines.append("")
-            md_lines.append("The Hungarian algorithm derives an optimal **one-to-one** mapping between target (eFC) and predicted (pFC) matrices "
-                           "that maximizes total similarity. Unlike greedy matching (which permits one-to-many assignments), "
-                           "Hungarian matching ensures each prediction is assigned to exactly one target.")
-            md_lines.append("")
-            md_lines.append("**Procedure:**")
-            md_lines.append("1. Compute similarity matrix $R_{ij} = r(X_i, \\hat{X}_j)$ between all target-prediction pairs")
-            md_lines.append("2. Find permutation $\\pi^*$ that maximizes total similarity:")
-            md_lines.append("")
-            md_lines.append(r"$$\pi^* = \arg\max_{\pi \in S_N} \sum_{i=1}^{N} R_{i,\pi(i)}$$")
-            md_lines.append("")
-            md_lines.append("3. **Top-1 Acc** = fraction of subjects assigned to themselves: $\\frac{1}{N}\\sum_i \\mathbb{1}[\\pi^*(i) = i]$")
-            md_lines.append("")
-            md_lines.append("**Null conditions:**")
-            md_lines.append("- **Null (noise):** Predictions replaced with mean + Gaussian noise")
-            md_lines.append("- **Null (permute):** Columns of similarity matrix randomly permuted (chance baseline)")
-            md_lines.append("")
-            
-            if 'hungarian_heatmaps' in saved_figures:
-                md_lines.append('<table><tr>')
-                md_lines.append(f'<td align="center"><b>Raw</b><br/><img src="{saved_figures.get("hungarian_heatmaps", "")}" width="500"/></td>')
-                md_lines.append(f'<td align="center"><b>Demeaned</b><br/><img src="{saved_figures.get("hungarian_heatmaps_demeaned", "")}" width="500"/></td>')
-                md_lines.append('</tr></table>')
-            md_lines.append("")
-            
-            # Metrics table
-            if 'hungarian_raw' in all_metrics:
-                md_lines.append("| Condition | Raw Top-1 Acc | Demeaned Top-1 Acc |")
-                md_lines.append("|-----------|---------------|---------------------|")
-                raw = all_metrics.get('hungarian_raw', {})
-                dem = all_metrics.get('hungarian_demeaned', {})
-                md_lines.append(f"| pFC | {raw.get('pfc_accuracy', '-'):.3f} | {dem.get('pfc_accuracy', '-'):.3f} |")
-                md_lines.append(f"| Null (noise) | {raw.get('null_noise_accuracy', '-'):.3f} | {dem.get('null_noise_accuracy', '-'):.3f} |")
-                md_lines.append(f"| Null (permute) | {raw.get('null_permute_accuracy', '-'):.3f} | {dem.get('null_permute_accuracy', '-'):.3f} |")
-            md_lines.append("")
-            md_lines.append("---")
-            md_lines.append("")
-            
-            # ========================================================================
-            # Section 4: Hungarian Sample Size Analysis (verbose only)
-            # ========================================================================
-            md_lines.append("## Hungarian Sample Size Analysis")
-            md_lines.append("")
-            md_lines.append("Matching accuracy as a function of subset sample size. "
-                           "Stars indicate sample sizes where pFC significantly exceeds both null baselines (FDR-corrected, two-sample t-test).")
-            md_lines.append("")
-            
-            if 'hungarian_sample_size' in saved_figures:
-                md_lines.append('<table><tr>')
-                md_lines.append(f'<td align="center"><b>Raw</b><br/><img src="{saved_figures.get("hungarian_sample_size", "")}" width="450"/></td>')
-                md_lines.append(f'<td align="center"><b>Demeaned</b><br/><img src="{saved_figures.get("hungarian_sample_size_demeaned", "")}" width="450"/></td>')
-                md_lines.append('</tr></table>')
-            md_lines.append("")
-            md_lines.append("---")
-            md_lines.append("")
-        
-        # ========================================================================
-        # Section 5: PCA Structure
-        # ========================================================================
-        md_lines.append("## PCA Structure")
-        md_lines.append("")
-        md_lines.append("Subject-mode PCA captures the main modes of inter-subject variation in connectivity. "
-                       "High PC score correlations indicate the model preserves individual differences along each mode.")
-        md_lines.append("")
-        md_lines.append("**Procedure:**")
-        md_lines.append("1. Mean-center data: $\\tilde{X} = X - \\bar{X}_{train}$ where $X \\in \\mathbb{R}^{N \\times E}$ (subjects $\\times$ edges)")
-        md_lines.append("2. Transpose for subject-mode PCA: $\\tilde{X}^T \\in \\mathbb{R}^{E \\times N}$")
-        md_lines.append("3. Compute eigenvectors $B_k$ (loadings) and project: $C_k = \\tilde{X}^T B_k$ (PC scores, length $E$)")
-        md_lines.append("4. Project predictions into same basis: $C^{pred}_k = \\tilde{\\hat{X}}^T B_k$")
-        md_lines.append("5. Correlate scores: $\\text{PC Corr}_k = r(C^{target}_k, C^{pred}_k)$")
-        md_lines.append("")
-        md_lines.append(r"$$\text{PC Corr}_k = \text{corr}(C^{target}_k, C^{pred}_k)$$")
-        md_lines.append("")
-        
-        if 'pca_line' in saved_figures:
-            md_lines.append(f"![]({saved_figures['pca_line']})")
-            md_lines.append("")
-        
-        if 'pca_spatial' in saved_figures:
-            md_lines.append(f"![]({saved_figures['pca_spatial']})")
-            md_lines.append("")
-        
-        # PCA metrics
-        if 'pca' in all_metrics:
-            pca = all_metrics['pca']
-            md_lines.append("| Metric | Value |")
-            md_lines.append("|--------|-------|")
-            if 'cutoff_idx_95' in pca:
-                md_lines.append(f"| PCs for 95% variance | {pca['cutoff_idx_95'] + 1} |")
-            if 'pc_corrs' in pca and len(pca['pc_corrs']) > 0:
-                md_lines.append(f"| PC1 Corr | {pca['pc_corrs'][0]:.3f} |")
-                if len(pca['pc_corrs']) > 4:
-                    md_lines.append(f"| PC5 Corr | {pca['pc_corrs'][4]:.3f} |")
-            if pca.get('exp_fit_params'):
-                exp = pca['exp_fit_params']
-                md_lines.append(f"| Exp. decay rate (b) | {exp.get('b', '-'):.4f} |")
-        md_lines.append("")
-        md_lines.append("---")
-        md_lines.append("")
-
-        # ========================================================================
-        # Section 6: Prediction Subset Viewer
-        # ========================================================================
-        if 'prediction_subset' in saved_figures:
-            md_lines.append("## Prediction Subset Viewer")
-            md_lines.append("")
-            md_lines.append(
-                "Compact row-wise viewer of selected subjects: target matrix, prediction matrix, "
-                "and edge-wise scatter with per-subject metrics."
-            )
-            md_lines.append("")
-            md_lines.append(f"![]({saved_figures['prediction_subset']})")
-            md_lines.append("")
-            subset = all_metrics.get('prediction_subset', {})
-            md_lines.append("| Metric | Value |")
-            md_lines.append("|--------|-------|")
-            md_lines.append(f"| Subjects Shown | {subset.get('n_subjects_shown', '-')} |")
-            modes = subset.get('display_modes', [])
-            if isinstance(modes, list):
-                md_lines.append(f"| Display Modes | {', '.join(map(str, modes))} |")
-            md_lines.append(f"| Include Best/Worst | {subset.get('include_best_worst', '-')} |")
-            selected_ids = subset.get('selected_subject_ids', [])
-            if isinstance(selected_ids, list):
-                md_lines.append(f"| Selected Subject IDs | {', '.join(map(str, selected_ids))} |")
-            md_lines.append("")
-            md_lines.append("---")
-            md_lines.append("")
-        
-        # ========================================================================
-        # Section 7: Summary Metrics Table
-        # ========================================================================
-        md_lines.append("## Summary Metrics")
-        md_lines.append("")
-        md_lines.append("| Category | Metric | Value |")
-        md_lines.append("|----------|--------|-------|")
-        
-        # Base metrics
-        base = all_metrics.get('base_metrics', {})
-        md_lines.append(f"| Base | MSE | {base.get('mse', '-'):.4f} |")
-        md_lines.append(f"| Base | R² | {base.get('r2', '-'):.4f} |")
-        md_lines.append(f"| Base | Pearson Corr | {base.get('pearson', '-'):.4f} |")
-        md_lines.append(f"| Base | Demeaned Pearson | {base.get('demeaned_pearson', '-'):.4f} |")
-        for geo_prefix, geo_label in (("geodesic_demeaned", "Geodesic Demeaned"), ("geodesic_raw", "Geodesic Raw")):
-            if f'{geo_prefix}_top1_acc' in base:
-                md_lines.append(
-                    f"| Base (optional) | {geo_label} Top-1 Acc ({base.get(f'{geo_prefix}_method', '-')}) | "
-                    f"{base.get(f'{geo_prefix}_top1_acc', np.nan):.4f} |"
-                )
-            if f'{geo_prefix}_avg_rank' in base:
-                md_lines.append(
-                    f"| Base (optional) | {geo_label} Avg Rank %ile ({base.get(f'{geo_prefix}_method', '-')}) | "
-                    f"{base.get(f'{geo_prefix}_avg_rank', np.nan):.4f} |"
-                )
-        
-        # Identifiability (raw)
-        raw_hm = all_metrics.get('heatmaps_raw', all_metrics.get('heatmaps_demeaned', {}))
-        md_lines.append(f"| Identifiability | Top-1 Acc | {raw_hm.get('top1_acc', '-'):.3f} |")
-        md_lines.append(f"| Identifiability | Avg Rank %ile | {raw_hm.get('avg_rank_percentile', '-'):.3f} |")
-        
-        # Violin (raw)
-        raw_vio = all_metrics.get('violin_raw', all_metrics.get('violin_demeaned', {}))
-        md_lines.append(f"| Violin | Cohen's d | {raw_vio.get('pfc_cohen_d', '-'):.2f} |")
-        md_lines.append(f"| Violin | p-value | {raw_vio.get('pfc_p_value', '-'):.2e} |")
-        
-        # Hungarian (if verbose, raw)
-        if verbose and ('hungarian_raw' in all_metrics or 'hungarian_demeaned' in all_metrics):
-            raw_hung = all_metrics.get('hungarian_raw', all_metrics.get('hungarian_demeaned', {}))
-            md_lines.append(f"| Hungarian | pFC Top-1 Acc | {raw_hung.get('pfc_accuracy', '-'):.3f} |")
-        
-        # PCA
-        if 'pca' in all_metrics:
-            pca = all_metrics['pca']
-            if 'pc_corrs' in pca and len(pca['pc_corrs']) >= 5:
-                pc_str = ", ".join([f"{pca['pc_corrs'][i]:.3f}" for i in range(5)])
-                md_lines.append(f"| PCA | PC1-5 Corr | {pc_str} |")
-            elif 'pc_corrs' in pca and len(pca['pc_corrs']) > 0:
-                pc_str = ", ".join([f"{c:.3f}" for c in pca['pc_corrs'][:5]])
-                md_lines.append(f"| PCA | PC Corrs | {pc_str} |")
-            if pca.get('exp_fit_params'):
-                md_lines.append(f"| PCA | Exp. decay rate (b) | {pca['exp_fit_params'].get('b', '-'):.4f} |")
-        
-        md_lines.append("")
-        
-        # ========================================================================
-        # Write markdown file
-        # ========================================================================
-        md_path = f"{filepath}.md"
-        with open(md_path, 'w') as f:
-            f.write("\n".join(md_lines))
-        
-        print(f"Markdown report saved to: {md_path}")
-        print(f"Figures saved to: {plots_dir}/")
 
     def visualize_individual_prediction(self, idx=None, subject_id=None, scale='self', 
                                          dpi=150, figsize=(15, 10), show=True):

@@ -1,15 +1,14 @@
+"""Model registry and configuration helpers.
+
+Loads model YAML configs, resolves search spaces, and builds architecture instances.
 """
-Config helpers: load model config from YAML, resolve search space to Ray Tune API, build model.
-Config files live in models/configs/<model_name>.yml.
-"""
+
 import os
 from copy import deepcopy
 import yaml
 
-# Keys that belong to trainer config (used when splitting flat Tune config).
-TRAINER_KEYS = {"lr", "loss_type", "loss_alpha", "loss_beta", "loss_corr_target", "loss_corr_weight", "loss_var_weight", "loss_latent_weight", "loss_terms", "loss_scale_ema_decay", "loss_scale_warmup_steps", "max_epochs", "batch_size", "log_every"}
+TRAINER_KEYS = {"lr", "loss_type", "loss_alpha", "loss_beta", "loss_corr_target", "loss_corr_weight", "loss_var_weight", "loss_latent_weight", "loss_terms", "loss_normalize", "loss_scale_ema_decay", "loss_scale_warmup_steps", "max_epochs", "batch_size", "log_every"}
 DATA_KEYS = {"parcellation", "hemi", "source", "target", "shuffle_seed", "HCP_dir", "sc_metric_type", "sc_apply_log1p", "volume_feature_type", "centroid_feature_type", "data_load_mode", "precompute_cache_root", "write_manual_cache"}
-# Keys injected into the flat config for W&B/logging purposes only — never model constructor args.
 FLAT_METADATA_KEYS = {"cov_sources_str", "cov_dims", "cov_projectors_tag", "cov_fusion_tag"}
 
 _CONFIGS_DIR = os.path.join(os.path.dirname(__file__), "configs")
@@ -20,10 +19,7 @@ def _config_path(model_name: str) -> str:
 
 
 def load_config(model_name: str, path: str = None) -> dict:
-    """
-    Load full config (default + search_space + learned) from YAML.
-    path: if set, load from this fle; else models/configs/<model_name>.yml.
-    """
+    """Load full config from YAML."""
     p = path or _config_path(model_name)
     if not os.path.isfile(p):
         raise FileNotFoundError(f"Config not found: {p}")
@@ -36,7 +32,7 @@ def load_config(model_name: str, path: str = None) -> dict:
 
 
 def get_default_config(model_name: str, path: str = None) -> dict:
-    """Return a deep copy of the default section (model + trainer) for the given model."""
+    """Return a deep copy of the default section for the given model."""
     cfg = load_config(model_name, path=path)
     return deepcopy(cfg.get("default", {}))
 
@@ -51,12 +47,7 @@ def _normalize_source_list(source_spec):
 
 def _resolve_source_dims(value, source_modalities):
     """
-    Coerce scalar/dict PCA settings to match the selected source modalities.
-
-    Rules:
-    - single-source + dict -> select that modality's entry
-    - multi-source + scalar -> broadcast scalar to all source modalities
-    - multi-source + dict -> keep only the active modality keys
+    Coerce scalar/dict PCA settings to match selected source modalities.
     """
     if value is None or not source_modalities:
         return value
@@ -84,12 +75,7 @@ def _resolve_source_dims(value, source_modalities):
 
 def resolve_source_dependent_config(config: dict) -> dict:
     """
-    Normalize source-dependent PCA settings for either nested or flat config dicts.
-
-    Supported keys:
-    - data.source or source
-    - model.n_components_pca / n_components_pca
-    - model.n_components_pca_source / n_components_pca_source
+    Normalize source-dependent PCA settings for nested or flat config dicts.
     """
     resolved = deepcopy(config or {})
 
@@ -121,15 +107,12 @@ def resolve_source_dependent_config(config: dict) -> dict:
 
 
 def search_space_to_tune(search_space: dict):
-    """
-    Convert declarative search_space from YAML to Ray Tune sampling API.
-    search_space: { param_name: { type: choice|loguniform|uniform, values: [...] or lower/upper } }
-    Returns dict of param_name -> tune.* object (or empty dict if ray not available).
-    """
+    """Convert declarative YAML search space to Ray Tune sampling objects."""
     try:
         from ray import tune
     except ImportError:
         return {}
+
     out = {}
     for key, spec in (search_space or {}).items():
         if not isinstance(spec, dict):
@@ -145,9 +128,46 @@ def search_space_to_tune(search_space: dict):
 
 
 def get_search_space(model_name: str, path: str = None) -> dict:
-    """Load config and return Ray Tune param_space (tune.choice etc.) from search_space section."""
+    """Load config and return Ray Tune param_space from the search_space section."""
     cfg = load_config(model_name, path=path)
     return search_space_to_tune(cfg.get("search_space"))
+
+
+def _model_class(name):
+    if name == "Sarwar2020MLP":
+        from models.architectures.sarwar2020_mlp import Sarwar2020MLP
+        return Sarwar2020MLP
+    if name == "Chen2024GCN":
+        from models.architectures.graph_based.chen2024_gnn import Chen2024GCN
+        return Chen2024GCN
+    if name == "NodalGNN":
+        from models.architectures.graph_based.nodal_gnn import NodalGNN
+        return NodalGNN
+    if name == "LatentAttnTranslation":
+        from models.architectures.latent_attention.latent_attn_translation import LatentAttnTranslation
+        return LatentAttnTranslation
+    if name == "LatentAttnMasked":
+        from models.architectures.latent_attention.latent_attn_masked import LatentAttnMasked
+        return LatentAttnMasked
+    if name == "CrossModal_ConditionalGaussian":
+        from models.architectures.latent_attention.conditional_gaussian import CrossModal_ConditionalGaussian
+        return CrossModal_ConditionalGaussian
+    if name == "Krakencoder_precomputed":
+        from models.architectures.krakencoder_precomputed import KrakencoderPrecomputed
+        return KrakencoderPrecomputed
+    if name == "CrossModalVAE":
+        from models.architectures.crossmodal_vae import CrossModalVAE
+        return CrossModalVAE
+    if name in {
+        "CrossModalPCA",
+        "CrossModal_PLS_SVD",
+        "CrossModal_PCA_PLS",
+        "CrossModal_PCA_PLS_learnable",
+        "CrossModal_PCA_PLS_CovProjector",
+    }:
+        from models.architectures import crossmodal_pca_pls
+        return getattr(crossmodal_pca_pls, name)
+    raise ValueError(f"Unknown model name: {name}")
 
 
 def build_model(base, model_name: str = None, model_kwargs: dict = None):
@@ -155,47 +175,22 @@ def build_model(base, model_name: str = None, model_kwargs: dict = None):
     Build a model instance. model_kwargs must not include 'name' or 'base'.
     If model_name is None, it is taken from model_kwargs.pop('name', None).
     """
-    from models import models as models_module
-
     model_kwargs = model_kwargs or {}
     name = model_name or model_kwargs.pop("name", None)
     if not name:
         raise ValueError("model_name or model_kwargs['name'] required")
-    _drop_keys = {"name"} | FLAT_METADATA_KEYS
-    kwargs = {k: v for k, v in model_kwargs.items() if k not in _drop_keys}
-    # YAML may give lists for tuples (e.g. l1_l2_tuple, hidden_dims)
+
+    kwargs = {k: v for k, v in model_kwargs.items() if k not in ({"name"} | FLAT_METADATA_KEYS)}
     for k in ("l1_l2_tuple", "hidden_dims", "fs_hidden_dims"):
         if k in kwargs and isinstance(kwargs[k], list):
             kwargs[k] = tuple(kwargs[k])
-    # Reconstruct l1_l2_tuple from individually-tuned scalar params if present.
-    # l1_reg and l2_reg are the searchable split form; l1_l2_tuple is the model API.
     if "l1_reg" in kwargs or "l2_reg" in kwargs:
         l1 = float(kwargs.pop("l1_reg", 0.0))
         l2 = float(kwargs.pop("l2_reg", 0.0))
         kwargs.setdefault("l1_l2_tuple", (l1, l2))
     if kwargs.get("device") is None:
         kwargs["device"] = None
-    if name == "Sarwar2020MLP":
-        from models.architectures.sarwar2020_mlp import Sarwar2020MLP
-        return Sarwar2020MLP(base, **kwargs)
-    if name == "Chen2024GCN":
-        from models.architectures.graph_based.chen2024_gnn import Chen2024GCN
-        return Chen2024GCN(base, **kwargs)
-    if name == "NodalGNN":
-        from models.architectures.graph_based.nodal_gnn import NodalGNN
-        return NodalGNN(base, **kwargs)
-    if name == "LatentAttnTranslation":
-        from models.architectures.latent_attention.latent_attn_translation import LatentAttnTranslation
-        return LatentAttnTranslation(base, **kwargs)
-    if name == "LatentAttnMasked":
-        from models.architectures.latent_attention.latent_attn_masked import LatentAttnMasked
-        return LatentAttnMasked(base, **kwargs)
-    if name == "CrossModal_ConditionalGaussian":
-        from models.architectures.latent_attention.conditional_gaussian import CrossModal_ConditionalGaussian
-        return CrossModal_ConditionalGaussian(base, **kwargs)
     if name == "Krakencoder_precomputed":
         kwargs.pop("device", None)
-        from models.architectures.krakencoder_precomputed import KrakencoderPrecomputed
-        return KrakencoderPrecomputed(base, **kwargs)
-    cls = getattr(models_module, name)
-    return cls(base, **kwargs)
+
+    return _model_class(name)(base, **kwargs)

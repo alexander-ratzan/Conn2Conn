@@ -1,2 +1,0 @@
-from models.architectures.graph_based.gnn_features import build_node_features
-
