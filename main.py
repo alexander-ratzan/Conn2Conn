@@ -351,6 +351,7 @@ class Sim:
         config_override: dict = None,
         store_eval_md: bool = False,
         run_eval: bool = True,
+        eval_kwargs: dict = None,
     ):
         """
         Run a single configuration (one model, one training run). No Ray; runs in this process.
@@ -376,6 +377,7 @@ class Sim:
                     config_override=config_override,
                     run_eval=run_eval,
                     store_eval_md=store_eval_md,
+                    eval_kwargs=eval_kwargs,
                 )
             else: 
                 return self._run_closed_form_single(
@@ -385,6 +387,7 @@ class Sim:
                     config_override=config_override,
                     run_eval=run_eval,
                     store_eval_md=store_eval_md,
+                    eval_kwargs=eval_kwargs,
                 )
         finally:
             if mode == "prod" and wandb is not None: # fallback to finish any wandb run - can consider replacing with WandbLogger to manage init and finish
@@ -410,6 +413,7 @@ class Sim:
         train_loader=None,
         val_loader=None,
         test_loader=None,
+        eval_kwargs: dict = None,
     ):
         base = base or self.base
         train_loader = train_loader or self.train_loader
@@ -430,10 +434,12 @@ class Sim:
         train_eval = Evaluator(train_preds, train_targets, train_partition, base)
         val_eval = Evaluator(val_preds, val_targets, val_partition, base)
         test_eval = Evaluator(test_preds, test_targets, test_partition, base)
+        eval_kwargs = dict(eval_kwargs or {})
         test_metrics = test_eval.analyze_results(
             verbose=(mode == "prod"),
             filepath=test_report_path,
             model_name=model_name,
+            **eval_kwargs,
         )
         return {
             "evaluators": {"train": train_eval, "val": val_eval, "test": test_eval},
@@ -460,6 +466,7 @@ class Sim:
         wandb_metadata: dict = None,
         run_eval: bool = True,
         store_eval_md: bool = False,
+        eval_kwargs: dict = None,
     ):
         cfg = self._merge_config(config_override)
         data_ctx = self._build_runtime_data_context(cfg)
@@ -572,6 +579,7 @@ class Sim:
                 train_loader=run_train_loader,
                 val_loader=run_val_loader,
                 test_loader=run_test_loader,
+                eval_kwargs=eval_kwargs,
             )
             test_metrics = eval_out["test_metrics"]
 
@@ -609,6 +617,7 @@ class Sim:
         wandb_metadata: dict = None,
         run_eval: bool = True,
         store_eval_md: bool = False,
+        eval_kwargs: dict = None,
     ):
         cfg = self._merge_config(config_override)
         data_ctx = self._build_runtime_data_context(cfg)
@@ -639,6 +648,7 @@ class Sim:
                 train_loader=run_train_loader,
                 val_loader=run_val_loader,
                 test_loader=run_test_loader,
+                eval_kwargs=eval_kwargs,
             )
             test_metrics = eval_out["test_metrics"]
 

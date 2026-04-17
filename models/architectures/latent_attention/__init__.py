@@ -1,0 +1,1 @@
+"""Latent-space architecture family."""

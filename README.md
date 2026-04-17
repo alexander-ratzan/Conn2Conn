@@ -15,7 +15,10 @@ Predicts one connectome modality from another on HCP-derived data (default `SC �
 | `CrossModal_PCA_PLS` | Closed-form | PCA whitening + PLS regression |
 | `CrossModal_PCA_PLS_learnable` | Learned | PCA/PLS-initialized linear map, fine-tuned end-to-end |
 | `CrossModal_PCA_PLS_CovProjector` | Learned | PCA+PLS + residual correction conditioned on subject covariates |
+| `CrossModal_ConditionalGaussian` | Closed-form | Conditional Gaussian mapping in latent space, with optional covariates |
 | `CrossModalVAE` | Learned | Variational autoencoder cross-modal mapping |
+| `LatentAttnMasked` | Learned | Latent PCA backbone with optional masked FC attention residual |
+| `LatentAttnTranslation` | Learned | Latent translation model with PCA backbone and residual variants |
 | `Sarwar2020MLP` | Learned | Fully non-linear MLP baseline with correlation-aware loss option |
 | `Chen2024GCN` | Learned | Edge-level GCN baseline (`SC` graph message passing, FC edge regression) |
 | `NodalGNN` | Learned | SC-conditioned GNN using subject-specific parcel node features (volume, centroid, `SC_r2t`) |
@@ -163,7 +166,7 @@ python main.py --mode prod --model CrossModal_PCA_PLS_learnable \
 | `--use_tune` | Enable Ray Tune HPO |
 | `--num_samples` | Number of Ray Tune trials |
 | `--report_best_after_tune` | Re-run and fully evaluate the best trial after tuning |
-| `--store_eval_md` | Save a markdown evaluation report for the best trial |
+| `--store_eval_md` | Save a markdown evaluation report when supported by the run/report path |
 
 ---
 
@@ -220,7 +223,7 @@ Notebook surface:
 - `notebooks/results_scrape/scrape_SCtype_results.ipynb`
 - `notebooks/results_scrape/scrape_covtype_results.ipynb`
 - `notebooks/kraken/track_krakencoder_model.ipynb`
-- `notebooks/kraken_eval.ipynb`
+- `notebooks/kraken/kraken_eval.ipynb`
 
 ```python
 from results.results_scraper import (
@@ -276,4 +279,4 @@ Conn2Conn/
 └── krakencoder/                     # Bundled KrakenEncoder codebase
 ```
 
-Last updated at: 2026-03-31 15:10:31 EDT
+Last updated at: 2026-04-17 14:35:00 EDT

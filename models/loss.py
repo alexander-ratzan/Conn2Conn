@@ -485,7 +485,7 @@ REG_HISTORY_PAIR = ("train_reg_loss", "val_reg_loss", "Reg Loss")
 LATENT_HISTORY_LOSS_PAIRS = [
     ("train_loss", "val_loss", "Active Loss"),
     ("train_edge_mse", "val_edge_mse", "Edge MSE"),
-    ("train_var_match_loss", "val_var_match_loss", "Var Match"),
+    ("train_var_match_loss", "val_var_match_loss", "MSE of Across-Subject Edge-Variance Profiles (Pred vs Target)"),
     ("train_latent_mse", "val_latent_mse", "Latent MSE"),
     ("train_latent_weighted_mse", "val_latent_weighted_mse", "Latent Weighted MSE"),
     ("train_joint_edge_term", "val_joint_edge_term", "Joint Edge Term"),
@@ -495,8 +495,8 @@ LATENT_HISTORY_LOSS_PAIRS = [
 DEFAULT_HISTORY_CORR_PAIRS = [
     ("train_pearson_r", "val_pearson_r", "Pearson r"),
     ("train_demeaned_r", "val_demeaned_r", "Demeaned r"),
-    ("train_variance_ratio", "val_variance_ratio", "Pred/Target Variance"),
-    ("train_norm_ratio", "val_norm_ratio", "Pred/Target Norm"),
+    ("train_variance_ratio", "val_variance_ratio", "Ratio of Mean Across-Subject Edge Variance (Pred/Target)"),
+    ("train_norm_ratio", "val_norm_ratio", "Ratio of Mean Per-Subject Connectome L2 Norm (Pred/Target)"),
 ]
 
 

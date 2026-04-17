@@ -176,26 +176,26 @@ def build_model(base, model_name: str = None, model_kwargs: dict = None):
     if kwargs.get("device") is None:
         kwargs["device"] = None
     if name == "Sarwar2020MLP":
-        from models.sarwar2020_mlp import Sarwar2020MLP
+        from models.architectures.sarwar2020_mlp import Sarwar2020MLP
         return Sarwar2020MLP(base, **kwargs)
     if name == "Chen2024GCN":
-        from models.chen2024_gnn import Chen2024GCN
+        from models.architectures.graph_based.chen2024_gnn import Chen2024GCN
         return Chen2024GCN(base, **kwargs)
     if name == "NodalGNN":
-        from models.nodal_gnn import NodalGNN
+        from models.architectures.graph_based.nodal_gnn import NodalGNN
         return NodalGNN(base, **kwargs)
     if name == "LatentAttnTranslation":
-        from models.latent_attn_translation import LatentAttnTranslation
+        from models.architectures.latent_attention.latent_attn_translation import LatentAttnTranslation
         return LatentAttnTranslation(base, **kwargs)
     if name == "LatentAttnMasked":
-        from models.latent_attn_masked import LatentAttnMasked
+        from models.architectures.latent_attention.latent_attn_masked import LatentAttnMasked
         return LatentAttnMasked(base, **kwargs)
     if name == "CrossModal_ConditionalGaussian":
-        from models.conditional_gaussian import CrossModal_ConditionalGaussian
+        from models.architectures.latent_attention.conditional_gaussian import CrossModal_ConditionalGaussian
         return CrossModal_ConditionalGaussian(base, **kwargs)
     if name == "Krakencoder_precomputed":
         kwargs.pop("device", None)
-        from models.models import KrakencoderPrecomputed
+        from models.architectures.krakencoder_precomputed import KrakencoderPrecomputed
         return KrakencoderPrecomputed(base, **kwargs)
     cls = getattr(models_module, name)
     return cls(base, **kwargs)

@@ -14,6 +14,9 @@ __pycache__/
 results/
 # Ignore everything in results
 results/**
+# Do not ignore python files in results
+!results/*.py
+
 
 # Re-allow traversal to the target folder (but don't track contents yet)
 !results/local_results/

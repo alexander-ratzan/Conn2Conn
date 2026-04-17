@@ -18,6 +18,13 @@ from PIL import Image, ImageDraw, ImageFont
 import warnings
 
 from data.data_utils import *
+from models.FC_distance import (
+    distance_avg_rank,
+    distance_top1_accuracy,
+    pairwise_fc_distance,
+    prepare_fc_matrices,
+    reconstruct_fc_matrices,
+)
 from models.eval_utils import *
 
 # ============================================================================
@@ -98,6 +105,8 @@ class Evaluator:
         # PCA objects (computed lazily when evaluate_pca_structure is called)
         self._pca_preds = None
         self._pca_targets = None    
+        self._spd_matrix_cache = {}
+        self._fc_matrix_cache = {}
     
 
     def _compute_metrics(self):
@@ -310,6 +319,325 @@ class Evaluator:
 
         return (fig_line, fig_grid), pca_metrics
 
+    def _get_spd_reconstructions(self, demeaned=False, diag_value=1.0, eps=1e-6):
+        """Reconstruct target/prediction FC matrices and project them to SPD, with caching."""
+        cache_key = (bool(demeaned), float(diag_value), float(eps))
+        if cache_key in self._spd_matrix_cache:
+            return self._spd_matrix_cache[cache_key]
+
+        if demeaned:
+            preds_data = self.preds - self.train_mean
+            targets_data = self.targets - self.train_mean
+        else:
+            preds_data = self.preds
+            targets_data = self.targets
+
+        target_mats, target_meta = prepare_fc_matrices(
+            targets_data,
+            numrois=self.numrois,
+            diag_value=diag_value,
+            eps=eps,
+        )
+        pred_mats, pred_meta = prepare_fc_matrices(
+            preds_data,
+            numrois=self.numrois,
+            diag_value=diag_value,
+            eps=eps,
+        )
+        out = {
+            "targets": target_mats,
+            "preds": pred_mats,
+            "metadata": {
+                "demeaned": bool(demeaned),
+                "diag_value": float(diag_value),
+                "eps": float(eps),
+                "targets_n_projected": int(target_meta["n_projected"]),
+                "preds_n_projected": int(pred_meta["n_projected"]),
+                "targets_fraction_projected": float(target_meta["fraction_projected"]),
+                "preds_fraction_projected": float(pred_meta["fraction_projected"]),
+                "targets_min_eig_before": float(np.min(target_meta["min_eig_before"])),
+                "preds_min_eig_before": float(np.min(pred_meta["min_eig_before"])),
+                "n_eigs_per_matrix": int(target_meta["n_eigs_per_matrix"]),
+                "targets_mean_clipped_fraction": float(target_meta["mean_clipped_fraction"]),
+                "preds_mean_clipped_fraction": float(pred_meta["mean_clipped_fraction"]),
+                "targets_mean_negative_fraction": float(target_meta["mean_negative_fraction"]),
+                "preds_mean_negative_fraction": float(pred_meta["mean_negative_fraction"]),
+                "targets_mean_clip_mass": float(target_meta["mean_clip_mass"]),
+                "preds_mean_clip_mass": float(pred_meta["mean_clip_mass"]),
+                "targets_median_clip_mass": float(target_meta["median_clip_mass"]),
+                "preds_median_clip_mass": float(pred_meta["median_clip_mass"]),
+                "targets_mean_negative_mass": float(target_meta["mean_negative_mass"]),
+                "preds_mean_negative_mass": float(pred_meta["mean_negative_mass"]),
+            },
+        }
+        self._spd_matrix_cache[cache_key] = out
+        return out
+
+    def _get_fc_reconstructions(self, demeaned=False, diag_value=1.0):
+        """Reconstruct target/prediction FC matrices without SPD projection, with caching."""
+        cache_key = (bool(demeaned), float(diag_value))
+        if cache_key in self._fc_matrix_cache:
+            return self._fc_matrix_cache[cache_key]
+
+        if demeaned:
+            preds_data = self.preds - self.train_mean
+            targets_data = self.targets - self.train_mean
+        else:
+            preds_data = self.preds
+            targets_data = self.targets
+
+        out = {
+            "targets": reconstruct_fc_matrices(targets_data, numrois=self.numrois, diag_value=diag_value),
+            "preds": reconstruct_fc_matrices(preds_data, numrois=self.numrois, diag_value=diag_value),
+            "metadata": {
+                "demeaned": bool(demeaned),
+                "diag_value": float(diag_value),
+                "projection_applied": False,
+            },
+        }
+        self._fc_matrix_cache[cache_key] = out
+        return out
+
+    def compute_geodesic_metrics(
+        self,
+        order_by='original',
+        demeaned=False,
+        method='log_euclidean',
+        diag_value=1.0,
+        eps=1e-6,
+    ):
+        """
+        Compute FC matrix distance metrics without creating plots.
+
+        This is the metric-only counterpart to `plot_geodesic_heatmaps(...)`,
+        intended for optional inclusion in reports or W&B summaries without
+        changing the default evaluation surface.
+        """
+        order = self._compute_subject_order(order_by)
+        if method == "frobenius":
+            recon_data = self._get_fc_reconstructions(demeaned=demeaned, diag_value=diag_value)
+            targets_mats = recon_data["targets"][order]
+            preds_mats = recon_data["preds"][order]
+            base_metadata = dict(recon_data["metadata"])
+            base_metadata.update({
+                "eps": float(eps),
+                "targets_n_projected": 0,
+                "preds_n_projected": 0,
+                "targets_fraction_projected": 0.0,
+                "preds_fraction_projected": 0.0,
+                "targets_min_eig_before": float(np.nanmin(np.linalg.eigvalsh(targets_mats))),
+                "preds_min_eig_before": float(np.nanmin(np.linalg.eigvalsh(preds_mats))),
+                "targets_mean_clipped_fraction": 0.0,
+                "preds_mean_clipped_fraction": 0.0,
+                "targets_mean_negative_fraction": float(np.mean(np.linalg.eigvalsh(targets_mats) < 0.0)),
+                "preds_mean_negative_fraction": float(np.mean(np.linalg.eigvalsh(preds_mats) < 0.0)),
+                "targets_mean_clip_mass": 0.0,
+                "preds_mean_clip_mass": 0.0,
+                "projection_applied": False,
+            })
+        else:
+            spd_data = self._get_spd_reconstructions(demeaned=demeaned, diag_value=diag_value, eps=eps)
+            targets_mats = spd_data["targets"][order]
+            preds_mats = spd_data["preds"][order]
+            base_metadata = dict(spd_data["metadata"])
+            base_metadata["projection_applied"] = True
+
+        tt_dist = pairwise_fc_distance(targets_mats, targets_mats, method=method, eps=eps)
+        pp_dist = pairwise_fc_distance(preds_mats, preds_mats, method=method, eps=eps)
+        tp_dist = pairwise_fc_distance(targets_mats, preds_mats, method=method, eps=eps)
+
+        mean_self_distance = float(np.mean(np.diag(tp_dist)))
+        avg_rank_percentile, ranklist = distance_avg_rank(tp_dist, return_ranklist=True)
+        top1_acc = distance_top1_accuracy(tp_dist)
+
+        metadata = {
+            **base_metadata,
+            "method": method,
+            "order_by": order_by,
+            "mean_self_distance": mean_self_distance,
+            "top1_acc": top1_acc,
+            "avg_rank_percentile": avg_rank_percentile,
+        }
+        return {
+            "method": method,
+            "mean_self_distance": mean_self_distance,
+            "top1_acc": top1_acc,
+            "avg_rank_percentile": avg_rank_percentile,
+            "demeaned": bool(demeaned),
+            "diag_value": float(diag_value),
+            "eps": float(eps),
+            "ranklist": ranklist,
+            "metadata": metadata,
+            "distance_matrices": {
+                "targets_targets": tt_dist,
+                "preds_preds": pp_dist,
+                "targets_preds": tp_dist,
+            },
+        }
+
+    def plot_geodesic_heatmaps(
+        self,
+        order_by='original',
+        demeaned=False,
+        method='log_euclidean',
+        diag_value=1.0,
+        eps=1e-6,
+        geodesic_eps=None,
+        color_scale_mode='per_plot',
+        include_black_circles=True,
+        dpi=300,
+        figsize=(17, 5),
+        show=True,
+        print_metadata=True,
+    ):
+        """
+        Plot one-row SPD distance heatmaps using reconstructed FC matrices.
+
+        Uses full square FC reconstructions, projects them to SPD, then computes
+        pairwise distances under the selected SPD geometry.
+        """
+        # Allow analyze_results-style naming when called directly from notebooks.
+        if geodesic_eps is not None:
+            eps = geodesic_eps
+        geodesic_metrics = self.compute_geodesic_metrics(
+            order_by=order_by,
+            demeaned=demeaned,
+            method=method,
+            diag_value=diag_value,
+            eps=eps,
+        )
+        tp_dist = geodesic_metrics["distance_matrices"]["targets_preds"]
+        tt_dist = geodesic_metrics["distance_matrices"]["targets_targets"]
+        pp_dist = geodesic_metrics["distance_matrices"]["preds_preds"]
+        mean_self_distance = geodesic_metrics["mean_self_distance"]
+        avg_rank_percentile = geodesic_metrics["avg_rank_percentile"]
+        top1_acc = geodesic_metrics["top1_acc"]
+        ranklist = geodesic_metrics["ranklist"]
+        metadata = geodesic_metrics["metadata"]
+
+        global_vmax = float(np.max([np.max(tt_dist), np.max(pp_dist), np.max(tp_dist)]))
+        if not np.isfinite(global_vmax) or np.isclose(global_vmax, 0.0):
+            global_vmax = 1.0
+
+        fig = plt.figure(figsize=figsize, dpi=dpi)
+        gs = GridSpec(1, 4, figure=fig, width_ratios=[1.0, 1.0, 1.0, 0.58], wspace=0.34)
+        axs = [fig.add_subplot(gs[0, i]) for i in range(4)]
+        comparisons = [
+            (pp_dist, "Predicted", "Predicted"),
+            (tt_dist, "Target", "Target"),
+            (tp_dist, "Target", "Predicted"),
+        ]
+        demean_label = " (demeaned)" if demeaned else ""
+
+        for iax, (dist, label1, label2) in enumerate(comparisons):
+            ax = axs[iax]
+            if color_scale_mode == 'global':
+                vmax = global_vmax
+            elif color_scale_mode == 'per_plot':
+                vmax = float(np.nanmax(dist))
+                if not np.isfinite(vmax) or np.isclose(vmax, 0.0):
+                    vmax = global_vmax
+            else:
+                raise ValueError(f"Unknown color_scale_mode: {color_scale_mode}. Use 'global' or 'per_plot'.")
+            im = ax.imshow(
+                dist,
+                vmin=0.0,
+                vmax=vmax,
+                cmap='viridis',
+                interpolation='none',
+                resample=False,
+            )
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.set_title(f"{label1} vs {label2}{demean_label}", fontsize=FONT_CONFIG['title'])
+            ax.set_xlabel(label2, fontsize=FONT_CONFIG['label'])
+            ax.set_ylabel(label1, fontsize=FONT_CONFIG['label'])
+
+            if label1 == "Target" and label2 == "Predicted" and include_black_circles:
+                marker_kwargs = dict(markersize=4.5, markerfacecolor='none', alpha=0.55)
+                for i in range(dist.shape[0]):
+                    min_idx = int(np.argmin(dist[i]))
+                    ax.plot(min_idx, i, 'ko', **marker_kwargs)
+
+            divider = make_axes_locatable(ax)
+            cax = divider.append_axes("right", size="5%", pad=0.1)
+            cbar = fig.colorbar(im, cax=cax)
+            cbar.ax.tick_params(labelsize=FONT_CONFIG['tick'])
+            cbar.set_label('Distance', fontsize=FONT_CONFIG['label'] - 1)
+
+        summary_ax = axs[3]
+        summary_ax.axis('off')
+        partition_label = str(getattr(self.dataset_partition, "partition", "unknown")).capitalize()
+        summary_text = (
+            f"Geodesic Summary ({partition_label})\n"
+            f"{'─' * 32}\n"
+            f"Method: {method}\n"
+            f"Mean self distance: {mean_self_distance:.3f}\n"
+            f"Top-1 accuracy: {top1_acc:.3f}\n"
+            f"Avg rank %ile: {avg_rank_percentile:.3f}\n"
+            f"Demeaned: {demeaned}\n"
+            f"Order: {order_by}\n"
+            f"N subjects: {tp_dist.shape[0]}"
+        )
+        summary_ax.text(
+            0.5,
+            0.5,
+            summary_text,
+            transform=summary_ax.transAxes,
+            fontsize=FONT_CONFIG['legend'],
+            verticalalignment='center',
+            horizontalalignment='center',
+            bbox=dict(boxstyle='round,pad=0.5', facecolor='white', edgecolor='gray', alpha=0.85),
+            family='monospace',
+        )
+        plt.tight_layout()
+
+        metadata = dict(metadata)
+        metadata["color_scale_mode"] = color_scale_mode
+        metrics = {
+            "method": method,
+            "mean_self_distance": mean_self_distance,
+            "top1_acc": top1_acc,
+            "avg_rank_percentile": avg_rank_percentile,
+            "demeaned": bool(demeaned),
+            "diag_value": float(diag_value),
+            "eps": float(eps),
+            "ranklist": ranklist,
+            "metadata": metadata,
+        }
+
+        if show:
+            plt.show()
+        if print_metadata:
+            print("\nGeodesic FC distance metadata:")
+            print("=" * 44)
+            print(f"Partition: {partition_label}")
+            print(f"Method: {method}")
+            print(f"Demeaned: {demeaned}")
+            print(f"Order: {order_by}")
+            print(f"Color scale mode: {color_scale_mode}")
+            print(f"Diagonal value: {diag_value:.3f}")
+            if method != "frobenius":
+                print(f"SPD eps: {eps:.1e}")
+            print(f"Targets projected: {metadata['targets_n_projected']}/{tp_dist.shape[0]} "
+                  f"({metadata['targets_fraction_projected']:.2%})")
+            print(f"Predictions projected: {metadata['preds_n_projected']}/{tp_dist.shape[0]} "
+                  f"({metadata['preds_fraction_projected']:.2%})")
+            print(f"Min target eig before projection: {metadata['targets_min_eig_before']:.3e}")
+            print(f"Min pred eig before projection: {metadata['preds_min_eig_before']:.3e}")
+            print(f"Mean clipped eig fraction (targets): {metadata['targets_mean_clipped_fraction']:.2%}")
+            print(f"Mean clipped eig fraction (preds): {metadata['preds_mean_clipped_fraction']:.2%}")
+            print(f"Mean negative eig fraction (targets): {metadata['targets_mean_negative_fraction']:.2%}")
+            print(f"Mean negative eig fraction (preds): {metadata['preds_mean_negative_fraction']:.2%}")
+            print(f"Mean clip mass (targets): {metadata['targets_mean_clip_mass']:.3f}")
+            print(f"Mean clip mass (preds): {metadata['preds_mean_clip_mass']:.3f}")
+            print(f"Mean self distance: {mean_self_distance:.4f}")
+            print(f"Top-1 accuracy: {top1_acc:.4f}")
+            print(f"Avg rank %ile: {avg_rank_percentile:.4f}")
+            print("=" * 44)
+
+        return fig, metrics
+
     def _compute_subject_order(self, order_by='original'):
         """
         Return reordered subject indices for visualization.
@@ -361,16 +689,19 @@ class Evaluator:
             raise ValueError(f"Unknown order_by: {order_by}. Use 'original', 'family', 'demographic', or 'age'.")
 
     def plot_identifiability_heatmaps(self, order_by='original', include_black_circles=True,
-                                       include_blue_dots=True, demeaned=False, 
-                                       dpi=200, figsize=(14, 10), show=True):
+                                       include_blue_dots=True, demeaned=False,
+                                       top_row_scale_mode='fixed',
+                                       bottom_row_scale_mode='per_plot',
+                                       dpi=400, figsize=(14, 14), show=True):
         """
         Plot identifiability heatmaps for target and predicted connectomes.
         
-        Generates a 2x2 figure with:
-        - Target vs Target
-        - Predicted vs Predicted
-        - Target vs Predicted with optional black dots for max similarity
-          and optional blue dots for predictions closer than correct match
+        Generates a figure with:
+        - Row 1: Target vs Target, Predicted vs Predicted, Target vs Predicted
+          using the full correlation scale [-1, 1]
+        - Row 2: The same three plots using a tighter shared color scale derived
+          from the off-diagonal entries of the Target vs Target matrix
+        - Row 3: Summary metrics panel spanning the full width
         
         Args:
             order_by: str, subject ordering method:
@@ -407,82 +738,165 @@ class Evaluator:
             preds_data = preds_ordered
             demean_label = ""
         
-        # Compute correlation matrix for ordered data (targets, preds: rows=targets, cols=preds)
+        # Compute correlation matrices
         corr_matrix = compute_corr_matrix(targets_data, preds_data)
+        target_vs_target = compute_corr_matrix(targets_data, targets_data)
+        pred_vs_pred = compute_corr_matrix(preds_data, preds_data)
         mean_corr = np.mean(np.diag(corr_matrix))
-        
-        # Create figure
-        fig, axs = plt.subplots(nrows=2, ncols=2, figsize=figsize, dpi=dpi)
-        axs = axs.flatten()
-        
-        # Store ranklist for summary
-        observed_vs_pred_ranklist = None
-        
-        # Define the three heatmap comparisons
-        comparisons = [
-            (targets_data, targets_data, "Target", "Target"),
-            (preds_data, preds_data, "Predicted", "Predicted"),
-            (targets_data, preds_data, "Target", "Predicted"),
+
+        # Always compute both raw and demeaned target-vs-pred mean correlation for display
+        raw_corr_matrix = compute_corr_matrix(targets_ordered, preds_ordered)
+        demeaned_corr_matrix = compute_corr_matrix(
+            targets_ordered - self.train_mean,
+            preds_ordered - self.train_mean,
+        )
+        raw_mean_corr = np.mean(np.diag(raw_corr_matrix))
+        demeaned_mean_corr = np.mean(np.diag(demeaned_corr_matrix))
+
+        # Shared tighter scale can come from off-diagonal target-target correlations.
+        off_diag_mask = ~np.eye(target_vs_target.shape[0], dtype=bool)
+        off_diag_values = target_vs_target[off_diag_mask]
+        tight_abs_max = float(np.nanmax(np.abs(off_diag_values)))
+        if not np.isfinite(tight_abs_max) or np.isclose(tight_abs_max, 0.0):
+            tight_vmin, tight_vmax = -1.0, 1.0
+        else:
+            tight_vmin, tight_vmax = -tight_abs_max, tight_abs_max
+
+        # Create figure layout: 2 heatmap rows + summary row
+        fig = plt.figure(figsize=figsize, dpi=dpi)
+        gs = GridSpec(3, 3, figure=fig, height_ratios=[1.0, 1.0, 0.4], hspace=0.28, wspace=0.34)
+        heatmap_axes = [
+            fig.add_subplot(gs[0, 0]),
+            fig.add_subplot(gs[0, 1]),
+            fig.add_subplot(gs[0, 2]),
+            fig.add_subplot(gs[1, 0]),
+            fig.add_subplot(gs[1, 1]),
+            fig.add_subplot(gs[1, 2]),
         ]
-        
-        for iax, (data1, data2, label1, label2) in enumerate(comparisons):
-            sim = compute_corr_matrix(data1, data2)
-            
-            avgrank = corr_avg_rank(cc=sim)
-            
-            ax = axs[iax]
-            im = ax.imshow(sim, vmin=-1, vmax=1, cmap='RdBu_r')
-            
-            ax.set_xticks([])
-            ax.set_yticks([])
-            
-            titlestr = f'{label1} vs {label2}{demean_label}'
-            
-            # Special handling for Target vs Predicted
-            if label1 == "Target" and label2 == "Predicted":
-                ranklist = []
-                marker_kwargs = dict(markersize=5, markerfacecolor='none')
-                tiny_blue_kwargs = dict(marker='o', color='blue', markersize=1, 
-                                       alpha=0.7, linestyle='None')
-                
-                for i in range(sim.shape[0]):
-                    cci = sim[i, :]  # row for this target
-                    # Scale row from 0-1
-                    cci_scaled = (cci - np.nanmin(cci)) / (np.nanmax(cci) - np.nanmin(cci))
-                    cci_scaled = (cci_scaled - 0.5) * 0.8  # scale for display
-                    
-                    cci_maxidx = np.argmax(cci)
-                    cci_sortidx = np.argsort(np.argsort(cci)[::-1])
-                    
-                    # Black circle for most similar prediction
-                    if include_black_circles:
-                        ax.plot(cci_maxidx, i - cci_scaled[cci_maxidx], 'ko', **marker_kwargs)
-                    
-                    # Blue dots for predictions closer than correct match
-                    if include_blue_dots:
-                        closer_pred_idxs = np.where(cci_scaled > cci_scaled[i])[0]
-                        if closer_pred_idxs.size > 0:
-                            ax.plot(
-                                closer_pred_idxs,
-                                np.repeat(i, len(closer_pred_idxs)) - cci_scaled[closer_pred_idxs],
-                                **tiny_blue_kwargs
-                            )
-                    
-                    ranklist.append(cci_sortidx[i] + 1)
-                
-                observed_vs_pred_ranklist = np.array(ranklist)
-                avgrank_index = np.mean(ranklist)
-                titlestr += f'\nAvg Rank {avgrank_index:.1f} out of {sim.shape[0]}, %ile: {avgrank:.3f}'
-            
-            ax.set_title(titlestr, fontsize=FONT_CONFIG['title'])
-            ax.set_xlabel(label2, fontsize=FONT_CONFIG['label'])
-            ax.set_ylabel(label1, fontsize=FONT_CONFIG['label'])
-            
-            # Add colorbar
-            divider = make_axes_locatable(ax)
-            cax = divider.append_axes("right", size="5%", pad=0.1)
-            cbar = fig.colorbar(im, cax=cax)
-            cbar.ax.tick_params(labelsize=FONT_CONFIG['tick'])
+        summary_ax = fig.add_subplot(gs[2, :])
+
+        observed_vs_pred_ranklist = None
+
+        comparisons = [
+            (pred_vs_pred, "Predicted", "Predicted"),
+            (target_vs_target, "Target", "Target"),
+            (corr_matrix, "Target", "Predicted"),
+        ]
+
+        def _overlay_target_pred_markers(ax, sim, draw_black_circles=True):
+            ranklist = []
+            marker_kwargs = dict(markersize=5, markerfacecolor='none', alpha=0.5)
+            tiny_blue_kwargs = dict(marker='o', color='blue', markersize=1,
+                                   alpha=0.7, linestyle='None')
+
+            for i in range(sim.shape[0]):
+                cci = sim[i, :]
+                cci_min = np.nanmin(cci)
+                cci_max = np.nanmax(cci)
+                if np.isclose(cci_max, cci_min):
+                    cci_scaled = np.zeros_like(cci)
+                else:
+                    cci_scaled = (cci - cci_min) / (cci_max - cci_min)
+                    cci_scaled = (cci_scaled - 0.5) * 0.8
+
+                cci_maxidx = np.argmax(cci)
+                cci_sortidx = np.argsort(np.argsort(cci)[::-1])
+
+                if include_black_circles and draw_black_circles:
+                    ax.plot(cci_maxidx, i - cci_scaled[cci_maxidx], 'ko', **marker_kwargs)
+
+                if include_blue_dots:
+                    closer_pred_idxs = np.where(cci_scaled > cci_scaled[i])[0]
+                    if closer_pred_idxs.size > 0:
+                        ax.plot(
+                            closer_pred_idxs,
+                            np.repeat(i, len(closer_pred_idxs)) - cci_scaled[closer_pred_idxs],
+                            **tiny_blue_kwargs
+                        )
+
+                ranklist.append(cci_sortidx[i] + 1)
+
+            return np.array(ranklist)
+
+        def _centered_limits(sim, fallback=1.0, ignore_diagonal=False):
+            arr = np.asarray(sim)
+            if ignore_diagonal and arr.ndim == 2 and arr.shape[0] == arr.shape[1] and arr.shape[0] > 1:
+                mask = ~np.eye(arr.shape[0], dtype=bool)
+                vals = arr[mask]
+            else:
+                vals = arr
+            absmax = float(np.nanmax(np.abs(vals)))
+            if not np.isfinite(absmax) or np.isclose(absmax, 0.0):
+                absmax = fallback
+            return -absmax, absmax
+
+        for row_idx in range(2):
+            for col_idx, (sim, label1, label2) in enumerate(comparisons):
+                ax = heatmap_axes[row_idx * 3 + col_idx]
+                ignore_diag_for_scaling = (label1 == label2)
+                if row_idx == 0:
+                    if top_row_scale_mode == 'fixed':
+                        vmin, vmax = -1.0, 1.0
+                    elif top_row_scale_mode == 'per_plot':
+                        vmin, vmax = _centered_limits(
+                            sim,
+                            fallback=1.0,
+                            ignore_diagonal=ignore_diag_for_scaling,
+                        )
+                    else:
+                        raise ValueError(
+                            f"Unknown top_row_scale_mode: {top_row_scale_mode}. Use 'fixed' or 'per_plot'."
+                        )
+                else:
+                    if bottom_row_scale_mode == 'per_plot':
+                        vmin, vmax = _centered_limits(
+                            sim,
+                            fallback=1.0,
+                            ignore_diagonal=ignore_diag_for_scaling,
+                        )
+                    elif bottom_row_scale_mode == 'shared':
+                        vmin, vmax = tight_vmin, tight_vmax
+                    else:
+                        raise ValueError(
+                            f"Unknown bottom_row_scale_mode: {bottom_row_scale_mode}. Use 'per_plot' or 'shared'."
+                        )
+                im = ax.imshow(
+                    sim,
+                    vmin=vmin,
+                    vmax=vmax,
+                    cmap='RdBu_r',
+                    interpolation='none',
+                    resample=False,
+                )
+
+                ax.set_xticks([])
+                ax.set_yticks([])
+
+                titlestr = ""
+                if row_idx == 0:
+                    titlestr = f'{label1} vs {label2}{demean_label}'
+
+                if label1 == "Target" and label2 == "Predicted":
+                    ranklist = _overlay_target_pred_markers(
+                        ax,
+                        sim,
+                        draw_black_circles=(row_idx == 0),
+                    )
+                    observed_vs_pred_ranklist = ranklist
+                    if row_idx == 0:
+                        avgrank = corr_avg_rank(cc=sim)
+                        avgrank_index = np.mean(ranklist)
+                        titlestr += f'\nAvg Rank {avgrank_index:.1f} out of {sim.shape[0]}, %ile: {avgrank:.3f}'
+
+                if titlestr:
+                    ax.set_title(titlestr, fontsize=FONT_CONFIG['title'])
+                ax.set_xlabel(label2, fontsize=FONT_CONFIG['label'])
+                ax.set_ylabel(label1, fontsize=FONT_CONFIG['label'])
+
+                divider = make_axes_locatable(ax)
+                cax = divider.append_axes("right", size="5%", pad=0.1)
+                cbar = fig.colorbar(im, cax=cax)
+                cbar.ax.tick_params(labelsize=FONT_CONFIG['tick'])
         
         # Compute summary metrics
         n_subjects = len(observed_vs_pred_ranklist)
@@ -490,19 +904,19 @@ class Evaluator:
         top1_acc = n_top1 / n_subjects
         avgrank_percentile = 1 - (np.mean(observed_vs_pred_ranklist) / n_subjects)
         
-        # Fourth panel: leave blank or use for additional info
-        ax = axs[3]
-        ax.axis('off')
+        summary_ax.axis('off')
         
         # Compute chance levels
         chance_top1 = 1 / n_subjects
         chance_avgrank = 0.5
         
         # Add summary text in fourth panel
+        partition_label = str(getattr(self.dataset_partition, "partition", "unknown")).capitalize()
         summary_text = (
-            f"Summary Metrics\n"
+            f"Summary Metrics ({partition_label})\n"
             f"{'─' * 35}\n"
-            f"Mean corr (target vs pred): {mean_corr:.3f}\n"
+            f"Mean corr: {raw_mean_corr:.3f}\n"
+            f"Demeaned Mean corr: {demeaned_mean_corr:.3f}\n"
             f"Demeaned: {demeaned}\n"
             f"Top-1 accuracy: {top1_acc:.3f} (chance={chance_top1:.3f})\n"
             f"  ({n_top1} of {n_subjects} subjects had rank 1)\n"
@@ -511,22 +925,27 @@ class Evaluator:
             f"Order: {order_by}\n"
             f"N subjects: {n_subjects}"
         )
-        ax.text(0.5, 0.5, summary_text, transform=ax.transAxes, fontsize=FONT_CONFIG['title'],
-                verticalalignment='center', horizontalalignment='center',
-                bbox=dict(boxstyle='round,pad=0.5', facecolor='white', 
-                         edgecolor='gray', alpha=0.8),
-                family='monospace')
-        
+        summary_ax.text(0.5, 0.3, summary_text, transform=summary_ax.transAxes,
+                        fontsize=FONT_CONFIG['legend'], verticalalignment='center',
+                        horizontalalignment='center',
+                        bbox=dict(boxstyle='round,pad=0.5', facecolor='white',
+                                  edgecolor='gray', alpha=0.8),
+                        family='monospace')
+
         plt.tight_layout()
         
         metrics = {
             'mean_corr': mean_corr,
+            'raw_mean_corr': raw_mean_corr,
+            'demeaned_mean_corr': demeaned_mean_corr,
             'demeaned': demeaned,
             'top1_acc': top1_acc,
             'avg_rank_percentile': avgrank_percentile,
             'ranklist': observed_vs_pred_ranklist,
             'chance_top1': chance_top1,
             'chance_avgrank': chance_avgrank,
+            'tight_scale_vmin': tight_vmin,
+            'tight_scale_vmax': tight_vmax,
         }
         
         if show:
@@ -747,8 +1166,6 @@ class Evaluator:
         if include_noise_baseline:
             noise_preds = generate_noise_baseline(self.train_mean, self.train_std, n_subjects, 
                                                    seed=seed)
-            
-            print('returned noise_preds', noise_preds)
             
             if demeaned:
                 noise_preds = noise_preds - self.train_mean
@@ -1181,7 +1598,369 @@ class Evaluator:
                     print(f"{pretty_names.get(key, key):25s}: {val}")
         print("=" * 50)
 
-    def analyze_results(self, verbose=False, filepath=None, output_format='md', model_name=None, order_by='demographic'):
+    def plot_prediction_subset_compact(
+        self,
+        n_subjects=5,
+        include_best_worst=True,
+        random_seed=42,
+        demeaned=False,
+        show_both=True,
+        subject_selection_metric="demeaned_pearson",
+        dpi=360,
+        figsize=None,
+        show=True,
+        point_alpha=0.20,
+        point_size=1.4,
+        scatter_max_points=12000,
+    ):
+        """
+        Compact prediction viewer with 1-2 rows per subject:
+        [target matrix | prediction matrix | scatter + metrics].
+
+        Subject selection defaults to a random subset of size n_subjects with optional
+        best/worst straddling based on per-subject correlation metric.
+        """
+        n_total = int(self.preds.shape[0])
+        if n_total == 0:
+            raise ValueError("No subjects available in this evaluator partition.")
+        n_subjects = int(max(1, min(n_subjects, n_total)))
+
+        def _safe_corr(x, y):
+            x = np.asarray(x)
+            y = np.asarray(y)
+            if x.size == 0 or y.size == 0:
+                return np.nan
+            if np.std(x) < 1e-12 or np.std(y) < 1e-12:
+                return np.nan
+            return float(np.corrcoef(x, y)[0, 1])
+
+        # Ranking metrics for optional best/worst straddling.
+        dm_true_all = self.targets - self.train_mean
+        dm_pred_all = self.preds - self.train_mean
+        raw_r_all = np.array([_safe_corr(self.targets[i], self.preds[i]) for i in range(n_total)], dtype=np.float64)
+        dm_r_all = np.array([_safe_corr(dm_true_all[i], dm_pred_all[i]) for i in range(n_total)], dtype=np.float64)
+        if subject_selection_metric == "demeaned_pearson":
+            ranking_scores = dm_r_all
+        elif subject_selection_metric == "pearson":
+            ranking_scores = raw_r_all
+        else:
+            raise ValueError(
+                f"Unknown subject_selection_metric: {subject_selection_metric}. "
+                "Use 'demeaned_pearson' or 'pearson'."
+            )
+        valid_rank = np.where(np.isfinite(ranking_scores))[0]
+        if valid_rank.size == 0:
+            valid_rank = np.arange(n_total)
+
+        rng = np.random.default_rng(random_seed)
+        selected = []
+        roles = []
+        if include_best_worst and n_subjects >= 2:
+            best_idx = int(valid_rank[np.nanargmax(ranking_scores[valid_rank])])
+            worst_idx = int(valid_rank[np.nanargmin(ranking_scores[valid_rank])])
+            if worst_idx == best_idx:
+                remaining_valid = valid_rank[valid_rank != best_idx]
+                worst_idx = int(remaining_valid[0]) if remaining_valid.size > 0 else best_idx
+
+            middle_n = n_subjects - 2
+            pool = np.setdiff1d(np.arange(n_total), np.array([best_idx, worst_idx], dtype=int), assume_unique=False)
+            if middle_n > 0:
+                if pool.size <= middle_n:
+                    middle = pool.tolist()
+                else:
+                    middle = rng.choice(pool, size=middle_n, replace=False).tolist()
+            else:
+                middle = []
+            selected = [best_idx] + middle + [worst_idx]
+            roles = ["best"] + ["random"] * len(middle) + ["worst"]
+        elif include_best_worst and n_subjects == 1:
+            best_idx = int(valid_rank[np.nanargmax(ranking_scores[valid_rank])])
+            selected = [best_idx]
+            roles = ["best"]
+        else:
+            if n_total <= n_subjects:
+                selected = list(range(n_total))
+            else:
+                selected = rng.choice(np.arange(n_total), size=n_subjects, replace=False).tolist()
+            roles = ["random"] * len(selected)
+
+        display_modes = (
+            [
+                ("raw", self.targets, self.preds),
+                ("demeaned", self.targets - self.train_mean, self.preds - self.train_mean),
+            ]
+            if show_both
+            else [("demeaned" if demeaned else "raw",
+                   self.targets - self.train_mean if demeaned else self.targets,
+                   self.preds - self.train_mean if demeaned else self.preds)]
+        )
+        n_rows = len(selected)
+        n_modes = len(display_modes)
+        gap_width = 0.24
+        mode_starts = []
+        width_ratios = []
+        col_cursor = 0
+        for mm in range(n_modes):
+            mode_starts.append(col_cursor)
+            width_ratios.extend([1.0, 1.0, 0.22, 1.02])  # true, pred, matrix-scatter gap, scatter
+            col_cursor += 4
+            if mm < (n_modes - 1):
+                width_ratios.append(gap_width)  # inter-mode spacer
+                col_cursor += 1
+        n_cols = len(width_ratios)
+        if figsize is None:
+            figsize = (7.3 * n_modes + 0.2 * max(0, n_modes - 1), max(2.0 * n_rows + 0.75, 3.8))
+
+        fig, axes = plt.subplots(
+            n_rows,
+            n_cols,
+            figsize=figsize,
+            dpi=dpi,
+            squeeze=False,
+            gridspec_kw={"width_ratios": width_ratios},
+        )
+        fig.subplots_adjust(wspace=0.30, hspace=0.30, top=0.88, bottom=0.055, left=0.11, right=0.985)
+
+        # Turn off spacer columns.
+        if n_modes > 1:
+            spacer_cols = []
+            for mm in range(n_modes - 1):
+                spacer_cols.append(mode_starts[mm] + 4)
+            for rr in range(n_rows):
+                for cc in spacer_cols:
+                    axes[rr, cc].axis('off')
+
+        # Build shared square scatter limits per mode for consistent spacing/scale.
+        scatter_limits = {}
+        for mode_name, targets_view, preds_view in display_modes:
+            xs = np.concatenate([np.asarray(targets_view[i], dtype=np.float64) for i in selected])
+            ys = np.concatenate([np.asarray(preds_view[i], dtype=np.float64) for i in selected])
+            lo = float(np.nanmin([np.nanmin(xs), np.nanmin(ys)]))
+            hi = float(np.nanmax([np.nanmax(xs), np.nanmax(ys)]))
+            if not np.isfinite(lo) or not np.isfinite(hi) or np.isclose(lo, hi):
+                lo, hi = -1.0, 1.0
+            pad = 0.03 * (hi - lo)
+            scatter_limits[mode_name] = (lo - pad, hi + pad)
+
+        per_subject = []
+        for subj_pos, idx in enumerate(selected):
+            role = roles[subj_pos]
+            role_suffix = ""
+            if role == "best":
+                role_suffix = " (best)"
+            elif role == "worst":
+                role_suffix = " (worst)"
+            subject_label = f"ID {self.dataset_partition.ids[idx]}{role_suffix}"
+
+            y_true_raw = np.asarray(self.targets[idx], dtype=np.float64)
+            y_pred_raw = np.asarray(self.preds[idx], dtype=np.float64)
+            r_raw = _safe_corr(y_true_raw, y_pred_raw)
+            r_dm = _safe_corr(y_true_raw - self.train_mean, y_pred_raw - self.train_mean)
+            mse_raw = float(np.mean((y_pred_raw - y_true_raw) ** 2))
+            r2_raw = float(r2_score(y_true_raw, y_pred_raw))
+            y_true_dm = y_true_raw - self.train_mean
+            y_pred_dm = y_pred_raw - self.train_mean
+            mse_dm = float(np.mean((y_pred_dm - y_true_dm) ** 2))
+            r2_dm = float(r2_score(y_true_dm, y_pred_dm))
+
+            per_subject.append(
+                {
+                    "idx": int(idx),
+                    "subject_id": str(self.dataset_partition.ids[idx]),
+                    "role": role,
+                    "pearson_r": r_raw,
+                    "demeaned_pearson_r": r_dm,
+                    "r2_raw": r2_raw,
+                    "mse_raw": mse_raw,
+                    "r2_demeaned": r2_dm,
+                    "mse_demeaned": mse_dm,
+                }
+            )
+
+            for mode_idx, (mode_name, targets_view, preds_view) in enumerate(display_modes):
+                row = subj_pos
+                col0 = mode_starts[mode_idx]
+                y_true = np.asarray(targets_view[idx], dtype=np.float64)
+                y_pred = np.asarray(preds_view[idx], dtype=np.float64)
+
+                mat_true = tri2square(y_true, numroi=self.numrois, diagval=0)
+                mat_pred = tri2square(y_pred, numroi=self.numrois, diagval=0)
+                # Scaling rule:
+                # raw mode -> fixed to true range (applied to both true/pred),
+                # demeaned mode -> dynamic per connectome (true and pred each get their own).
+                absmax_true = float(np.nanmax(np.abs(mat_true)))
+                absmax_pred = float(np.nanmax(np.abs(mat_pred)))
+                if not np.isfinite(absmax_true) or np.isclose(absmax_true, 0.0):
+                    absmax_true = 1.0
+                if not np.isfinite(absmax_pred) or np.isclose(absmax_pred, 0.0):
+                    absmax_pred = 1.0
+                if mode_name == "raw":
+                    vmin_true, vmax_true = -absmax_true, absmax_true
+                    vmin_pred, vmax_pred = -absmax_true, absmax_true
+                else:
+                    vmin_true, vmax_true = -absmax_true, absmax_true
+                    vmin_pred, vmax_pred = -absmax_pred, absmax_pred
+
+                ax_t = axes[row, col0]
+                ax_p = axes[row, col0 + 1]
+                ax_c = axes[row, col0 + 2]
+                ax_s = axes[row, col0 + 3]
+                ax_c.axis('off')
+
+                im_t = ax_t.imshow(
+                    mat_true,
+                    cmap='RdBu_r',
+                    vmin=vmin_true,
+                    vmax=vmax_true,
+                    aspect='equal',
+                    interpolation='nearest',
+                )
+                ax_t.set_xticks([])
+                ax_t.set_yticks([])
+                if row == 0:
+                    ax_t.set_title("True" if mode_name == "raw" else "True (demeaned)", fontsize=FONT_CONFIG['title'])
+                if mode_idx == 0:
+                    ax_t.text(
+                        -0.17,
+                        0.50,
+                        subject_label,
+                        transform=ax_t.transAxes,
+                        rotation=90,
+                        va='center',
+                        ha='right',
+                        fontsize=FONT_CONFIG['tick'] - 2,
+                    )
+                cax_t = ax_t.inset_axes([1.01, 0.06, 0.026, 0.88])
+                cbar_t = fig.colorbar(im_t, cax=cax_t, ticks=[vmin_true, 0.0, vmax_true])
+                cbar_t.ax.tick_params(labelsize=FONT_CONFIG['tick'] - 4)
+
+                im_p = ax_p.imshow(
+                    mat_pred,
+                    cmap='RdBu_r',
+                    vmin=vmin_pred,
+                    vmax=vmax_pred,
+                    aspect='equal',
+                    interpolation='nearest',
+                )
+                ax_p.set_xticks([])
+                ax_p.set_yticks([])
+                if row == 0:
+                    ax_p.set_title("Pred" if mode_name == "raw" else "Pred (demeaned)", fontsize=FONT_CONFIG['title'])
+                cax_p = ax_p.inset_axes([1.01, 0.06, 0.026, 0.88])
+                cbar_p = fig.colorbar(im_p, cax=cax_p, ticks=[vmin_pred, 0.0, vmax_pred])
+                cbar_p.ax.tick_params(labelsize=FONT_CONFIG['tick'] - 4)
+
+                lo, hi = scatter_limits[mode_name]
+                if y_true.size > scatter_max_points:
+                    rng_scatter = np.random.default_rng((int(random_seed) + 1009 * int(idx) + 37 * mode_idx) % (2**32 - 1))
+                    keep_idx = rng_scatter.choice(y_true.size, size=int(scatter_max_points), replace=False)
+                    x_scatter = y_true[keep_idx]
+                    y_scatter = y_pred[keep_idx]
+                else:
+                    x_scatter = y_true
+                    y_scatter = y_pred
+                ax_s.scatter(
+                    x_scatter,
+                    y_scatter,
+                    s=point_size,
+                    alpha=point_alpha,
+                    color=('#1f77b4' if mode_name == "raw" else '#a64d79'),
+                    edgecolors='none',
+                    linewidths=0.0,
+                    rasterized=True,
+                )
+                if np.std(y_true) > 1e-12:
+                    slope, intercept = np.polyfit(y_true, y_pred, 1)
+                    xx = np.array([lo, hi], dtype=np.float64)
+                    ax_s.plot(xx, slope * xx + intercept, color='#444444', linewidth=0.95, alpha=0.75)
+                ax_s.plot([lo, hi], [lo, hi], 'k--', linewidth=0.9, alpha=0.8)
+                ax_s.set_xlim(lo, hi)
+                ax_s.set_ylim(lo, hi)
+                ax_s.set_aspect('equal', adjustable='box')
+                if row == 0:
+                    ax_s.set_title("Scatter" if mode_name == "raw" else "Scatter (demeaned)", fontsize=FONT_CONFIG['title'])
+                if row == n_rows - 1:
+                    ax_s.set_xlabel("True", fontsize=FONT_CONFIG['tick'])
+                else:
+                    ax_s.set_xlabel("")
+                ax_s.set_ylabel("")
+                ax_s.tick_params(labelsize=FONT_CONFIG['tick'] - 2)
+                ax_s.grid(alpha=0.18)
+
+                if mode_name == "raw":
+                    metrics_text = (
+                        f"r: {r_raw:.3f}\n"
+                        f"R2: {r2_raw:.3f}\n"
+                        f"MSE: {mse_raw:.3f}"
+                    )
+                else:
+                    metrics_text = (
+                        f"dm r: {r_dm:.3f}\n"
+                        f"dm R2: {r2_dm:.3f}\n"
+                        f"dm MSE: {mse_dm:.3f}"
+                    )
+                ax_s.text(
+                    0.98,
+                    0.02,
+                    metrics_text,
+                    transform=ax_s.transAxes,
+                    va='bottom',
+                    ha='right',
+                    fontsize=FONT_CONFIG['tick'] - 5,
+                    bbox=dict(boxstyle='round,pad=0.06', facecolor='white', edgecolor='gray', alpha=0.58),
+                )
+
+        partition_label = str(getattr(self.dataset_partition, "partition", "unknown")).capitalize()
+        fig.suptitle(
+            f"Prediction Subset Viewer ({partition_label})",
+            fontsize=FONT_CONFIG['title'],
+            y=0.955,
+        )
+
+        metrics = {
+            "n_subjects_shown": int(len(selected)),
+            "display_modes": [name for name, _, _ in display_modes],
+            "include_best_worst": bool(include_best_worst),
+            "subject_selection_metric": subject_selection_metric,
+            "selected_indices": [int(i) for i in selected],
+            "selected_subject_ids": [str(self.dataset_partition.ids[i]) for i in selected],
+            "roles": roles,
+            "subjects": per_subject,
+        }
+        if show:
+            plt.show()
+        return fig, metrics
+
+    def analyze_results(
+        self,
+        verbose=False,
+        filepath=None,
+        output_format='md',
+        model_name=None,
+        order_by='demographic',
+        corr_top_row_scale_mode='fixed',
+        corr_bottom_row_scale_mode='per_plot',
+        include_geodesic=False,
+        include_prediction_subset=True,
+        prediction_subset_n_subjects=5,
+        prediction_subset_include_best_worst=True,
+        prediction_subset_selection_metric='demeaned_pearson',
+        prediction_subset_seed=42,
+        prediction_subset_demeaned=False,
+        prediction_subset_show_both=True,
+        include_geodesic_metrics=False,
+        geodesic_metric_method='log_euclidean',
+        geodesic_metric_demeaned=True,
+        geodesic_metric_order_by='demographic',
+        geodesic_metric_diag_value=1.0,
+        geodesic_metric_eps=1e-6,
+        geodesic_demeaned=False,
+        geodesic_method='log_euclidean',
+        geodesic_color_scale_mode='per_plot',
+        geodesic_diag_value=1.0,
+        geodesic_eps=1e-6,
+        geodesic_print_metadata=True,
+    ):
         """
         Main analysis function to generate a comprehensive prediction analysis report.
         
@@ -1220,6 +1999,19 @@ class Evaluator:
             'base_metrics': self._metrics.copy(),
             'model_name': model_name,
         }
+        if include_geodesic_metrics:
+            geo_base = self.compute_geodesic_metrics(
+                order_by=geodesic_metric_order_by,
+                demeaned=geodesic_metric_demeaned,
+                method=geodesic_metric_method,
+                diag_value=geodesic_metric_diag_value,
+                eps=geodesic_metric_eps,
+            )
+            geo_prefix = "geodesic_demeaned" if geodesic_metric_demeaned else "geodesic_raw"
+            base_metrics = all_metrics['base_metrics']
+            base_metrics[f'{geo_prefix}_top1_acc'] = float(geo_base['top1_acc'])
+            base_metrics[f'{geo_prefix}_avg_rank'] = float(geo_base['avg_rank_percentile'])
+            base_metrics[f'{geo_prefix}_method'] = str(geo_base['method'])
         
         # Determine whether we're saving to file or displaying inline
         save_to_file = filepath is not None
@@ -1238,6 +2030,8 @@ class Evaluator:
             fig_hm_raw, metrics_hm_raw = self.plot_identifiability_heatmaps(
                 order_by=order_by, demeaned=False, 
                 include_black_circles=True, include_blue_dots=False, 
+                top_row_scale_mode=corr_top_row_scale_mode,
+                bottom_row_scale_mode=corr_bottom_row_scale_mode,
                 dpi=150, figsize=(12, 9), show=show_inline
             )
             all_metrics['heatmaps_raw'] = {k: v.tolist() if isinstance(v, np.ndarray) else v 
@@ -1255,6 +2049,8 @@ class Evaluator:
         fig_hm_dm, metrics_hm_dm = self.plot_identifiability_heatmaps(
             order_by=order_by, demeaned=True, 
             include_black_circles=True, include_blue_dots=False, 
+            top_row_scale_mode=corr_top_row_scale_mode,
+            bottom_row_scale_mode=corr_bottom_row_scale_mode,
             dpi=150, figsize=(12, 9), show=show_inline
         )
         all_metrics['heatmaps_demeaned'] = {k: v.tolist() if isinstance(v, np.ndarray) else v 
@@ -1270,6 +2066,39 @@ class Evaluator:
             else:
                 figures_to_combine.append(('single', fig_hm_dm))
                 figure_labels.append('Identifiability Heatmaps (demeaned)')
+
+        # ========================================================================
+        # Analysis 1b: Optional SPD Geodesic Heatmaps
+        # ========================================================================
+        if include_geodesic:
+            fig_geo, metrics_geo = self.plot_geodesic_heatmaps(
+                order_by=order_by,
+                demeaned=geodesic_demeaned,
+                method=geodesic_method,
+                color_scale_mode=geodesic_color_scale_mode,
+                diag_value=geodesic_diag_value,
+                eps=geodesic_eps,
+                dpi=220,
+                figsize=(14, 4.5),
+                show=show_inline,
+                print_metadata=geodesic_print_metadata,
+            )
+            all_metrics['geodesic'] = {
+                k: (v.tolist() if isinstance(v, np.ndarray) else v)
+                for k, v in metrics_geo.items()
+                if k != 'ranklist'
+            }
+            all_metrics['geodesic']['ranklist'] = (
+                metrics_geo['ranklist'].tolist()
+                if isinstance(metrics_geo.get('ranklist'), np.ndarray)
+                else metrics_geo.get('ranklist', [])
+            )
+            if save_to_file:
+                figures_dict['geodesic_heatmaps'] = fig_geo
+                figures_to_combine.append(('single', fig_geo))
+                figure_labels.append(
+                    f"SPD Geodesic Heatmaps{' (demeaned)' if geodesic_demeaned else ''}"
+                )
         
         # ========================================================================
         # Analysis 2: Identifiability Violin
@@ -1359,6 +2188,27 @@ class Evaluator:
             figures_dict['pca_spatial'] = fig_pca_grid
             figures_to_combine.append(('side_by_side', [fig_pca_line, fig_pca_grid]))
             figure_labels.append('PCA Structure')
+
+        # ========================================================================
+        # Analysis 5: Compact Prediction Subset Viewer (optional, default on)
+        # ========================================================================
+        if include_prediction_subset:
+            fig_pred_subset, metrics_pred_subset = self.plot_prediction_subset_compact(
+                n_subjects=prediction_subset_n_subjects,
+                include_best_worst=prediction_subset_include_best_worst,
+                subject_selection_metric=prediction_subset_selection_metric,
+                random_seed=prediction_subset_seed,
+                demeaned=prediction_subset_demeaned,
+                show_both=prediction_subset_show_both,
+                dpi=200,
+                figsize=None,
+                show=show_inline,
+            )
+            all_metrics['prediction_subset'] = metrics_pred_subset
+            if save_to_file:
+                figures_dict['prediction_subset'] = fig_pred_subset
+                figures_to_combine.append(('single', fig_pred_subset))
+                figure_labels.append('Prediction Subset Viewer')
         
         # ========================================================================
         # Generate report if filepath specified
@@ -1758,19 +2608,50 @@ class Evaluator:
             md_lines.append("|--------|-----|----------|")
             raw = all_metrics.get('heatmaps_raw', {})
             dem = all_metrics.get('heatmaps_demeaned', {})
-            md_lines.append(f"| Mean Corr | {raw.get('mean_corr', '-'):.3f} | {dem.get('mean_corr', '-'):.3f} |")
+            md_lines.append(f"| Mean Corr | {raw.get('raw_mean_corr', raw.get('mean_corr', np.nan)):.3f} | {dem.get('raw_mean_corr', dem.get('mean_corr', np.nan)):.3f} |")
+            md_lines.append(f"| Demeaned Mean Corr | {raw.get('demeaned_mean_corr', np.nan):.3f} | {dem.get('demeaned_mean_corr', np.nan):.3f} |")
             md_lines.append(f"| Top-1 Acc | {raw.get('top1_acc', '-'):.3f} | {dem.get('top1_acc', '-'):.3f} |")
             md_lines.append(f"| Avg Rank %ile | {raw.get('avg_rank_percentile', '-'):.3f} | {dem.get('avg_rank_percentile', '-'):.3f} |")
         elif 'heatmaps_demeaned' in all_metrics:
             dem = all_metrics.get('heatmaps_demeaned', {})
             md_lines.append("| Metric | Value |")
             md_lines.append("|--------|-------|")
-            md_lines.append(f"| Mean Corr | {dem.get('mean_corr', '-'):.3f} |")
+            md_lines.append(f"| Mean Corr | {dem.get('raw_mean_corr', dem.get('mean_corr', np.nan)):.3f} |")
+            md_lines.append(f"| Demeaned Mean Corr | {dem.get('demeaned_mean_corr', np.nan):.3f} |")
             md_lines.append(f"| Top-1 Acc | {dem.get('top1_acc', '-'):.3f} |")
             md_lines.append(f"| Avg Rank %ile | {dem.get('avg_rank_percentile', '-'):.3f} |")
         md_lines.append("")
         md_lines.append("---")
         md_lines.append("")
+
+        if 'geodesic_heatmaps' in saved_figures:
+            md_lines.append("## SPD Geodesic Heatmaps")
+            md_lines.append("")
+            md_lines.append(
+                "Pairwise distances between full reconstructed FC matrices after SPD projection. "
+                "These plots use an SPD-aware matrix distance instead of edgewise correlation."
+            )
+            md_lines.append("")
+            md_lines.append(f"![]({saved_figures['geodesic_heatmaps']})")
+            md_lines.append("")
+            geo = all_metrics.get('geodesic', {})
+            md_lines.append("| Metric | Value |")
+            md_lines.append("|--------|-------|")
+            md_lines.append(f"| Method | {geo.get('method', '-')} |")
+            md_lines.append(f"| Mean Self Distance | {geo.get('mean_self_distance', np.nan):.3f} |")
+            md_lines.append(f"| Top-1 Acc | {geo.get('top1_acc', np.nan):.3f} |")
+            md_lines.append(f"| Avg Rank %ile | {geo.get('avg_rank_percentile', np.nan):.3f} |")
+            meta = geo.get('metadata', {})
+            if isinstance(meta, dict):
+                md_lines.append(f"| Target SPD Projection Rate | {meta.get('targets_fraction_projected', np.nan):.2%} |")
+                md_lines.append(f"| Pred SPD Projection Rate | {meta.get('preds_fraction_projected', np.nan):.2%} |")
+                md_lines.append(f"| Target Mean Clipped Eig Fraction | {meta.get('targets_mean_clipped_fraction', np.nan):.2%} |")
+                md_lines.append(f"| Pred Mean Clipped Eig Fraction | {meta.get('preds_mean_clipped_fraction', np.nan):.2%} |")
+                md_lines.append(f"| Target Mean Clip Mass | {meta.get('targets_mean_clip_mass', np.nan):.3f} |")
+                md_lines.append(f"| Pred Mean Clip Mass | {meta.get('preds_mean_clip_mass', np.nan):.3f} |")
+            md_lines.append("")
+            md_lines.append("---")
+            md_lines.append("")
         
         # ========================================================================
         # Section 2: Identifiability Violin
@@ -1923,9 +2804,37 @@ class Evaluator:
         md_lines.append("")
         md_lines.append("---")
         md_lines.append("")
+
+        # ========================================================================
+        # Section 6: Prediction Subset Viewer
+        # ========================================================================
+        if 'prediction_subset' in saved_figures:
+            md_lines.append("## Prediction Subset Viewer")
+            md_lines.append("")
+            md_lines.append(
+                "Compact row-wise viewer of selected subjects: target matrix, prediction matrix, "
+                "and edge-wise scatter with per-subject metrics."
+            )
+            md_lines.append("")
+            md_lines.append(f"![]({saved_figures['prediction_subset']})")
+            md_lines.append("")
+            subset = all_metrics.get('prediction_subset', {})
+            md_lines.append("| Metric | Value |")
+            md_lines.append("|--------|-------|")
+            md_lines.append(f"| Subjects Shown | {subset.get('n_subjects_shown', '-')} |")
+            modes = subset.get('display_modes', [])
+            if isinstance(modes, list):
+                md_lines.append(f"| Display Modes | {', '.join(map(str, modes))} |")
+            md_lines.append(f"| Include Best/Worst | {subset.get('include_best_worst', '-')} |")
+            selected_ids = subset.get('selected_subject_ids', [])
+            if isinstance(selected_ids, list):
+                md_lines.append(f"| Selected Subject IDs | {', '.join(map(str, selected_ids))} |")
+            md_lines.append("")
+            md_lines.append("---")
+            md_lines.append("")
         
         # ========================================================================
-        # Section 6: Summary Metrics Table
+        # Section 7: Summary Metrics Table
         # ========================================================================
         md_lines.append("## Summary Metrics")
         md_lines.append("")
@@ -1938,6 +2847,17 @@ class Evaluator:
         md_lines.append(f"| Base | R² | {base.get('r2', '-'):.4f} |")
         md_lines.append(f"| Base | Pearson Corr | {base.get('pearson', '-'):.4f} |")
         md_lines.append(f"| Base | Demeaned Pearson | {base.get('demeaned_pearson', '-'):.4f} |")
+        for geo_prefix, geo_label in (("geodesic_demeaned", "Geodesic Demeaned"), ("geodesic_raw", "Geodesic Raw")):
+            if f'{geo_prefix}_top1_acc' in base:
+                md_lines.append(
+                    f"| Base (optional) | {geo_label} Top-1 Acc ({base.get(f'{geo_prefix}_method', '-')}) | "
+                    f"{base.get(f'{geo_prefix}_top1_acc', np.nan):.4f} |"
+                )
+            if f'{geo_prefix}_avg_rank' in base:
+                md_lines.append(
+                    f"| Base (optional) | {geo_label} Avg Rank %ile ({base.get(f'{geo_prefix}_method', '-')}) | "
+                    f"{base.get(f'{geo_prefix}_avg_rank', np.nan):.4f} |"
+                )
         
         # Identifiability (raw)
         raw_hm = all_metrics.get('heatmaps_raw', all_metrics.get('heatmaps_demeaned', {}))

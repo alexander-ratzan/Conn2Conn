@@ -10,7 +10,9 @@ For user-facing usage/setup, see `README.md`.
 
 `Conn2Conn` predicts one connectome modality from another on HCP-derived data (default `SC -> FC`) and compares:
 - closed-form baselines (PCA/PLS family)
+- conditional Gaussian baseline
 - learned variants (learnable map, covariate-conditioned residual projector, VAE, Sarwar MLP, Chen GCN)
+- latent attention variants (`LatentAttnMasked`, `LatentAttnTranslation`)
 - nodal-feature GNN baseline (`NodalGNN`)
 - precomputed Krakencoder baseline
 
@@ -55,7 +57,7 @@ If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after 
 
 ## Core Execution Model (`main.py`)
 
-`Sim.run()` dispatches by model type:
+`Sim.run_single()` dispatches by model type:
 - learned model -> `_run_learned_single(...)`
 - closed-form model -> `_run_closed_form_single(...)`
 
@@ -63,6 +65,7 @@ Common eval path:
 - `_evaluate_model(...)`
 - uses `predict_from_loader(...)` for normal models
 - uses `predict_split(...)` for precomputed models with `is_precomputed=True`
+- forwards optional `eval_kwargs` into `Evaluator.analyze_results(...)`
 
 Tune path:
 - `run_tune(...)` builds flat Ray param space
@@ -86,9 +89,14 @@ Learned (`learned: true`):
 - `CrossModal_PCA_PLS_learnable`
 - `CrossModal_PCA_PLS_CovProjector`
 - `CrossModalVAE`
+- `LatentAttnMasked` (implemented in `models/latent_attn_masked.py`)
+- `LatentAttnTranslation` (implemented in `models/latent_attn_translation.py`)
 - `Sarwar2020MLP` (implemented in `models/sarwar2020_mlp.py`)
 - `Chen2024GCN` (implemented in `models/chen2024_gnn.py`)
 - `NodalGNN` (implemented in `models/nodal_gnn.py`)
+
+Closed-form / hybrid special cases present in configs:
+- `CrossModal_ConditionalGaussian` (implemented in `models/conditional_gaussian.py`)
 
 ### Special: `Krakencoder_precomputed`
 
@@ -207,6 +215,21 @@ Suggested quick smoke workflow:
 
 ---
 
+## Evaluation Notes
+
+- `Evaluator._metrics` / `base_metrics` are the default scalar summary surface used for returned `Sim` metrics and `eval_test/*` W&B logging.
+- Geodesic FC distance support lives in `models/FC_distance.py`.
+  - `affine_invariant` is the metric most faithful to the geometry-aware FC paper and the legacy `GeneEx2Conn/models/metrics/distance_FC.py` implementation.
+  - `log_euclidean` is kept as a faster SPD-aware alternative.
+- `Evaluator.analyze_results(...)` can optionally append exploratory geodesic summary metrics into `base_metrics` via:
+  - `include_geodesic_metrics=True`
+  - `geodesic_metric_method=...`
+  - `geodesic_metric_demeaned=True|False`
+  - related `geodesic_metric_*` kwargs
+- `Sim.run_single(..., eval_kwargs={...})` is the intended way to opt into those exploratory metrics from notebooks or scripts without changing the default reporting path.
+
+---
+
 ## Config System Notes (`models/config.py`)
 
 - `FLAT_METADATA_KEYS` are logging/display keys and must not reach model constructors.
@@ -275,4 +298,4 @@ Debug missing results cell:
   - `data/demeaned_viz.py`
 - `notebooks/kraken/track_krakencoder_model.ipynb` can log W&B runs and optionally save local markdown reports under `results/local_results/Krakencoder_precomputed/`.
 
-Last updated at: 2026-03-31 15:10:31 EDT
+Last updated at: 2026-04-17 14:35:00 EDT
