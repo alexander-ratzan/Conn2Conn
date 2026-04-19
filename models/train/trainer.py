@@ -68,16 +68,8 @@ class ValidationEvalCallback(pl.Callback):
             "val_latent_mse": cm.get("val_latent_mse"),
             "train_latent_weighted_mse": cm.get("train_latent_weighted_mse"),
             "val_latent_weighted_mse": cm.get("val_latent_weighted_mse"),
-            "train_joint_edge_term": cm.get("train_joint_edge_term"),
-            "val_joint_edge_term": cm.get("val_joint_edge_term"),
-            "train_joint_latent_term": cm.get("train_joint_latent_term"),
-            "val_joint_latent_term": cm.get("val_joint_latent_term"),
             "train_reg_loss": cm.get("train_reg_loss"),
             "val_reg_loss": cm.get("val_reg_loss"),
-            "train_edge_loss_ref": cm.get("train_edge_loss_ref"),
-            "val_edge_loss_ref": cm.get("val_edge_loss_ref"),
-            "train_latent_loss_ref": cm.get("train_latent_loss_ref"),
-            "val_latent_loss_ref": cm.get("val_latent_loss_ref"),
             "val_mse": val_metrics["mse"],
             "val_pearson_r": val_metrics["pearson_r"],
             "val_demeaned_r": val_metrics["demeaned_r"],
@@ -161,8 +153,6 @@ def train_model(
     loss_beta=1.0,
     loss_corr_target=0.4,
     loss_corr_weight=1e-3,
-    loss_var_weight=0.01,
-    loss_latent_weight=0.25,
     loss_terms=None,
     loss_normalize="ema",
     loss_scale_ema_decay=0.95,
@@ -187,11 +177,9 @@ def train_model(
         loss_beta: KLD weight for VAE loss (passed to Lightning module).
         loss_corr_target: target inter-subject correlation for sarwar_mse_corr.
         loss_corr_weight: penalty strength for sarwar_mse_corr.
-        loss_var_weight: weight on the variance-matching term for joint_mse_varmatch.
-        loss_latent_weight: weight on latent reconstruction term for joint edge+latent losses.
         loss_terms: component loss specs used by composite.
         loss_normalize: normalization mode for composite loss terms ('ema' or 'none').
-        loss_scale_ema_decay: EMA decay for automatic loss scaling in joint_edge_latent_mse_scaled.
+        loss_scale_ema_decay: EMA decay for composite loss-term scaling.
         loss_scale_warmup_steps: number of training steps used to calibrate EMA loss scales.
         max_epochs: number of epochs (Trainer max_epochs).
         logger: If True, use CSVLogger (writes to disk). If False, no logging to disk (dev mode).
@@ -212,8 +200,6 @@ def train_model(
         loss_beta=loss_beta,
         loss_corr_target=loss_corr_target,
         loss_corr_weight=loss_corr_weight,
-        loss_var_weight=loss_var_weight,
-        loss_latent_weight=loss_latent_weight,
         loss_terms=loss_terms,
         loss_normalize=loss_normalize,
         loss_scale_ema_decay=loss_scale_ema_decay,

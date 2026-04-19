@@ -309,30 +309,6 @@ class CompositeLoss(nn.Module):
         return torch.stack(weighted_terms).sum()
 
 
-class MSEVarMatchLoss(nn.Module):
-    """
-    Joint objective: edge-space MSE plus a small variance-matching penalty.
-
-    This is aimed at combating prediction shrinkage / under-dispersion.
-    """
-
-    def __init__(self, var_weight=0.01, relative_to_true=True):
-        super().__init__()
-        self.name = "joint_mse_varmatch"
-        self.var_weight = float(var_weight)
-        self.relative_to_true = bool(relative_to_true)
-
-    def forward(self, y_pred, y_true, **kwargs):
-        mse = F.mse_loss(y_pred, y_true)
-        var_loss = compute_var_match_loss(
-            y_pred,
-            y_true,
-            axis=0,
-            relative_to_true=self.relative_to_true,
-        )
-        return mse + self.var_weight * var_loss
-
-
 class VAELoss(nn.Module):
     """
     VAE loss: reconstruction (MSE) + beta * KLD to standard Gaussian prior.
@@ -362,7 +338,6 @@ def create_loss_fn(
     beta=1.0,
     corr_target=0.4,
     corr_weight=1e-3,
-    var_weight=0.01,
     loss_terms=None,
     loss_normalize="ema",
     loss_scale_ema_decay=0.95,
@@ -370,10 +345,9 @@ def create_loss_fn(
 ):
     """
     Factory function to create loss functions.
-    
+
     Args:
-        loss_type: one of 'mse', 'weighted_mse', 'vae', 'sarwar_mse_corr',
-            'joint_mse_varmatch', 'composite'
+        loss_type: one of 'mse', 'weighted_mse', 'vae', 'sarwar_mse_corr', 'composite'
         base: Dataset base object (required for weighted_mse)
         alpha: weight for weighted_mse (default 0.5)
         beta: weight for VAE KLD term (default 1.0)
@@ -394,8 +368,6 @@ def create_loss_fn(
         return VAELoss(beta=beta)
     elif loss_type == "sarwar_mse_corr":
         return SarwarMSECorrLoss(corr_target=corr_target, corr_weight=corr_weight)
-    elif loss_type == "joint_mse_varmatch":
-        return MSEVarMatchLoss(var_weight=var_weight, relative_to_true=True)
     elif loss_type == "composite":
         return CompositeLoss(
             loss_terms=loss_terms,
@@ -406,7 +378,7 @@ def create_loss_fn(
     else:
         raise ValueError(
             f"Unknown loss type: {loss_type}. Choose from "
-            "'mse', 'weighted_mse', 'vae', 'sarwar_mse_corr', 'joint_mse_varmatch', 'composite'"
+            "'mse', 'weighted_mse', 'vae', 'sarwar_mse_corr', 'composite'"
         )
 
 

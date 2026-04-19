@@ -191,6 +191,8 @@ class LatentAttnMasked(nn.Module):
         mask_ratio=0.5,
         min_masked_components=1,
         train_use_visible_fc_context=True,
+        prior_qk_init_scale=0.25,
+        prior_qk_kernel_reg_weight=1.0,
         device=None,
         **kwargs,
     ):
@@ -229,11 +231,17 @@ class LatentAttnMasked(nn.Module):
         self.mask_ratio = float(mask_ratio)
         self.min_masked_components = int(min_masked_components)
         self.train_use_visible_fc_context = bool(train_use_visible_fc_context)
+        self.prior_qk_init_scale = float(prior_qk_init_scale)
+        self.prior_qk_kernel_reg_weight = float(prior_qk_kernel_reg_weight)
 
-        if self.token_embedding_type not in {"learned", "pls_encoded", "pca_encoded"}:
+        if self.token_embedding_type not in {"learned", "learned_cov_init", "pls_encoded", "pca_encoded"}:
             raise ValueError(
                 f"Unknown token_embedding_type='{token_embedding_type}'. "
-                "Choose from {'learned', 'pls_encoded', 'pca_encoded'}."
+                "Choose from {'learned', 'learned_cov_init', 'pls_encoded', 'pca_encoded'}."
+            )
+        if self.token_embedding_type == "learned_cov_init" and self.transformer_layers != 0:
+            raise ValueError(
+                "token_embedding_type='learned_cov_init' currently supports transformer_layers=0 only."
             )
         if self.readout_type not in {"linear", "mlp", "concat_mlp", "scalar_slot"}:
             raise ValueError(
@@ -404,7 +412,7 @@ class LatentAttnMasked(nn.Module):
         self.fc_component_embedding = None
         self.sc_barcode_encoder = None
         self.fc_barcode_encoder = None
-        if self.token_embedding_type == "learned":
+        if self.token_embedding_type in {"learned", "learned_cov_init"}:
             self.sc_component_embedding = nn.Embedding(self.n_components_pca, self.token_embedding_dim)
             self.fc_component_embedding = nn.Embedding(self.n_components_pca, self.token_embedding_dim)
         elif self.token_embedding_type == "pls_encoded":
@@ -494,6 +502,9 @@ class LatentAttnMasked(nn.Module):
         self.last_fc_mask = None
         self.last_residual_base = None
         self.last_latent_delta = None
+        self.prior_qk_init_rel_error = None
+
+        self._apply_prior_qk_initialization()
 
         print(
             f"LatentAttnMasked init | src={self.source_modality} tgt={self.target_modality} "
@@ -506,7 +517,14 @@ class LatentAttnMasked(nn.Module):
             f"| attention_activation={self.attention_activation} "
             f"| zscore_pca_scores={self.zscore_pca_scores} "
             f"| mask_ratio={self.mask_ratio} visible_fc_context={self.train_use_visible_fc_context} "
-            f"| sc_token_dropout={self.sc_token_dropout_p}",
+            f"| sc_token_dropout={self.sc_token_dropout_p}"
+            + (
+                f" | prior_qk_init_scale={self.prior_qk_init_scale}"
+                f" prior_qk_kernel_reg_weight={self.prior_qk_kernel_reg_weight}"
+                f" prior_qk_rel_error={self.prior_qk_init_rel_error:.3e}"
+                if self.token_embedding_type == "learned_cov_init"
+                else ""
+            ),
             flush=True,
         )
         self.to(device)
@@ -541,6 +559,144 @@ class LatentAttnMasked(nn.Module):
         c_source = self.encode_source_latents(x)
         return self._compute_residual_base(c_source)
 
+    def _compute_cross_component_correlation(self):
+        """
+        Empirical SC/FC cross-component correlation on training PCA scores.
+
+        Returns an (k, k) float64 numpy array C where C[i, j] = corr(sc_score_i, fc_score_j)
+        across training subjects. Rows index SC (query side), columns index FC (key side).
+        When zscore_pca_scores=True the pre-standardized score buffers are used, otherwise
+        the raw PCA score buffers. Mirrors the correlation construction in
+        CrossModal_ConditionalGaussian._cov_to_corr.
+        """
+        if self.zscore_pca_scores:
+            sc_np = self.source_pca_scores_train_z.detach().cpu().numpy().astype(np.float64)
+            fc_np = self.target_pca_scores_train_z.detach().cpu().numpy().astype(np.float64)
+        else:
+            sc_np = self.source_pca_scores_train.detach().cpu().numpy().astype(np.float64)
+            fc_np = self.target_pca_scores_train.detach().cpu().numpy().astype(np.float64)
+
+        k = int(self.n_components_pca)
+        joint = np.concatenate([sc_np, fc_np], axis=1)
+        Sigma = np.cov(joint, rowvar=False)
+        std = np.sqrt(np.clip(np.diag(Sigma), a_min=1.0e-12, a_max=None))
+        denom = np.outer(std, std)
+        corr = Sigma / denom
+        corr[~np.isfinite(corr)] = 0.0
+        np.fill_diagonal(corr, 1.0)
+        C = corr[:k, k:]
+        C = np.nan_to_num(C, nan=0.0, posinf=0.0, neginf=0.0)
+        return np.asarray(C, dtype=np.float64)
+
+    def _build_qk_init_from_prior(self, C_np):
+        """
+        Factorize the cross-correlation prior into query/key embedding-space weights.
+
+        Given learned component embeddings A=E_sc in R^{k x d_emb} and B=E_fc in R^{k x d_emb},
+        we want (A W_Q)(B W_K)^T / sqrt(d) ~ C, so X Y^T ~ sqrt(d) * pinv(A) C pinv(B)^T =: sqrt(d) M.
+
+        Steps:
+            M   = pinv(A) @ C @ pinv(B).T                       -> (d_emb, d_emb)
+            M   = U S V^T                                       SVD, d_emb modes
+            Wq  = U[:, :r] diag(sqrt(S[:r]))                    -> (d_emb, r)
+            Wk  = V[:, :r] diag(sqrt(S[:r])) * sqrt(attn_dim)   -> (d_emb, r)
+
+        with r = min(d_emb, attn_dim). We zero-pad to attn_dim columns when r < attn_dim and
+        scale both outputs by sqrt(prior_qk_init_scale) so the initial kernel is approximately
+        prior_qk_init_scale * C rather than C itself. Only the first attn_dim columns are
+        populated; per-head slicing inside MultiHeadTokenSelfAttention then reads consecutive
+        slices of the same (d_emb, attn_dim) matrix.
+
+        Returns numpy float64 (Wq_init, Wk_init) both shaped (d_emb, attn_dim).
+        """
+        if self.sc_component_embedding is None or self.fc_component_embedding is None:
+            raise RuntimeError(
+                "learned_cov_init requires sc/fc_component_embedding to be initialized before calling _build_qk_init_from_prior."
+            )
+
+        A = self.sc_component_embedding.weight.detach().cpu().numpy().astype(np.float64)
+        B = self.fc_component_embedding.weight.detach().cpu().numpy().astype(np.float64)
+
+        d_emb = int(self.token_embedding_dim)
+        attn_dim = int(self.attn_dim)
+        pinv_A = np.linalg.pinv(A)
+        pinv_B = np.linalg.pinv(B)
+        M = pinv_A @ C_np @ pinv_B.T
+
+        U, S, Vt = np.linalg.svd(M, full_matrices=False)
+        V = Vt.T
+        r = int(min(d_emb, attn_dim))
+        sqrt_S = np.sqrt(np.clip(S[:r], a_min=0.0, a_max=None))
+        Wq_core = U[:, :r] * sqrt_S[None, :]
+        Wk_core = V[:, :r] * sqrt_S[None, :] * np.sqrt(float(attn_dim))
+
+        scale = np.sqrt(max(self.prior_qk_init_scale, 0.0))
+        Wq_core = scale * Wq_core
+        Wk_core = scale * Wk_core
+
+        if r < attn_dim:
+            pad = np.zeros((d_emb, attn_dim - r), dtype=np.float64)
+            Wq_init = np.concatenate([Wq_core, pad], axis=1)
+            Wk_init = np.concatenate([Wk_core, pad], axis=1)
+        else:
+            Wq_init = Wq_core[:, :attn_dim]
+            Wk_init = Wk_core[:, :attn_dim]
+
+        return Wq_init.astype(np.float64), Wk_init.astype(np.float64)
+
+    def _apply_prior_qk_initialization(self):
+        """
+        Initialize raw_attention.W_Q / W_K from the SC-FC cross-correlation prior.
+
+        Only active when token_embedding_type='learned_cov_init' and the model uses the raw
+        single-attention path (transformer_layers=0). Writes only into the embedding columns
+        [:, 1:] of W_Q/W_K so the scalar-slot column stays at its default nn.Linear init.
+        Logs the prior type, the computed shapes, and the relative Frobenius reconstruction
+        error of the initialized kernel with respect to the target prior C. No gradients are
+        computed during this routine; nothing is frozen afterwards.
+        """
+        if self.token_embedding_type != "learned_cov_init":
+            return
+        if self.transformer_layers != 0 or self.raw_attention is None:
+            return
+        if self.num_heads != 1:
+            print(
+                f"LatentAttnMasked prior-init warning | num_heads={self.num_heads} > 1: "
+                "init writes a single (d_emb, attn_dim) block; per-head scaling uses q_head_dim, "
+                "so the reported relative error assumes aggregate attn_dim scaling.",
+                flush=True,
+            )
+
+        C_np = self._compute_cross_component_correlation()
+        Wq_init, Wk_init = self._build_qk_init_from_prior(C_np)
+
+        weight_device = self.raw_attention.W_Q.weight.device
+        weight_dtype = self.raw_attention.W_Q.weight.dtype
+        Wq_t = torch.tensor(Wq_init, dtype=weight_dtype, device=weight_device)
+        Wk_t = torch.tensor(Wk_init, dtype=weight_dtype, device=weight_device)
+        with torch.no_grad():
+            self.raw_attention.W_Q.weight[:, 1:].copy_(Wq_t.t())
+            self.raw_attention.W_K.weight[:, 1:].copy_(Wk_t.t())
+
+        with torch.no_grad():
+            A = self.sc_component_embedding.weight.detach().cpu().numpy().astype(np.float64)
+            B = self.fc_component_embedding.weight.detach().cpu().numpy().astype(np.float64)
+            kernel = (A @ Wq_init) @ (B @ Wk_init).T / float(np.sqrt(max(self.attn_dim, 1)))
+            target = float(self.prior_qk_init_scale) * C_np
+            num = float(np.linalg.norm(kernel - target, ord="fro"))
+            den = float(np.linalg.norm(target, ord="fro")) + 1.0e-12
+            rel_err = num / den
+        self.prior_qk_init_rel_error = rel_err
+
+        print(
+            f"LatentAttnMasked prior-init | type={self.token_embedding_type} "
+            f"| k={self.n_components_pca} d_emb={self.token_embedding_dim} attn_dim={self.attn_dim} num_heads={self.num_heads} "
+            f"| C.shape={C_np.shape} Wq.shape={Wq_init.shape} Wk.shape={Wk_init.shape} "
+            f"| scale={self.prior_qk_init_scale} kernel_reg_weight={self.prior_qk_kernel_reg_weight} "
+            f"| rel_frob_error={rel_err:.3e}",
+            flush=True,
+        )
+
     def _sample_fc_mask(self, batch_size, device):
         mask = (torch.rand(batch_size, self.n_components_pca, device=device) < self.mask_ratio)
         min_mask = min(self.min_masked_components, self.n_components_pca)
@@ -555,7 +711,7 @@ class LatentAttnMasked(nn.Module):
 
     def _get_component_embeddings(self, batch_size):
         idx = torch.arange(self.n_components_pca, device=self.source_mean.device)
-        if self.token_embedding_type == "learned":
+        if self.token_embedding_type in {"learned", "learned_cov_init"}:
             sc_emb = self.sc_component_embedding(idx)
             fc_emb = self.fc_component_embedding(idx)
         elif self.token_embedding_type == "pls_encoded":

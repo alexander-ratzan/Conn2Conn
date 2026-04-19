@@ -7,7 +7,7 @@ import os
 from copy import deepcopy
 import yaml
 
-TRAINER_KEYS = {"lr", "loss_type", "loss_alpha", "loss_beta", "loss_corr_target", "loss_corr_weight", "loss_var_weight", "loss_latent_weight", "loss_terms", "loss_normalize", "loss_scale_ema_decay", "loss_scale_warmup_steps", "max_epochs", "batch_size", "log_every"}
+TRAINER_KEYS = {"lr", "loss_type", "loss_alpha", "loss_beta", "loss_corr_target", "loss_corr_weight", "loss_terms", "loss_normalize", "loss_scale_ema_decay", "loss_scale_warmup_steps", "max_epochs", "batch_size", "log_every"}
 DATA_KEYS = {"parcellation", "hemi", "source", "target", "shuffle_seed", "HCP_dir", "sc_metric_type", "sc_apply_log1p", "volume_feature_type", "centroid_feature_type", "data_load_mode", "precompute_cache_root", "write_manual_cache"}
 FLAT_METADATA_KEYS = {"cov_sources_str", "cov_dims", "cov_projectors_tag", "cov_fusion_tag"}
 
@@ -143,12 +143,12 @@ def _model_class(name):
     if name == "NodalGNN":
         from models.architectures.graph_based.nodal_gnn import NodalGNN
         return NodalGNN
-    if name == "LatentAttnTranslation":
-        from models.architectures.latent_attention.latent_attn_translation import LatentAttnTranslation
-        return LatentAttnTranslation
     if name == "LatentAttnMasked":
         from models.architectures.latent_attention.latent_attn_masked import LatentAttnMasked
         return LatentAttnMasked
+    if name == "MaskedLatentPretrainer":
+        from models.architectures.latent_attention.masked_latent_pretrainer import MaskedLatentPretrainer
+        return MaskedLatentPretrainer
     if name == "CrossModal_ConditionalGaussian":
         from models.architectures.latent_attention.conditional_gaussian import CrossModal_ConditionalGaussian
         return CrossModal_ConditionalGaussian

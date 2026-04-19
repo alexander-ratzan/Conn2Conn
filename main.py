@@ -483,8 +483,6 @@ class Sim:
         loss_beta = trainer_cfg.get("loss_beta", 1.0)
         loss_corr_target = trainer_cfg.get("loss_corr_target", 0.4)
         loss_corr_weight = trainer_cfg.get("loss_corr_weight", 1e-3)
-        loss_var_weight = trainer_cfg.get("loss_var_weight", 0.01)
-        loss_latent_weight = trainer_cfg.get("loss_latent_weight", 0.25)
         loss_terms = trainer_cfg.get("loss_terms", None)
         loss_normalize = trainer_cfg.get("loss_normalize", "ema")
         loss_scale_ema_decay = trainer_cfg.get("loss_scale_ema_decay", 0.95)
@@ -526,8 +524,6 @@ class Sim:
                 loss_beta=loss_beta,
                 loss_corr_target=loss_corr_target,
                 loss_corr_weight=loss_corr_weight,
-                loss_var_weight=loss_var_weight,
-                loss_latent_weight=loss_latent_weight,
                 loss_terms=loss_terms,
                 loss_normalize=loss_normalize,
                 loss_scale_ema_decay=loss_scale_ema_decay,
@@ -551,8 +547,6 @@ class Sim:
                 loss_beta=loss_beta,
                 loss_corr_target=loss_corr_target,
                 loss_corr_weight=loss_corr_weight,
-                loss_var_weight=loss_var_weight,
-                loss_latent_weight=loss_latent_weight,
                 loss_terms=loss_terms,
                 loss_normalize=loss_normalize,
                 loss_scale_ema_decay=loss_scale_ema_decay,
@@ -950,8 +944,6 @@ class Sim:
                     loss_beta=trainer_cfg.get("loss_beta", 1.0),
                     loss_corr_target=trainer_cfg.get("loss_corr_target", 0.4),
                     loss_corr_weight=trainer_cfg.get("loss_corr_weight", 1e-3),
-                    loss_var_weight=trainer_cfg.get("loss_var_weight", 0.01),
-                    loss_latent_weight=trainer_cfg.get("loss_latent_weight", 0.25),
                     loss_terms=trainer_cfg.get("loss_terms", None),
                     loss_normalize=trainer_cfg.get("loss_normalize", "ema"),
                     loss_scale_ema_decay=trainer_cfg.get("loss_scale_ema_decay", 0.95),

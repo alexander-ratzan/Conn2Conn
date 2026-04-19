@@ -12,7 +12,7 @@ For user-facing usage/setup, see `README.md`.
 - closed-form baselines (PCA/PLS family)
 - conditional Gaussian baseline
 - learned variants (learnable map, covariate-conditioned residual projector, VAE, Sarwar MLP, Chen GCN)
-- latent attention variants (`LatentAttnMasked`, `LatentAttnTranslation`)
+- latent attention variant (`LatentAttnMasked`)
 - nodal-feature GNN baseline (`NodalGNN`)
 - precomputed Krakencoder baseline
 
@@ -99,7 +99,7 @@ Learned (`learned: true`):
 - `CrossModal_PCA_PLS_CovProjector`
 - `CrossModalVAE`
 - `LatentAttnMasked` (implemented in `models/architectures/latent_attention/latent_attn_masked.py`)
-- `LatentAttnTranslation` (implemented in `models/architectures/latent_attention/latent_attn_translation.py`)
+- `MaskedLatentPretrainer` (implemented in `models/architectures/latent_attention/masked_latent_pretrainer.py`) — SSL pretrainer for joint SC/FC PCA-latent reconstruction; transfers weights to `LatentAttnMasked` via `export_to_latent_attn_masked(downstream_model)`.
 - `Sarwar2020MLP` (implemented in `models/architectures/sarwar2020_mlp.py`)
 - `Chen2024GCN` (implemented in `models/architectures/graph_based/chen2024_gnn.py`)
 - `NodalGNN` (implemented in `models/architectures/graph_based/nodal_gnn.py`)

@@ -114,8 +114,6 @@ LATENT_HISTORY_LOSS_PAIRS = [
     ("train_var_match_loss", "val_var_match_loss", "MSE of Across-Subject Edge-Variance Profiles (Pred vs Target)"),
     ("train_latent_mse", "val_latent_mse", "Latent MSE"),
     ("train_latent_weighted_mse", "val_latent_weighted_mse", "Latent Weighted MSE"),
-    ("train_joint_edge_term", "val_joint_edge_term", "Joint Edge Term"),
-    ("train_joint_latent_term", "val_joint_latent_term", "Joint Latent Term"),
 ]
 
 DEFAULT_HISTORY_CORR_PAIRS = [

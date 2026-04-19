@@ -30,15 +30,13 @@ default:
     device: null
   trainer:
     lr: 1.0e-3
-    loss_type: latent_mse
+    loss_type: composite
     loss_terms:
       - {name: mse, weight: 1.0}
       - {name: varmatch, weight: 1.0}
       - {name: correye, weight: 1.0}
       - {name: neidist, weight: 1.0}
     loss_normalize: ema
-    loss_var_weight: 0.01
-    loss_latent_weight: 0.25
     loss_scale_ema_decay: 0.95
     loss_scale_warmup_steps: 20
     max_epochs: 500
@@ -54,7 +52,7 @@ search_space:
     values: [8, 16, 24]
   token_embedding_type:
     type: choice
-    values: [learned, pls_encoded, pca_encoded]
+    values: [learned, learend_cov_init, pls_encoded, pca_encoded]
   token_embedding_dim:
     type: choice
     values: [8, 16, 24]
@@ -113,13 +111,7 @@ search_space:
     upper: 3.0e-3
   loss_type:
     type: choice
-    values: [mse, joint_mse_varmatch, composite, latent_mse, latent_weighted_mse, joint_edge_latent_mse, joint_edge_latent_mse_scaled]
-  loss_var_weight:
-    type: choice
-    values: [0.001, 0.005, 0.01, 0.02, 0.05]
-  loss_latent_weight:
-    type: choice
-    values: [0.05, 0.1, 0.25, 0.5, 1.0]
+    values: [composite, mse, latent_mse, latent_weighted_mse]
   loss_scale_ema_decay:
     type: choice
     values: [0.9, 0.95, 0.99]
