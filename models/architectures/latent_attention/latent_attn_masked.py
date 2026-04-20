@@ -53,7 +53,12 @@ class MultiHeadTokenSelfAttention(nn.Module):
         self.W_V = None if self.use_input_as_value else nn.Linear(self.input_dim, self.value_dim, bias=False)
         self.attn_dropout = nn.Dropout(self.dropout_p) if self.dropout_p > 0 else nn.Identity()
 
-    def forward(self, tokens):
+    def forward(self, tokens, key_mask=None):
+        """
+        key_mask: optional bool/float tensor (batch, num_tokens). True/1 = key is
+        visible and allowed to contribute; False/0 = key is excluded from attention.
+        Softmax: invalid keys get -inf logits. Identity: invalid keys get zero weight.
+        """
         batch_size, num_tokens, _ = tokens.shape
         Q = self.W_Q(tokens).view(batch_size, num_tokens, self.num_heads, self.q_head_dim).transpose(1, 2)
         K = self.W_K(tokens).view(batch_size, num_tokens, self.num_heads, self.q_head_dim).transpose(1, 2)
@@ -61,10 +66,20 @@ class MultiHeadTokenSelfAttention(nn.Module):
         V = V_input.view(batch_size, num_tokens, self.num_heads, self.v_head_dim).transpose(1, 2)
 
         attn_logits = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.q_head_dim)
-        if self.attention_activation == "softmax":
-            attn = torch.softmax(attn_logits, dim=-1)
+        if key_mask is not None:
+            km = key_mask.to(dtype=torch.bool)
+            # (batch, 1, 1, num_tokens) broadcasts over heads and queries
+            km_b = km.view(batch_size, 1, 1, num_tokens)
+            if self.attention_activation == "softmax":
+                attn_logits = attn_logits.masked_fill(~km_b, float("-inf"))
+                attn = torch.softmax(attn_logits, dim=-1)
+            else:
+                attn = attn_logits.masked_fill(~km_b, 0.0)
         else:
-            attn = attn_logits
+            if self.attention_activation == "softmax":
+                attn = torch.softmax(attn_logits, dim=-1)
+            else:
+                attn = attn_logits
         attn = self.attn_dropout(attn)
         Z = torch.matmul(attn, V)
         Z = Z.transpose(1, 2).contiguous().view(batch_size, num_tokens, self.value_dim)
@@ -97,9 +112,9 @@ class TransformerTokenBlock(nn.Module):
         )
         self.ffn_resid_dropout = nn.Dropout(dropout) if dropout > 0 else nn.Identity()
 
-    def forward(self, tokens):
+    def forward(self, tokens, key_mask=None):
         attn_in = self.norm1(tokens)
-        attn_out, attn = self.self_attn(attn_in)
+        attn_out, attn = self.self_attn(attn_in, key_mask=key_mask)
         tokens = tokens + self.attn_resid_dropout(self.attn_out_proj(attn_out))
         ffn_in = self.norm2(tokens)
         tokens = tokens + self.ffn_resid_dropout(self.ffn(ffn_in))

@@ -55,6 +55,9 @@ class MaskedLatentPretrainer(nn.Module):
         use_covariates_cls=False,
         cov_projector_hidden_dim=None,
         loss_weighting="per_modality_mean",
+        token_embedding_type="learned",
+        prior_qk_init_scale=1.0,
+        visible_only_attention=True,
         device=None,
         **kwargs,
     ):
@@ -83,7 +86,18 @@ class MaskedLatentPretrainer(nn.Module):
         self.cov_projector_hidden_dim = cov_projector_hidden_dim
         self.loss_weighting = str(loss_weighting)
         self.uses_cov = self.use_covariates_cls
+        self.token_embedding_type = str(token_embedding_type).lower()
+        self.prior_qk_init_scale = float(prior_qk_init_scale)
+        self.prior_qk_init_rel_error = None
+        self.visible_only_attention = bool(visible_only_attention)
 
+        if self.token_embedding_type not in {"learned", "learned_cov_init"}:
+            raise ValueError(
+                f"Unknown token_embedding_type='{token_embedding_type}'. "
+                "Choose from {'learned', 'learned_cov_init'}."
+            )
+        if self.token_embedding_type == "learned_cov_init" and self.transformer_layers != 0:
+            raise ValueError("token_embedding_type='learned_cov_init' requires transformer_layers=0.")
         if self.readout_type not in {"linear", "mlp"}:
             raise ValueError(f"Unknown readout_type='{self.readout_type}'. Choose from {{'linear', 'mlp'}}.")
         if self.attention_activation not in {"softmax", "identity"}:
@@ -142,6 +156,13 @@ class MaskedLatentPretrainer(nn.Module):
         self.register_buffer("sc_latent_weights", torch.tensor(sc_weights, dtype=torch.float32, device=device))
         self.register_buffer("fc_latent_weights", torch.tensor(fc_weights, dtype=torch.float32, device=device))
 
+        src_scores_z = (src_scores_k - src_score_mean) / src_score_std
+        tgt_scores_z = (tgt_scores_k - tgt_score_mean) / tgt_score_std
+        self.register_buffer("source_pca_scores_train", torch.tensor(src_scores_k, dtype=torch.float32, device=device))
+        self.register_buffer("target_pca_scores_train", torch.tensor(tgt_scores_k, dtype=torch.float32, device=device))
+        self.register_buffer("source_pca_scores_train_z", torch.tensor(src_scores_z, dtype=torch.float32, device=device))
+        self.register_buffer("target_pca_scores_train_z", torch.tensor(tgt_scores_z, dtype=torch.float32, device=device))
+
         self.sc_component_embedding = nn.Embedding(self.n_components_pca, self.token_embedding_dim)
         self.fc_component_embedding = nn.Embedding(self.n_components_pca, self.token_embedding_dim)
 
@@ -179,11 +200,9 @@ class MaskedLatentPretrainer(nn.Module):
             readout_in_dim = self.value_dim
         self.readout_in_dim = readout_in_dim
 
-        if readout_hidden_dim is None:
-            readout_hidden_dim = readout_in_dim
-        self.readout_hidden_dim = int(readout_hidden_dim)
-        self.sc_readout_head = self._build_readout(readout_in_dim, self.readout_hidden_dim, self.readout_type)
-        self.fc_readout_head = self._build_readout(readout_in_dim, self.readout_hidden_dim, self.readout_type)
+        self.readout_hidden_dims = self._normalize_readout_hidden_spec(readout_hidden_dim, readout_in_dim)
+        self.sc_readout_head = self._build_readout(readout_in_dim, self.readout_hidden_dims, self.readout_type)
+        self.fc_readout_head = self._build_readout(readout_in_dim, self.readout_hidden_dims, self.readout_type)
 
         self.cov_projector = None
         self._cov_dim = None
@@ -196,21 +215,35 @@ class MaskedLatentPretrainer(nn.Module):
             f"| k={self.n_components_pca} token_dim={self.token_dim} "
             f"| attn_dim={self.attn_dim} value_dim={self.value_dim} num_heads={self.num_heads} "
             f"| transformer_layers={self.transformer_layers} readout={self.readout_type} "
+            f"| token_emb_type={self.token_embedding_type} visible_only_attn={self.visible_only_attention} "
             f"| zscore={self.zscore_pca_scores} sc_p={self.sc_mask_ratio} fc_p={self.fc_mask_ratio} "
             f"| use_cov_cls={self.use_covariates_cls}",
             flush=True,
         )
         self.to(device)
+        self._apply_prior_qk_initialization()
 
     @staticmethod
-    def _build_readout(in_dim, hidden_dim, readout_type):
+    def _normalize_readout_hidden_spec(spec, default_dim):
+        if spec is None:
+            return [int(default_dim)]
+        if isinstance(spec, np.ndarray):
+            spec = spec.tolist()
+        if isinstance(spec, (list, tuple)):
+            return [int(dim) for dim in spec]
+        return [int(spec)]
+
+    @staticmethod
+    def _build_readout(in_dim, hidden_dims, readout_type):
         if readout_type == "linear":
             return nn.Linear(in_dim, 1, bias=True)
-        return nn.Sequential(
-            nn.Linear(in_dim, hidden_dim),
-            nn.PReLU(),
-            nn.Linear(hidden_dim, 1),
-        )
+        dims = [int(in_dim)] + [int(d) for d in hidden_dims] + [1]
+        layers = []
+        for idx in range(len(dims) - 1):
+            layers.append(nn.Linear(dims[idx], dims[idx + 1]))
+            if idx < len(dims) - 2:
+                layers.append(nn.PReLU())
+        return nn.Sequential(*layers)
 
     def _init_cov_projector(self, cov_dim, device):
         if self.cov_projector_hidden_dim is None:
@@ -223,6 +256,80 @@ class MaskedLatentPretrainer(nn.Module):
                 nn.Linear(hidden, self.token_dim),
             ).to(device)
         self._cov_dim = int(cov_dim)
+
+    def _compute_cross_component_correlation(self):
+        """SC/FC cross-component correlation (k,k) on training PCA scores."""
+        if self.zscore_pca_scores:
+            sc_np = self.source_pca_scores_train_z.detach().cpu().numpy().astype(np.float64)
+            fc_np = self.target_pca_scores_train_z.detach().cpu().numpy().astype(np.float64)
+        else:
+            sc_np = self.source_pca_scores_train.detach().cpu().numpy().astype(np.float64)
+            fc_np = self.target_pca_scores_train.detach().cpu().numpy().astype(np.float64)
+        k = int(self.n_components_pca)
+        joint = np.concatenate([sc_np, fc_np], axis=1)
+        Sigma = np.cov(joint, rowvar=False)
+        std = np.sqrt(np.clip(np.diag(Sigma), a_min=1.0e-12, a_max=None))
+        denom = np.outer(std, std)
+        corr = Sigma / denom
+        corr[~np.isfinite(corr)] = 0.0
+        np.fill_diagonal(corr, 1.0)
+        C = corr[:k, k:]
+        return np.nan_to_num(np.asarray(C, dtype=np.float64), nan=0.0, posinf=0.0, neginf=0.0)
+
+    def _build_qk_init_from_prior(self, C_np):
+        """Factorize C ≈ (A Wq)(B Wk)^T / sqrt(attn_dim) via SVD of pinv(A) C pinv(B)^T."""
+        A = self.sc_component_embedding.weight.detach().cpu().numpy().astype(np.float64)
+        B = self.fc_component_embedding.weight.detach().cpu().numpy().astype(np.float64)
+        d_emb = int(self.token_embedding_dim)
+        attn_dim = int(self.attn_dim)
+        M = np.linalg.pinv(A) @ C_np @ np.linalg.pinv(B).T
+        U, S, Vt = np.linalg.svd(M, full_matrices=False)
+        V = Vt.T
+        r = int(min(d_emb, attn_dim))
+        sqrt_S = np.sqrt(np.clip(S[:r], a_min=0.0, a_max=None))
+        Wq_core = U[:, :r] * sqrt_S[None, :]
+        Wk_core = V[:, :r] * sqrt_S[None, :] * np.sqrt(float(attn_dim))
+        scale = np.sqrt(max(self.prior_qk_init_scale, 0.0))
+        Wq_core = scale * Wq_core
+        Wk_core = scale * Wk_core
+        if r < attn_dim:
+            pad = np.zeros((d_emb, attn_dim - r), dtype=np.float64)
+            Wq_init = np.concatenate([Wq_core, pad], axis=1)
+            Wk_init = np.concatenate([Wk_core, pad], axis=1)
+        else:
+            Wq_init = Wq_core[:, :attn_dim]
+            Wk_init = Wk_core[:, :attn_dim]
+        return Wq_init.astype(np.float64), Wk_init.astype(np.float64)
+
+    def _apply_prior_qk_initialization(self):
+        """Write W_Q/W_K embedding-column block so initial kernel ≈ scale * C prior."""
+        if self.token_embedding_type != "learned_cov_init":
+            return
+        if self.transformer_layers != 0 or self.raw_attention is None:
+            return
+        C_np = self._compute_cross_component_correlation()
+        Wq_init, Wk_init = self._build_qk_init_from_prior(C_np)
+        w_dtype = self.raw_attention.W_Q.weight.dtype
+        w_device = self.raw_attention.W_Q.weight.device
+        Wq_t = torch.tensor(Wq_init, dtype=w_dtype, device=w_device)
+        Wk_t = torch.tensor(Wk_init, dtype=w_dtype, device=w_device)
+        with torch.no_grad():
+            self.raw_attention.W_Q.weight[:, 1:].copy_(Wq_t.t())
+            self.raw_attention.W_K.weight[:, 1:].copy_(Wk_t.t())
+        with torch.no_grad():
+            A = self.sc_component_embedding.weight.detach().cpu().numpy().astype(np.float64)
+            B = self.fc_component_embedding.weight.detach().cpu().numpy().astype(np.float64)
+            kernel = (A @ Wq_init) @ (B @ Wk_init).T / float(np.sqrt(max(self.attn_dim, 1)))
+            target = float(self.prior_qk_init_scale) * C_np
+            num = float(np.linalg.norm(kernel - target, ord="fro"))
+            den = float(np.linalg.norm(target, ord="fro")) + 1.0e-12
+            self.prior_qk_init_rel_error = num / den
+        print(
+            f"MaskedLatentPretrainer prior-init | type={self.token_embedding_type} "
+            f"| k={self.n_components_pca} d_emb={self.token_embedding_dim} attn_dim={self.attn_dim} num_heads={self.num_heads} "
+            f"| scale={self.prior_qk_init_scale} rel_frob_error={self.prior_qk_init_rel_error:.3e}",
+            flush=True,
+        )
 
     def encode_source_latents(self, x):
         x = x.to(self.source_mean.device).to(torch.float32)
@@ -291,15 +398,25 @@ class MaskedLatentPretrainer(nn.Module):
             tokens = torch.cat([cls, tokens], dim=1)
         return tokens
 
-    def _run_attention_stack(self, tokens):
+    def _build_key_mask(self, sc_mask, fc_mask):
+        """Per-token key visibility: True = visible (allowed as key), False = masked out.
+        CLS token (if present) is always visible."""
+        visible = torch.cat([~sc_mask, ~fc_mask], dim=1)
+        if self.use_covariates_cls:
+            batch_size = visible.shape[0]
+            cls_col = torch.ones(batch_size, 1, dtype=torch.bool, device=visible.device)
+            visible = torch.cat([cls_col, visible], dim=1)
+        return visible
+
+    def _run_attention_stack(self, tokens, key_mask=None):
         if self.transformer_layers > 0:
             attn = None
             hidden = tokens
             for block in self.transformer_blocks:
-                hidden, attn = block(hidden)
+                hidden, attn = block(hidden, key_mask=key_mask)
             hidden = self.transformer_output_norm(hidden)
             return hidden, attn
-        return self.raw_attention(tokens)
+        return self.raw_attention(tokens, key_mask=key_mask)
 
     def predict_reconstructions(self, x, y, cov=None, joint_mask=None):
         c_source = self.encode_source_latents(x)
@@ -315,7 +432,8 @@ class MaskedLatentPretrainer(nn.Module):
             fc_mask = fc_mask.to(device=device, dtype=torch.bool)
 
         tokens = self._build_pretrain_tokens(c_source, c_target, sc_mask, fc_mask, cov=cov)
-        Z, attn = self._run_attention_stack(tokens)
+        key_mask = self._build_key_mask(sc_mask, fc_mask) if self.visible_only_attention else None
+        Z, attn = self._run_attention_stack(tokens, key_mask=key_mask)
 
         offset = 1 if self.use_covariates_cls else 0
         sc_out = Z[:, offset : offset + self.n_components_pca, :]
@@ -372,7 +490,8 @@ class MaskedLatentPretrainer(nn.Module):
         sc_mask = torch.zeros(batch_size, self.n_components_pca, dtype=torch.bool, device=device)
         fc_mask = torch.ones(batch_size, self.n_components_pca, dtype=torch.bool, device=device)
         tokens = self._build_pretrain_tokens(c_source, c_target_placeholder, sc_mask, fc_mask, cov=cov)
-        Z, attn = self._run_attention_stack(tokens)
+        key_mask = self._build_key_mask(sc_mask, fc_mask) if self.visible_only_attention else None
+        Z, attn = self._run_attention_stack(tokens, key_mask=key_mask)
         offset = 1 if self.use_covariates_cls else 0
         fc_out = Z[:, offset + self.n_components_pca :, :]
         c_target_hat = self.fc_readout_head(fc_out).squeeze(-1)

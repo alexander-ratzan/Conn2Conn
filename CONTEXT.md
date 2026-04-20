@@ -99,7 +99,7 @@ Learned (`learned: true`):
 - `CrossModal_PCA_PLS_CovProjector`
 - `CrossModalVAE`
 - `LatentAttnMasked` (implemented in `models/architectures/latent_attention/latent_attn_masked.py`)
-- `MaskedLatentPretrainer` (implemented in `models/architectures/latent_attention/masked_latent_pretrainer.py`) — SSL pretrainer for joint SC/FC PCA-latent reconstruction; transfers weights to `LatentAttnMasked` via `export_to_latent_attn_masked(downstream_model)`.
+- `MaskedLatentPretrainer` (`models/architectures/latent_attention/masked_latent_pretrainer.py`) — **experimental, in development, not production**. SSL pretrainer for joint SC/FC PCA-latent reconstruction; transfers weights to `LatentAttnMasked` via `export_to_latent_attn_masked(downstream_model)`. Kept isolated: no cross-module changes in `lightning_module.py` / `trainer.py` / `main.py` should be made on its behalf. Dev harness lives in `latent_pretraining_test.ipynb` + `models/eval/pretrain_eval.py`. Known limitation: within-modality masked reconstruction in PC space is structurally degenerate (PCA decorrelates scores); working signal is cross-modal only. Composite-loss integration was scoped out to avoid interfering with the edge-composite path.
 - `Sarwar2020MLP` (implemented in `models/architectures/sarwar2020_mlp.py`)
 - `Chen2024GCN` (implemented in `models/architectures/graph_based/chen2024_gnn.py`)
 - `NodalGNN` (implemented in `models/architectures/graph_based/nodal_gnn.py`)

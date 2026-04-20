@@ -52,7 +52,7 @@ search_space:
     values: [8, 16, 24]
   token_embedding_type:
     type: choice
-    values: [learned, learend_cov_init, pls_encoded, pca_encoded]
+    values: [learned, learned_cov_init, pls_encoded, pca_encoded]
   token_embedding_dim:
     type: choice
     values: [8, 16, 24]
