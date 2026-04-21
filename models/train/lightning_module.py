@@ -121,6 +121,8 @@ class CrossModalLightningModule(pl.LightningModule):
                 kwargs["y"] = batch["y"]
         if getattr(self.model, "uses_node_features", False) and "node_features" in batch:
             kwargs["node_features"] = batch["node_features"]
+        if getattr(self.model, "uses_sc_matrix", False) and "sc_matrix" in batch:
+            kwargs["sc_matrix"] = batch["sc_matrix"]
         if kwargs:
             return self.model(x, **kwargs)
         return self.model(x)
@@ -147,6 +149,8 @@ class CrossModalLightningModule(pl.LightningModule):
                 kwargs["y"] = batch["y"]
         if getattr(self.model, "uses_node_features", False) and "node_features" in batch:
             kwargs["node_features"] = batch["node_features"]
+        if getattr(self.model, "uses_sc_matrix", False) and "sc_matrix" in batch:
+            kwargs["sc_matrix"] = batch["sc_matrix"]
         c_hat = self.model.predict_target_latents(x, **kwargs) if kwargs else self.model.predict_target_latents(x)
         c_true = self.model.encode_target_latents(y)
         weights = getattr(self.model, "latent_loss_weights", None)
@@ -166,6 +170,8 @@ class CrossModalLightningModule(pl.LightningModule):
                 kwargs["y"] = batch["y"]
         if getattr(self.model, "uses_node_features", False) and "node_features" in batch:
             kwargs["node_features"] = batch["node_features"]
+        if getattr(self.model, "uses_sc_matrix", False) and "sc_matrix" in batch:
+            kwargs["sc_matrix"] = batch["sc_matrix"]
         c_hat = self.model.predict_target_latents(x, **kwargs) if kwargs else self.model.predict_target_latents(x)
         c_true = self.model.encode_target_latents(y)
         weights = getattr(self.model, "latent_loss_weights", None)

@@ -259,7 +259,8 @@ class Sim:
             "source": self.source,
             "target": self.target,
             "cov_sources": cov_sources,
-            "expose_node_features": (self.model_name == "NodalGNN"),
+            "expose_node_features": (self.model_name in {"NodalGNN", "NodalMLP"}),
+            "expose_sc_matrix": (self.model_name == "NodalMLP"),
         }
         for _k in (
             "HCP_dir",
@@ -317,7 +318,8 @@ class Sim:
             "source": data_cfg.get("source", self.source),
             "target": data_cfg.get("target", self.target),
             "cov_sources": runtime_cov_sources,
-            "expose_node_features": (self.model_name == "NodalGNN"),
+            "expose_node_features": (self.model_name in {"NodalGNN", "NodalMLP"}),
+            "expose_sc_matrix": (self.model_name == "NodalMLP"),
         }
         for _k in (
             "HCP_dir",
@@ -763,12 +765,16 @@ class Sim:
                 f"{sorted(tuned_data_keys)}. For fixed-base tuning, pass data choices via "
                 "--source/--target/--parcellation/--hemi/--shuffle_seed and remove these keys from search_space."
             )
-        if "batch_size" in tuned_keys:
-            raise ValueError(
-                "Ray Tune search_space contains 'batch_size', but this run reuses one fixed set of DataLoaders. "
-                "Remove batch_size from search_space for this fixed-base tuning flow."
-            )
-        print("Tune: fixed data (HCP_Base built in worker, reused across trials).", flush=True)
+        # Old guardrail: blocked batch_size from search_space because loaders were built
+        # once per worker at fixed_batch_size. Now loaders are cached per unique sampled
+        # batch_size (see _WORKER_CACHE[("loader", split, bs)] below), so tuning batch_size
+        # is safe. Kept commented in case we need to revert.
+        # if "batch_size" in tuned_keys:
+        #     raise ValueError(
+        #         "Ray Tune search_space contains 'batch_size', but this run reuses one fixed set of DataLoaders. "
+        #         "Remove batch_size from search_space for this fixed-base tuning flow."
+        #     )
+        print("Tune: fixed data (HCP_Base built in worker, loaders cached per batch_size).", flush=True)
 
         # Config setup 
         default = deepcopy(self.config)
@@ -896,7 +902,8 @@ class Sim:
                     "source": fixed_data_cfg.get("source", "SC"),
                     "target": fixed_data_cfg.get("target", "FC"),
                     "cov_sources": fixed_cov_sources,
-                    "expose_node_features": (model_name == "NodalGNN"),
+                    "expose_node_features": (model_name in {"NodalGNN", "NodalMLP"}),
+                    "expose_sc_matrix": (model_name == "NodalMLP"),
                 }
                 for _k in (
                     "HCP_dir",
@@ -915,16 +922,33 @@ class Sim:
                 _WORKER_CACHE["train_ds"] = HCP_Partition(b, "train")
                 _WORKER_CACHE["val_ds"] = HCP_Partition(b, "val")
                 _WORKER_CACHE["test_ds"] = HCP_Partition(b, "test")
-                _WORKER_CACHE["train_loader"] = DataLoader(_WORKER_CACHE["train_ds"], batch_size=fixed_batch_size, shuffle=True)
-                _WORKER_CACHE["val_loader"] = DataLoader(_WORKER_CACHE["val_ds"], batch_size=fixed_batch_size, shuffle=False)
-                _WORKER_CACHE["test_loader"] = DataLoader(_WORKER_CACHE["test_ds"], batch_size=fixed_batch_size, shuffle=False)
+                # Old single-batch-size loader build (pre per-trial batch_size tuning).
+                # Replaced by the cache-by-batch-size lookup below. Kept for easy rollback.
+                # _WORKER_CACHE["train_loader"] = DataLoader(_WORKER_CACHE["train_ds"], batch_size=fixed_batch_size, shuffle=True)
+                # _WORKER_CACHE["val_loader"] = DataLoader(_WORKER_CACHE["val_ds"], batch_size=fixed_batch_size, shuffle=False)
+                # _WORKER_CACHE["test_loader"] = DataLoader(_WORKER_CACHE["test_ds"], batch_size=fixed_batch_size, shuffle=False)
             base = _WORKER_CACHE["base"]
             train_ds = _WORKER_CACHE["train_ds"]
             val_ds = _WORKER_CACHE["val_ds"]
             test_ds = _WORKER_CACHE["test_ds"]
-            train_loader = _WORKER_CACHE["train_loader"]
-            val_loader = _WORKER_CACHE["val_loader"]
-            test_loader = _WORKER_CACHE["test_loader"]
+
+            # Per-trial batch_size (sampled if in param_space, else the fixed default).
+            trial_batch_size = int(config.get("trainer", {}).get("batch_size", fixed_batch_size))
+            for split_name, ds in (("train", train_ds), ("val", val_ds), ("test", test_ds)):
+                loader_key = ("loader", split_name, trial_batch_size)
+                if loader_key not in _WORKER_CACHE:
+                    _WORKER_CACHE[loader_key] = DataLoader(
+                        ds,
+                        batch_size=trial_batch_size,
+                        shuffle=(split_name == "train"),
+                    )
+            train_loader = _WORKER_CACHE[("loader", "train", trial_batch_size)]
+            val_loader = _WORKER_CACHE[("loader", "val", trial_batch_size)]
+            test_loader = _WORKER_CACHE[("loader", "test", trial_batch_size)]
+            # Old single-loader retrieval, superseded by the cache-by-batch-size lookup above.
+            # train_loader = _WORKER_CACHE["train_loader"]
+            # val_loader = _WORKER_CACHE["val_loader"]
+            # test_loader = _WORKER_CACHE["test_loader"]
 
             report_dict = {}
             should_write_final_artifact = save_checkpoint or persist_final_artifacts
@@ -1044,6 +1068,9 @@ class Sim:
                         "data.parcellation": self.parcellation,
                         "data.hemi": self.hemi,
                         "data.shuffle_seed": self.shuffle_seed,
+                        # Pinned (non-searched) defaults so each trial's W&B run logs the full config,
+                        # not only the sampled search-space entries.
+                        **{k: v for k, v in default_flat.items() if k not in param_space},
                     },
                 )
             )

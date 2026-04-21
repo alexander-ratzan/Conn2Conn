@@ -48,6 +48,8 @@ def predict_from_loader(model, data_loader, device=None):
                     kwargs["y"] = batch["y"]
             if getattr(model, "uses_node_features", False) and "node_features" in batch:
                 kwargs["node_features"] = batch["node_features"]
+            if getattr(model, "uses_sc_matrix", False) and "sc_matrix" in batch:
+                kwargs["sc_matrix"] = batch["sc_matrix"]
 
             out = model(x, **kwargs) if kwargs else model(x)
             preds = out[0] if isinstance(out, tuple) else out

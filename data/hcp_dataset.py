@@ -69,6 +69,7 @@ class HCP_Base():
     data_load_mode='manual', precompute_cache_root=DEFAULT_CONN2CONN_CACHE_ROOT,
     write_manual_cache=False,
     expose_node_features=False,
+    expose_sc_matrix=False,
     cov_sources=None):
         """
         Load and cache all global HCP data for one fixed experiment data setup.
@@ -99,6 +100,7 @@ class HCP_Base():
         self.precompute_cache_root = precompute_cache_root
         self.write_manual_cache = bool(write_manual_cache)
         self.expose_node_features = bool(expose_node_features)
+        self.expose_sc_matrix = bool(expose_sc_matrix)
         self.enable_partition_tensor_cache = (self.data_load_mode == "precomputed")
         self._tensor_cache = {} if self.enable_partition_tensor_cache else None
         self.cov_sources = list(cov_sources) if cov_sources is not None else ["fs_all"]
@@ -331,6 +333,15 @@ class HCP_Partition(Dataset):
             if getattr(base, "expose_node_features", False)
             else None
         )
+        self.sc_matrices = (
+            base.get_cached_tensor(
+                "sc_matrices",
+                base.sc_matrices,
+                self.device,
+            )
+            if getattr(base, "expose_sc_matrix", False)
+            else None
+        )
 
         self.sc_upper_triangles = base.get_cached_tensor(
             "sc_upper_triangles",
@@ -426,6 +437,8 @@ class HCP_Partition(Dataset):
         }
         if self.node_features is not None:
             out["node_features"] = self.node_features[global_idx]
+        if self.sc_matrices is not None:
+            out["sc_matrix"] = self.sc_matrices[global_idx]
         return out
     
     def __len__(self):

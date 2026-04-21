@@ -143,6 +143,9 @@ def _model_class(name):
     if name == "NodalGNN":
         from models.architectures.graph_based.nodal_gnn import NodalGNN
         return NodalGNN
+    if name == "NodalMLP":
+        from models.architectures.graph_based.nodal_mlp import NodalMLP
+        return NodalMLP
     if name == "LatentAttnMasked":
         from models.architectures.latent_attention.latent_attn_masked import LatentAttnMasked
         return LatentAttnMasked
