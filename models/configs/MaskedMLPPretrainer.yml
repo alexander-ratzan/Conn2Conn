@@ -1,0 +1,74 @@
+learned: true
+
+default:
+  data:
+    source: SC
+    target: FC
+  model:
+    name: MaskedMLPPretrainer
+    n_components_pca: 64
+    hidden_dim: 128
+    num_hidden_layers: 1
+    dropout: 0.0
+    nonlinear: true
+    low_rank_dim: null
+    readout_type: linear
+    readout_hidden_dim: null
+    zscore_pca_scores: true
+    reg: 1.0e-4
+    sc_mask_ratio: 0.5
+    fc_mask_ratio: 0.5
+    min_masked_components_per_modality: 1
+    use_covariates: false
+    cov_projector_hidden_dim: null
+    loss_weighting: per_modality_mean
+    device: null
+  trainer:
+    lr: 1.0e-3
+    loss_type: latent_weighted_mse
+    max_epochs: 200
+    batch_size: 128
+    log_every: 1
+
+search_space:
+  n_components_pca:
+    type: choice
+    values: [32, 64, 128]
+  hidden_dim:
+    type: choice
+    values: [64, 128, 256]
+  num_hidden_layers:
+    type: choice
+    values: [1, 2, 3]
+  dropout:
+    type: choice
+    values: [0.0, 0.05, 0.1]
+  nonlinear:
+    type: choice
+    values: [true, false]
+  readout_type:
+    type: choice
+    values: [linear, mlp]
+  readout_hidden_dim:
+    type: choice
+    values: [32, 64, 128]
+  reg:
+    type: loguniform
+    lower: 1.0e-6
+    upper: 1.0e-3
+  sc_mask_ratio:
+    type: choice
+    values: [0.25, 0.5, 0.75]
+  fc_mask_ratio:
+    type: choice
+    values: [0.25, 0.5, 0.75]
+  lr:
+    type: loguniform
+    lower: 3.0e-4
+    upper: 3.0e-3
+  loss_type:
+    type: choice
+    values: [latent_mse, latent_weighted_mse]
+  max_epochs:
+    type: choice
+    values: [200, 500]

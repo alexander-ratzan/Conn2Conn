@@ -70,6 +70,7 @@ class HCP_Base():
     write_manual_cache=False,
     expose_node_features=False,
     expose_sc_matrix=False,
+    expose_fc_sessions=False,
     cov_sources=None):
         """
         Load and cache all global HCP data for one fixed experiment data setup.
@@ -101,6 +102,7 @@ class HCP_Base():
         self.write_manual_cache = bool(write_manual_cache)
         self.expose_node_features = bool(expose_node_features)
         self.expose_sc_matrix = bool(expose_sc_matrix)
+        self.expose_fc_sessions = bool(expose_fc_sessions)
         self.enable_partition_tensor_cache = (self.data_load_mode == "precomputed")
         self._tensor_cache = {} if self.enable_partition_tensor_cache else None
         self.cov_sources = list(cov_sources) if cov_sources is not None else ["fs_all"]
@@ -178,14 +180,45 @@ class HCP_Base():
                 cache_root=self.precompute_cache_root,
             )
         
+        # Optionally load the per-session FC caches (S1, S2). Cached separately by
+        # `load_fc_session(write_cache=True)` from the per-direction TSVs; required by
+        # the test-retest baseline. Subject sets join the canonical intersection.
+        self.fc_session1_subject_ids = None
+        self.fc_session2_subject_ids = None
+        if self.expose_fc_sessions:
+            (
+                self.fc_session1_subject_ids,
+                self.fc_session1_matrices,
+                self.fc_session1_upper_triangles,
+            ) = load_fc_session_precomputed(
+                parcellation=parcellation,
+                hemi=hemi,
+                session=1,
+                cache_root=self.precompute_cache_root,
+            )
+            (
+                self.fc_session2_subject_ids,
+                self.fc_session2_matrices,
+                self.fc_session2_upper_triangles,
+            ) = load_fc_session_precomputed(
+                parcellation=parcellation,
+                hemi=hemi,
+                session=2,
+                cache_root=self.precompute_cache_root,
+            )
+
         # Include subjects common to metadata, FC, SC, and freesurfer dataframes
-        canonical_subject_ids = sorted(
-            set(self.all_subject_ids)
-            & set(self.fc_subject_ids)
-            & set(self.sc_subject_ids)
-            & set(self.freesurfer_df['subject'])
-            & set(self.nodefeat_subject_ids)
-        )
+        canonical_sets = [
+            set(self.all_subject_ids),
+            set(self.fc_subject_ids),
+            set(self.sc_subject_ids),
+            set(self.freesurfer_df['subject']),
+            set(self.nodefeat_subject_ids),
+        ]
+        if self.expose_fc_sessions:
+            canonical_sets.append(set(self.fc_session1_subject_ids))
+            canonical_sets.append(set(self.fc_session2_subject_ids))
+        canonical_subject_ids = sorted(set.intersection(*canonical_sets))
         canonical_meta_indices = self.subject_indices_from_id(self.all_subject_ids, canonical_subject_ids)
         canonical_freesurfer_indices = self.subject_indices_from_id(self.freesurfer_df['subject'].tolist(), canonical_subject_ids)
         canonical_fc_indices = self.subject_indices_from_id(self.fc_subject_ids, canonical_subject_ids)
@@ -207,6 +240,17 @@ class HCP_Base():
         self.parcel_volume = self.parcel_volume[canonical_nodefeat_indices]
         self.parcel_centroids = self.parcel_centroids[canonical_nodefeat_indices]
         self.parcel_node_features = self.parcel_node_features[canonical_nodefeat_indices]
+
+        if self.expose_fc_sessions:
+            canonical_s1_indices = self.subject_indices_from_id(self.fc_session1_subject_ids, canonical_subject_ids)
+            canonical_s2_indices = self.subject_indices_from_id(self.fc_session2_subject_ids, canonical_subject_ids)
+            self.fc_session1_matrices = self.fc_session1_matrices[canonical_s1_indices]
+            self.fc_session1_upper_triangles = self.fc_session1_upper_triangles[canonical_s1_indices]
+            self.fc_session2_matrices = self.fc_session2_matrices[canonical_s2_indices]
+            self.fc_session2_upper_triangles = self.fc_session2_upper_triangles[canonical_s2_indices]
+            # Subject_ids lists are no longer needed post-reindex; keep aligned for clarity.
+            self.fc_session1_subject_ids = list(canonical_subject_ids)
+            self.fc_session2_subject_ids = list(canonical_subject_ids)
 
         # Augment per-node features with tract-to-region profiles (r2t) when available.
         # Channel order: [volume, centroid_xyz, r2t_tract_features...]
@@ -288,6 +332,10 @@ class HCP_Base():
         self.sc_train_avg,  self.sc_train_loadings, self.sc_train_scores = population_mean_pca(self.sc_upper_triangles[train_indices])
         self.fc_train_avg, self.fc_train_loadings, self.fc_train_scores = population_mean_pca(self.fc_upper_triangles[train_indices])
         self.sc_r2t_corr_train_avg, self.sc_r2t_corr_train_loadings, self.sc_r2t_corr_train_scores = population_mean_pca(self.sc_r2t_corr_upper_triangles[train_indices])
+
+        if self.expose_fc_sessions:
+            self.fc_session1_train_avg, _, _ = population_mean_pca(self.fc_session1_upper_triangles[train_indices])
+            self.fc_session2_train_avg, _, _ = population_mean_pca(self.fc_session2_upper_triangles[train_indices])
 
     @staticmethod
     def subject_indices_from_id(subject_list, target_subjects):

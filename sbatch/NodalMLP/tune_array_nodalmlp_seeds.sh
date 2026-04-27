@@ -1,5 +1,8 @@
 #!/bin/bash
 # Array: 10 seeds for NodalMLP (SC source, all features on) (0-9)
+# Runtime est: per-trial ~30s (ASHA early-stop) to ~20-30min (full 1000ep on H200/A100, ~45min-1h on L40S).
+# Per-task (16 trials + best retrain + eval): ~1h30m (H200) / ~2h15m (A100) / ~2h30m-3h (L40S).
+# Full 10-seed experiment: ~4-6h wall with typical ~7-GPU quota; ~2-3h if fully parallel.
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced
 #SBATCH --ntasks-per-node=1
@@ -12,7 +15,7 @@
 #SBATCH --error=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_nodalmlp_array_%A_%a.err
 #SBATCH --mail-type=END
 #SBATCH --mail-user=asr655@nyu.edu
-#SBATCH --array=0-9
+#SBATCH --array=0-3
 
 set -euo pipefail
 
@@ -60,7 +63,7 @@ singularity exec --nv \
       --save_checkpoint \
       --use_tune \
       --search_alg optuna \
-      --num_samples 16 \
+      --num_samples 12 \
       --max_concurrent_trials ${MAX_CONCURRENT_TRIALS} \
       --tune_cpus_per_trial ${TUNE_CPUS_PER_TRIAL} \
       --tune_gpus_per_trial ${TUNE_GPUS_PER_TRIAL} \

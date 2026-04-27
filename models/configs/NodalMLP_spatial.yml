@@ -6,12 +6,12 @@ default:
     target: FC
   model:
     name: NodalMLP
-    hidden_dim: 96
-    decoder_dim: 64
-    dropout: 0.2
-    reg: 1.0e-4
-    use_encoder: true
-    decoder_symmetry: symmetric
+    hidden_dim: 256
+    decoder_dims: [512, 256, 128]
+    dropout: 0.1
+    reg: 1.0e-5
+    use_encoder: false
+    decoder_symmetry: concat
     sc_row_norm: none
     use_volume: false
     use_spatial: true
@@ -19,39 +19,49 @@ default:
     use_sc_row: false
     device: null
   trainer:
-    lr: 2.0e-3
+    lr: 5.0e-4
     loss_type: mse
-    max_epochs: 750
+    max_epochs: 500
     batch_size: 32
-    log_every: 1
+    log_every: 2
 
 search_space:
   use_encoder:
     type: choice
-    values: [true, false]
+    values: [false, true]
   hidden_dim:
     type: choice
-    values: [48, 96, 160, 256]
-  decoder_dim:
+    values: [32, 64, 128, 256]
+  decoder_dims:
     type: choice
-    values: [32, 64, 96, 128]
+    values:
+      - [128, 64]
+      - [256, 128]
+      - [64, 32, 16]
+      - [256, 128, 64]
+      - [512, 256, 128]
+      - [512, 256, 128, 64]
+      # Narrower-but-deeper variants for the low-input-dim spatial-only setting
+      - [64, 48, 32, 16]
+      - [64, 48, 32, 16, 8]
+      - [96, 64, 48, 32]
   dropout:
     type: choice
-    values: [0.05, 0.1, 0.2, 0.35, 0.5]
+    values: [0.05, 0.1, 0.2]
   reg:
     type: loguniform
-    lower: 5.0e-7
-    upper: 5.0e-3
+    lower: 1.0e-6
+    upper: 1.0e-4
   decoder_symmetry:
     type: choice
-    values: [symmetric, asymmetric, concat]
+    values: [asymmetric, concat]
   lr:
     type: loguniform
     lower: 1.0e-4
-    upper: 1.0e-2
+    upper: 5.0e-3
   max_epochs:
     type: choice
-    values: [200, 400, 500, 750, 1000]
+    values: [200, 400, 600]
   batch_size:
     type: choice
-    values: [8, 16, 32, 64]
+    values: [16, 32, 64, 128]

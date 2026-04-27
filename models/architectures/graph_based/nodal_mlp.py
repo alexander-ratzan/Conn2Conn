@@ -25,16 +25,18 @@ class NodalMLP(nn.Module):
         self,
         base,
         hidden_dim: int = 96,
-        decoder_dim: int = 64,
+        decoder_dims=(256, 128),
         dropout: float = 0.2,
         reg: float = 1e-4,
-        use_encoder: bool = True,
+        use_encoder: bool = False,
         decoder_symmetry: str = "symmetric",
         sc_row_norm: str = "brain_scale",
         use_volume: bool = True,
         use_spatial: bool = True,
         use_r2t: bool = True,
         use_sc_row: bool = True,
+        use_sc_pca: bool = False,
+        sc_pca_dim: int = 64,
         device=None,
         **kwargs,
     ):
@@ -61,7 +63,9 @@ class NodalMLP(nn.Module):
         self.device = device
 
         self.hidden_dim = int(hidden_dim)
-        self.decoder_dim = int(decoder_dim)
+        self.decoder_dims = tuple(int(d) for d in decoder_dims)
+        if len(self.decoder_dims) == 0:
+            raise ValueError("decoder_dims must be a non-empty list of layer widths.")
         self.dropout = float(dropout)
         self.reg = float(reg)
         self.use_encoder = bool(use_encoder)
@@ -72,6 +76,8 @@ class NodalMLP(nn.Module):
         self.use_spatial = bool(use_spatial)
         self.use_r2t = bool(use_r2t)
         self.use_sc_row = bool(use_sc_row)
+        self.use_sc_pca = bool(use_sc_pca) and bool(use_sc_row)
+        self.sc_pca_dim = int(sc_pca_dim)
 
         # Contract markers consumed by the training/eval wrappers.
         self.uses_node_features = self.use_volume or self.use_spatial or self.use_r2t
@@ -116,13 +122,29 @@ class NodalMLP(nn.Module):
 
         # Dynamic SC-row block: length-N vector per node from the raw [N, N] SC matrix.
         # Self-loops stay in their (i, i) cell; nothing is concatenated onto the row.
-        self.sc_row_dim = self.num_nodes if self.use_sc_row else 0
+        # When use_sc_pca=True, rows are projected to sc_pca_dim via a frozen PCA basis
+        # fitted on stacked training connectomes, so sc_row_dim becomes sc_pca_dim.
+        self.sc_row_dim = (self.sc_pca_dim if self.use_sc_pca else self.num_nodes) if self.use_sc_row else 0
         if self.use_sc_row and self.sc_row_norm == "col_zscore":
             train_sc = torch.as_tensor(base.sc_matrices[train_indices], dtype=torch.float32)
             self.register_buffer("sc_col_mean", train_sc.mean(dim=0, keepdim=True))
             self.register_buffer(
                 "sc_col_std", train_sc.std(dim=0, keepdim=True).clamp_min(1e-8)
             )
+
+        if self.use_sc_pca:
+            train_sc = torch.as_tensor(base.sc_matrices[train_indices], dtype=torch.float32)
+            # Apply the same sc_row_norm that will be used at inference before projecting.
+            m = self._apply_sc_norm_to_tensor(train_sc)  # [B_train, N, N]
+            stacked = m.reshape(-1, self.num_nodes)       # [B_train*N, N]
+            pca_mean = stacked.mean(dim=0)                # [N]
+            stacked_centered = stacked - pca_mean.unsqueeze(0)
+            # Randomised SVD: O(B*N * K) instead of full SVD — avoids materialising
+            # the full (B*N x N) decomposition for large training sets.
+            _, _, V = torch.pca_lowrank(stacked_centered, q=self.sc_pca_dim, niter=4)
+            # V: [N, K] — columns are principal directions; store for frozen inference.
+            self.register_buffer("pca_mean", pca_mean)       # [N]
+            self.register_buffer("pca_projection", V)         # [N, K]
 
         self.feature_dim = self.static_dim + self.sc_row_dim
 
@@ -140,14 +162,40 @@ class NodalMLP(nn.Module):
             self.node_embed_dim = self.feature_dim
 
         decoder_mult = {"symmetric": 3, "asymmetric": 4, "concat": 2}[self.decoder_symmetry]
-        self.edge_mlp = nn.Sequential(
-            nn.Linear(decoder_mult * self.node_embed_dim, self.decoder_dim),
-            nn.PReLU(),
-            nn.Dropout(self.dropout),
-            nn.Linear(self.decoder_dim, self.decoder_dim),
-            nn.PReLU(),
-            nn.Linear(self.decoder_dim, 1),
+        self.edge_mlp = self._build_decoder_mlp(
+            in_dim=decoder_mult * self.node_embed_dim,
+            hidden_dims=self.decoder_dims,
+            dropout=self.dropout,
         )
+
+    @staticmethod
+    def _build_decoder_mlp(in_dim, hidden_dims, dropout):
+        layers = []
+        prev = in_dim
+        for h in hidden_dims:
+            layers.append(nn.Linear(prev, h))
+            layers.append(nn.ReLU())
+            layers.append(nn.BatchNorm1d(h))
+            if dropout > 0:
+                layers.append(nn.Dropout(dropout))
+            prev = h
+        layers.append(nn.Linear(prev, 1))
+        return nn.Sequential(*layers)
+
+    def _apply_sc_norm_to_tensor(self, m: torch.Tensor) -> torch.Tensor:
+        """Apply sc_row_norm to a [B, N, N] float32 tensor. Used both at init (PCA fitting) and inference."""
+        if self.sc_row_norm == "none":
+            return m
+        if self.sc_row_norm == "col_zscore":
+            return (m - self.sc_col_mean) / self.sc_col_std
+        if self.sc_row_norm == "row_zscore":
+            row_mean = m.mean(dim=-1, keepdim=True)
+            row_std = m.std(dim=-1, keepdim=True).clamp_min(1e-8)
+            return (m - row_mean) / row_std
+        if self.sc_row_norm == "row_l2":
+            return m / m.norm(dim=-1, keepdim=True).clamp_min(1e-8)
+        # brain_scale
+        return m / m.mean(dim=(-2, -1), keepdim=True).clamp_min(1e-8)
 
     def _resolve_input(self, x):
         if isinstance(x, dict):
@@ -186,18 +234,14 @@ class NodalMLP(nn.Module):
                 f"got {tuple(sc_matrix.shape)}"
             )
         m = sc_matrix.to(device=device, dtype=torch.float32)
-        if self.sc_row_norm == "none":
-            return m
-        if self.sc_row_norm == "col_zscore":
-            return (m - self.sc_col_mean.to(device)) / self.sc_col_std.to(device)
-        if self.sc_row_norm == "row_zscore":
-            row_mean = m.mean(dim=-1, keepdim=True)
-            row_std = m.std(dim=-1, keepdim=True).clamp_min(1e-8)
-            return (m - row_mean) / row_std
-        if self.sc_row_norm == "row_l2":
-            return m / m.norm(dim=-1, keepdim=True).clamp_min(1e-8)
-        # brain_scale: per-subject divisor = mean over the full [N, N] matrix.
-        return m / m.mean(dim=(-2, -1), keepdim=True).clamp_min(1e-8)
+        m = self._apply_sc_norm_to_tensor(m)  # [B, N, N]
+        if self.use_sc_pca:
+            # Project each node's normalised SC row onto the frozen PCA basis.
+            # [B, N, N] -> [B*N, N] -> [B*N, K] -> [B, N, K]
+            m_flat = m.reshape(-1, self.num_nodes)
+            m_proj = (m_flat - self.pca_mean) @ self.pca_projection  # [B*N, K]
+            return m_proj.reshape(bsz, self.num_nodes, self.sc_pca_dim)
+        return m
 
     def forward(self, x, node_features=None, sc_matrix=None, **kwargs):
         model_device = next(self.parameters()).device
@@ -225,7 +269,9 @@ class NodalMLP(nn.Module):
             edge_feat = torch.cat([h_i, h_j, torch.abs(h_i - h_j), h_i * h_j], dim=-1)
         else:  # "concat"
             edge_feat = torch.cat([h_i, h_j], dim=-1)
-        return self.edge_mlp(edge_feat).squeeze(-1)  # [B, E]
+        b, e, f = edge_feat.shape
+        out = self.edge_mlp(edge_feat.reshape(b * e, f))  # [B*E, 1]
+        return out.view(b, e)
 
     def get_reg_loss(self):
         if self.reg <= 0:

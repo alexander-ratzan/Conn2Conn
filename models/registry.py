@@ -7,8 +7,8 @@ import os
 from copy import deepcopy
 import yaml
 
-TRAINER_KEYS = {"lr", "loss_type", "loss_alpha", "loss_beta", "loss_corr_target", "loss_corr_weight", "loss_terms", "loss_normalize", "loss_scale_ema_decay", "loss_scale_warmup_steps", "max_epochs", "batch_size", "log_every"}
-DATA_KEYS = {"parcellation", "hemi", "source", "target", "shuffle_seed", "HCP_dir", "sc_metric_type", "sc_apply_log1p", "volume_feature_type", "centroid_feature_type", "data_load_mode", "precompute_cache_root", "write_manual_cache"}
+TRAINER_KEYS = {"lr", "loss_type", "loss_alpha", "loss_beta", "loss_corr_target", "loss_corr_weight", "loss_terms", "loss_normalize", "loss_scale_ema_decay", "loss_scale_warmup_steps", "max_epochs", "batch_size", "log_every", "lr_schedule", "cosine_t0", "cosine_t_mult", "cosine_eta_min_ratio"}
+DATA_KEYS = {"parcellation", "hemi", "source", "target", "shuffle_seed", "HCP_dir", "sc_metric_type", "sc_apply_log1p", "volume_feature_type", "centroid_feature_type", "data_load_mode", "precompute_cache_root", "write_manual_cache", "expose_fc_sessions"}
 FLAT_METADATA_KEYS = {"cov_sources_str", "cov_dims", "cov_projectors_tag", "cov_fusion_tag"}
 
 _CONFIGS_DIR = os.path.join(os.path.dirname(__file__), "configs")
@@ -152,12 +152,18 @@ def _model_class(name):
     if name == "MaskedLatentPretrainer":
         from models.architectures.latent_attention.masked_latent_pretrainer import MaskedLatentPretrainer
         return MaskedLatentPretrainer
+    if name == "MaskedMLPPretrainer":
+        from models.architectures.latent_attention.masked_mlp_pretrainer import MaskedMLPPretrainer
+        return MaskedMLPPretrainer
     if name == "CrossModal_ConditionalGaussian":
         from models.architectures.latent_attention.conditional_gaussian import CrossModal_ConditionalGaussian
         return CrossModal_ConditionalGaussian
     if name == "Krakencoder_precomputed":
         from models.architectures.krakencoder_precomputed import KrakencoderPrecomputed
         return KrakencoderPrecomputed
+    if name == "TestRetestPrecomputed":
+        from models.architectures.test_retest_precomputed import TestRetestPrecomputed
+        return TestRetestPrecomputed
     if name == "CrossModalVAE":
         from models.architectures.crossmodal_vae import CrossModalVAE
         return CrossModalVAE
@@ -193,7 +199,7 @@ def build_model(base, model_name: str = None, model_kwargs: dict = None):
         kwargs.setdefault("l1_l2_tuple", (l1, l2))
     if kwargs.get("device") is None:
         kwargs["device"] = None
-    if name == "Krakencoder_precomputed":
+    if name in ("Krakencoder_precomputed", "TestRetestPrecomputed"):
         kwargs.pop("device", None)
 
     return _model_class(name)(base, **kwargs)

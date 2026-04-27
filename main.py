@@ -271,6 +271,7 @@ class Sim:
             "data_load_mode",
             "precompute_cache_root",
             "write_manual_cache",
+            "expose_fc_sessions",
         ):
             if _k in data_cfg:
                 hcp_base_kwargs[_k] = data_cfg[_k]
@@ -330,6 +331,7 @@ class Sim:
             "data_load_mode",
             "precompute_cache_root",
             "write_manual_cache",
+            "expose_fc_sessions",
         ):
             if _k in data_cfg:
                 hcp_base_kwargs[_k] = data_cfg[_k]
@@ -491,6 +493,10 @@ class Sim:
         loss_scale_warmup_steps = trainer_cfg.get("loss_scale_warmup_steps", 20)
         max_epochs = trainer_cfg.get("max_epochs", 100)
         log_every = trainer_cfg.get("log_every", 5)
+        lr_schedule = trainer_cfg.get("lr_schedule", "none")
+        cosine_t0 = trainer_cfg.get("cosine_t0", 50)
+        cosine_t_mult = trainer_cfg.get("cosine_t_mult", 2)
+        cosine_eta_min_ratio = trainer_cfg.get("cosine_eta_min_ratio", 0.01)
 
         model = build_model(run_base, self.model_name, model_cfg)
         pl_logger = None
@@ -531,6 +537,10 @@ class Sim:
                 loss_scale_ema_decay=loss_scale_ema_decay,
                 loss_scale_warmup_steps=loss_scale_warmup_steps,
                 max_epochs=max_epochs,
+                lr_schedule=lr_schedule,
+                cosine_t0=cosine_t0,
+                cosine_t_mult=cosine_t_mult,
+                cosine_eta_min_ratio=cosine_eta_min_ratio,
                 logger=False if mode == "dev" else (pl_logger is None),
                 pl_logger=pl_logger,
                 enable_progress_bar=(mode == "dev"),
@@ -553,6 +563,10 @@ class Sim:
                 loss_normalize=loss_normalize,
                 loss_scale_ema_decay=loss_scale_ema_decay,
                 loss_scale_warmup_steps=loss_scale_warmup_steps,
+                lr_schedule=lr_schedule,
+                cosine_t0=cosine_t0,
+                cosine_t_mult=cosine_t_mult,
+                cosine_eta_min_ratio=cosine_eta_min_ratio,
             )
             pl_module.load_state_dict(ckpt_state["state_dict"], strict=False)
             model = pl_module.model
@@ -972,6 +986,10 @@ class Sim:
                     loss_normalize=trainer_cfg.get("loss_normalize", "ema"),
                     loss_scale_ema_decay=trainer_cfg.get("loss_scale_ema_decay", 0.95),
                     loss_scale_warmup_steps=trainer_cfg.get("loss_scale_warmup_steps", 20),
+                    lr_schedule=trainer_cfg.get("lr_schedule", "none"),
+                    cosine_t0=trainer_cfg.get("cosine_t0", 50),
+                    cosine_t_mult=trainer_cfg.get("cosine_t_mult", 2),
+                    cosine_eta_min_ratio=trainer_cfg.get("cosine_eta_min_ratio", 0.01),
                 )
                 tune_metrics = {
                     "train_loss": "train_loss",

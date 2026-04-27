@@ -158,6 +158,10 @@ def train_model(
     loss_scale_ema_decay=0.95,
     loss_scale_warmup_steps=20,
     max_epochs=100,
+    lr_schedule="none",
+    cosine_t0=50,
+    cosine_t_mult=2,
+    cosine_eta_min_ratio=0.01,
     logger=True,
     pl_logger=None,
     enable_progress_bar=False,
@@ -204,6 +208,10 @@ def train_model(
         loss_normalize=loss_normalize,
         loss_scale_ema_decay=loss_scale_ema_decay,
         loss_scale_warmup_steps=loss_scale_warmup_steps,
+        lr_schedule=lr_schedule,
+        cosine_t0=cosine_t0,
+        cosine_t_mult=cosine_t_mult,
+        cosine_eta_min_ratio=cosine_eta_min_ratio,
     )
     target_train_mean = get_target_train_mean(base)
     callback = ValidationEvalCallback(

@@ -1,10 +1,13 @@
 #!/bin/bash
 # Array: 10 seeds for NodalMLP spatial-only ablation (NodalMLP_spatial.yml) (0-9)
+# Runtime est: lightest feature block (3-D static only) -> per-trial ~20s early-stop to ~10-20min full.
+# Per-task (16 trials + best retrain + eval): ~1h15m (H200) / ~1h45m (A100) / ~2h (L40S).
+# Full 10-seed experiment: ~3-5h wall with typical ~7-GPU quota.
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=4
-#SBATCH --time=4:00:00
+#SBATCH --time=3:55:00
 #SBATCH --mem=96GB
 #SBATCH --gres=gpu:1
 #SBATCH --job-name=tune_nodalmlp_spatial_array
@@ -12,7 +15,7 @@
 #SBATCH --error=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/tune_nodalmlp_spatial_array_%A_%a.err
 #SBATCH --mail-type=END
 #SBATCH --mail-user=asr655@nyu.edu
-#SBATCH --array=0-9
+#SBATCH --array=0-3
 
 set -euo pipefail
 

@@ -53,6 +53,10 @@ class CrossModalLightningModule(pl.LightningModule):
         loss_normalize: str = "ema",
         loss_scale_ema_decay: float = 0.95,
         loss_scale_warmup_steps: int = 20,
+        lr_schedule: str = "none",
+        cosine_t0: int = 50,
+        cosine_t_mult: int = 2,
+        cosine_eta_min_ratio: float = 0.01,
     ):
         super().__init__()
         # Persist only loss hyperparameters relevant to the selected loss_type.
@@ -60,7 +64,12 @@ class CrossModalLightningModule(pl.LightningModule):
         hparams_to_save = {
             "lr": lr,
             "loss_type": loss_type,
+            "lr_schedule": lr_schedule,
         }
+        if lr_schedule == "cosine_warm_restarts":
+            hparams_to_save["cosine_t0"] = cosine_t0
+            hparams_to_save["cosine_t_mult"] = cosine_t_mult
+            hparams_to_save["cosine_eta_min_ratio"] = cosine_eta_min_ratio
         if loss_type == "weighted_mse":
             hparams_to_save["loss_alpha"] = loss_alpha
         elif loss_type == "vae":
@@ -86,6 +95,10 @@ class CrossModalLightningModule(pl.LightningModule):
         self.loss_normalize = str(loss_normalize or "ema")
         self.loss_scale_ema_decay = float(loss_scale_ema_decay)
         self.loss_scale_warmup_steps = int(loss_scale_warmup_steps)
+        self.lr_schedule = str(lr_schedule or "none")
+        self.cosine_t0 = int(cosine_t0)
+        self.cosine_t_mult = int(cosine_t_mult)
+        self.cosine_eta_min_ratio = float(cosine_eta_min_ratio)
         self._target_train_mean = None
         self.loss_fn = None
 
@@ -245,6 +258,11 @@ class CrossModalLightningModule(pl.LightningModule):
         self.log("train_reg_loss", reg_loss.detach(), on_step=False, on_epoch=True)
         self.log("train_edge_mse", aux_losses["edge_mse"], on_step=False, on_epoch=True)
         self.log("train_var_match_loss", aux_losses["var_match_loss"], on_step=False, on_epoch=True)
+        opts = self.optimizers()
+        opt = opts[0] if isinstance(opts, (list, tuple)) else opts
+        if opt is not None:
+            current_lr = opt.param_groups[0]["lr"]
+            self.log("lr", current_lr, on_step=False, on_epoch=True, prog_bar=False)
         self._log_structured_loss_terms("train")
         if "latent_mse" in aux_losses:
             self.log("train_latent_mse", aux_losses["latent_mse"], on_step=False, on_epoch=True)
@@ -292,4 +310,17 @@ class CrossModalLightningModule(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        if self.lr_schedule == "cosine_warm_restarts":
+            eta_min = self.lr * self.cosine_eta_min_ratio
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+                optimizer,
+                T_0=self.cosine_t0,
+                T_mult=self.cosine_t_mult,
+                eta_min=eta_min,
+            )
+            return {
+                "optimizer": optimizer,
+                "lr_scheduler": {"scheduler": scheduler, "interval": "epoch"},
+            }
+        return optimizer

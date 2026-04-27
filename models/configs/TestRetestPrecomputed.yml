@@ -1,0 +1,14 @@
+learned: false
+
+default:
+  data:
+    # Required: load fc_session{1,2} caches and add to canonical intersection.
+    expose_fc_sessions: true
+  model:
+    name: TestRetestPrecomputed
+    # 1 → predict session 1 from session 2 (default).
+    # 2 → predict session 2 from session 1.
+    target_session: 1
+
+# Intentionally empty — run_tune raises ValueError immediately for this model.
+search_space: {}

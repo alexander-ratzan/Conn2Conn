@@ -29,11 +29,12 @@ def _read_required_npy(path):
     return np.load(path)
 
 
-def _cache_dir_fc(cache_root, parcellation, hemi):
+def _cache_dir_fc(cache_root, parcellation, hemi, session=None):
+    suffix = "" if session is None else f"_session{int(session)}"
     return os.path.join(
         cache_root,
         "fc",
-        f"parc-{_sanitize_token(parcellation)}_hemi-{_sanitize_token(hemi)}",
+        f"parc-{_sanitize_token(parcellation)}_hemi-{_sanitize_token(hemi)}{suffix}",
     )
 
 
@@ -218,6 +219,121 @@ def load_fc(
         )
 
     return subject_ids, fc_matrices, fc_triangles
+
+
+def _load_single_fc_session_file(args):
+    """Load the two per-direction TSVs for one subject+session and return their arithmetic mean."""
+    subjects_dir, subj_folder, parcellation, session = args
+    subject_id = subj_folder.replace("sub-", "")
+    paths = [
+        os.path.join(
+            subjects_dir, subj_folder, "func",
+            f"{subj_folder}_task-rest_dir-{d}_run-{session}"
+            f"_space-fsLR_seg-{parcellation}_stat-pearsoncorrelation_relmat.tsv",
+        )
+        for d in ("LR", "RL")
+    ]
+    if not all(os.path.exists(p) for p in paths):
+        return None, None
+    try:
+        mats = [pd.read_csv(p, sep="\t", header=0, index_col=0).values.astype(float) for p in paths]
+    except Exception as e:
+        print(f"[load_fc_session] subject {subject_id} session {session} error: {e}. Skipping.")
+        return None, None
+    return subject_id, np.mean(np.stack(mats, axis=0), axis=0)
+
+
+def load_fc_session(
+    parcellation='Glasser',
+    hemi='both',
+    session=1,
+    HCP_dir='/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/',
+    n_jobs=None,
+    write_cache=False,
+    cache_root=DEFAULT_CONN2CONN_CACHE_ROOT,
+):
+    """Per-session arithmetic-mean FC (LR+RL)/2.
+
+    Mirrors `load_fc`: walks `xcpd-0-9-1/sub-*`, parallel-loads the two per-direction
+    TSVs for the requested session, arithmetic-averages them within subject, applies
+    the hemisphere mask, and (optionally) writes a session-specific cache directory:
+      `fc/parc-{parc}_hemi-{hemi}_session{N}/{subject_ids,matrices,upper_triangles}.npy`
+
+    Subject set is the union of subjects with both LR and RL TSVs for this session;
+    canonical intersection across modalities happens later in HCP_Base.
+    """
+    if session not in (1, 2):
+        raise ValueError(f"session must be 1 or 2; got {session}")
+
+    subjects_dir = os.path.join(HCP_dir, "HCP1200_fMRI/xcpd-0-9-1/")
+    subject_folders = sorted(d for d in os.listdir(subjects_dir) if d.startswith("sub-"))
+    args_list = [(subjects_dir, sf, parcellation, session) for sf in subject_folders]
+    n_jobs = min(len(subject_folders), os.cpu_count() or 4) if n_jobs is None else n_jobs
+
+    roi_df = pd.read_csv(
+        f'/scratch/asr655/neuroinformatics/Conn2Conn/data/atlas_info/{parcellation}_dseg_reformatted.csv'
+    )
+    if hemi == 'left':
+        roi_mask = roi_df['hemisphere'].str.contains('L')
+    elif hemi == 'right':
+        roi_mask = roi_df['hemisphere'].str.contains('R')
+    else:
+        roi_mask = np.ones(len(roi_df), dtype=bool)
+    roi_indices = np.where(roi_mask)[0]
+
+    with ThreadPoolExecutor(max_workers=n_jobs) as executor:
+        results = executor.map(_load_single_fc_session_file, args_list)
+
+    subject_ids, fc_matrices = [], []
+    for subject_id, mat in results:
+        if subject_id is None:
+            continue
+        subject_ids.append(int(subject_id))
+        fc_matrices.append(mat[np.ix_(roi_indices, roi_indices)])
+
+    if not fc_matrices:
+        raise RuntimeError(
+            f"No subjects loaded for session {session}. Check HCP_dir and parcellation."
+        )
+
+    fc_matrices = np.stack(fc_matrices, axis=0).astype(np.float32)
+    tri_indices = np.triu_indices(fc_matrices.shape[1], k=1)
+    fc_triangles = fc_matrices[:, tri_indices[0], tri_indices[1]].astype(np.float32)
+
+    if write_cache:
+        cache_dir = _cache_dir_fc(cache_root, parcellation, hemi, session=session)
+        _write_npy_cache(
+            cache_dir,
+            {
+                "subject_ids": np.asarray(subject_ids, dtype=np.int64),
+                "matrices": fc_matrices,
+                "upper_triangles": fc_triangles,
+            },
+        )
+
+    return subject_ids, fc_matrices, fc_triangles
+
+
+def load_fc_session_precomputed(
+    parcellation='Glasser',
+    hemi='both',
+    session=1,
+    cache_root=DEFAULT_CONN2CONN_CACHE_ROOT,
+):
+    """Load per-session FC arrays from the session-specific npy cache."""
+    if session not in (1, 2):
+        raise ValueError(f"session must be 1 or 2; got {session}")
+    cache_dir = _cache_dir_fc(cache_root, parcellation, hemi, session=session)
+    subject_ids = _read_required_npy(os.path.join(cache_dir, "subject_ids.npy")).astype(np.int64).tolist()
+    fc_matrices = _read_required_npy(os.path.join(cache_dir, "matrices.npy")).astype(np.float32)
+    tri_path = os.path.join(cache_dir, "upper_triangles.npy")
+    if os.path.exists(tri_path):
+        fc_triangles = np.load(tri_path).astype(np.float32)
+    else:
+        tri_indices = np.triu_indices(fc_matrices.shape[1], k=1)
+        fc_triangles = fc_matrices[:, tri_indices[0], tri_indices[1]].astype(np.float32)
+    return subject_ids, fc_matrices, fc_triangles
+
 
 def _load_single_sc_file(args):
     """Helper function to load a single SC file and corresponding region2tract npy - designed for parallel execution"""

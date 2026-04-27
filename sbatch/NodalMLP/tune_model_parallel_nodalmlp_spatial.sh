@@ -1,10 +1,13 @@
 #!/bin/bash
 # Parallel Ray Tune: 4 GPUs, 4 concurrent trials, single seed for NodalMLP spatial-only ablation.
+# Runtime est: per-trial ~20s early-stop to ~10-20min full (1 trial/GPU).
+# Full experiment (32 trials / 4 GPUs + best retrain + eval): ~1h30m-2h30m on 4xA100.
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=16
-#SBATCH --time=4:00:00
+#SBATCH --time=7:00:00
+#SBATCH --requeue
 #SBATCH --mem=96GB
 #SBATCH --gres=gpu:4
 #SBATCH --job-name=tune_nodalmlp_spatial
@@ -56,7 +59,7 @@ singularity exec --nv \
       --save_checkpoint \
       --use_tune \
       --search_alg optuna \
-      --num_samples 32 \
+      --num_samples 64 \
       --max_concurrent_trials ${MAX_CONCURRENT_TRIALS} \
       --tune_cpus_per_trial ${TUNE_CPUS_PER_TRIAL} \
       --tune_gpus_per_trial ${TUNE_GPUS_PER_TRIAL} \
