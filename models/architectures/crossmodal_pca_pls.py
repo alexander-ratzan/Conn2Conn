@@ -667,6 +667,17 @@ class CrossModal_PCA_PLS_CovProjector(nn.Module):
             torch.tensor(target_mean, dtype=torch.float32, device=device),
             requires_grad=False,
         )
+        self.register_buffer(
+            "target_latent_encoder",
+            torch.tensor(target_loadings[:, :k_tgt], dtype=torch.float32, device=device),
+        )
+        latent_variance = np.var(target_scores[:, :k_tgt], axis=0, dtype=np.float32)
+        latent_variance = np.maximum(latent_variance, 1.0e-8)
+        latent_weights = latent_variance / float(np.mean(latent_variance))
+        self.register_buffer(
+            "latent_loss_weights",
+            torch.tensor(latent_weights, dtype=torch.float32, device=device),
+        )
 
         for modality in self.source_modalities:
             modality_data = data["sources"][modality]
