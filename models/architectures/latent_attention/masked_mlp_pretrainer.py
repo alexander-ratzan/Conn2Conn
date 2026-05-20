@@ -73,10 +73,10 @@ class MaskedMLPPretrainer(nn.Module):
             raise ValueError(f"Unknown readout_type='{self.readout_type}'. Choose from {{'linear', 'mlp'}}.")
         if self.num_hidden_layers < 1:
             raise ValueError(f"num_hidden_layers must be >= 1, got {self.num_hidden_layers}.")
-        if not (0.0 < self.sc_mask_ratio <= 1.0):
-            raise ValueError(f"sc_mask_ratio must be in (0, 1], got {self.sc_mask_ratio}.")
-        if not (0.0 < self.fc_mask_ratio <= 1.0):
-            raise ValueError(f"fc_mask_ratio must be in (0, 1], got {self.fc_mask_ratio}.")
+        if not (0.0 <= self.sc_mask_ratio <= 1.0):
+            raise ValueError(f"sc_mask_ratio must be in [0, 1], got {self.sc_mask_ratio}.")
+        if not (0.0 <= self.fc_mask_ratio <= 1.0):
+            raise ValueError(f"fc_mask_ratio must be in [0, 1], got {self.fc_mask_ratio}.")
         if self.loss_weighting not in {"per_modality_mean", "sum"}:
             raise ValueError(f"Unknown loss_weighting='{self.loss_weighting}'.")
 

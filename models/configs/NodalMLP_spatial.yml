@@ -1,16 +1,19 @@
 learned: true
 
+# Spatial / anatomical-only ablation: SC matrix is NOT used, so encoder_type='pca' is
+# disallowed by the model (pca acts on the SC-row block). Search the remaining three.
+
 default:
   data:
     source: SC
     target: FC
   model:
     name: NodalMLP
-    hidden_dim: 256
+    encoder_type: none
+    embedding_dim: 64
     decoder_dims: [512, 256, 128]
     dropout: 0.1
     reg: 1.0e-5
-    use_encoder: false
     decoder_symmetry: concat
     sc_row_norm: none
     use_volume: false
@@ -26,10 +29,10 @@ default:
     log_every: 2
 
 search_space:
-  use_encoder:
+  encoder_type:
     type: choice
-    values: [false, true]
-  hidden_dim:
+    values: [none, linear, mlp]
+  embedding_dim:
     type: choice
     values: [32, 64, 128, 256]
   decoder_dims:
@@ -41,7 +44,6 @@ search_space:
       - [256, 128, 64]
       - [512, 256, 128]
       - [512, 256, 128, 64]
-      # Narrower-but-deeper variants for the low-input-dim spatial-only setting
       - [64, 48, 32, 16]
       - [64, 48, 32, 16, 8]
       - [96, 64, 48, 32]

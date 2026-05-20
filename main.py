@@ -842,6 +842,24 @@ class Sim:
                 scheduler_max_t = max(search_max_epochs)
             else:
                 scheduler_max_t = default.get("trainer", {}).get("max_epochs", 100)
+
+        # ASHA aggressiveness, configurable via trainer YAML.
+        # `tune_grace_period_ratio` ∈ (0, 1]: fraction of max_t each trial gets before it can
+        # be killed at the first rung. Default 1/3 preserves prior behavior; lower values
+        # (e.g. 0.1) prune misconfigured trials sooner — useful for cheap, fast-converging probes.
+        # `tune_reduction_factor` ≥ 2: how aggressively the field is halved/thirded at each rung.
+        _trainer_default = default.get("trainer", {}) or {}
+        tune_grace_ratio = float(_trainer_default.get("tune_grace_period_ratio", 1.0 / 3.0))
+        tune_reduction_factor = int(_trainer_default.get("tune_reduction_factor", 2))
+        # Guardrails: keep ratio in (0, 1] and reduction_factor >= 2.
+        tune_grace_ratio = min(max(tune_grace_ratio, 1e-3), 1.0)
+        tune_reduction_factor = max(tune_reduction_factor, 2)
+        scheduler_grace_period = max(1, int(round(scheduler_max_t * tune_grace_ratio)))
+        print(
+            f"ASHA: max_t={scheduler_max_t}, grace_period={scheduler_grace_period} "
+            f"(ratio={tune_grace_ratio:g}), reduction_factor={tune_reduction_factor}",
+            flush=True,
+        )
         scheduler_max_t = int(scheduler_max_t)
         if scheduler_max_t <= 0:
             raise ValueError(f"Invalid scheduler max_t: {scheduler_max_t}")
@@ -1133,7 +1151,11 @@ class Sim:
                 max_concurrent_trials=max_concurrent_trials,
                 reuse_actors=True,
                 search_alg=_search_alg,
-                scheduler=ASHAScheduler(max_t=scheduler_max_t, grace_period=scheduler_max_t / 3, reduction_factor=2) if learned else None,
+                scheduler=ASHAScheduler(
+                    max_t=scheduler_max_t,
+                    grace_period=scheduler_grace_period,
+                    reduction_factor=tune_reduction_factor,
+                ) if learned else None,
             ),
             run_config=run_config,
         )

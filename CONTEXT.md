@@ -13,8 +13,11 @@ For user-facing usage/setup, see `README.md`.
 - conditional Gaussian baseline
 - learned variants (learnable map, covariate-conditioned residual projector, VAE, Sarwar MLP, Chen GCN)
 - latent attention variant (`LatentAttnMasked`)
+- experimental masked-latent pretraining variants (`MaskedLatentPretrainer`, `MaskedMLPPretrainer`)
 - nodal-feature GNN baseline (`NodalGNN`)
+- graph-free nodal/edge MLP baseline (`NodalMLP`)
 - precomputed Krakencoder baseline
+- test-retest oracle baseline (`TestRetestPrecomputed`)
 
 The main evaluation axis is performance across `(model, source, shuffle_seed)` with W&B-backed experiment tracking.
 
@@ -59,6 +62,10 @@ If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after 
   - user-level commands + workflow
 - `notebooks/results_scrape/*.ipynb`
   - active experiment-table / plotting notebooks
+- `notebooks/model_overviews/*.ipynb`
+  - conceptual onboarding notebooks for PCA/PLS, conditional Gaussian, latent-attention, masked pretraining, and nodal baselines
+- `notebooks/model_testing/*.ipynb`
+  - per-model smoke-test / dev notebooks
 - `data/data_viz.py`, `data/demeaned_viz.py`
   - reusable visualization helpers used by lightweight notebooks
 
@@ -93,16 +100,19 @@ Closed-form (`learned: false`):
 - `CrossModal_PLS_SVD`
 - `CrossModal_PCA_PLS`
 - `Krakencoder_precomputed` (precomputed artifacts, no training; class `KrakencoderPrecomputed`)
+- `TestRetestPrecomputed` (test-retest oracle, loads session 1/2 cached connectomes; class in `models/architectures/test_retest_precomputed.py`)
 
 Learned (`learned: true`):
 - `CrossModal_PCA_PLS_learnable`
 - `CrossModal_PCA_PLS_CovProjector`
 - `CrossModalVAE`
 - `LatentAttnMasked` (implemented in `models/architectures/latent_attention/latent_attn_masked.py`)
-- `MaskedLatentPretrainer` (`models/architectures/latent_attention/masked_latent_pretrainer.py`) — **experimental, in development, not production**. SSL pretrainer for joint SC/FC PCA-latent reconstruction; transfers weights to `LatentAttnMasked` via `export_to_latent_attn_masked(downstream_model)`. Kept isolated: no cross-module changes in `lightning_module.py` / `trainer.py` / `main.py` should be made on its behalf. Dev harness lives in `latent_pretraining_test.ipynb` + `models/eval/pretrain_eval.py`. Known limitation: within-modality masked reconstruction in PC space is structurally degenerate (PCA decorrelates scores); working signal is cross-modal only. Composite-loss integration was scoped out to avoid interfering with the edge-composite path.
+- `MaskedLatentPretrainer` (`models/architectures/latent_attention/masked_latent_pretrainer.py`) — **experimental, in development, not production**. SSL pretrainer for joint SC/FC PCA-latent reconstruction; transfers weights to `LatentAttnMasked` via `export_to_latent_attn_masked(downstream_model)`. Kept isolated: no cross-module changes in `lightning_module.py` / `trainer.py` / `main.py` should be made on its behalf. Dev harness: `notebooks/model_overviews/masked_attn_pretraining_overview.ipynb`.
+- `MaskedMLPPretrainer` (`models/architectures/latent_attention/masked_mlp_pretrainer.py`) — **experimental**. SSL pretrainer variant of the masked-latent path using linear, low-rank-linear, or nonlinear MLP encoders plus configurable SC/FC masking. Config surfaces include `MaskedMLPPretrainer.yml`, `MaskedMLPPretrainer_linear.yml`, `MaskedMLPPretrainer_nonlinear.yml`, and `MaskedMLPPretrainer_mask_grid.yml`; sbatch launchers live under `sbatch/MaskedMLPPretrainer/`.
 - `Sarwar2020MLP` (implemented in `models/architectures/sarwar2020_mlp.py`)
 - `Chen2024GCN` (implemented in `models/architectures/graph_based/chen2024_gnn.py`)
 - `NodalGNN` (implemented in `models/architectures/graph_based/nodal_gnn.py`)
+- `NodalMLP` (implemented in `models/architectures/graph_based/nodal_mlp.py`) — graph-free node/edge baseline. It can use anatomical parcel features (`volume`, `spatial`, `SC_r2t`), subject SC rows, or spectral SC eigenvectors; decoder variants include `mlp`, `dot`, `bilinear`, `diag_bilinear`, and `linear_beta`. Configs include `NodalMLP.yml`, `NodalMLP_spatial.yml`, `NodalMLP_all_features.yml`, `NodalMLP_dot.yml`, `NodalMLP_bilinear.yml`, `NodalMLP_linear_beta.yml`, and `NodalMLP_spectral.yml`; sbatch launchers live under `sbatch/NodalMLP/`.
 
 Closed-form / hybrid special cases present in configs:
 - `CrossModal_ConditionalGaussian` (implemented in `models/architectures/latent_attention/conditional_gaussian.py`)
@@ -154,9 +164,11 @@ Cache defaults:
 - cache root: `/scratch/asr655/neuroinformatics/Conn2Conn_data`
 - `write_manual_cache=False` by default
 
-Performance note:
-- `HCP_Partition` now reuses shared base-level tensors across train/val/test partitions (avoids triple full-dataset tensor copies per split).
-- `Sim` enables `expose_node_features=True` only for `NodalGNN`, so other models do not pay for unused batch payloads.
+Performance / payload notes:
+- `HCP_Partition` reuses shared base-level tensors across train/val/test partitions (avoids triple full-dataset tensor copies per split).
+- `Sim` enables `expose_node_features=True` for `NodalGNN` and `NodalMLP`.
+- `Sim` enables `expose_sc_matrix=True` for `NodalMLP` so SC-row and spectral encoders can reconstruct dense subject SC matrices from source edges.
+- Other models do not pay for unused node-feature or dense-SC batch payloads.
 
 Covariates used by projector variants include demographics and FreeSurfer features; category collapsing for sparse `race_eth` occurs at partition time.
 
@@ -283,9 +295,10 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
 5. Krakencoder config/class naming should be verified before relying on automated runs.
 6. `Chen2024GCN` requires `torch-geometric` in the runtime environment.
 7. `NodalGNN` also requires `torch-geometric`.
-8. `precomputed` data_load_mode only works when cache files already exist at the resolved cache root.
-9. Active multi-seed SLURM launchers live under `sbatch/<ModelName>/`; older root-level wrappers should not be treated as canonical.
-10. Sbatch scripts and input-feature subset configs are still duplicated by experiment variant; a future manifest/launcher layer should move grids out of copied shell/YAML files.
+8. `NodalMLP` does not require `torch-geometric`, but configs with `use_sc_row=True` require `batch["sc_matrix"]`; this is wired through `Sim` and the train/eval wrappers.
+9. `precomputed` data_load_mode only works when cache files already exist at the resolved cache root.
+10. Active multi-seed SLURM launchers live under `sbatch/<ModelName>/`; older root-level wrappers should not be treated as canonical.
+11. Sbatch scripts and input-feature subset configs are still duplicated by experiment variant; a future manifest/launcher layer should move grids out of copied shell/YAML files.
 
 ---
 
@@ -303,10 +316,11 @@ Add/modify loss behavior:
 3. keep metric-only calculations in `models/eval/metrics.py` unless they are part of the differentiable training objective
 4. prefer `loss_type: composite` with structured `loss_terms` for weighted multi-term objectives
 
-For `NodalGNN` specifically:
-1. node features come from `batch["node_features"]`, not from `cov`
-2. `CrossModalLightningModule`, `predict_from_loader`, and loss/eval helpers already know how to pass `node_features`
-3. ablations are controlled in config via `use_volume`, `use_spatial`, and `use_r2t`
+For nodal models:
+1. `NodalGNN` node features come from `batch["node_features"]`, not from `cov`.
+2. `NodalMLP` may consume `batch["node_features"]`, `batch["sc_matrix"]`, or both depending on `use_volume`, `use_spatial`, `use_r2t`, and `use_sc_row`.
+3. `CrossModalLightningModule`, `predict_from_loader`, and loss/eval helpers already know how to pass `node_features` and `sc_matrix`.
+4. anatomical ablations are controlled in config via `use_volume`, `use_spatial`, and `use_r2t`; SC-row/spectral ablations use `use_sc_row`, `encoder_type`, `decoder_type`, and `sc_row_norm`.
 
 Update experiment reporting:
 1. patch `results/results_scraper.py`
@@ -320,6 +334,15 @@ Debug missing results cell:
 
 ## Recent Changes
 - Analysis/figure schematics and context images now live under `context_packages/schematics/` (for example `SC_results.png`, `cov_dl_results.PNG`, `matrix_gif.jpg`, and `demeaned_plot/`).
+- Notebook organization now uses purpose folders:
+  - `notebooks/EDA/`
+  - `notebooks/model_overviews/`
+  - `notebooks/model_testing/`
+  - `notebooks/quick_experiments/`
+  - `notebooks/results_scrape/`
+- PCA/PLS onboarding notebooks now split closed-form models from learnable/covariate-projector models:
+  - `notebooks/model_overviews/crossmodal_pca_pls_closed_form_overview.ipynb`
+  - `notebooks/model_overviews/crossmodal_pca_pls_learnable_overview.ipynb`
 - Results-analysis workflow now centers on:
   - `notebooks/results_scrape/scrape_SCtype_results.ipynb`
   - `notebooks/results_scrape/scrape_covtype_results.ipynb`
@@ -327,7 +350,9 @@ Debug missing results cell:
   - `data/data_viz.py`
   - `data/demeaned_viz.py`
 - `notebooks/kraken/track_krakencoder_model.ipynb` can log W&B runs and optionally save local markdown reports under `results/local_results/Krakencoder_precomputed/`.
+- `NodalMLP` now has explicit decoder/encoder variant configs and launchers, including dot, bilinear, linear-beta, and spectral/connectome-harmonic probes.
+- `MaskedMLPPretrainer` now has separate linear, nonlinear, and mask-grid config/launcher surfaces.
 - Model code now lives under `models/architectures/`, training code under `models/train/`, and evaluation/reporting code under `models/eval/`.
 - Backward-compatibility shims for old top-level model/train/eval files are intentionally removed.
 
-Last updated at: 2026-04-17 19:11:00 EDT
+Last updated at: 2026-05-20 EDT

@@ -7,6 +7,7 @@ from data.graph_adapter import (
     infer_num_nodes_from_upper_triangle_dim,
     get_label_edge_index,
 )
+from models.architectures.utils import compute_reg_loss
 
 
 class NodalGNN(nn.Module):
@@ -213,11 +214,9 @@ class NodalGNN(nn.Module):
     def get_reg_loss(self):
         if self.reg <= 0:
             return 0.0
-        l2 = 0.0
-        for p in self.parameters():
-            if p.requires_grad and p.ndim > 1:
-                l2 = l2 + torch.norm(p, p=2)
-        return self.reg * l2
+        # True squared-L2 (ridge) on weight matrices; biases excluded via ndim > 1.
+        params = [p for p in self.parameters() if p.requires_grad and p.ndim > 1]
+        return compute_reg_loss(params, l1_l2_tuple=(0.0, self.reg))
 
     def get_num_params(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)

@@ -1,0 +1,71 @@
+learned: true
+
+# NodalMLP with subject-specific normalized-Laplacian eigenvector encoder
+# (encoder_type='spectral'; "connectome harmonics" of the SC graph) and a
+# basis-invariant decoder (dot or diag_bilinear).
+#
+# Restricted decoder search: only dot and diag_bilinear are valid here because
+# they are invariant under the per-subject orthogonal eigenframe (sign-flip
+# augmentation handles the residual sign ambiguity). Population-shared
+# linear/mlp/full-bilinear heads would learn axis-specific weights against
+# eigenmodes that are not aligned across subjects.
+#
+# Reference: Robinson et al., "Eigenmodes of brain activity" (NeuroImage, 2016);
+# Atasoy et al., "Human brain networks function in connectome-specific harmonic
+# waves" (Nature Communications, 2016).
+
+default:
+  data:
+    source: SC
+    target: FC
+  model:
+    name: NodalMLP
+    encoder_type: spectral
+    embedding_dim: 16
+    decoder_type: diag_bilinear
+    dropout: 0.2
+    reg: 1.0e-5
+    sc_row_norm: brain_scale
+    use_volume: false
+    use_spatial: false
+    use_r2t: false
+    use_sc_row: true
+    device: null
+  trainer:
+    lr: 2.0e-3
+    loss_type: mse
+    max_epochs: 500
+    batch_size: 32
+    log_every: 2
+    lr_schedule: none
+    # Aggressive ASHA pruning for cheap probes — kill bad configs by epoch ~50.
+    tune_grace_period_ratio: 0.2
+    tune_reduction_factor: 3
+
+search_space:
+  decoder_type:
+    type: choice
+    values: [dot, diag_bilinear]
+  embedding_dim:
+    type: choice
+    values: [8, 16, 32, 64, 128]
+  dropout:
+    type: choice
+    values: [0.2, 0.35, 0.5]
+  reg:
+    type: loguniform
+    lower: 1.0e-7
+    upper: 1.0e-3
+  sc_row_norm:
+    type: choice
+    values: [none, brain_scale]
+  lr:
+    type: loguniform
+    lower: 5.0e-4
+    upper: 1.0e-2
+  max_epochs:
+    type: choice
+    values: [500, 750]
+  batch_size:
+    type: choice
+    values: [8, 16, 32, 64]

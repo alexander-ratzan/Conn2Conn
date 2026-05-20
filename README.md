@@ -18,9 +18,13 @@ Predicts one connectome modality from another on HCP-derived data (default `SC �
 | `CrossModal_ConditionalGaussian` | Closed-form | Conditional Gaussian mapping in latent space, with optional covariates |
 | `CrossModalVAE` | Learned | Variational autoencoder cross-modal mapping |
 | `LatentAttnMasked` | Learned | Latent PCA backbone with optional masked FC attention residual |
+| `MaskedLatentPretrainer` | Experimental | Self-supervised latent-token reconstruction pretrainer for `LatentAttnMasked` |
+| `MaskedMLPPretrainer` | Experimental | Masked latent reconstruction pretrainer with linear/MLP backbone variants |
 | `Sarwar2020MLP` | Learned | Fully non-linear MLP baseline with correlation-aware loss option |
 | `Chen2024GCN` | Learned | Edge-level GCN baseline (`SC` graph message passing, FC edge regression) |
 | `NodalGNN` | Learned | SC-conditioned GNN using subject-specific parcel node features (volume, centroid, `SC_r2t`) |
+| `NodalMLP` | Learned | Graph-free node/edge baseline over anatomical features and/or subject SC-row features |
+| `TestRetestPrecomputed` | Precomputed | Test-retest oracle that loads session 1/2 cached connectomes as predictions |
 | `Krakencoder_precomputed` | Closed-form / Precomputed | Precomputed Krakencoder baseline (implemented by class `KrakencoderPrecomputed`) |
 
 ---
@@ -29,7 +33,7 @@ Predicts one connectome modality from another on HCP-derived data (default `SC �
 
 ```bash
 conda env create -f kraken_env.yml
-conda activate kraken
+conda activate base   # kraken_env.yml declares `name: base`
 wandb login   # authenticate once with your W&B API key
 # required for GNN baselines
 pip install torch-geometric
@@ -98,8 +102,11 @@ Each dataset item returns:
 - `cov`: covariate dict for requested covariate sources
 - `subject_id`: HCP subject identifier
 
-For models that explicitly request parcel node features (currently `NodalGNN`), each sample also includes:
+For models that explicitly request parcel node features (currently `NodalGNN` and feature-enabled `NodalMLP` configs), each sample also includes:
 - `node_features`: `[num_nodes, num_features]` tensor built from parcel volume, parcel centroid coordinates, and appended local `SC_r2t` node features
+
+For `NodalMLP` configs that use subject SC rows (`use_sc_row=True`), each sample also includes:
+- `sc_matrix`: dense subject SC matrix reconstructed from the source upper triangle
 
 Node-feature loading options exposed through `HCP_Base` / `Sim`:
 - `volume_feature_type`: default `volume_mm3`, optional normalized volume variant
@@ -179,6 +186,8 @@ sbatch sbatch/Sarwar2020MLP/tune_array_sarwar2020_SCr2t_seeds.sh
 sbatch sbatch/Chen2024GCN/tune_array_chen2024gcn_SC_seeds.sh
 sbatch sbatch/NodalGNN/tune_array_nodalgnn_SC_seeds.sh
 sbatch sbatch/NodalGNN/run_array_nodalgnn_SC_default_seeds.sh
+sbatch sbatch/NodalMLP/tune_array_nodalmlp_seeds.sh
+sbatch sbatch/NodalMLP/tune_array_nodalmlp_spectral_seeds.sh
 ```
 
 Current model folders include:
@@ -188,8 +197,12 @@ Current model folders include:
 - `sbatch/CrossModal_PCA_PLS/`
 - `sbatch/CrossModal_PCA_PLS_learnable/`
 - `sbatch/CrossModal_PCA_PLS_CovProjector/`
+- `sbatch/CrossModal_ConditionalGaussian/`
 - `sbatch/CrossModal_PLS_SVD/`
+- `sbatch/MaskedLatentPretrainer/`
+- `sbatch/MaskedMLPPretrainer/`
 - `sbatch/NodalGNN/`
+- `sbatch/NodalMLP/`
 
 ---
 
@@ -223,6 +236,9 @@ Notebook surface:
 - `notebooks/results_scrape/scrape_covtype_results.ipynb`
 - `notebooks/kraken/track_krakencoder_model.ipynb`
 - `notebooks/kraken/kraken_eval.ipynb`
+- model onboarding notebooks under `notebooks/model_overviews/`, including PCA/PLS closed-form vs learnable overviews and latent-attention overviews
+- model smoke-test notebooks under `notebooks/model_testing/`
+- exploratory data notebooks under `notebooks/EDA/`
 
 ```python
 from results.results_scraper import (
@@ -259,12 +275,12 @@ Conn2Conn/
 │   ├── registry.py                  # Config loading, search-space conversion, model construction
 │   ├── utils.py                     # Shared prediction / batch covariance helpers
 │   ├── architectures/               # Model definitions grouped by architecture family
-│   │   ├── crossmodal_pca_pls.py    # PCA/PLS closed-form and learnable baselines
+│   │   ├── crossmodal_pca_pls.py    # PCA/PLS closed-form, learnable, and cov-projector baselines
 │   │   ├── crossmodal_vae.py        # VAE baseline
 │   │   ├── krakencoder_precomputed.py
 │   │   ├── sarwar2020_mlp.py
 │   │   ├── latent_attention/        # Latent attention and conditional Gaussian models
-│   │   └── graph_based/             # Chen GCN, NodalGNN, graph feature builders
+│   │   └── graph_based/             # Chen GCN, NodalGNN, NodalMLP, graph feature builders
 │   ├── configs/                     # Per-model YAML (default + search_space)
 │   ├── train/                       # Training loop, Lightning wrapper, composite losses, training plots
 │   └── eval/                        # Evaluator, metrics, FC distance, PCA analysis, reports, plots
@@ -278,15 +294,15 @@ Conn2Conn/
 │   ├── Sarwar2020MLP/
 │   ├── Chen2024GCN/
 │   └── ...
-├── notebooks/                       # Exploratory and evaluation notebooks
+├── notebooks/                       # Exploratory, onboarding, and evaluation notebooks
+│   ├── EDA/
+│   ├── model_overviews/
+│   ├── model_testing/
+│   ├── quick_experiments/
 │   ├── results_scrape/
 │   ├── kraken/
-│   ├── data_overview_matrices.ipynb
-│   ├── demeaned_prediction_overview.ipynb
-│   ├── test_sarwar2020_model.ipynb
-│   ├── test_chen2024_model.ipynb
-│   └── test_nodal_gnn_model.ipynb
+│   └── nodal_decoder_importance.ipynb
 └── krakencoder/                     # Bundled KrakenEncoder codebase
 ```
 
-Last updated at: 2026-04-17 19:11:00 EDT
+Last updated at: 2026-05-20 EDT

@@ -1,0 +1,67 @@
+learned: true
+
+# NodalMLP with a linear-regression edge decoder (single nn.Linear over the
+# symmetric edge featurization used by the MLP head). decoder_symmetry IS
+# meaningful here — it controls the input featurization.
+# decoder_dims is unused and intentionally omitted.
+# use_sc_row is fixed True so all four encoder_type options are valid.
+
+default:
+  data:
+    source: SC
+    target: FC
+  model:
+    name: NodalMLP
+    decoder_type: linear_beta
+    encoder_type: pca
+    embedding_dim: 64
+    dropout: 0.2
+    reg: 1.0e-5
+    decoder_symmetry: symmetric
+    sc_row_norm: brain_scale
+    use_volume: false
+    use_spatial: false
+    use_r2t: false
+    use_sc_row: true
+    device: null
+  trainer:
+    lr: 2.0e-3
+    loss_type: mse
+    max_epochs: 500
+    batch_size: 32
+    log_every: 2
+    lr_schedule: none
+    # Aggressive ASHA pruning for cheap probes — kill bad configs by epoch ~50.
+    tune_grace_period_ratio: 0.2
+    tune_reduction_factor: 3
+
+search_space:
+  encoder_type:
+    type: choice
+    values: [none, pca, linear, mlp]
+  embedding_dim:
+    type: choice
+    values: [16, 32, 64, 128]
+  dropout:
+    type: choice
+    values: [0.2, 0.35, 0.5]
+  reg:
+    type: loguniform
+    lower: 1.0e-7
+    upper: 1.0e-3
+  sc_row_norm:
+    type: choice
+    values: [none, brain_scale]
+  decoder_symmetry:
+    type: choice
+    values: [symmetric, asymmetric, concat]
+  lr:
+    type: loguniform
+    lower: 5.0e-4
+    upper: 1.0e-2
+  max_epochs:
+    type: choice
+    values: [500, 750]
+  batch_size:
+    type: choice
+    values: [8, 16, 32, 64]

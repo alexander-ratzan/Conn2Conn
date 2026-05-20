@@ -6,19 +6,17 @@ default:
     target: FC
   model:
     name: NodalMLP
-    hidden_dim: 256
+    encoder_type: pca
+    embedding_dim: 64
     decoder_dims: [512, 256, 128]
     dropout: 0.2
     reg: 1.0e-5
-    use_encoder: false
     decoder_symmetry: asymmetric
     sc_row_norm: brain_scale
     use_volume: false
     use_spatial: false
     use_r2t: false
     use_sc_row: true
-    use_sc_pca: true
-    sc_pca_dim: 64
     device: null
   trainer:
     lr: 2.0e-3
@@ -32,12 +30,12 @@ default:
     cosine_eta_min_ratio: 0.01
 
 search_space:
-  use_encoder:
+  encoder_type:
     type: choice
-    values: [false, true]
-  hidden_dim:
+    values: [none, pca, linear, mlp]
+  embedding_dim:
     type: choice
-    values: [128, 160, 256]
+    values: [16, 32, 64, 128]
   decoder_dims:
     type: choice
     values:
@@ -57,9 +55,6 @@ search_space:
   decoder_symmetry:
     type: choice
     values: [asymmetric, concat, symmetric]
-  sc_pca_dim:
-    type: choice
-    values: [16, 32, 64, 128]
   lr:
     type: loguniform
     lower: 1.0e-3

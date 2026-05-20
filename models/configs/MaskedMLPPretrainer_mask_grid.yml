@@ -1,0 +1,46 @@
+learned: true
+
+# Grid sweep over (sc_mask_ratio, fc_mask_ratio) for MaskedMLPPretrainer.
+# All other model/trainer hyperparameters are pinned in `default:` so each
+# trial differs only by the two mask ratios. `tune_grace_period_ratio: 1.0`
+# disables ASHA early-stopping so every grid cell trains to completion.
+
+default:
+  data:
+    source: SC
+    target: FC
+  model:
+    name: MaskedMLPPretrainer
+    n_components_pca: 128
+    hidden_dim: 256
+    num_hidden_layers: 2
+    dropout: 0.2
+    nonlinear: true
+    low_rank_dim: null
+    readout_type: mlp
+    readout_hidden_dim: 128
+    zscore_pca_scores: true
+    reg: 1.0e-4
+    sc_mask_ratio: 0.2
+    fc_mask_ratio: 0.2
+    min_masked_components_per_modality: 1
+    use_covariates: false
+    cov_projector_hidden_dim: null
+    loss_weighting: per_modality_mean
+    device: null
+  trainer:
+    lr: 1.0e-3
+    loss_type: latent_mse
+    max_epochs: 200
+    batch_size: 128
+    log_every: 1
+    tune_grace_period_ratio: 1.0
+    tune_reduction_factor: 2
+
+search_space:
+  sc_mask_ratio:
+    type: grid
+    values: [0.0, 0.05, 0.1, 0.2, 0.4, 0.6, 0.8]
+  fc_mask_ratio:
+    type: grid
+    values: [0.0, 0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0]
