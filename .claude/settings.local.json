@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(echo \"=== mtime / python ===\")",
+      "Bash(ls -l --time-style=full-iso notebooks-FC_to_SC-experimental/model_overviews/crossmodal_pca_pls_closed_form_overview.ipynb)"
+    ]
+  }
+}
