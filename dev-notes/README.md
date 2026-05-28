@@ -26,3 +26,4 @@ Working notes for the Conn2Conn project (SC↔FC connectome prediction/translati
 
 ## Infrastructure
 - [torch-jupyter-tmux-skill.md](torch-jupyter-tmux-skill.md) — SOP for running Jupyter on NYU Torch HPC (tmux + SSH tunnel + `$SCRATCH`).
+- [torch-slurm-priority-and-partitions.md](torch-slurm-priority-and-partitions.md) — How to actually get scheduled on Torch: use `-A torch_pr_60_tandon_priority` (best FairShare) + explicit `--partition=cpu_short` (smaller queue, backfill-friendly) for CPU notebooks. Resource sizing table, diagnostic playbook for stuck jobs, the two-jobs-in-parallel race pattern. Default srun: `4 CPU / 32 GB / 4 h` lands in < 5 min.

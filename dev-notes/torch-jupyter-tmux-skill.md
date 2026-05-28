@@ -47,11 +47,16 @@ tmux attach -t nb
 ### 2) Move to a compute node (never run heavy work on login node)
 
 ```bash
-srun -A torch_pr_60_general --cpus-per-task=2 --mem=8GB --time=02:00:00 --pty bash
+srun -A torch_pr_60_tandon_priority \
+     --partition=cpu_short \
+     --cpus-per-task=4 --mem=32G --time=04:00:00 \
+     --pty bash
 hostname
 ```
 
-Expected: hostname like `cs603.hpc.nyu.edu`, not `torch-login-...`
+Expected: hostname like `cs608.hpc.nyu.edu`, not `torch-login-...`
+
+> Account + partition + sizing is load-bearing — picking the wrong account or letting SLURM auto-route to partition `all` can leave you stuck in the queue for 30+ min. See [torch-slurm-priority-and-partitions.md](torch-slurm-priority-and-partitions.md) for why we use `_priority` over `_advanced` and explicit `--partition=cpu_short` over auto-routing, plus the resource-sizing table for this project's workloads.
 
 ### 3) Start container + env
 
