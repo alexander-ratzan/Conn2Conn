@@ -40,12 +40,28 @@ MAX_ITER = 2000
 
 
 def full_pls_predict(X_train, X_test, Y_train, k_pls=K_PLS, max_iter=MAX_ITER):
-    """Plain PLSRegression on raw features, both X and Y unreduced."""
+    """Plain PLSRegression on raw features. Bypasses self.coef_ at predict
+    time (sklearn's PLSRegression assembles coef_ of shape (p_x, p_y) =
+    (64620, 64620) = 33 GB at float64; predict() then does X @ coef_, which
+    OOMs at 64 GB allocation). Instead we compute the prediction manually via
+    the rotations + loadings, which keeps memory at O(n p)."""
     pls = PLSRegression(n_components=k_pls, scale=True, max_iter=max_iter)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # divide-by-zero from zero-std edges
         pls.fit(X_train, Y_train)
-        pred = pls.predict(X_test)
+        # Manual predict, avoiding self.coef_ (the OOM trigger):
+        #   X_test_scaled = (X_test - _x_mean) / _x_std
+        #   T_test = X_test_scaled @ x_rotations_                  (n_test, k)
+        #   Y_pred_scaled = T_test @ y_loadings_.T                 (n_test, p_y)
+        #   Y_pred = Y_pred_scaled * _y_std + _y_mean
+        x_mean = pls._x_mean
+        x_std  = pls._x_std
+        y_mean = pls._y_mean
+        y_std  = pls._y_std
+        Xte_scaled = (X_test.astype(np.float64) - x_mean) / x_std
+        T_test     = Xte_scaled @ pls.x_rotations_
+        Y_pred_sc  = T_test @ pls.y_loadings_.T
+        pred       = Y_pred_sc * y_std + y_mean
     return pred.astype(np.float32)
 
 
