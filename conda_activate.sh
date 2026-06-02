@@ -16,3 +16,6 @@ export JUPYTER_RUNTIME_DIR=$SCR_BASE/runtime
 export IPYTHONDIR=$SCR_BASE/ipython
 export MPLCONFIGDIR=$SCR_BASE/matplotlib
 
+# 6) activate the right env
+source /ext3/miniforge3/bin/activate
+conda activate /ext3/miniforge3/envs/kraken_env
