@@ -1,0 +1,47 @@
+========================================================================
+RIGOROUS RELIABILITY CHECK — NOT RUN (no retest data in this pipeline)
+========================================================================
+
+The proxy checks (proxy1_strength, proxy2_distance,
+decisive_partialled_enrichment) use edge weight and inter-region distance as
+STAND-INS for tractography reliability. Standard fallbacks in the field when
+retest data is unavailable.
+
+The RIGOROUS version requires HCP test-retest data: ~45 subjects who were
+scanned twice with the same protocol. Per-edge reliability is then:
+
+    edge_reliability[e] = ICC( SC_session1[:, e] ,  SC_session2[:, e] )
+
+or, slightly weaker but acceptable:
+
+    edge_reliability[e] = pearson_r( SC_session1[:, e] ,  SC_session2[:, e] )
+
+computed across the 45 retest subjects. High ICC = edge measured consistently;
+low ICC = noise. This 64,620-dim reliability vector is the gold standard.
+
+Then the same partialled-enrichment test in decisive_partialled_enrichment.py
+would be re-run with edge_reliability replacing the [strength, distance] proxy.
+
+Why we are NOT running this here:
+  1. HCP retest connectomes are not in this project's preprocessed cache
+     (DEFAULT_CONN2CONN_CACHE_ROOT contains only the n=957 main-scan cohort).
+  2. The retest cohort would need separate ingestion: ~45 subjects, both
+     sessions, same parcellation, same SC pipeline (MRtrix/iFOD2/SIFT2 or
+     whatever was used for the main cohort), then per-edge ICC computation.
+  3. That is a 1-2 day pipeline-extension task, not a 1-hour check.
+
+What it would take to add later, in rough order:
+  - Locate HCP retest dMRI on the storage (HCP-YA test-retest release).
+  - Run the same tractography pipeline used for the main cohort.
+  - Parcellate with Glasser (same atlas instance).
+  - Vectorize to 64,620 upper-triangle edges per session per subject.
+  - For each edge, compute ICC(2,1) across subjects between the two sessions.
+  - Save as data/atlas_info/sc_edge_reliability_glasser.npy (or similar).
+  - Re-run decisive_partialled_enrichment.py with edge_reliability in place
+    of [strength, distance].
+
+CURRENT STATUS: proxy version only. Interpret findings.md accordingly — strong
+survival under proxy partialling is encouraging but does not fully rule out the
+reliability confound. Weak/no survival is a robust negative regardless of which
+reliability measure you use (proxy and retest typically agree on which edges
+are unreliable).

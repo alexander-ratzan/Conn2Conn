@@ -1,0 +1,52 @@
+Loaded caches: pc3_abs=(64620,), strength=(64620,), distance=(64620,)
+
+Full-model OLS  |PC3| ~ strength + distance
+  R²                          = 0.4096
+  coef[strength]              = +0.013495
+  coef[distance]              = -0.000012
+  intercept                   = +0.001393
+  residual std / signal std   = 0.7684
+
+=== Top network-pair enrichment: RAW vs RESIDUALIZED (K=200, seed-0 PC3) ===
+                              net_pair  n_total  n_expected_K  n_raw_top200  n_resid_top200  enrichment_raw  enrichment_resid
+                      visual || visual     1431         4.429            53              59          11.967            13.321
+  dorsal attention || dorsal attention     1128         3.491            27              20           7.734             5.729
+            dorsal attention || visual     2592         8.022            36              40           4.487             4.986
+      frontoparietal || frontoparietal      990         3.064             8               5           2.611             1.632
+    dorsal attention || frontoparietal     2160         6.685            10               8           1.496             1.197
+      default mode || dorsal attention     3984        12.331            17              16           1.379             1.298
+    somatosensory || ventral attention     2576         7.973             9               7           1.129             0.878
+ventral attention || ventral attention     1035         3.203             3               1           0.937             0.312
+          default mode || default mode     3403        10.532             7               2           0.665             0.190
+                default mode || visual     4482        13.872             8               8           0.577             0.577
+ dorsal attention || ventral attention     2208         6.834             3               4           0.439             0.585
+       frontoparietal || somatosensory     2520         7.799             3               1           0.385             0.128
+     dorsal attention || somatosensory     2688         8.319             3               5           0.361             0.601
+         default mode || somatosensory     4648        14.386             5               5           0.348             0.348
+        default mode || frontoparietal     3735        11.560             3               6           0.260             0.519
+        somatosensory || somatosensory     1540         4.766             1               6           0.210             1.259
+     default mode || ventral attention     3818        11.817             2               2           0.169             0.169
+   frontoparietal || ventral attention     2070         6.407             1               2           0.156             0.312
+              frontoparietal || visual     2430         7.521             1               2           0.133             0.266
+                      limbic || limbic      378         1.170             0               1           0.000             0.855
+
+Saved -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/sanity_checks/tract_check/enrichment_residual_top200.csv
+
+=== Headline pair survival ===
+  pair                                           raw_enr   resid_enr  ratio
+  visual || visual                                11.967   13.321  +1.113
+  dorsal attention || dorsal attention             7.734    5.729  +0.741
+  dorsal attention || visual                       4.487    4.986  +1.111
+
+======================================================================
+RESIDUALIZED ENRICHMENT VERDICT
+======================================================================
+  Reliability proxy explains 41.0% of |PC3| variance.
+
+  -> OUTCOME 2: HEDGE. At least one headline pair survives at 2-5x; others lower.
+     vis||vis residual enr = 13.32x
+     dan||dan residual enr = 5.73x
+     dan||vis residual enr = 4.99x
+     => Write: 'Concentrates in visual/DAN cortex, partially but not fully
+        attributable to higher reconstruction reliability in these short
+        posterior connections.'

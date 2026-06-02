@@ -1,0 +1,20 @@
+Loading atlas from: /scratch/ans9868/Conn2Conn/data/atlas_info/Glasser_dseg_reformatted.csv
+Centroid coords: shape=(360, 3), ranges per axis:
+  mni_x: [-62.9, +65.1]  mean=+0.8
+  mni_y: [-90.2, +64.1]  mean=-18.5
+  mni_z: [-43.3, +70.8]  mean=+15.7
+
+edge_distance: shape=(64620,), min=3.32 mm, max=160.08 mm, median=79.45 mm
+
+Spearman(|PC3|, edge_distance) = -0.5004   (p = 0)
+OLS R² of |PC3| ~ edge_distance = +0.1265
+OLS coef = -0.000045   intercept = +0.004693
+Pearson(|PC3|, edge_distance) = -0.3557
+
+--- proxy 2 verdict cue ---
+  rho=-0.500 (strongly negative) OR R²=0.127 (high)
+  -> PC3 strongly favors short edges.
+     RELIABILITY CONFOUND IS LIVE on distance. Run decisive partialled test.
+
+Cached -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/sanity_checks/tract_check/_cache_edge_distance.npy
+Cached -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/sanity_checks/tract_check/_cache_triu_i.npy, _cache_triu_j.npy

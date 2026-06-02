@@ -1,0 +1,23 @@
+Loading PC loadings from: /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/model_overviews/results/local_results/further_exploration/depth1_spectral_mechanism/sc_pc_loadings.npy
+PC3 loading vector: shape=(64620,), ||·||=1.0000, max|·|=0.1089
+Loading seed 0 split for edge strength...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+SC_train shape: (683, 64620)
+edge_strength: shape=(64620,), min=0.0000, max=2.3472, mean=0.0533, std=0.1648
+
+Spearman(|PC3|, edge_strength) = +0.8903   (p = 0)
+OLS R² of |PC3| ~ edge_strength = +0.4024
+OLS coef = +0.014442   intercept = +0.000410
+Pearson(|PC3|, edge_strength) = +0.6343
+
+--- proxy 1 verdict cue ---
+  rho=+0.890 (moderate/high) OR R²=0.402 (high)
+  -> PC3 tracks edge strength substantially.
+     RELIABILITY CONFOUND IS LIVE. Run decisive_partialled_enrichment.py.
+
+Cached -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/sanity_checks/tract_check/_cache_edge_strength.npy
+Cached -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/sanity_checks/tract_check/_cache_pc3_abs.npy
+Cached -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/sanity_checks/tract_check/_cache_pc3_signed.npy
