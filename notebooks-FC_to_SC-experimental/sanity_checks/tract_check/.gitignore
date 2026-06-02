@@ -1,0 +1,4 @@
+_cache_*.npy
+slurm-*.out
+DONE.sentinel
+ERROR.sentinel
