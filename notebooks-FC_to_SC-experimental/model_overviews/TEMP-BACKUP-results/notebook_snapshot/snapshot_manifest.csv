@@ -1,0 +1,20 @@
+when,path,what,status,note
+2026-05-29T06:06:13Z,results/local_results/notebook_snapshot/phase0/closed_form_summary.csv,Phase 0 cell 12: closed-form 3-model summary,saved,"rows=3, cols=6"
+2026-05-29T06:06:13Z,results/local_results/notebook_snapshot/phase0/step1_sc_oracle.csv,Phase 0 cell 13: STEP 1 SC->SC oracle (single seed),skipped,variable not in scope or empty at snapshot time
+2026-05-29T06:06:13Z,results/local_results/notebook_snapshot/phase0/step2_10seed_fc_to_sc.csv,Phase 0 cells 15-19: STEP 2 10-seed FC->SC robustness,skipped,variable not in scope or empty at snapshot time
+2026-05-29T06:06:13Z,results/local_results/notebook_snapshot/phase0/step3_brain_vol_to_sc.csv,Phase 0 cell 21: STEP 3 brain-vol -> SC full panel,saved,"rows=1, cols=6"
+2026-05-29T06:06:13Z,results/local_results/notebook_snapshot/phase0/step3_5_three_panels.csv,Phase 0 cell 22: STEP 3.5 three-panel comparison (SC target),saved,"rows=3, cols=7"
+2026-05-29T06:06:13Z,results/local_results/notebook_snapshot/phase0/step3_6_three_panels.csv,Phase 0 cell 23: STEP 3.6 three-panel comparison (FC target),saved,"rows=3, cols=7"
+2026-05-29T06:06:13Z,results/local_results/notebook_snapshot/phase0/step5_1_2x2_residual_panels.csv,Phase 0 cell 29: STEP 5.1 A/C residual+edge panels (4 rows),saved,"rows=4, cols=9"
+2026-05-29T06:06:13Z,results/local_results/notebook_snapshot/phase0/step5_1_2x2_partition_panels.csv,Phase 0 cell 29: STEP 5.1 B/D partition+latent stats (4 rows),saved,"rows=4, cols=8"
+2026-05-29T06:06:13Z,results/local_results/notebook_snapshot/phase0/step5_2_cross_step.csv,Phase 0 cell 32: STEP 5.2 cross-step summary (rebuilt from panels if needed),saved,"rows=10, cols=7"
+2026-05-29T06:06:13Z,results/local_results/notebook_snapshot/phase1/section1_baselines.csv,Phase 1 cell 35: SECTION 1 non-connectome baselines,saved,"rows=4, cols=8"
+2026-05-29T06:06:13Z,results/local_results/notebook_snapshot/phase1/section2_asymmetry.csv,Phase 1 cell 36: SECTION 2 asymmetry across residualization bases,saved,"rows=4, cols=8"
+2026-05-29T06:06:13Z,results/local_results/notebook_snapshot/phase1/section3_identifiability.csv,Phase 1 cell 38: SECTION 3 identifiability under stringent residual,saved,"rows=6, cols=4"
+2026-05-29T06:06:13Z,results/local_results/notebook_snapshot/phase1/exp4_double_sided.csv,Phase 1 cell 39: EXP 4 double-sided residualization,saved,"rows=2, cols=8"
+2026-05-29T06:06:13Z,results/local_results/notebook_snapshot/phase1/exp5_br_robustness.csv,Phase 1 cell 40: EXP 5 BR model-class robustness on stringent basis,saved,"rows=2, cols=6"
+2026-05-29T06:06:13Z,results/local_results/notebook_snapshot/phase1/exp6_combined_predictor.csv,Phase 1 cell 41: EXP 6 combined predictor (clinical framing),saved,"rows=6, cols=4"
+2026-05-29T06:06:13Z,"results/local_results/Exp7_stringent_ratio_10_seed/{per_seed,aggregate}.csv",Phase 1 EXP 7 emergency save (demeaned-r only),external,saved in-loop by cell 45
+2026-05-29T06:06:13Z,"results/local_results/Exp7_stringent_ratio_10_seed/{full_panel_seed_*,aggregate_full_panel_*}.csv","Phase 1 EXP 7 full-panel companion (all 6 metrics, 10 conditions)",external,saved in-loop by cell 46
+2026-05-29T06:06:13Z,"results/local_results/family_structure_phase2/{seed_*.npz, aggregate_auc.csv, violin_panel.png}",Phase 2 Analysis 1: family-structure,external,"saved in-loop by cells 50, 51"
+2026-05-29T06:06:13Z,"results/local_results/downstream_prediction_phase2/{seed_*.parquet, aggregate.csv, perm_vs_bvdemo.csv, bars_panel.png}",Phase 2 Analysis 2: downstream prediction,external,"saved in-loop by cells 53, 54"

@@ -1,0 +1,2 @@
+avg_rank,demeaned_pearson,mse,pearson,r2,top1_acc,source,target,shuffle_seed,note
+1.0,0.647232,0.003169,0.950608,0.078767,1.0,SC,SC,0,ceiling: SC->SC self-reconstruction via CrossModalPCA

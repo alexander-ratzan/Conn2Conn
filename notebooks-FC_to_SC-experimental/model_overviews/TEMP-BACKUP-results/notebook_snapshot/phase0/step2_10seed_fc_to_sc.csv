@@ -1,0 +1,11 @@
+seed,demeaned_pearson,top1_acc,model,source,target
+0,0.137,0.1538,CrossModal_PCA_PLS,FC,SC
+1,0.1305,0.0923,CrossModal_PCA_PLS,FC,SC
+2,0.1233,0.1077,CrossModal_PCA_PLS,FC,SC
+3,0.134,0.1179,CrossModal_PCA_PLS,FC,SC
+4,0.1335,0.1128,CrossModal_PCA_PLS,FC,SC
+5,0.1432,0.0974,CrossModal_PCA_PLS,FC,SC
+6,0.1409,0.1231,CrossModal_PCA_PLS,FC,SC
+7,0.1358,0.1333,CrossModal_PCA_PLS,FC,SC
+8,0.1325,0.0974,CrossModal_PCA_PLS,FC,SC
+9,0.1303,0.102,CrossModal_PCA_PLS,FC,SC
