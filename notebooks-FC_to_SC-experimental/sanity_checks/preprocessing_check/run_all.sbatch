@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --account=torch_pr_60_tandon_priority
 #SBATCH --partition=cpu_short
-#SBATCH --cpus-per-task=32
-#SBATCH --mem=128G
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=120G
 #SBATCH --time=01:30:00
 #SBATCH --job-name=preprocheck
 #SBATCH --output=/scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/sanity_checks/preprocessing_check/slurm-%j.out
@@ -22,9 +22,9 @@ apptainer exec --fakeroot \
     source /ext3/miniforge3/bin/activate
     conda activate /ext3/miniforge3/envs/kraken_env
     export PYTHONNOUSERSITE=True
-    export OMP_NUM_THREADS=32
-    export OPENBLAS_NUM_THREADS=32
-    export MKL_NUM_THREADS=32
+    export OMP_NUM_THREADS=16
+    export OPENBLAS_NUM_THREADS=16
+    export MKL_NUM_THREADS=16
     cd $PREP_DIR
     set -e
     echo '[run_all] method_a_pca_pls_pca.py ...'
