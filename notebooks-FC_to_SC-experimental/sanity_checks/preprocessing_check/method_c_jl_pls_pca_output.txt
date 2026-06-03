@@ -1,0 +1,228 @@
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+
+========== variant gaussian_dense ==========
+[seed  0] FC->SC ...
+[seed  0] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0747  SC->FC dp = 0.0488  ratio = 1.530
+[seed  1] FC->SC ...
+[seed  1] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0848  SC->FC dp = 0.0616  ratio = 1.377
+[seed  2] FC->SC ...
+[seed  2] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0731  SC->FC dp = 0.0613  ratio = 1.194
+[seed  3] FC->SC ...
+[seed  3] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0850  SC->FC dp = 0.0621  ratio = 1.369
+[seed  4] FC->SC ...
+[seed  4] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0826  SC->FC dp = 0.0608  ratio = 1.359
+[seed  5] FC->SC ...
+[seed  5] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0994  SC->FC dp = 0.0590  ratio = 1.683
+[seed  6] FC->SC ...
+[seed  6] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0936  SC->FC dp = 0.0416  ratio = 2.250
+[seed  7] FC->SC ...
+[seed  7] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0823  SC->FC dp = 0.0548  ratio = 1.503
+[seed  8] FC->SC ...
+[seed  8] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0909  SC->FC dp = 0.0641  ratio = 1.417
+[seed  9] FC->SC ...
+[seed  9] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0819  SC->FC dp = 0.0618  ratio = 1.325
+
+========== variant sparse_auto ==========
+[seed  0] FC->SC ...
+[seed  0] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0842  SC->FC dp = 0.0598  ratio = 1.408
+[seed  1] FC->SC ...
+[seed  1] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0823  SC->FC dp = 0.0610  ratio = 1.350
+[seed  2] FC->SC ...
+[seed  2] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0688  SC->FC dp = 0.0566  ratio = 1.215
+[seed  3] FC->SC ...
+[seed  3] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0840  SC->FC dp = 0.0613  ratio = 1.371
+[seed  4] FC->SC ...
+[seed  4] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0877  SC->FC dp = 0.0534  ratio = 1.642
+[seed  5] FC->SC ...
+[seed  5] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0890  SC->FC dp = 0.0596  ratio = 1.494
+[seed  6] FC->SC ...
+[seed  6] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0789  SC->FC dp = 0.0712  ratio = 1.109
+[seed  7] FC->SC ...
+[seed  7] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0752  SC->FC dp = 0.0587  ratio = 1.281
+[seed  8] FC->SC ...
+[seed  8] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0891  SC->FC dp = 0.0468  ratio = 1.903
+[seed  9] FC->SC ...
+[seed  9] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0873  SC->FC dp = 0.0505  ratio = 1.727
+
+========== variant sparse_third ==========
+[seed  0] FC->SC ...
+[seed  0] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0857  SC->FC dp = 0.0482  ratio = 1.776
+[seed  1] FC->SC ...
+[seed  1] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0797  SC->FC dp = 0.0551  ratio = 1.447
+[seed  2] FC->SC ...
+[seed  2] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0761  SC->FC dp = 0.0617  ratio = 1.235
+[seed  3] FC->SC ...
+[seed  3] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0854  SC->FC dp = 0.0515  ratio = 1.659
+[seed  4] FC->SC ...
+[seed  4] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0834  SC->FC dp = 0.0671  ratio = 1.244
+[seed  5] FC->SC ...
+[seed  5] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0825  SC->FC dp = 0.0519  ratio = 1.590
+[seed  6] FC->SC ...
+[seed  6] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0872  SC->FC dp = 0.0511  ratio = 1.707
+[seed  7] FC->SC ...
+[seed  7] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0851  SC->FC dp = 0.0633  ratio = 1.344
+[seed  8] FC->SC ...
+[seed  8] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+   FC->SC dp = 0.0878  SC->FC dp = 0.0578  ratio = 1.518
+[seed  9] FC->SC ...
+[seed  9] SC->FC ...
+   FC->SC dp = 0.0841  SC->FC dp = 0.0503  ratio = 1.672
+
+Saved -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/sanity_checks/preprocessing_check/method_c_results.csv
+
+Summary by (variant, direction):
+                          median    min    max
+jl_variant     direction                      
+gaussian_dense FC->SC     0.0837 0.0731 0.0994
+               SC->FC     0.0610 0.0416 0.0641
+sparse_auto    FC->SC     0.0841 0.0688 0.0891
+               SC->FC     0.0592 0.0468 0.0712
+sparse_third   FC->SC     0.0846 0.0761 0.0878
+               SC->FC     0.0535 0.0482 0.0671

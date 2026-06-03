@@ -1,0 +1,88 @@
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+[seed 0] FC->SC ...
+  demeaned_pearson = 0.1322
+[seed 0] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  demeaned_pearson = 0.0849
+[seed 1] FC->SC ...
+  demeaned_pearson = 0.1371
+[seed 1] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  demeaned_pearson = 0.0862
+[seed 2] FC->SC ...
+  demeaned_pearson = 0.1222
+[seed 2] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  demeaned_pearson = 0.0834
+[seed 3] FC->SC ...
+  demeaned_pearson = 0.1363
+[seed 3] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  demeaned_pearson = 0.0733
+[seed 4] FC->SC ...
+  demeaned_pearson = 0.1402
+[seed 4] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  demeaned_pearson = 0.0915
+[seed 5] FC->SC ...
+  demeaned_pearson = 0.1502
+[seed 5] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  demeaned_pearson = 0.0846
+[seed 6] FC->SC ...
+  demeaned_pearson = 0.1335
+[seed 6] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  demeaned_pearson = 0.0769
+[seed 7] FC->SC ...
+  demeaned_pearson = 0.1336
+[seed 7] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  demeaned_pearson = 0.1009
+[seed 8] FC->SC ...
+  demeaned_pearson = 0.1400
+[seed 8] SC->FC ...
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  demeaned_pearson = 0.0848
+[seed 9] FC->SC ...
+  demeaned_pearson = 0.1347
+[seed 9] SC->FC ...
+  demeaned_pearson = 0.0757
+
+Saved -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/sanity_checks/preprocessing_check/method_a_results.csv
+
+Summary (median across seeds):
+           median    min    max
+direction                      
+FC->SC     0.1355 0.1222 0.1502
+SC->FC     0.0847 0.0733 0.1009
