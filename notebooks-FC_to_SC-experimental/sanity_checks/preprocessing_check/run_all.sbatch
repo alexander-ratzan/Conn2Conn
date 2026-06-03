@@ -3,7 +3,7 @@
 #SBATCH --partition=cpu_short
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=120G
-#SBATCH --time=01:30:00
+#SBATCH --time=04:00:00
 #SBATCH --job-name=preprocheck
 #SBATCH --output=/scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/sanity_checks/preprocessing_check/slurm-%j.out
 

@@ -34,6 +34,8 @@ else:
 from _setup import load_seed_split, full_panel_eval
 
 THIS_DIR = Path(__file__).resolve().parent
+PER_SEED_DIR = THIS_DIR / "_method_b_per_seed"
+PER_SEED_DIR.mkdir(exist_ok=True)
 N_SEEDS = 10
 K_PLS = 64
 MAX_ITER = 2000
@@ -67,6 +69,12 @@ def full_pls_predict(X_train, X_test, Y_train, k_pls=K_PLS, max_iter=MAX_ITER):
 
 rows = []
 for seed in range(N_SEEDS):
+    cache_path = PER_SEED_DIR / f"seed_{seed}.csv"
+    if cache_path.exists():
+        cached = pd.read_csv(cache_path)
+        print(f"[seed {seed}] cached -> {cache_path.name}; skipping refit")
+        rows.extend(cached.to_dict("records"))
+        continue
     sp = load_seed_split(seed=seed)
     FC_tr, FC_te = sp["FC_train"], sp["FC_test"]
     SC_tr, SC_te = sp["SC_train"], sp["SC_test"]
@@ -84,16 +92,21 @@ for seed in range(N_SEEDS):
     panel_sf = full_panel_eval(pred_sf, FC_te, FC_train_mean)
     print(f"  demeaned_pearson = {panel_sf['demeaned_pearson']:.4f}")
 
-    rows.append({"method": "FULL_PLS", "jl_variant": "", "seed": seed,
-                 "direction": "FC->SC",
-                 "demeaned_pearson": panel_fs["demeaned_pearson"],
-                 "top1_acc": panel_fs.get("top1_acc", np.nan),
-                 "avg_rank": panel_fs.get("avg_rank", np.nan)})
-    rows.append({"method": "FULL_PLS", "jl_variant": "", "seed": seed,
-                 "direction": "SC->FC",
-                 "demeaned_pearson": panel_sf["demeaned_pearson"],
-                 "top1_acc": panel_sf.get("top1_acc", np.nan),
-                 "avg_rank": panel_sf.get("avg_rank", np.nan)})
+    seed_rows = [
+        {"method": "FULL_PLS", "jl_variant": "", "seed": seed,
+         "direction": "FC->SC",
+         "demeaned_pearson": panel_fs["demeaned_pearson"],
+         "top1_acc": panel_fs.get("top1_acc", np.nan),
+         "avg_rank": panel_fs.get("avg_rank", np.nan)},
+        {"method": "FULL_PLS", "jl_variant": "", "seed": seed,
+         "direction": "SC->FC",
+         "demeaned_pearson": panel_sf["demeaned_pearson"],
+         "top1_acc": panel_sf.get("top1_acc", np.nan),
+         "avg_rank": panel_sf.get("avg_rank", np.nan)},
+    ]
+    rows.extend(seed_rows)
+    pd.DataFrame(seed_rows).to_csv(cache_path, index=False)
+    print(f"[seed {seed}] saved -> {cache_path.name}")
 
 df = pd.DataFrame(rows)
 df.to_csv(THIS_DIR / "method_b_results.csv", index=False)
