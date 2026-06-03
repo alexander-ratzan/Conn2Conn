@@ -15,11 +15,11 @@ reduction pipeline**.
 
 | Method (n=10 seeds) | median FC→SC dp | median SC→FC dp | **median ratio** | min ratio | max ratio | p_vs_1 |
 |---|---|---|---|---|---|---|
-| **PCA→PLS→PCA** (main model) | 0.135 | 0.085 | **1.59×** | 1.31× | 1.96× | 0.001 |
-| **FULL PLS** (no reduction, 64,620-dim) | 0.138 | 0.077 | **1.79×** | 1.50× | 2.15× | 0.001 |
-| **JL Gaussian dense** | 0.084 | 0.061 | **1.40×** | 1.19× | 2.25× | 0.001 |
-| **JL sparse_auto** (density ≈ 1/√p) | 0.084 | 0.059 | **1.39×** | 1.11× | 1.90× | 0.001 |
-| **JL sparse_1/3** (Achlioptas) | 0.085 | 0.054 | **1.55×** | 1.24× | 1.78× | 0.001 |
+| **PCA→PLS→PCA** (main model) | 0.1355 | 0.0847 | **1.621×** | 1.32× | 1.86× | 0.001 |
+| **FULL PLS** (no reduction, 64,620-dim) | 0.1382 | 0.0762 | **1.813×** | 1.49× | 2.11× | 0.001 |
+| **JL Gaussian dense** | 0.0837 | 0.0610 | **1.397×** | 1.19× | 2.25× | 0.001 |
+| **JL sparse_auto** (density ≈ 1/√p) | 0.0841 | 0.0592 | **1.389×** | 1.11× | 1.90× | 0.001 |
+| **JL sparse_1/3** (Achlioptas) | 0.0846 | 0.0535 | **1.554×** | 1.24× | 1.78× | 0.001 |
 
 ## What each row tells us
 
