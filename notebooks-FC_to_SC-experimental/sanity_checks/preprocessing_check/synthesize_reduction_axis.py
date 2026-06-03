@@ -26,6 +26,9 @@ for p in [THIS_DIR / "method_a_results.csv",
 if not dfs:
     raise SystemExit("No method CSVs found.")
 df = pd.concat(dfs, ignore_index=True)
+# pandas reads empty CSV cells as NaN; groupby default drops NaN keys, which
+# silently hides methods A and B (no jl_variant). Coerce to "" instead.
+df["jl_variant"] = df["jl_variant"].fillna("").astype(str)
 print(f"Loaded {len(df)} rows across methods: "
       f"{sorted(df['method'].unique())}")
 
