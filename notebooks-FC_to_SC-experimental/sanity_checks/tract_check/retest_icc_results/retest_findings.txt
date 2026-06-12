@@ -1,0 +1,18 @@
+Retest reliability + tract_check joint verdict
+============================================================
+  Strength + distance + FC reliability jointly explain 41.2% of |PC3|.
+  Headline pair survival under 3-proxy residual:
+    visual||visual      = 13.32x
+    DAN||DAN            = 5.73x
+    DAN||visual         = 4.99x
+
+  -> HEDGE. Headline pairs survive but reduced under the joint partial.
+     => Strong but not bulletproof claim; report all three numbers.
+
+Caveats (still standing):
+  - This is FC reliability, NOT SC reliability. They are different physical
+    constructs. We use it because it's the only same-subject scan-rescan
+    measure available from this cache; gold-standard SC ICC requires the
+    HCP retest dMRI release (not in this project).
+  - Even so, FC reliability passing the partialling test is an independent
+    cross-check on the strength+distance proxy result.

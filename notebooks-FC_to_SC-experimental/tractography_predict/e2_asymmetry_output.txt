@@ -1,0 +1,169 @@
+=== seed 0 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] FC -> SC
+  [SC      ] SC -> FC
+    FC->SC dp=0.1322  SC->FC dp=0.0849  ratio=1.557
+  [r2t     ] FC -> r2t
+  [r2t     ] r2t -> FC
+    FC->r2t dp=0.1123  r2t->FC dp=0.0397  ratio=2.830
+  [r2t_corr] FC -> r2t_corr
+  [r2t_corr] r2t_corr -> FC
+    FC->r2t_corr dp=0.0539  r2t_corr->FC dp=0.0355  ratio=1.519
+=== seed 1 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] FC -> SC
+  [SC      ] SC -> FC
+    FC->SC dp=0.1371  SC->FC dp=0.0862  ratio=1.590
+  [r2t     ] FC -> r2t
+  [r2t     ] r2t -> FC
+    FC->r2t dp=0.1096  r2t->FC dp=0.0516  ratio=2.126
+  [r2t_corr] FC -> r2t_corr
+  [r2t_corr] r2t_corr -> FC
+    FC->r2t_corr dp=0.0583  r2t_corr->FC dp=0.0244  ratio=2.390
+=== seed 2 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] FC -> SC
+  [SC      ] SC -> FC
+    FC->SC dp=0.1222  SC->FC dp=0.0834  ratio=1.465
+  [r2t     ] FC -> r2t
+  [r2t     ] r2t -> FC
+    FC->r2t dp=0.1078  r2t->FC dp=0.0475  ratio=2.269
+  [r2t_corr] FC -> r2t_corr
+  [r2t_corr] r2t_corr -> FC
+    FC->r2t_corr dp=0.0556  r2t_corr->FC dp=0.0405  ratio=1.371
+=== seed 3 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] FC -> SC
+  [SC      ] SC -> FC
+    FC->SC dp=0.1363  SC->FC dp=0.0733  ratio=1.861
+  [r2t     ] FC -> r2t
+  [r2t     ] r2t -> FC
+    FC->r2t dp=0.1211  r2t->FC dp=0.0536  ratio=2.259
+  [r2t_corr] FC -> r2t_corr
+  [r2t_corr] r2t_corr -> FC
+    FC->r2t_corr dp=0.0638  r2t_corr->FC dp=0.0384  ratio=1.663
+=== seed 4 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] FC -> SC
+  [SC      ] SC -> FC
+    FC->SC dp=0.1402  SC->FC dp=0.0915  ratio=1.533
+  [r2t     ] FC -> r2t
+  [r2t     ] r2t -> FC
+    FC->r2t dp=0.1097  r2t->FC dp=0.0510  ratio=2.151
+  [r2t_corr] FC -> r2t_corr
+  [r2t_corr] r2t_corr -> FC
+    FC->r2t_corr dp=0.0536  r2t_corr->FC dp=0.0449  ratio=1.193
+=== seed 5 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] FC -> SC
+  [SC      ] SC -> FC
+    FC->SC dp=0.1502  SC->FC dp=0.0846  ratio=1.774
+  [r2t     ] FC -> r2t
+  [r2t     ] r2t -> FC
+    FC->r2t dp=0.1102  r2t->FC dp=0.0527  ratio=2.092
+  [r2t_corr] FC -> r2t_corr
+  [r2t_corr] r2t_corr -> FC
+    FC->r2t_corr dp=0.0580  r2t_corr->FC dp=0.0493  ratio=1.178
+=== seed 6 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] FC -> SC
+  [SC      ] SC -> FC
+    FC->SC dp=0.1335  SC->FC dp=0.0769  ratio=1.737
+  [r2t     ] FC -> r2t
+  [r2t     ] r2t -> FC
+    FC->r2t dp=0.1020  r2t->FC dp=0.0378  ratio=2.695
+  [r2t_corr] FC -> r2t_corr
+  [r2t_corr] r2t_corr -> FC
+    FC->r2t_corr dp=0.0608  r2t_corr->FC dp=0.0334  ratio=1.820
+=== seed 7 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] FC -> SC
+  [SC      ] SC -> FC
+    FC->SC dp=0.1336  SC->FC dp=0.1009  ratio=1.324
+  [r2t     ] FC -> r2t
+  [r2t     ] r2t -> FC
+    FC->r2t dp=0.1125  r2t->FC dp=0.0601  ratio=1.871
+  [r2t_corr] FC -> r2t_corr
+  [r2t_corr] r2t_corr -> FC
+    FC->r2t_corr dp=0.0594  r2t_corr->FC dp=0.0370  ratio=1.606
+=== seed 8 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] FC -> SC
+  [SC      ] SC -> FC
+    FC->SC dp=0.1400  SC->FC dp=0.0848  ratio=1.651
+  [r2t     ] FC -> r2t
+  [r2t     ] r2t -> FC
+    FC->r2t dp=0.1148  r2t->FC dp=0.0475  ratio=2.418
+  [r2t_corr] FC -> r2t_corr
+  [r2t_corr] r2t_corr -> FC
+    FC->r2t_corr dp=0.0605  r2t_corr->FC dp=0.0322  ratio=1.883
+=== seed 9 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] FC -> SC
+  [SC      ] SC -> FC
+    FC->SC dp=0.1347  SC->FC dp=0.0757  ratio=1.780
+  [r2t     ] FC -> r2t
+  [r2t     ] r2t -> FC
+    FC->r2t dp=0.1179  r2t->FC dp=0.0450  ratio=2.623
+  [r2t_corr] FC -> r2t_corr
+  [r2t_corr] r2t_corr -> FC
+    FC->r2t_corr dp=0.0551  r2t_corr->FC dp=0.0307  ratio=1.797
+
+Saved -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/tractography_predict/e2_asymmetry_results.csv
+
+=== Asymmetry across reps — ALL 6 metrics ===
+(median_FCwins: ratio>1 or diff>0 means FC->X beats X->FC; p = Wilcoxon one-sided)
+
+  SC:
+    demeaned_pearson    +1.621x       p=0.0010*  [FC->X=+0.1355  X->FC=+0.0847]
+    pearson             +1.101x       p=0.0010*  [FC->X=+0.9125  X->FC=+0.8292]
+    top1_acc            +2.562x       p=0.0010*  [FC->X=+0.1179  X->FC=+0.0513]
+    avg_rank            +1.225x       p=0.0010*  [FC->X=+0.8787  X->FC=+0.7128]
+    mse                 +2.594x       p=0.0010*  [FC->X=+0.0055  X->FC=+0.0143]
+    r2                  +0.036 (diff) p=0.0010*  [FC->X=-0.0220  X->FC=-0.0572]
+
+  r2t:
+    demeaned_pearson    +2.264x       p=0.0010*  [FC->X=+0.1113  X->FC=+0.0493]
+    pearson             +1.037x       p=0.0010*  [FC->X=+0.8453  X->FC=+0.8153]
+    top1_acc            +1.500x       p=0.0391*  [FC->X=+0.0282  X->FC=+0.0205]
+    avg_rank            +1.185x       p=0.0010*  [FC->X=+0.7212  X->FC=+0.6090]
+    mse                 +0.000x       p=1.0000   [FC->X=+536456.0625  X->FC=+0.0154]
+    r2                  +0.446 (diff) p=0.0020*  [FC->X=+0.3234  X->FC=-0.1270]
+
+  r2t_corr:
+    demeaned_pearson    +1.634x       p=0.0010*  [FC->X=+0.0582  X->FC=+0.0362]
+    pearson             +0.981x       p=1.0000   [FC->X=+0.8071  X->FC=+0.8231]
+    top1_acc            +1.825x       p=0.0625   [FC->X=+0.0256  X->FC=+0.0179]
+    avg_rank            +1.175x       p=0.0010*  [FC->X=+0.7092  X->FC=+0.6070]
+    mse                 +0.854x       p=1.0000   [FC->X=+0.0174  X->FC=+0.0148]
+    r2                  -6.884 (diff) p=0.9902   [FC->X=-6.9757  X->FC=-0.0909]

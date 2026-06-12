@@ -1,0 +1,98 @@
+=== seed 0 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] blocks=[64620] fitting ...
+    dp=0.0849
+  [SC_r2t  ] blocks=[64620, 23760] fitting ...
+    dp=0.0730
+=== seed 1 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] blocks=[64620] fitting ...
+    dp=0.0862
+  [SC_r2t  ] blocks=[64620, 23760] fitting ...
+    dp=0.0861
+=== seed 2 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] blocks=[64620] fitting ...
+    dp=0.0834
+  [SC_r2t  ] blocks=[64620, 23760] fitting ...
+    dp=0.0789
+=== seed 3 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] blocks=[64620] fitting ...
+    dp=0.0733
+  [SC_r2t  ] blocks=[64620, 23760] fitting ...
+    dp=0.0721
+=== seed 4 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] blocks=[64620] fitting ...
+    dp=0.0915
+  [SC_r2t  ] blocks=[64620, 23760] fitting ...
+    dp=0.0797
+=== seed 5 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] blocks=[64620] fitting ...
+    dp=0.0846
+  [SC_r2t  ] blocks=[64620, 23760] fitting ...
+    dp=0.0835
+=== seed 6 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] blocks=[64620] fitting ...
+    dp=0.0769
+  [SC_r2t  ] blocks=[64620, 23760] fitting ...
+    dp=0.0755
+=== seed 7 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] blocks=[64620] fitting ...
+    dp=0.1009
+  [SC_r2t  ] blocks=[64620, 23760] fitting ...
+    dp=0.1070
+=== seed 8 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] blocks=[64620] fitting ...
+    dp=0.0848
+  [SC_r2t  ] blocks=[64620, 23760] fitting ...
+    dp=0.0792
+=== seed 9 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] blocks=[64620] fitting ...
+    dp=0.0757
+  [SC_r2t  ] blocks=[64620, 23760] fitting ...
+    dp=0.0745
+
+Saved -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/tractography_predict/e3_marginal_results.csv
+
+=== Marginal-contribution summary ===
+ n_seeds  median_dp_SC  median_dp_SC_r2t  median_delta  min_delta  max_delta  wilcoxon_p_two_sided  wilcoxon_p_one_sided_greater
+      10        0.0847            0.0791       -0.0013    -0.0119     0.0061                0.0488                        0.9814
+
+Verdict: SC is essentially a sufficient statistic; r2t adds negligible info.

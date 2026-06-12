@@ -1,0 +1,50 @@
+=== E1: source-rep -> FC prediction (median across 10 seeds, ALL metrics) ===
+              demeaned_pearson  pearson  top1_acc  avg_rank    mse      r2
+rep                                                                       
+SC                      0.0847   0.8292    0.0513    0.7128 0.0143 -0.0572
+SC_r2t                  0.0791   0.8272    0.0359    0.7020 0.0145 -0.0638
+kitchen_sink            0.0942   0.8288    0.0487    0.7228 0.0143 -0.0574
+r2t                     0.0493   0.8153    0.0205    0.6090 0.0154 -0.1270
+r2t_corr                0.0362   0.8231    0.0179    0.6070 0.0148 -0.0909
+
+=== E2: asymmetry across structural reps (ALL 6 metrics) ===
+median FC-wins (ratio>1 or r2-diff>0 means FC->X beats X->FC):
+metric    demeaned_pearson  pearson  top1_acc  avg_rank    mse     r2
+rep                                                                  
+SC                  +1.621   +1.101    +2.562    +1.225 +2.594 +0.036
+r2t                 +2.264   +1.037    +1.500    +1.185 +0.000 +0.446
+r2t_corr            +1.634   +0.981    +1.825    +1.175 +0.854 -6.884
+
+Wilcoxon p (one-sided, FC wins):
+metric    demeaned_pearson  pearson  top1_acc  avg_rank    mse     r2
+rep                                                                  
+SC                  0.0010   0.0010    0.0010    0.0010 0.0010 0.0010
+r2t                 0.0010   0.0010    0.0391    0.0010 1.0000 0.0020
+r2t_corr            0.0010   1.0000    0.0625    0.0010 1.0000 0.9902
+
+=== E3: marginal r2t contribution over SC ===
+ n_seeds  median_dp_SC  median_dp_SC_r2t  median_delta  min_delta  max_delta  wilcoxon_p_two_sided  wilcoxon_p_one_sided_greater
+      10        0.0847            0.0791       -0.0013    -0.0119     0.0061                0.0488                        0.9814
+
+Saved -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/tractography_predict/tractography_synthesis.csv
+
+========================================================================
+AUTOMATED VERDICT
+========================================================================
+
+[E1] SC vs r2t for predicting FC:
+  SC    median dp = 0.0847
+  r2t   median dp = 0.0493
+  -> SC predicts FC better than r2t. Count-level SC retains a real edge
+     over the bundle-level representation for cross-modal prediction.
+
+[E2] Asymmetry across structural reps:
+  FC<->SC ratio       = 1.621
+  FC<->r2t ratio      = 2.264
+  -> Asymmetry GROWS under r2t (unusual). The bundle rep amplifies the
+     directional difference; worth digging into why.
+
+[E3] Marginal r2t over SC for FC prediction (paired Δ):
+  median Δ (SC_r2t - SC) = -0.0013
+  -> SC is essentially a sufficient statistic. r2t adds nothing material
+     beyond count-SC for cross-modal prediction.

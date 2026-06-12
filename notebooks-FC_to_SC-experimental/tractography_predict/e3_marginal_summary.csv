@@ -1,0 +1,2 @@
+n_seeds,median_dp_SC,median_dp_SC_r2t,median_delta,min_delta,max_delta,wilcoxon_p_two_sided,wilcoxon_p_one_sided_greater
+10,0.08469865471124649,0.07907874882221222,-0.0012888871133327484,-0.011882133781909943,0.006099782884120941,0.048828125,0.9814453125

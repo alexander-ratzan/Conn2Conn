@@ -1,0 +1,10 @@
+row,value
+E1: SC -> FC median dp,0.08469881117343894
+E1: r2t -> FC median dp,0.049254139885306344
+E1: r2t_corr -> FC median dp,0.0362488832324743
+E1: SC_r2t -> FC median dp,0.07907867804169649
+E1: kitchen_sink -> FC median dp,0.09416277334094045
+E2: FC<->SC median ratio,1.6207301052708392
+E2: FC<->r2t median ratio,2.2643255403279627
+E2: FC<->r2t_corr median ratio,1.6342138727108124
+E3: median Δ (SC_r2t - SC),-0.0012888871133327

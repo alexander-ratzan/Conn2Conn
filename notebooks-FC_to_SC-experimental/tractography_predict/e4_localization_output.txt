@@ -1,0 +1,153 @@
+=== Stage 1: per-seed r2t PCA fits ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  seed 0: expl_var top-10 = ['0.065', '0.039', '0.027', '0.023', '0.021', '0.019', '0.018', '0.017', '0.016', '0.015']
+    FC->r2t-PC R² = ['0.106', '0.169', '0.021', '0.019', '0.059', '0.015', '0.051', '0.072', '-0.006', '-0.031']
+  seed 1: expl_var top-10 = ['0.063', '0.040', '0.025', '0.023', '0.021', '0.019', '0.018', '0.018', '0.017', '0.015']
+    FC->r2t-PC R² = ['0.086', '0.049', '0.080', '0.039', '0.159', '0.046', '-0.074', '0.077', '-0.058', '-0.038']
+  seed 2: expl_var top-10 = ['0.064', '0.039', '0.025', '0.021', '0.021', '0.019', '0.018', '0.017', '0.016', '0.015']
+    FC->r2t-PC R² = ['0.028', '0.157', '0.002', '0.075', '0.027', '0.026', '0.016', '-0.031', '0.055', '0.005']
+  seed 3: expl_var top-10 = ['0.067', '0.041', '0.026', '0.022', '0.020', '0.019', '0.019', '0.017', '0.016', '0.015']
+    FC->r2t-PC R² = ['0.059', '0.149', '0.034', '-0.021', '0.241', '0.069', '0.037', '-0.015', '0.023', '-0.022']
+  seed 4: expl_var top-10 = ['0.064', '0.040', '0.025', '0.021', '0.020', '0.018', '0.018', '0.017', '0.017', '0.015']
+    FC->r2t-PC R² = ['0.105', '0.192', '0.016', '0.014', '0.082', '-0.031', '-0.013', '0.008', '0.005', '0.033']
+  seed 5: expl_var top-10 = ['0.066', '0.040', '0.025', '0.022', '0.021', '0.019', '0.018', '0.017', '0.016', '0.015']
+    FC->r2t-PC R² = ['0.101', '0.247', '0.041', '-0.016', '0.036', '0.044', '0.039', '-0.080', '0.003', '-0.073']
+  seed 6: expl_var top-10 = ['0.065', '0.041', '0.027', '0.021', '0.020', '0.018', '0.018', '0.018', '0.016', '0.015']
+    FC->r2t-PC R² = ['0.130', '0.128', '0.030', '0.005', '-0.001', '0.010', '0.028', '0.023', '0.018', '-0.057']
+  seed 7: expl_var top-10 = ['0.063', '0.040', '0.025', '0.023', '0.021', '0.019', '0.018', '0.017', '0.016', '0.015']
+    FC->r2t-PC R² = ['0.105', '0.123', '0.045', '0.087', '0.107', '0.090', '0.023', '0.027', '-0.048', '-0.022']
+  seed 8: expl_var top-10 = ['0.065', '0.040', '0.026', '0.021', '0.021', '0.018', '0.018', '0.017', '0.016', '0.015']
+    FC->r2t-PC R² = ['0.094', '0.097', '0.053', '0.219', '0.049', '0.028', '0.064', '-0.012', '-0.000', '-0.031']
+  seed 9: expl_var top-10 = ['0.064', '0.040', '0.027', '0.023', '0.021', '0.019', '0.018', '0.017', '0.016', '0.015']
+    FC->r2t-PC R² = ['0.099', '0.228', '0.054', '0.054', '0.088', '0.055', '-0.012', '0.025', '0.000', '0.031']
+
+=== Stage 2: stability via cosine alignment ===
+ anchor_mode  median_abs_cos  min_abs_cos  median_expl_var  median_FC_to_R2T_R2
+           1          0.9891       0.9755           0.0646               0.1003
+           2          0.9797       0.9580           0.0400               0.1532
+           3          0.9480       0.8944           0.0256               0.0374
+           4          0.8801       0.7107           0.0220               0.0289
+           5          0.7917       0.6691           0.0208               0.0852
+           6          0.7016       0.5773           0.0177              -0.0120
+           7          0.6842       0.6274           0.0190               0.0452
+           8          0.7016       0.6581           0.0175               0.0383
+           9          0.7473       0.5630           0.0164              -0.0001
+          10          0.7388       0.2600           0.0150              -0.0263
+
+=== Stage 3: top (region, bundle) entries for modes 3, 4, 5 ===
+
+Top 5 entries per mode preview:
+
+  Mode 3:
+    Left_V1                    AssociationInferiorFrontoOccipitalFasciculusR       loading=+0.5884
+    Right_V1                   AssociationInferiorFrontoOccipitalFasciculusL       loading=-0.4532
+    Left_V1                    AssociationInferiorLongitudinalFasciculusR          loading=+0.1946
+    Left_PGp                   AssociationInferiorLongitudinalFasciculusR          loading=-0.1760
+    Right_SFL                  CommissureCorpusCallosum                            loading=-0.1547
+
+  Mode 4:
+    Left_TE1p                  AssociationArcuateFasciculusR                       loading=+0.3863
+    Right_TE1p                 AssociationArcuateFasciculusL                       loading=-0.3102
+    Right_a47r                 AssociationInferiorFrontoOccipitalFasciculusL       loading=-0.2217
+    Right_TE2a                 AssociationArcuateFasciculusL                       loading=+0.2123
+    Right_V2                   AssociationInferiorFrontoOccipitalFasciculusL       loading=-0.1857
+
+  Mode 5:
+    Right_A4                   AssociationMiddleLongitudinalFasciculusL            loading=+0.2673
+    Right_a47r                 AssociationInferiorFrontoOccipitalFasciculusL       loading=-0.2506
+    Right_VIP                  AssociationMiddleLongitudinalFasciculusL            loading=+0.1914
+    Right_V1                   CommissureCorpusCallosum                            loading=+0.1869
+    Left_A4                    AssociationMiddleLongitudinalFasciculusR            loading=+0.1712
+
+Full table -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/tractography_predict/e4_r2t_top_bundles_per_mode.csv
+
+=== Bundle frequency in top entries per mode ===
+
+  Mode 3:
+    AssociationInferiorFrontoOccipitalFasciculusR            6/30
+    CommissureCorpusCallosum                                 6/30
+    AssociationInferiorLongitudinalFasciculusR               4/30
+    AssociationInferiorFrontoOccipitalFasciculusL            3/30
+    AssociationArcuateFasciculusR                            3/30
+    AssociationExtremeCapsuleR                               2/30
+    AssociationSuperiorLongitudinalFasciculusR               1/30
+    ProjectionBasalGangliaOpticRadiationR                    1/30
+
+  Mode 4:
+    AssociationInferiorFrontoOccipitalFasciculusL            8/30
+    AssociationArcuateFasciculusL                            5/30
+    AssociationInferiorFrontoOccipitalFasciculusR            4/30
+    AssociationArcuateFasciculusR                            2/30
+    AssociationSuperiorLongitudinalFasciculusR               2/30
+    CommissureCorpusCallosum                                 2/30
+    AssociationParietalAslantTractR                          2/30
+    AssociationInferiorLongitudinalFasciculusR               2/30
+
+  Mode 5:
+    CommissureCorpusCallosum                                 5/30
+    AssociationInferiorFrontoOccipitalFasciculusR            4/30
+    AssociationInferiorLongitudinalFasciculusR               4/30
+    AssociationArcuateFasciculusR                            4/30
+    AssociationMiddleLongitudinalFasciculusL                 3/30
+    AssociationMiddleLongitudinalFasciculusR                 3/30
+    AssociationInferiorFrontoOccipitalFasciculusL            2/30
+    AssociationExtremeCapsuleL                               2/30
+
+=== Stage 4: SC-PC3 score vs r2t-PC scores (seed 0) ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+ r2t_mode  spearman_with_SC_PC3  p_value
+       10               -0.3201   0.0000
+        7               -0.2259   0.0015
+        4                0.1921   0.0071
+        5                0.1742   0.0148
+        6               -0.1638   0.0221
+        3                0.1411   0.0491
+        2               -0.1001   0.1636
+        9               -0.0943   0.1897
+        8                0.0928   0.1971
+        1                0.0846   0.2398
+
+Best match: r2t-mode 10 (Spearman=-0.320)
+=> Moderate projection. SC-PC3 has some r2t correlate but not a clean 1-to-1 mode.

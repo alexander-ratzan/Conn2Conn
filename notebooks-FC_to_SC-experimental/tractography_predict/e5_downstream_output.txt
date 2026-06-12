@@ -1,0 +1,112 @@
+Cognition CSV: /scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/HCP1200_UNRESTRICTED.csv
+=== seed 0 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj: bv+demo=0.399
+  CogFluidComp_Unadj: bv+demo=0.355
+  CogCrystalComp_Unadj: bv+demo=0.298
+=== seed 1 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj: bv+demo=0.400
+  CogFluidComp_Unadj: bv+demo=0.327
+  CogCrystalComp_Unadj: bv+demo=0.366
+=== seed 2 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj: bv+demo=0.429
+  CogFluidComp_Unadj: bv+demo=0.323
+  CogCrystalComp_Unadj: bv+demo=0.441
+=== seed 3 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj: bv+demo=0.345
+  CogFluidComp_Unadj: bv+demo=0.256
+  CogCrystalComp_Unadj: bv+demo=0.375
+=== seed 4 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj: bv+demo=0.295
+  CogFluidComp_Unadj: bv+demo=0.296
+  CogCrystalComp_Unadj: bv+demo=0.347
+=== seed 5 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj: bv+demo=0.510
+  CogFluidComp_Unadj: bv+demo=0.334
+  CogCrystalComp_Unadj: bv+demo=0.463
+=== seed 6 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj: bv+demo=0.300
+  CogFluidComp_Unadj: bv+demo=0.137
+  CogCrystalComp_Unadj: bv+demo=0.345
+=== seed 7 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj: bv+demo=0.213
+  CogFluidComp_Unadj: bv+demo=0.184
+  CogCrystalComp_Unadj: bv+demo=0.288
+=== seed 8 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj: bv+demo=0.296
+  CogFluidComp_Unadj: bv+demo=0.275
+  CogCrystalComp_Unadj: bv+demo=0.296
+=== seed 9 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj: bv+demo=0.403
+  CogFluidComp_Unadj: bv+demo=0.344
+  CogCrystalComp_Unadj: bv+demo=0.321
+
+Saved -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/tractography_predict/e5_downstream_results.csv
+
+=== Median test Pearson by rep x target ===
+
+  CogTotalComp_Unadj:
+    FC             raw=+0.451  resid=+0.264  lift_over_bvdemo=+0.078
+    bv+demo        raw=+0.372  resid=+nan  lift_over_bvdemo=+0.000
+    SC             raw=+0.261  resid=+0.040  lift_over_bvdemo=-0.111
+    r2t->synthFC   raw=+0.202  resid=+nan  lift_over_bvdemo=-0.170
+    r2t            raw=+0.196  resid=+0.049  lift_over_bvdemo=-0.176
+    SC_r2t         raw=+0.196  resid=+0.048  lift_over_bvdemo=-0.177
+    r2t_corr       raw=+0.151  resid=-0.029  lift_over_bvdemo=-0.221
+
+  CogFluidComp_Unadj:
+    FC             raw=+0.342  resid=+0.218  lift_over_bvdemo=+0.033
+    bv+demo        raw=+0.309  resid=+nan  lift_over_bvdemo=+0.000
+    r2t->synthFC   raw=+0.197  resid=+nan  lift_over_bvdemo=-0.113
+    SC             raw=+0.180  resid=+0.006  lift_over_bvdemo=-0.130
+    r2t_corr       raw=+0.157  resid=+0.079  lift_over_bvdemo=-0.152
+    SC_r2t         raw=+0.135  resid=+0.072  lift_over_bvdemo=-0.174
+    r2t            raw=+0.130  resid=+0.061  lift_over_bvdemo=-0.179
+
+  CogCrystalComp_Unadj:
+    FC             raw=+0.451  resid=+0.374  lift_over_bvdemo=+0.105
+    bv+demo        raw=+0.346  resid=+nan  lift_over_bvdemo=+0.000
+    SC             raw=+0.267  resid=+0.086  lift_over_bvdemo=-0.079
+    r2t->synthFC   raw=+0.180  resid=+nan  lift_over_bvdemo=-0.166
+    r2t            raw=+0.164  resid=+0.027  lift_over_bvdemo=-0.183
+    SC_r2t         raw=+0.160  resid=+0.028  lift_over_bvdemo=-0.187
+    r2t_corr       raw=+0.103  resid=-0.009  lift_over_bvdemo=-0.244
