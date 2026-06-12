@@ -87,6 +87,62 @@ def load_seed_split_with_r2t(seed: int) -> dict:
     return split
 
 
+def block_pca_pls_predict(blocks_train, blocks_test, Y_train,
+                          k_per_block=256, k_tgt=256, k_pls=64, max_iter=2000):
+    """Scale-fair combined predictor: PCA each source block to its OWN latent space,
+    concat the latents, then PLS -> inverse-PCA(Y).
+
+    Fixes the naive-concat bug where a high-magnitude / high-dimensional block
+    dominates a single shared PCA, making the other blocks invisible. Each block
+    gets an equal k_per_block latent budget regardless of raw scale or width.
+
+    blocks_train / blocks_test: list of (n_subj, d_block) arrays.
+    Low-dim blocks (e.g. bv 16-dim, demo) are passed through raw if narrower than
+    k_per_block (PCA can't make more comps than features).
+    """
+    Z_tr_parts, Z_te_parts = [], []
+    for Xtr, Xte in zip(blocks_train, blocks_test):
+        d = Xtr.shape[1]
+        if d <= k_per_block:
+            # Narrow block: standardize on train, pass through raw.
+            mu = Xtr.mean(axis=0, keepdims=True)
+            sd = Xtr.std(axis=0, keepdims=True)
+            sd = np.where(sd > 1e-8, sd, 1.0)
+            Z_tr_parts.append((Xtr - mu) / sd)
+            Z_te_parts.append((Xte - mu) / sd)
+        else:
+            p = PCA(n_components=k_per_block, random_state=0).fit(Xtr)
+            Z_tr_parts.append(p.transform(Xtr))
+            Z_te_parts.append(p.transform(Xte))
+    Z_tr = np.concatenate(Z_tr_parts, axis=1)
+    Z_te = np.concatenate(Z_te_parts, axis=1)
+
+    pca_tgt = PCA(n_components=k_tgt, random_state=0).fit(Y_train)
+    Y_tgt_tr = pca_tgt.transform(Y_train)
+    pls = PLSRegression(n_components=k_pls, scale=True, max_iter=max_iter).fit(Z_tr, Y_tgt_tr)
+    Y_tgt_te_pred = pls.predict(Z_te)
+    return pca_tgt.inverse_transform(Y_tgt_te_pred).astype(np.float32)
+
+
+def source_blocks(split, name):
+    """Return list of source blocks (train_list, test_list) for a combined rep.
+    Single-block reps return a one-element list (so block_pca_pls_predict works
+    uniformly)."""
+    SCtr, SCte = split["SC_train"], split["SC_test"]
+    r2tr, r2te = split["r2t_flat_train"], split["r2t_flat_test"]
+    bvtr, bvte = split["bv_train"], split["bv_test"]
+    dmtr, dmte = split["demo_train"], split["demo_test"]
+    M = {
+        "SC":           ([SCtr], [SCte]),
+        "r2t":          ([r2tr], [r2te]),
+        "SC_r2t":       ([SCtr, r2tr], [SCte, r2te]),
+        "kitchen_sink": ([SCtr, r2tr, bvtr, dmtr], [SCte, r2te, bvte, dmte]),
+    }
+    if name not in M:
+        raise ValueError(f"unknown combined rep: {name!r}; available {sorted(M)}")
+    return M[name]
+
+
 def source_train_test(split, name):
     """Pull (X_train, X_test) for a named source representation."""
     M = {

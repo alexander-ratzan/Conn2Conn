@@ -21,11 +21,16 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _tract_setup import (load_seed_split_with_r2t, source_train_test,
-                          target_train_test, pca_pls_predict, full_panel_eval)
+                          source_blocks, target_train_test, pca_pls_predict,
+                          block_pca_pls_predict, full_panel_eval)
 
 THIS_DIR = Path(__file__).resolve().parent
 N_SEEDS = 10
-REPS = ["SC", "r2t", "r2t_corr", "SC_r2t", "kitchen_sink"]
+# Single-block reps use the standard shared-PCA pipeline.
+STANDALONE_REPS = ["SC", "r2t", "r2t_corr"]
+# Multi-block reps use per-block PCA then concat (scale-fair; avoids the bug where a
+# high-magnitude/high-dim block dominates a single shared PCA and hides the others).
+COMBINED_REPS = ["SC_r2t", "kitchen_sink"]
 TARGET = "FC"
 
 rows = []
@@ -33,16 +38,23 @@ for seed in range(N_SEEDS):
     print(f"=== seed {seed} ===", flush=True)
     split = load_seed_split_with_r2t(seed=seed)
     Y_tr, Y_te, Y_train_mean = target_train_test(split, TARGET)
-    for rep in REPS:
+    for rep in STANDALONE_REPS:
         X_tr, X_te = source_train_test(split, rep)
-        print(f"  [{rep:13s}] X={X_tr.shape}  fitting ...", flush=True)
+        print(f"  [{rep:13s}] X={X_tr.shape}  (shared-PCA) fitting ...", flush=True)
         y_pred = pca_pls_predict(X_tr, X_te, Y_tr)
         panel = full_panel_eval(y_pred, Y_te, Y_train_mean)
-        rows.append({"rep": rep, "seed": seed, "target": TARGET, **panel})
-        print(f"    dp={panel['demeaned_pearson']:.4f}  "
-              f"r2={panel.get('r2', float('nan')):.4f}  "
-              f"top1={panel.get('top1_acc', float('nan')):.4f}  "
-              f"rank={panel.get('avg_rank', float('nan')):.4f}")
+        rows.append({"rep": rep, "seed": seed, "target": TARGET,
+                     "method": "shared_pca", **panel})
+        print(f"    dp={panel['demeaned_pearson']:.4f}  r2={panel.get('r2', float('nan')):.4f}")
+    for rep in COMBINED_REPS:
+        btr, bte = source_blocks(split, rep)
+        dims = [b.shape[1] for b in btr]
+        print(f"  [{rep:13s}] blocks={dims}  (per-block PCA) fitting ...", flush=True)
+        y_pred = block_pca_pls_predict(btr, bte, Y_tr)
+        panel = full_panel_eval(y_pred, Y_te, Y_train_mean)
+        rows.append({"rep": rep, "seed": seed, "target": TARGET,
+                     "method": "block_pca", **panel})
+        print(f"    dp={panel['demeaned_pearson']:.4f}  r2={panel.get('r2', float('nan')):.4f}")
 
 df = pd.DataFrame(rows)
 df.to_csv(THIS_DIR / "e1_source_rep_results.csv", index=False)

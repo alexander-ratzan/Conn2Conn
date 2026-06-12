@@ -24,11 +24,16 @@ import pandas as pd
 from scipy.stats import wilcoxon
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _tract_setup import (load_seed_split_with_r2t, source_train_test,
-                          target_train_test, pca_pls_predict, full_panel_eval)
+from _tract_setup import (load_seed_split_with_r2t, source_blocks,
+                          target_train_test, block_pca_pls_predict, full_panel_eval)
 
 THIS_DIR = Path(__file__).resolve().parent
 N_SEEDS = 10
+# Both arms use the SAME per-block PCA path so SC is represented identically in both:
+#   SC      -> one block  [SC]        -> PCA(256) -> PLS
+#   SC_r2t  -> two blocks [SC, r2t]   -> PCA(256)+PCA(256) concat -> PLS
+# This makes the Δ a clean marginal test of "does r2t's own latent space add FC-
+# predictive signal on top of SC's", with no scale-domination artifact.
 CONFIGS = ["SC", "SC_r2t"]
 
 rows = []
@@ -37,9 +42,10 @@ for seed in range(N_SEEDS):
     split = load_seed_split_with_r2t(seed=seed)
     FC_tr, FC_te, FC_mean = target_train_test(split, "FC")
     for cfg in CONFIGS:
-        X_tr, X_te = source_train_test(split, cfg)
-        print(f"  [{cfg:8s}] X={X_tr.shape} fitting ...", flush=True)
-        y_pred = pca_pls_predict(X_tr, X_te, FC_tr)
+        btr, bte = source_blocks(split, cfg)
+        dims = [b.shape[1] for b in btr]
+        print(f"  [{cfg:8s}] blocks={dims} fitting ...", flush=True)
+        y_pred = block_pca_pls_predict(btr, bte, FC_tr)
         panel = full_panel_eval(y_pred, FC_te, FC_mean)
         rows.append({"source": cfg, "seed": seed, **panel})
         print(f"    dp={panel['demeaned_pearson']:.4f}")
