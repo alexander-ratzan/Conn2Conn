@@ -96,7 +96,8 @@ sim = Sim(
     parcellation=PARCELLATION,
     shuffle_seed=0,
     data_load_mode=DATA_LOAD_MODE,
-    expose_fc_sessions=True,   # request session 1 + 2
+    # expose_fc_sessions flows through data_cfg, not as a Sim kwarg.
+    config_overrides={"data": {"expose_fc_sessions": True}},
 )
 base = sim.base
 # Both attributes exist when expose_fc_sessions is True.
