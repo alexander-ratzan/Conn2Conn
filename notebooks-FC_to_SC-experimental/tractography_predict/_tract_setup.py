@@ -64,10 +64,14 @@ def load_seed_split_with_r2t(seed: int) -> dict:
             [np.nan_to_num(np.corrcoef(mat), nan=0.0) for mat in r2t_canonical],
             axis=0,
         ).astype(np.float32)
-    # Sanity: r2t row count must equal SC_train + SC_test row count for the seed.
-    n_canon = len(split["train_idx"]) + len(split["test_idx"])
-    assert r2t_canonical.shape[0] == n_canon, (
-        f"r2t row count {r2t_canonical.shape[0]} != canonical n_subj {n_canon}"
+    # r2t_canonical rows are indexed in the same canonical ordering as
+    # base.sc_matrices / base.sc_upper_triangles, so train_idx/test_idx index
+    # into it directly (same as SC_train = sc_upper_triangles[train_idx]).
+    # Canonical set is the full sample (~957); the train/test partition is a
+    # SUBSET of canonical, with val taking the remainder.
+    assert r2t_canonical.shape[0] == base.sc_upper_triangles.shape[0], (
+        f"r2t row count {r2t_canonical.shape[0]} != sc canonical "
+        f"{base.sc_upper_triangles.shape[0]}"
     )
 
     tr = split["train_idx"]
