@@ -52,25 +52,23 @@ def load_seed_split_with_r2t(seed: int) -> dict:
             "r2t_matrices.npy. (Cache path: "
             f"{getattr(base, 'precompute_cache_root', '?')})"
         )
-    r2t = np.asarray(base.sc_r2t_matrices, dtype=np.float32)  # (n_subj_full, 360, 66)
-    # base loads at the full population, then the canonical intersection is sliced;
-    # we need to align r2t to the canonical fc/sc subject ordering.
-    # The HCP_Base loader does NOT slice sc_r2t_matrices on the canonical intersection
-    # automatically — we must do it here using fc/sc subject ordering.
-    canonical_ids = list(base.metadata_df["subject"])
-    # sc_r2t_matrices is indexed by sc_subject_ids; align via id->index map.
-    sc_id_to_idx = {sid: i for i, sid in enumerate(base.sc_subject_ids)}
-    canonical_sc_idx = np.array([sc_id_to_idx[sid] for sid in canonical_ids], dtype=int)
-    r2t_canonical = r2t[canonical_sc_idx]      # (n_canonical_subj, 360, 66)
-
+    # HCP_Base slices sc_r2t_matrices to the canonical subject set during init
+    # (hcp_dataset.py L235-237), so it is already aligned 1:1 with sc_matrices and
+    # with the post-canonical metadata_df ordering. Use it directly.
+    r2t_canonical = np.asarray(base.sc_r2t_matrices, dtype=np.float32)  # (n_canon, 360, 66)
+    # Same for sc_r2t_corr_matrices (computed inline by HCP_Base on the already-sliced r2t).
     if hasattr(base, "sc_r2t_corr_matrices") and base.sc_r2t_corr_matrices is not None:
-        r2t_corr = np.asarray(base.sc_r2t_corr_matrices, dtype=np.float32)[canonical_sc_idx]
+        r2t_corr = np.asarray(base.sc_r2t_corr_matrices, dtype=np.float32)
     else:
-        # Recompute if not available; corrcoef of r2t rows = (360, 360) symmetric.
         r2t_corr = np.stack(
             [np.nan_to_num(np.corrcoef(mat), nan=0.0) for mat in r2t_canonical],
             axis=0,
         ).astype(np.float32)
+    # Sanity: r2t row count must equal SC_train + SC_test row count for the seed.
+    n_canon = len(split["train_idx"]) + len(split["test_idx"])
+    assert r2t_canonical.shape[0] == n_canon, (
+        f"r2t row count {r2t_canonical.shape[0]} != canonical n_subj {n_canon}"
+    )
 
     tr = split["train_idx"]
     te = split["test_idx"]
