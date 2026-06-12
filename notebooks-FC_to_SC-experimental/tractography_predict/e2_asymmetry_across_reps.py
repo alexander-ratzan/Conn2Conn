@@ -54,27 +54,57 @@ df = pd.DataFrame(rows)
 df.to_csv(THIS_DIR / "e2_asymmetry_results.csv", index=False)
 print(f"\nSaved -> {THIS_DIR / 'e2_asymmetry_results.csv'}")
 
-# Summary: per-rep median ratio + Wilcoxon vs 1.0.
+# Per-metric asymmetry, all 6 metrics, with correct directionality so that the
+# reported "FC-favoring" comparison is >1 (or >0 for r2) whenever FC->X beats X->FC.
+#   higher-better (ratio FC->X / X->FC):  demeaned_pearson, pearson, top1_acc, avg_rank
+#   mse (lower-better, ratio X->FC / FC->X): mse
+#   r2 (can be negative, use difference FC->X - X->FC): r2
+HIGHER_BETTER = ["demeaned_pearson", "pearson", "top1_acc", "avg_rank"]
+LOWER_BETTER  = ["mse"]
+DIFF_METRICS  = ["r2"]
+ALL_METRICS = HIGHER_BETTER + LOWER_BETTER + DIFF_METRICS
+
 summary_rows = []
 for rep in REPS:
-    fc_to_x = df[(df["rep"] == rep) & (df["direction"] == f"FC->{rep}")].sort_values("seed")
-    x_to_fc = df[(df["rep"] == rep) & (df["direction"] == f"{rep}->FC")].sort_values("seed")
-    ratios = fc_to_x["demeaned_pearson"].values / np.maximum(x_to_fc["demeaned_pearson"].values, 1e-9)
-    try:
-        _, p_vs_1 = wilcoxon(ratios - 1.0, alternative="greater")
-    except ValueError:
-        p_vs_1 = float("nan")
-    summary_rows.append({
-        "rep": rep,
-        "n_seeds": len(ratios),
-        "median_ratio": float(np.median(ratios)),
-        "min_ratio":    float(ratios.min()),
-        "max_ratio":    float(ratios.max()),
-        "wilcoxon_p_vs_1": float(p_vs_1),
-        "median_FC_to_X_dp": float(fc_to_x["demeaned_pearson"].median()),
-        "median_X_to_FC_dp": float(x_to_fc["demeaned_pearson"].median()),
-    })
+    fc = df[(df["rep"] == rep) & (df["direction"] == f"FC->{rep}")].sort_values("seed")
+    xf = df[(df["rep"] == rep) & (df["direction"] == f"{rep}->FC")].sort_values("seed")
+    for metric in ALL_METRICS:
+        a = fc[metric].values  # FC->X
+        b = xf[metric].values  # X->FC
+        if metric in HIGHER_BETTER:
+            comp = a / np.where(np.abs(b) > 1e-9, b, np.nan)
+            kind, null = "ratio_FCwins", 1.0
+        elif metric in LOWER_BETTER:
+            comp = b / np.where(np.abs(a) > 1e-9, a, np.nan)  # flipped: >1 = FC wins
+            kind, null = "ratio_FCwins", 1.0
+        else:  # r2 difference
+            comp = a - b
+            kind, null = "diff_FCwins", 0.0
+        comp = comp[~np.isnan(comp)]
+        try:
+            _, p = wilcoxon(comp - null, alternative="greater")
+        except ValueError:
+            p = float("nan")
+        summary_rows.append({
+            "rep": rep, "metric": metric, "comparison_kind": kind,
+            "n_seeds": len(comp),
+            "median_FCwins": float(np.median(comp)) if len(comp) else float("nan"),
+            "min_FCwins":    float(np.min(comp)) if len(comp) else float("nan"),
+            "max_FCwins":    float(np.max(comp)) if len(comp) else float("nan"),
+            "wilcoxon_p_FCwins": float(p),
+            "median_FC_to_X": float(fc[metric].median()),
+            "median_X_to_FC": float(xf[metric].median()),
+        })
 summary = pd.DataFrame(summary_rows)
 summary.to_csv(THIS_DIR / "e2_asymmetry_summary.csv", index=False)
-print(f"\n=== Asymmetry summary across reps ===")
-print(summary.to_string(index=False, float_format=lambda x: f"{x:7.4f}"))
+print(f"\n=== Asymmetry across reps — ALL 6 metrics ===")
+print("(median_FCwins: ratio>1 or diff>0 means FC->X beats X->FC; p = Wilcoxon one-sided)")
+for rep in REPS:
+    print(f"\n  {rep}:")
+    sub = summary[summary["rep"] == rep]
+    for _, r in sub.iterrows():
+        star = "*" if (r["wilcoxon_p_FCwins"] < 0.05) else " "
+        unit = "x" if r["comparison_kind"] == "ratio_FCwins" else " (diff)"
+        print(f"    {r['metric']:18s} {r['median_FCwins']:+7.3f}{unit:7s} "
+              f"p={r['wilcoxon_p_FCwins']:.4f}{star}  "
+              f"[FC->X={r['median_FC_to_X']:+.4f}  X->FC={r['median_X_to_FC']:+.4f}]")

@@ -19,13 +19,30 @@ e1 = pd.read_csv(THIS_DIR / "e1_source_rep_results.csv")
 e2 = pd.read_csv(THIS_DIR / "e2_asymmetry_summary.csv")
 e3 = pd.read_csv(THIS_DIR / "e3_marginal_summary.csv")
 
-print("=== E1: source-rep -> FC prediction (median across 10 seeds) ===")
-e1_med = (e1.groupby("rep")[["demeaned_pearson", "r2", "top1_acc", "avg_rank"]]
-            .agg(["median", "min", "max"]))
+
+def e2_dp(e2df, rep):
+    """median demeaned_pearson FC-wins ratio for a rep (handles long-format summary)."""
+    row = e2df[(e2df["rep"] == rep) & (e2df["metric"] == "demeaned_pearson")]
+    return row["median_FCwins"].iloc[0] if len(row) else float("nan")
+
+ALL_METRICS = ["demeaned_pearson", "pearson", "top1_acc", "avg_rank", "mse", "r2"]
+print("=== E1: source-rep -> FC prediction (median across 10 seeds, ALL metrics) ===")
+e1_med = e1.groupby("rep")[ALL_METRICS].median()
 print(e1_med.to_string(float_format=lambda x: f"{x:.4f}"))
 
-print("\n=== E2: asymmetry across structural reps ===")
-print(e2.to_string(index=False, float_format=lambda x: f"{x:7.4f}"))
+print("\n=== E2: asymmetry across structural reps (ALL 6 metrics) ===")
+# e2 summary is long-format (rep, metric, ...). Pivot median_FCwins for readability.
+if "metric" in e2.columns:
+    piv = e2.pivot(index="rep", columns="metric", values="median_FCwins")
+    piv = piv.reindex(columns=[m for m in ALL_METRICS if m in piv.columns])
+    print("median FC-wins (ratio>1 or r2-diff>0 means FC->X beats X->FC):")
+    print(piv.to_string(float_format=lambda x: f"{x:+.3f}"))
+    pivp = e2.pivot(index="rep", columns="metric", values="wilcoxon_p_FCwins")
+    pivp = pivp.reindex(columns=[m for m in ALL_METRICS if m in pivp.columns])
+    print("\nWilcoxon p (one-sided, FC wins):")
+    print(pivp.to_string(float_format=lambda x: f"{x:.4f}"))
+else:
+    print(e2.to_string(index=False, float_format=lambda x: f"{x:7.4f}"))
 
 print("\n=== E3: marginal r2t contribution over SC ===")
 print(e3.to_string(index=False, float_format=lambda x: f"{x:7.4f}"))
@@ -49,9 +66,9 @@ synth = pd.DataFrame({
         float(e1[e1["rep"] == "r2t_corr"]["demeaned_pearson"].median()),
         float(e1[e1["rep"] == "SC_r2t"]["demeaned_pearson"].median()),
         float(e1[e1["rep"] == "kitchen_sink"]["demeaned_pearson"].median()),
-        float(e2[e2["rep"] == "SC"]["median_ratio"].iloc[0]),
-        float(e2[e2["rep"] == "r2t"]["median_ratio"].iloc[0]),
-        float(e2[e2["rep"] == "r2t_corr"]["median_ratio"].iloc[0]),
+        float(e2_dp(e2, "SC")),
+        float(e2_dp(e2, "r2t")),
+        float(e2_dp(e2, "r2t_corr")),
         float(e3["median_delta"].iloc[0]),
     ],
 })
@@ -64,8 +81,8 @@ print("=" * 72)
 
 sc_e1   = float(e1[e1["rep"] == "SC"]["demeaned_pearson"].median())
 r2t_e1  = float(e1[e1["rep"] == "r2t"]["demeaned_pearson"].median())
-sc_ratio = float(e2[e2["rep"] == "SC"]["median_ratio"].iloc[0])
-r2t_ratio = float(e2[e2["rep"] == "r2t"]["median_ratio"].iloc[0])
+sc_ratio = float(e2_dp(e2, "SC"))
+r2t_ratio = float(e2_dp(e2, "r2t"))
 delta_e3 = float(e3["median_delta"].iloc[0])
 
 print(f"\n[E1] SC vs r2t for predicting FC:")
