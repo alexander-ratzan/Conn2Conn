@@ -1,0 +1,113 @@
+=== seed 0 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      |linear ] dp=0.0849
+  [SC      |KR     ] dp=0.0783
+  [SC_r2t  |linear ] dp=0.0730
+  [SC_r2t  |KR     ] dp=0.0729
+=== seed 1 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      |linear ] dp=0.0862
+  [SC      |KR     ] dp=0.0733
+  [SC_r2t  |linear ] dp=0.0861
+  [SC_r2t  |KR     ] dp=0.0675
+=== seed 2 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      |linear ] dp=0.0834
+  [SC      |KR     ] dp=0.0842
+  [SC_r2t  |linear ] dp=0.0789
+  [SC_r2t  |KR     ] dp=0.0741
+=== seed 3 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      |linear ] dp=0.0733
+  [SC      |KR     ] dp=0.0861
+  [SC_r2t  |linear ] dp=0.0721
+  [SC_r2t  |KR     ] dp=0.0829
+=== seed 4 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      |linear ] dp=0.0915
+  [SC      |KR     ] dp=0.0848
+  [SC_r2t  |linear ] dp=0.0797
+  [SC_r2t  |KR     ] dp=0.0803
+=== seed 5 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      |linear ] dp=0.0846
+  [SC      |KR     ] dp=0.0792
+  [SC_r2t  |linear ] dp=0.0835
+  [SC_r2t  |KR     ] dp=0.0668
+=== seed 6 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      |linear ] dp=0.0769
+  [SC      |KR     ] dp=0.0720
+  [SC_r2t  |linear ] dp=0.0755
+  [SC_r2t  |KR     ] dp=0.0720
+=== seed 7 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      |linear ] dp=0.1009
+  [SC      |KR     ] dp=0.0893
+  [SC_r2t  |linear ] dp=0.1070
+  [SC_r2t  |KR     ] dp=0.0864
+=== seed 8 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      |linear ] dp=0.0848
+  [SC      |KR     ] dp=0.0794
+  [SC_r2t  |linear ] dp=0.0792
+  [SC_r2t  |KR     ] dp=0.0805
+=== seed 9 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      |linear ] dp=0.0757
+  [SC      |KR     ] dp=0.0829
+  [SC_r2t  |linear ] dp=0.0745
+  [SC_r2t  |KR     ] dp=0.0711
+
+Saved -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/non-linear-sanity-check/n3_marginal_results.csv
+
+=== Marginal Δ (SC_r2t - SC) per estimator, all metrics ===
+
+  [linear]
+    demeaned_pearson   SC=+0.0847 SC_r2t=+0.0791 Δ=-0.0013 p=0.981 
+    pearson            SC=+0.8292 SC_r2t=+0.8272 Δ=-0.0014 p=0.999 
+    top1_acc           SC=+0.0513 SC_r2t=+0.0359 Δ=-0.0154 p=0.940 
+    avg_rank           SC=+0.7128 SC_r2t=+0.7020 Δ=-0.0006 p=0.812 
+    mse                SC=+0.0143 SC_r2t=+0.0145 Δ=+0.0001 p=0.003*
+    r2                 SC=-0.0572 SC_r2t=-0.0638 Δ=-0.0073 p=0.999 
+
+  [KR]
+    demeaned_pearson   SC=+0.0812 SC_r2t=+0.0735 Δ=-0.0049 p=0.998 
+    pearson            SC=+0.8355 SC_r2t=+0.8350 Δ=-0.0002 p=0.935 
+    top1_acc           SC=+0.0487 SC_r2t=+0.0462 Δ=-0.0051 p=0.949 
+    avg_rank           SC=+0.7313 SC_r2t=+0.7021 Δ=-0.0200 p=1.000 
+    mse                SC=+0.0138 SC_r2t=+0.0138 Δ=+0.0000 p=0.278 
+    r2                 SC=-0.0205 SC_r2t=-0.0203 Δ=+0.0001 p=0.385 
+
+=== DECISION ===
+  KR Δ=-0.0049 (p=0.998) -> r2t adds nothing over SC even nonlinearly; count-SC remains a sufficient statistic.

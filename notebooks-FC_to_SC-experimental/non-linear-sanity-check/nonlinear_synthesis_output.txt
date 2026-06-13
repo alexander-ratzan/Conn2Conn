@@ -1,0 +1,26 @@
+========================================================================
+NONLINEAR SANITY CHECK — SYNTHESIS
+========================================================================
+
+### N1 cognition: best lift over bv+demo floor, per estimator (tractography reps)
+  [linear_BR] best lift = -0.079 (SC / CogCrystalComp_Unadj)  -> below floor
+  [HGB      ] best lift = -0.168 (r2t_corr / CogFluidComp_Unadj)  -> below floor
+  [KR       ] best lift = -0.029 (SC / CogCrystalComp_Unadj)  -> below floor
+
+### N2 reconstruction: KR vs PLS on FC->X demeaned_pearson
+  FC->SC        PLS=0.1355  KR=0.1334  Δ=-0.0021  -> no nonlinear gain
+  FC->r2t       PLS=0.1113  KR=0.1133  Δ=+0.0020  -> no nonlinear gain
+  FC->r2t_corr  PLS=0.0582  KR=0.0605  Δ=+0.0023  -> no nonlinear gain
+
+### N3 marginal: r2t over SC, linear vs KR (demeaned_pearson Δ)
+  [linear ] Δ(SC_r2t-SC)=-0.0013 p=0.981
+  [KR     ] Δ(SC_r2t-SC)=-0.0049 p=0.998
+
+========================================================================
+VERDICT
+========================================================================
+  NULL across the board: nonlinear (HGB, KernelRidge) does NOT extract any
+  tractography signal that linear models missed — for cognition, FC
+  reconstruction, OR marginal contribution. The tractography dead-end and
+  the FC↔SC asymmetry are MODEL-CLASS ROBUST. Strongest version of the
+  linear finding.

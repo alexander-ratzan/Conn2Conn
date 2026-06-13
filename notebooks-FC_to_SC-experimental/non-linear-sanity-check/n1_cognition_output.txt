@@ -1,0 +1,158 @@
+=== seed 0 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj done
+  CogFluidComp_Unadj done
+  CogCrystalComp_Unadj done
+=== seed 1 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj done
+  CogFluidComp_Unadj done
+  CogCrystalComp_Unadj done
+=== seed 2 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj done
+  CogFluidComp_Unadj done
+  CogCrystalComp_Unadj done
+=== seed 3 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj done
+  CogFluidComp_Unadj done
+  CogCrystalComp_Unadj done
+=== seed 4 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj done
+  CogFluidComp_Unadj done
+  CogCrystalComp_Unadj done
+=== seed 5 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj done
+  CogFluidComp_Unadj done
+  CogCrystalComp_Unadj done
+=== seed 6 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj done
+  CogFluidComp_Unadj done
+  CogCrystalComp_Unadj done
+=== seed 7 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj done
+  CogFluidComp_Unadj done
+  CogCrystalComp_Unadj done
+=== seed 8 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj done
+  CogFluidComp_Unadj done
+  CogCrystalComp_Unadj done
+=== seed 9 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj done
+  CogFluidComp_Unadj done
+  CogCrystalComp_Unadj done
+
+Saved -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/non-linear-sanity-check/n1_cognition_results.csv
+
+=== Median Pearson by rep x estimator x target (lift over bv+demo floor) ===
+
+  CogTotalComp_Unadj:
+   [linear_BR]
+     FC        pearson=+0.451 spearman=+0.423 r2=+0.194 lift=+0.078
+     bv+demo   pearson=+0.372 spearman=+0.352 r2=+0.132 lift=+0.000
+     SC        pearson=+0.261 spearman=+0.235 r2=+0.058 lift=-0.111
+     SC_r2t    pearson=+0.196 spearman=+0.195 r2=-0.029 lift=-0.176
+     r2t       pearson=+0.196 spearman=+0.195 r2=-0.029 lift=-0.176
+     r2t_corr  pearson=+0.151 spearman=+0.149 r2=-0.002 lift=-0.221
+   [HGB]
+     bv+demo   pearson=+0.355 spearman=+0.345 r2=+0.106 lift=+0.000
+     FC        pearson=+0.254 spearman=+0.260 r2=+0.045 lift=-0.101
+     SC        pearson=+0.125 spearman=+0.122 r2=+0.012 lift=-0.229
+     SC_r2t    pearson=+0.121 spearman=+0.127 r2=+0.004 lift=-0.233
+     r2t       pearson=+0.110 spearman=+0.125 r2=+0.003 lift=-0.244
+     r2t_corr  pearson=+0.087 spearman=+0.083 r2=-0.001 lift=-0.268
+   [KR]
+     FC        pearson=+0.338 spearman=+0.291 r2=-1.510 lift=+0.056
+     bv+demo   pearson=+0.282 spearman=+0.268 r2=+0.031 lift=+0.000
+     SC        pearson=+0.190 spearman=+0.190 r2=-1.239 lift=-0.091
+     r2t_corr  pearson=+0.097 spearman=+0.086 r2=-0.702 lift=-0.185
+     SC_r2t    pearson=+0.009 spearman=+0.006 r2=-0.208 lift=-0.272
+     r2t       pearson=+0.009 spearman=+0.006 r2=-0.208 lift=-0.272
+
+  CogFluidComp_Unadj:
+   [linear_BR]
+     FC        pearson=+0.342 spearman=+0.299 r2=+0.108 lift=+0.033
+     bv+demo   pearson=+0.309 spearman=+0.285 r2=+0.088 lift=+0.000
+     SC        pearson=+0.180 spearman=+0.148 r2=+0.023 lift=-0.130
+     r2t_corr  pearson=+0.157 spearman=+0.130 r2=+0.013 lift=-0.152
+     SC_r2t    pearson=+0.130 spearman=+0.127 r2=-0.093 lift=-0.179
+     r2t       pearson=+0.130 spearman=+0.127 r2=-0.093 lift=-0.179
+   [HGB]
+     bv+demo   pearson=+0.225 spearman=+0.225 r2=+0.046 lift=+0.000
+     FC        pearson=+0.118 spearman=+0.142 r2=+0.010 lift=-0.107
+     r2t_corr  pearson=+0.057 spearman=+0.037 r2=-0.004 lift=-0.168
+     SC        pearson=+0.036 spearman=+0.017 r2=-0.007 lift=-0.190
+     SC_r2t    pearson=+0.033 spearman=+0.042 r2=-0.011 lift=-0.193
+     r2t       pearson=+0.033 spearman=+0.042 r2=-0.011 lift=-0.193
+   [KR]
+     bv+demo   pearson=+0.190 spearman=+0.195 r2=-0.032 lift=+0.000
+     FC        pearson=+0.178 spearman=+0.151 r2=-2.125 lift=-0.012
+     SC        pearson=+0.113 spearman=+0.112 r2=-1.603 lift=-0.076
+     r2t_corr  pearson=+0.078 spearman=+0.068 r2=-0.934 lift=-0.112
+     SC_r2t    pearson=-0.006 spearman=-0.017 r2=-0.288 lift=-0.196
+     r2t       pearson=-0.006 spearman=-0.017 r2=-0.288 lift=-0.196
+
+  CogCrystalComp_Unadj:
+   [linear_BR]
+     FC        pearson=+0.451 spearman=+0.440 r2=+0.196 lift=+0.105
+     bv+demo   pearson=+0.346 spearman=+0.347 r2=+0.100 lift=+0.000
+     SC        pearson=+0.267 spearman=+0.243 r2=+0.058 lift=-0.079
+     SC_r2t    pearson=+0.164 spearman=+0.165 r2=-0.099 lift=-0.183
+     r2t       pearson=+0.164 spearman=+0.165 r2=-0.099 lift=-0.183
+     r2t_corr  pearson=+0.103 spearman=+0.114 r2=+0.001 lift=-0.244
+   [HGB]
+     bv+demo   pearson=+0.366 spearman=+0.346 r2=+0.121 lift=+0.000
+     FC        pearson=+0.249 spearman=+0.218 r2=+0.054 lift=-0.117
+     SC        pearson=+0.172 spearman=+0.162 r2=+0.010 lift=-0.194
+     r2t_corr  pearson=+0.094 spearman=+0.092 r2=+0.005 lift=-0.272
+     SC_r2t    pearson=+0.091 spearman=+0.064 r2=+0.003 lift=-0.276
+     r2t       pearson=+0.088 spearman=+0.070 r2=+0.002 lift=-0.278
+   [KR]
+     FC        pearson=+0.338 spearman=+0.305 r2=-3.094 lift=+0.068
+     bv+demo   pearson=+0.270 spearman=+0.255 r2=-0.056 lift=+0.000
+     SC        pearson=+0.241 spearman=+0.223 r2=-2.468 lift=-0.029
+     r2t_corr  pearson=+0.069 spearman=+0.058 r2=-1.391 lift=-0.200
+     r2t       pearson=-0.039 spearman=-0.047 r2=-0.417 lift=-0.308
+     SC_r2t    pearson=-0.039 spearman=-0.047 r2=-0.417 lift=-0.308
+
+=== DECISION: nonlinear cognition unlock? ===
+  NONE. No tractography rep clears the bv+demo floor under HGB or KR.
+  -> nonlinear does NOT unlock tractography cognition signal; dead end is
+     model-class-robust.
