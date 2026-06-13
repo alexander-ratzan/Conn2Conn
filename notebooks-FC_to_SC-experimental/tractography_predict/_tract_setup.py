@@ -27,12 +27,108 @@ from _setup import (load_seed_split, pca_pls_predict, combined_predict,
                     PARCELLATION, DATA_LOAD_MODE, CROSSMODAL_PCA_CONFIG,
                     PCA, BayesianRidge, LinearRegression, PLSRegression)
 
+from sklearn.kernel_ridge import KernelRidge
+from sklearn.ensemble import HistGradientBoostingRegressor
+from sklearn.preprocessing import StandardScaler
+
 N_REGIONS = 360
 N_TRACTS  = 66
 N_EDGES   = N_REGIONS * (N_REGIONS - 1) // 2   # 64620
 N_R2T_FLAT = N_REGIONS * N_TRACTS              # 23760
 
 _triu_i, _triu_j = np.triu_indices(N_REGIONS, k=1)
+
+
+# ============================================================================
+# Nonlinear predictors (model-class robustness probes). All operate on PCA-reduced,
+# standardized source latents so they're tractable at this n/p regime and directly
+# comparable to the linear pca_pls / br pipelines (same K_PCA).
+# ============================================================================
+def _median_gamma(Z, max_n=300, rng_seed=0):
+    """RBF gamma via the median pairwise-distance heuristic on a subsample.
+    gamma = 1 / (2 * median_sqdist). Deterministic subsample for reproducibility."""
+    n = Z.shape[0]
+    if n > max_n:
+        idx = np.linspace(0, n - 1, max_n).astype(int)
+        Zs = Z[idx]
+    else:
+        Zs = Z
+    sq = np.sum((Zs[:, None, :] - Zs[None, :, :]) ** 2, axis=-1)
+    iu = np.triu_indices(Zs.shape[0], k=1)
+    med = np.median(sq[iu])
+    return 1.0 / (2.0 * med) if med > 0 else 1.0 / Z.shape[1]
+
+
+def kernelridge_predict(X_src_train, X_src_test, Y_train,
+                        k_src=256, k_tgt=256, alpha=1.0):
+    """PCA(src) -> standardize -> KernelRidge(RBF) multi-output to PCA(tgt) latents
+    -> inverse-PCA. Nonlinear analogue of pca_pls_predict; works for high-dim Y."""
+    pca_src = PCA(n_components=min(k_src, X_src_train.shape[1]), random_state=0).fit(X_src_train)
+    Z_tr = pca_src.transform(X_src_train)
+    Z_te = pca_src.transform(X_src_test)
+    sc = StandardScaler().fit(Z_tr)
+    Z_tr = sc.transform(Z_tr); Z_te = sc.transform(Z_te)
+    pca_tgt = PCA(n_components=min(k_tgt, Y_train.shape[1]), random_state=0).fit(Y_train)
+    Y_lat = pca_tgt.transform(Y_train)
+    gamma = _median_gamma(Z_tr)
+    kr = KernelRidge(kernel="rbf", alpha=alpha, gamma=gamma).fit(Z_tr, Y_lat)
+    pred_lat = kr.predict(Z_te)
+    return pca_tgt.inverse_transform(pred_lat).astype(np.float32)
+
+
+def kernelridge_blocks_predict(blocks_train, blocks_test, Y_train,
+                               k_per_block=256, k_tgt=256, alpha=1.0):
+    """Per-block PCA -> concat -> standardize -> KernelRidge(RBF) -> inverse-PCA(tgt).
+    Scale-fair nonlinear combined predictor."""
+    Ztr_parts, Zte_parts = [], []
+    for Xtr, Xte in zip(blocks_train, blocks_test):
+        d = Xtr.shape[1]
+        if d <= k_per_block:
+            mu = Xtr.mean(axis=0, keepdims=True); sd = Xtr.std(axis=0, keepdims=True)
+            sd = np.where(sd > 1e-8, sd, 1.0)
+            Ztr_parts.append((Xtr - mu) / sd); Zte_parts.append((Xte - mu) / sd)
+        else:
+            p = PCA(n_components=k_per_block, random_state=0).fit(Xtr)
+            Ztr_parts.append(p.transform(Xtr)); Zte_parts.append(p.transform(Xte))
+    Z_tr = np.concatenate(Ztr_parts, axis=1); Z_te = np.concatenate(Zte_parts, axis=1)
+    sc = StandardScaler().fit(Z_tr); Z_tr = sc.transform(Z_tr); Z_te = sc.transform(Z_te)
+    pca_tgt = PCA(n_components=min(k_tgt, Y_train.shape[1]), random_state=0).fit(Y_train)
+    Y_lat = pca_tgt.transform(Y_train)
+    gamma = _median_gamma(Z_tr)
+    kr = KernelRidge(kernel="rbf", alpha=alpha, gamma=gamma).fit(Z_tr, Y_lat)
+    return pca_tgt.inverse_transform(kr.predict(Z_te)).astype(np.float32)
+
+
+def _reduce_scalar(X_tr, X_te, k=256):
+    """PCA + standardize source for a scalar-target nonlinear regressor; drops to
+    raw-standardized passthrough if narrower than k."""
+    if X_tr.shape[1] <= k:
+        sc = StandardScaler().fit(X_tr)
+        return sc.transform(X_tr), sc.transform(X_te)
+    p = PCA(n_components=k, random_state=0).fit(X_tr)
+    Z_tr, Z_te = p.transform(X_tr), p.transform(X_te)
+    sc = StandardScaler().fit(Z_tr)
+    return sc.transform(Z_tr), sc.transform(Z_te)
+
+
+def hgb_scalar_predict(X_tr, X_te, y_tr, k=256):
+    """PCA -> HistGradientBoosting -> scalar. NaN y rows dropped in train."""
+    ok = ~np.isnan(y_tr)
+    Z_tr, Z_te = _reduce_scalar(X_tr, X_te, k=k)
+    m = HistGradientBoostingRegressor(max_iter=300, learning_rate=0.05,
+                                      max_depth=3, l2_regularization=1.0,
+                                      early_stopping=True, random_state=0)
+    m.fit(Z_tr[ok], y_tr[ok])
+    return m.predict(Z_te)
+
+
+def kr_scalar_predict(X_tr, X_te, y_tr, k=256, alpha=1.0):
+    """PCA -> standardize -> KernelRidge(RBF) -> scalar."""
+    ok = ~np.isnan(y_tr)
+    Z_tr, Z_te = _reduce_scalar(X_tr, X_te, k=k)
+    gamma = _median_gamma(Z_tr[ok])
+    kr = KernelRidge(kernel="rbf", alpha=alpha, gamma=gamma).fit(Z_tr[ok], y_tr[ok])
+    return kr.predict(Z_te)
 
 
 def load_seed_split_with_r2t(seed: int) -> dict:
