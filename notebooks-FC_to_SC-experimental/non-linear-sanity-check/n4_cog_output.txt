@@ -1,0 +1,112 @@
+=== seed 0 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj done
+  CogFluidComp_Unadj done
+  CogCrystalComp_Unadj done
+=== seed 1 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj done
+  CogFluidComp_Unadj done
+  CogCrystalComp_Unadj done
+=== seed 2 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj done
+  CogFluidComp_Unadj done
+  CogCrystalComp_Unadj done
+=== seed 3 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj done
+  CogFluidComp_Unadj done
+  CogCrystalComp_Unadj done
+=== seed 4 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj done
+  CogFluidComp_Unadj done
+  CogCrystalComp_Unadj done
+=== seed 5 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj done
+  CogFluidComp_Unadj done
+  CogCrystalComp_Unadj done
+=== seed 6 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj done
+  CogFluidComp_Unadj done
+  CogCrystalComp_Unadj done
+=== seed 7 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj done
+  CogFluidComp_Unadj done
+  CogCrystalComp_Unadj done
+=== seed 8 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj done
+  CogFluidComp_Unadj done
+  CogCrystalComp_Unadj done
+=== seed 9 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj done
+  CogFluidComp_Unadj done
+  CogCrystalComp_Unadj done
+
+Saved -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/non-linear-sanity-check/n4_cog_results.csv
+
+=== Residual-boosted cognition: template vs final, lift over bv+demo ===
+
+  CogTotalComp_Unadj (bv+demo final floor pearson=0.353):
+    bv+demo   template=+0.373 final=+0.353 Δ(final-tmpl)=-0.0205 lift_over_floor=+0.000
+    SC        template=+0.197 final=+0.192 Δ(final-tmpl)=-0.0052 lift_over_floor=-0.161
+    r2t       template=+0.173 final=+0.176 Δ(final-tmpl)=+0.0027 lift_over_floor=-0.176
+    r2t_corr  template=+0.104 final=+0.101 Δ(final-tmpl)=-0.0027 lift_over_floor=-0.251
+    SC_r2t    template=+0.173 final=+0.176 Δ(final-tmpl)=+0.0027 lift_over_floor=-0.176
+    FC        template=+0.436 final=+0.435 Δ(final-tmpl)=-0.0015 lift_over_floor=+0.082
+
+  CogFluidComp_Unadj (bv+demo final floor pearson=0.266):
+    bv+demo   template=+0.298 final=+0.266 Δ(final-tmpl)=-0.0318 lift_over_floor=+0.000
+    SC        template=+0.128 final=+0.120 Δ(final-tmpl)=-0.0076 lift_over_floor=-0.146
+    r2t       template=+0.128 final=+0.131 Δ(final-tmpl)=+0.0029 lift_over_floor=-0.135
+    r2t_corr  template=+0.100 final=+0.099 Δ(final-tmpl)=-0.0012 lift_over_floor=-0.167
+    SC_r2t    template=+0.128 final=+0.131 Δ(final-tmpl)=+0.0029 lift_over_floor=-0.135
+    FC        template=+0.306 final=+0.310 Δ(final-tmpl)=+0.0039 lift_over_floor=+0.044
+
+  CogCrystalComp_Unadj (bv+demo final floor pearson=0.336):
+    bv+demo   template=+0.349 final=+0.336 Δ(final-tmpl)=-0.0127 lift_over_floor=+0.000
+    SC        template=+0.194 final=+0.192 Δ(final-tmpl)=-0.0013 lift_over_floor=-0.144
+    r2t       template=+0.165 final=+0.162 Δ(final-tmpl)=-0.0025 lift_over_floor=-0.174
+    r2t_corr  template=+0.033 final=+0.036 Δ(final-tmpl)=+0.0031 lift_over_floor=-0.300
+    SC_r2t    template=+0.165 final=+0.162 Δ(final-tmpl)=-0.0025 lift_over_floor=-0.174
+    FC        template=+0.452 final=+0.454 Δ(final-tmpl)=+0.0022 lift_over_floor=+0.118
+
+=== DECISION ===
+  NONE clear the bv+demo floor even with the linear answer handed in free.
+  -> residual-boost does not unlock tractography cognition signal.

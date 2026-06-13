@@ -1,0 +1,132 @@
+=== seed 0 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] FC->SC: template dp=0.1322 final dp=0.1373 Δ=+0.0051
+  [r2t     ] FC->r2t: template dp=0.1123 final dp=0.1180 Δ=+0.0056
+  [r2t_corr] FC->r2t_corr: template dp=0.0539 final dp=0.0567 Δ=+0.0028
+=== seed 1 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] FC->SC: template dp=0.1371 final dp=0.1388 Δ=+0.0018
+  [r2t     ] FC->r2t: template dp=0.1096 final dp=0.1158 Δ=+0.0061
+  [r2t_corr] FC->r2t_corr: template dp=0.0583 final dp=0.0628 Δ=+0.0045
+=== seed 2 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] FC->SC: template dp=0.1222 final dp=0.1295 Δ=+0.0073
+  [r2t     ] FC->r2t: template dp=0.1078 final dp=0.1132 Δ=+0.0054
+  [r2t_corr] FC->r2t_corr: template dp=0.0556 final dp=0.0616 Δ=+0.0060
+=== seed 3 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] FC->SC: template dp=0.1363 final dp=0.1436 Δ=+0.0072
+  [r2t     ] FC->r2t: template dp=0.1211 final dp=0.1238 Δ=+0.0027
+  [r2t_corr] FC->r2t_corr: template dp=0.0638 final dp=0.0717 Δ=+0.0079
+=== seed 4 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] FC->SC: template dp=0.1402 final dp=0.1451 Δ=+0.0049
+  [r2t     ] FC->r2t: template dp=0.1097 final dp=0.1160 Δ=+0.0063
+  [r2t_corr] FC->r2t_corr: template dp=0.0536 final dp=0.0595 Δ=+0.0059
+=== seed 5 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] FC->SC: template dp=0.1502 final dp=0.1536 Δ=+0.0035
+  [r2t     ] FC->r2t: template dp=0.1102 final dp=0.1147 Δ=+0.0045
+  [r2t_corr] FC->r2t_corr: template dp=0.0580 final dp=0.0626 Δ=+0.0045
+=== seed 6 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] FC->SC: template dp=0.1335 final dp=0.1408 Δ=+0.0073
+  [r2t     ] FC->r2t: template dp=0.1020 final dp=0.1111 Δ=+0.0091
+  [r2t_corr] FC->r2t_corr: template dp=0.0608 final dp=0.0620 Δ=+0.0012
+=== seed 7 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] FC->SC: template dp=0.1336 final dp=0.1381 Δ=+0.0045
+  [r2t     ] FC->r2t: template dp=0.1125 final dp=0.1177 Δ=+0.0053
+  [r2t_corr] FC->r2t_corr: template dp=0.0594 final dp=0.0649 Δ=+0.0055
+=== seed 8 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] FC->SC: template dp=0.1400 final dp=0.1453 Δ=+0.0053
+  [r2t     ] FC->r2t: template dp=0.1148 final dp=0.1208 Δ=+0.0059
+  [r2t_corr] FC->r2t_corr: template dp=0.0605 final dp=0.0637 Δ=+0.0032
+=== seed 9 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  [SC      ] FC->SC: template dp=0.1347 final dp=0.1402 Δ=+0.0055
+  [r2t     ] FC->r2t: template dp=0.1179 final dp=0.1256 Δ=+0.0077
+  [r2t_corr] FC->r2t_corr: template dp=0.0551 final dp=0.0618 Δ=+0.0066
+
+Saved -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/non-linear-sanity-check/n4_recon_results.csv
+
+=== Improvement of final (PLS+KR) over template (PLS), all metrics ===
+
+  FC->SC:
+    demeaned_pearson   template=+0.1355 final=+0.1405 Δ=+0.0052 p=0.001*
+    pearson            template=+0.9125 final=+0.9079 Δ=-0.0047 p=1.000 
+    top1_acc           template=+0.1179 final=+0.1282 Δ=+0.0077 p=0.180 
+    avg_rank           template=+0.8787 final=+0.8771 Δ=-0.0037 p=0.947 
+    mse                template=+0.0055 final=+0.0058 Δ=-0.0003 p=1.000 
+    r2                 template=-0.0220 final=-0.0722 Δ=-0.0513 p=1.000 
+
+  SC->FC:
+    demeaned_pearson   template=+0.0847 final=+0.0866 Δ=+0.0023 p=0.001*
+    pearson            template=+0.8292 final=+0.8179 Δ=-0.0111 p=1.000 
+    top1_acc           template=+0.0513 final=+0.0410 Δ=-0.0051 p=0.696 
+    avg_rank           template=+0.7128 final=+0.7118 Δ=-0.0030 p=0.652 
+    mse                template=+0.0143 final=+0.0152 Δ=-0.0010 p=1.000 
+    r2                 template=-0.0572 final=-0.1255 Δ=-0.0692 p=1.000 
+
+  FC->r2t:
+    demeaned_pearson   template=+0.1113 final=+0.1169 Δ=+0.0058 p=0.001*
+    pearson            template=+0.8453 final=+0.8340 Δ=-0.0105 p=1.000 
+    top1_acc           template=+0.0282 final=+0.0333 Δ=+0.0026 p=0.367 
+    avg_rank           template=+0.7212 final=+0.7210 Δ=-0.0023 p=0.862 
+    mse                template=+536456.0625 final=+572022.6250 Δ=-35566.5625 p=1.000 
+    r2                 template=+0.3234 final=-0.1397 Δ=-0.4631 p=1.000 
+
+  r2t->FC:
+    demeaned_pearson   template=+0.0493 final=+0.0526 Δ=+0.0041 p=0.001*
+    pearson            template=+0.8153 final=+0.7969 Δ=-0.0179 p=1.000 
+    top1_acc           template=+0.0205 final=+0.0179 Δ=+0.0000 p=0.664 
+    avg_rank           template=+0.6090 final=+0.6152 Δ=-0.0007 p=0.577 
+    mse                template=+0.0154 final=+0.0168 Δ=-0.0016 p=1.000 
+    r2                 template=-0.1270 final=-0.2426 Δ=-0.1144 p=1.000 
+
+  FC->r2t_corr:
+    demeaned_pearson   template=+0.0582 final=+0.0623 Δ=+0.0050 p=0.001*
+    pearson            template=+0.8071 final=+0.7953 Δ=-0.0117 p=1.000 
+    top1_acc           template=+0.0256 final=+0.0333 Δ=+0.0128 p=0.021*
+    avg_rank           template=+0.7092 final=+0.7162 Δ=+0.0077 p=0.010*
+    mse                template=+0.0174 final=+0.0184 Δ=-0.0010 p=1.000 
+    r2                 template=-6.9757 final=-13.0796 Δ=-6.1040 p=1.000 
+
+  r2t_corr->FC:
+    demeaned_pearson   template=+0.0362 final=+0.0402 Δ=+0.0039 p=0.001*
+    pearson            template=+0.8231 final=+0.8095 Δ=-0.0139 p=1.000 
+    top1_acc           template=+0.0179 final=+0.0179 Δ=+0.0000 p=0.102 
+    avg_rank           template=+0.6070 final=+0.6151 Δ=+0.0084 p=0.007*
+    mse                template=+0.0148 final=+0.0159 Δ=-0.0012 p=1.000 
+    r2                 template=-0.0909 final=-0.1736 Δ=-0.0839 p=1.000 

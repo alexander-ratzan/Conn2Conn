@@ -1,0 +1,108 @@
+=== seed 0 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj: FC=0.521 sink_lin=0.482 sink_res=0.478
+  CogFluidComp_Unadj: FC=0.404 sink_lin=0.380 sink_res=0.367
+  CogCrystalComp_Unadj: FC=0.538 sink_lin=0.505 sink_res=0.499
+=== seed 1 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj: FC=0.442 sink_lin=0.442 sink_res=0.430
+  CogFluidComp_Unadj: FC=0.315 sink_lin=0.360 sink_res=0.336
+  CogCrystalComp_Unadj: FC=0.478 sink_lin=0.398 sink_res=0.391
+=== seed 2 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj: FC=0.524 sink_lin=0.446 sink_res=0.434
+  CogFluidComp_Unadj: FC=0.279 sink_lin=0.329 sink_res=0.320
+  CogCrystalComp_Unadj: FC=0.581 sink_lin=0.469 sink_res=0.469
+=== seed 3 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj: FC=0.446 sink_lin=0.334 sink_res=0.338
+  CogFluidComp_Unadj: FC=0.324 sink_lin=0.267 sink_res=0.258
+  CogCrystalComp_Unadj: FC=0.415 sink_lin=0.301 sink_res=0.298
+=== seed 4 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj: FC=0.390 sink_lin=0.366 sink_res=0.338
+  CogFluidComp_Unadj: FC=0.285 sink_lin=0.278 sink_res=0.256
+  CogCrystalComp_Unadj: FC=0.399 sink_lin=0.401 sink_res=0.391
+=== seed 5 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj: FC=0.431 sink_lin=0.449 sink_res=0.438
+  CogFluidComp_Unadj: FC=0.392 sink_lin=0.407 sink_res=0.394
+  CogCrystalComp_Unadj: FC=0.420 sink_lin=0.395 sink_res=0.384
+=== seed 6 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj: FC=0.345 sink_lin=0.270 sink_res=0.257
+  CogFluidComp_Unadj: FC=0.130 sink_lin=0.085 sink_res=0.087
+  CogCrystalComp_Unadj: FC=0.540 sink_lin=0.452 sink_res=0.445
+=== seed 7 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj: FC=0.334 sink_lin=0.265 sink_res=0.255
+  CogFluidComp_Unadj: FC=0.241 sink_lin=0.180 sink_res=0.163
+  CogCrystalComp_Unadj: FC=0.421 sink_lin=0.337 sink_res=0.334
+=== seed 8 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj: FC=0.352 sink_lin=0.315 sink_res=0.301
+  CogFluidComp_Unadj: FC=0.297 sink_lin=0.227 sink_res=0.206
+  CogCrystalComp_Unadj: FC=0.425 sink_lin=0.427 sink_res=0.438
+=== seed 9 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  CogTotalComp_Unadj: FC=0.495 sink_lin=0.436 sink_res=0.423
+  CogFluidComp_Unadj: FC=0.336 sink_lin=0.325 sink_res=0.313
+  CogCrystalComp_Unadj: FC=0.543 sink_lin=0.473 sink_res=0.463
+
+Saved -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/non-linear-sanity-check/n5_cog_results.csv
+
+=== Sink cognition (median Pearson) ===
+
+  CogTotalComp_Unadj:
+    bv+demo floor   = +0.373
+    FC              = +0.436  (lift +0.063)
+    sink_linear     = +0.401  (vs FC -0.035, lift +0.028)
+    sink_residual   = +0.381  (vs sink_linear -0.0203)
+
+  CogFluidComp_Unadj:
+    bv+demo floor   = +0.298
+    FC              = +0.306  (lift +0.008)
+    sink_linear     = +0.301  (vs FC -0.004, lift +0.004)
+    sink_residual   = +0.286  (vs sink_linear -0.0158)
+
+  CogCrystalComp_Unadj:
+    bv+demo floor   = +0.349
+    FC              = +0.452  (lift +0.103)
+    sink_linear     = +0.414  (vs FC -0.038, lift +0.065)
+    sink_residual   = +0.415  (vs sink_linear +0.0011)
+
+=== DECISION ===
+  CogTotalComp_Unadj: sink_linear−FC median=-0.0487 | residual−sink_linear median=-0.0119 p=0.999
+  CogFluidComp_Unadj: sink_linear−FC median=-0.0176 | residual−sink_linear median=-0.0129 p=0.999
+  CogCrystalComp_Unadj: sink_linear−FC median=-0.0751 | residual−sink_linear median=-0.0069 p=0.958
+  -> No nonlinear cross-modal unlock: residual adds <0.02 over the linear sink.
