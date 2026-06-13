@@ -17,9 +17,11 @@ ROOT=/scratch/ans9868/Conn2Conn
 NL=$ROOT/notebooks-FC_to_SC-experimental/non-linear-sanity-check
 
 case "$EXP" in
-  n1) SCRIPT=n1_nonlinear_cognition.py;       OUT=$NL/n1_cognition_output.txt ;;
-  n2) SCRIPT=n2_nonlinear_reconstruction.py;  OUT=$NL/n2_reconstruction_output.txt ;;
-  n3) SCRIPT=n3_nonlinear_marginal.py;        OUT=$NL/n3_marginal_output.txt ;;
+  n1)      SCRIPT=n1_nonlinear_cognition.py;       OUT=$NL/n1_cognition_output.txt ;;
+  n2)      SCRIPT=n2_nonlinear_reconstruction.py;  OUT=$NL/n2_reconstruction_output.txt ;;
+  n3)      SCRIPT=n3_nonlinear_marginal.py;        OUT=$NL/n3_marginal_output.txt ;;
+  n4recon) SCRIPT=n4_residual_reconstruction.py;   OUT=$NL/n4_recon_output.txt ;;
+  n4cog)   SCRIPT=n4_residual_cognition.py;        OUT=$NL/n4_cog_output.txt ;;
   *) echo "unknown exp: $EXP"; exit 2 ;;
 esac
 
