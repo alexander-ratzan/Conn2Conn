@@ -20,8 +20,12 @@ for task in ["cognition", "reconstruction"]:
     s = summ[summ.task == task].sort_values("n_sub")
     gg = df[df.task == task]
     rho, p = spearmanr(gg["n_sub"], gg["gap"])
-    grows = (rho > 0.2) and (p < 0.05)
-    verdicts[task] = (rho, p, grows)
+    # "data-limited" requires not just a positive trend but the gap actually reaching
+    # a positive, meaningful value at the largest n. A negative gap creeping toward 0
+    # is an overfitting penalty vanishing, NOT signal emerging.
+    gap_at_max_n = float(s.sort_values("n_sub")["median_gap"].iloc[-1])
+    grows = (rho > 0.2) and (p < 0.05) and (gap_at_max_n > 0.005)
+    verdicts[task] = (rho, p, grows, gap_at_max_n)
     print(f"\n### {task}")
     print(s[["n_sub", "median_linear", "median_final", "median_gap",
              "wilcoxon_p_gap_gt0"]].to_string(index=False, float_format=lambda x: f"{x:.4f}"))
@@ -37,7 +41,7 @@ for ax, task in zip(axes, ["cognition", "reconstruction"]):
     ax.scatter(gg["n_sub"], gg["gap"], s=14, alpha=0.4, color="#4682b4")
     ax.plot(s["n_sub"], s["median_gap"], "-o", color="#cd3e4e", label="median gap")
     ax.axhline(0.02, color="green", lw=0.8, ls=":", label="+0.02 'matters' threshold")
-    rho, p, grows = verdicts[task]
+    rho, p, grows, _gmax = verdicts[task]
     ax.set_title(f"{task}\ngap-vs-n rho={rho:+.2f} p={p:.3f} "
                  f"({'data-limited' if grows else 'flat'})", fontsize=9)
     ax.set_xlabel("train subsample size n"); ax.set_ylabel("nonlinear gap (final − linear)")
@@ -49,7 +53,7 @@ print(f"\nSaved plot -> {THIS_DIR / 'n6_scaling_curve.png'}")
 
 print("\n" + "=" * 72); print("VERDICT"); print("=" * 72)
 any_grow = any(v[2] for v in verdicts.values())
-pd.DataFrame([{"task": t, "spearman_rho": v[0], "p": v[1], "data_limited": v[2]}
+pd.DataFrame([{"task": t, "spearman_rho": v[0], "p": v[1], "gap_at_max_n": v[3], "data_limited": v[2]}
              for t, v in verdicts.items()]).to_csv(THIS_DIR / "scaling_synthesis.csv", index=False)
 if not any_grow:
     print("  MODEL-CEILING / STRUCTURAL. The nonlinear gap does NOT grow with n in either")
@@ -61,5 +65,5 @@ else:
     print("  DATA-LIMITED. The nonlinear gap grows with n:")
     for t, v in verdicts.items():
         if v[2]:
-            print(f"   - {t}: rho={v[0]:+.2f}, p={v[1]:.3f} -> extrapolate to a bigger cohort")
+            print(f"   - {t}: rho={v[0]:+.2f}, p={v[1]:.3f}, gap@maxN={v[3]:+.4f} -> extrapolate to a bigger cohort")
     print("  -> the move is MORE DATA (HCP-Aging / ABCD / UK Biobank), not a bigger model.")
