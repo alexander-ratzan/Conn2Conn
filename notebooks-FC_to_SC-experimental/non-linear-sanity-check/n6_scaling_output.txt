@@ -1,0 +1,110 @@
+=== seed 0 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  n= 100  cog: lin=0.320 gap=-0.0288  recon: lin=0.0426 gap=-0.0052
+  n= 200  cog: lin=0.365 gap=-0.0250  recon: lin=0.0671 gap=-0.0034
+  n= 400  cog: lin=0.451 gap=-0.0026  recon: lin=0.0897 gap=-0.0041
+  n= 683  cog: lin=0.435 gap=-0.0128  recon: lin=0.1010 gap=-0.0009
+=== seed 1 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  n= 100  cog: lin=0.305 gap=-0.0036  recon: lin=0.0265 gap=+0.0002
+  n= 200  cog: lin=0.341 gap=-0.0168  recon: lin=0.0558 gap=-0.0005
+  n= 400  cog: lin=0.407 gap=-0.0198  recon: lin=0.0833 gap=-0.0013
+  n= 683  cog: lin=0.428 gap=-0.0212  recon: lin=0.1038 gap=-0.0010
+=== seed 2 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  n= 100  cog: lin=0.307 gap=-0.0073  recon: lin=0.0506 gap=-0.0037
+  n= 200  cog: lin=0.419 gap=+0.0040  recon: lin=0.0688 gap=-0.0039
+  n= 400  cog: lin=0.454 gap=+0.0004  recon: lin=0.0805 gap=+0.0004
+  n= 683  cog: lin=0.481 gap=-0.0096  recon: lin=0.1075 gap=-0.0014
+=== seed 3 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  n= 100  cog: lin=0.240 gap=-0.0016  recon: lin=0.0607 gap=-0.0051
+  n= 200  cog: lin=0.292 gap=-0.0009  recon: lin=0.0668 gap=-0.0002
+  n= 400  cog: lin=0.381 gap=-0.0085  recon: lin=0.1081 gap=-0.0024
+  n= 683  cog: lin=0.354 gap=-0.0028  recon: lin=0.1159 gap=-0.0030
+=== seed 4 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  n= 100  cog: lin=0.340 gap=-0.0170  recon: lin=0.0469 gap=-0.0046
+  n= 200  cog: lin=0.291 gap=-0.0320  recon: lin=0.0797 gap=-0.0057
+  n= 400  cog: lin=0.318 gap=-0.0340  recon: lin=0.1077 gap=-0.0012
+  n= 683  cog: lin=0.355 gap=-0.0300  recon: lin=0.1205 gap=-0.0009
+=== seed 5 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  n= 100  cog: lin=0.418 gap=-0.0352  recon: lin=0.0399 gap=-0.0063
+  n= 200  cog: lin=0.386 gap=-0.0186  recon: lin=0.0590 gap=+0.0051
+  n= 400  cog: lin=0.487 gap=-0.0182  recon: lin=0.0914 gap=-0.0017
+  n= 683  cog: lin=0.499 gap=+0.0028  recon: lin=0.1085 gap=+0.0012
+=== seed 6 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  n= 100  cog: lin=0.244 gap=-0.0026  recon: lin=0.0331 gap=-0.0055
+  n= 200  cog: lin=0.269 gap=-0.0145  recon: lin=0.0658 gap=-0.0014
+  n= 400  cog: lin=0.310 gap=-0.0102  recon: lin=0.0915 gap=-0.0029
+  n= 683  cog: lin=0.342 gap=+0.0051  recon: lin=0.1098 gap=-0.0035
+=== seed 7 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  n= 100  cog: lin=0.241 gap=-0.0109  recon: lin=0.0358 gap=-0.0063
+  n= 200  cog: lin=0.257 gap=-0.0159  recon: lin=0.0736 gap=-0.0030
+  n= 400  cog: lin=0.251 gap=-0.0136  recon: lin=0.0999 gap=-0.0024
+  n= 683  cog: lin=0.286 gap=-0.0144  recon: lin=0.1171 gap=-0.0001
+=== seed 8 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  n= 100  cog: lin=0.251 gap=-0.0055  recon: lin=0.0443 gap=-0.0073
+  n= 200  cog: lin=0.346 gap=-0.0135  recon: lin=0.0804 gap=-0.0024
+  n= 400  cog: lin=0.380 gap=-0.0158  recon: lin=0.0983 gap=+0.0000
+  n= 683  cog: lin=0.391 gap=-0.0168  recon: lin=0.1222 gap=-0.0001
+=== seed 9 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+  n= 100  cog: lin=0.299 gap=-0.0101  recon: lin=0.0394 gap=-0.0076
+  n= 200  cog: lin=0.313 gap=+0.0119  recon: lin=0.0626 gap=+0.0034
+  n= 400  cog: lin=0.407 gap=-0.0036  recon: lin=0.0965 gap=+0.0000
+  n= 682  cog: lin=0.482 gap=+0.0036  recon: lin=0.1098 gap=-0.0025
+
+Saved -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/non-linear-sanity-check/n6_scaling_results.csv
+
+=== Learning curve: nonlinear gap vs n ===
+
+  cognition:
+    n= 100  linear=+0.3021  final=+0.2900  gap=-0.0087 [-0.0352,-0.0016] p=1.000 
+    n= 200  linear=+0.3267  final=+0.3243  gap=-0.0152 [-0.0320,+0.0119] p=0.993 
+    n= 400  linear=+0.3936  final=+0.3797  gap=-0.0119 [-0.0340,+0.0004] p=0.999 
+    n= 682  linear=+0.4825  final=+0.4861  gap=+0.0036 [+0.0036,+0.0036] p=0.500 
+    n= 683  linear=+0.3914  final=+0.3746  gap=-0.0128 [-0.0300,+0.0051] p=0.990 
+    TREND gap-vs-n: Spearman rho=+0.048 p=0.7685  (flat / no growth)
+
+  reconstruction:
+    n= 100  linear=+0.0412  final=+0.0353  gap=-0.0054 [-0.0076,+0.0002] p=0.999 
+    n= 200  linear=+0.0670  final=+0.0655  gap=-0.0019 [-0.0057,+0.0051] p=0.884 
+    n= 400  linear=+0.0940  final=+0.0931  gap=-0.0015 [-0.0041,+0.0004] p=0.990 
+    n= 682  linear=+0.1098  final=+0.1072  gap=-0.0025 [-0.0025,-0.0025] p=1.000 
+    n= 683  linear=+0.1098  final=+0.1097  gap=-0.0009 [-0.0035,+0.0012] p=0.980 
+    TREND gap-vs-n: Spearman rho=+0.516 p=0.0007  (GROWS with n)
