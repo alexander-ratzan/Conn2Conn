@@ -1,0 +1,51 @@
+rank,region_i_idx,region_j_idx,region_i,region_j,net_i,net_j,hemi_i,hemi_j,loading
+1,15,20,Right_V7,Right_LO2,visual,visual,R,R,0.10885592
+2,195,199,Left_V7,Left_LO1,visual,visual,L,L,0.10327647
+3,195,337,Left_V7,Left_V3CD,visual,visual,L,L,0.09678264
+4,144,150,Right_IP1,Right_PGs,frontoparietal,default mode,R,R,0.085643984
+5,12,157,Right_V3A,Right_V3CD,visual,visual,R,R,-0.08444992
+6,196,337,Left_IPS1,Left_V3CD,dorsal attention,visual,L,L,0.08019373
+7,15,21,Right_V7,Right_PIT,visual,visual,R,R,0.07908927
+8,195,200,Left_V7,Left_LO2,visual,visual,L,L,0.07026036
+9,20,142,Right_LO2,Right_PGp,visual,dorsal attention,R,R,0.06991341
+10,195,335,Left_V7,Left_V4t,visual,visual,L,L,0.06982244
+11,195,198,Left_V7,Left_V3B,visual,visual,L,L,0.06948164
+12,18,20,Right_V3B,Right_LO2,visual,visual,R,R,0.06745731
+13,195,338,Left_V7,Left_LO3,visual,visual,L,L,0.066439174
+14,196,325,Left_IPS1,Left_IP0,dorsal attention,dorsal attention,L,L,0.0649797
+15,324,325,Left_IP1,Left_IP0,frontoparietal,dorsal attention,L,L,0.0644794
+16,15,19,Right_V7,Right_LO1,visual,visual,R,R,0.064377084
+17,20,151,Right_LO2,Right_V6A,visual,visual,R,R,0.06356454
+18,12,18,Right_V3A,Right_V3B,visual,visual,R,R,-0.06299888
+19,139,149,Right_TPOJ2,Right_PGi,dorsal attention,default mode,R,R,-0.06279097
+20,16,157,Right_IPS1,Right_V3CD,dorsal attention,visual,R,R,0.061315298
+21,192,337,Left_V3A,Left_V3CD,visual,visual,L,L,-0.05992831
+22,192,322,Left_V3A,Left_PGp,visual,dorsal attention,L,L,-0.057936057
+23,49,150,Right_MIP,Right_PGs,dorsal attention,default mode,R,R,0.05774741
+24,12,145,Right_V3A,Right_IP0,visual,dorsal attention,R,R,-0.05659888
+25,145,150,Right_IP0,Right_PGs,dorsal attention,default mode,R,R,0.05638005
+26,202,337,Left_MT,Left_V3CD,visual,visual,L,L,0.05583778
+27,145,155,Right_IP0,Right_V4t,dorsal attention,visual,R,R,0.055511426
+28,151,157,Right_V6A,Right_V3CD,visual,visual,R,R,0.055325232
+29,16,155,Right_IPS1,Right_V4t,dorsal attention,visual,R,R,0.05520221
+30,12,142,Right_V3A,Right_PGp,visual,dorsal attention,R,R,-0.055150412
+31,20,145,Right_LO2,Right_IP0,visual,dorsal attention,R,R,0.054105375
+32,5,12,Right_V4,Right_V3A,visual,visual,R,R,-0.05374774
+33,335,337,Left_V4t,Left_V3CD,visual,visual,L,L,0.05354714
+34,15,155,Right_V7,Right_V4t,visual,visual,R,R,0.05353611
+35,227,228,Left_LIPv,Left_VIP,dorsal attention,dorsal attention,L,L,-0.0534119
+36,94,150,Right_LIPd,Right_PGs,dorsal attention,default mode,R,R,0.053132866
+37,19,142,Right_LO1,Right_PGp,visual,dorsal attention,R,R,0.052611694
+38,223,233,Left_6ma,Left_6d,ventral attention,somatosensory,L,L,-0.052590955
+39,199,337,Left_LO1,Left_V3CD,visual,visual,L,L,0.052079614
+40,45,150,Right_7PL,Right_PGs,dorsal attention,default mode,R,R,0.050001062
+41,196,198,Left_IPS1,Left_V3B,dorsal attention,visual,L,L,0.049913947
+42,195,201,Left_V7,Left_PIT,visual,visual,L,L,0.049267776
+43,15,157,Right_V7,Right_V3CD,visual,visual,R,R,0.04908836
+44,18,155,Right_V3B,Right_V4t,visual,visual,R,R,0.04866428
+45,191,259,Left_55b,Left_IFJp,ventral attention,dorsal attention,L,L,0.048613124
+46,16,145,Right_IPS1,Right_IP0,dorsal attention,dorsal attention,R,R,0.048378892
+47,94,148,Right_LIPd,Right_PFm,dorsal attention,default mode,R,R,0.047985546
+48,324,330,Left_IP1,Left_PGs,frontoparietal,default mode,L,L,0.047950275
+49,142,157,Right_PGp,Right_V3CD,dorsal attention,visual,R,R,0.047872297
+50,198,337,Left_V3B,Left_V3CD,visual,visual,L,L,0.047001433

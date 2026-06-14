@@ -1,0 +1,31 @@
+rank,region_i,region_j,net_i,net_j,hemi_i,hemi_j,loading
+1,Right_MIP,Right_PGp,dorsal attention,dorsal attention,R,R,0.14024514
+2,Right_IPS1,Right_IP0,dorsal attention,dorsal attention,R,R,0.12467605
+3,Right_MIP,Right_IP0,dorsal attention,dorsal attention,R,R,0.11915667
+4,Left_IPS1,Left_V3CD,dorsal attention,visual,L,L,0.11857611
+5,Right_V7,Right_V3B,visual,visual,R,R,0.116403945
+6,Right_LO2,Right_PGp,visual,dorsal attention,R,R,-0.1140872
+7,Left_IPS1,Left_IP0,dorsal attention,dorsal attention,L,L,0.112600796
+8,Right_PGp,Right_V4t,dorsal attention,visual,R,R,-0.1079273
+9,Right_IPS1,Right_V3CD,dorsal attention,visual,R,R,0.10690943
+10,Right_LO1,Right_PGp,visual,dorsal attention,R,R,-0.10411457
+11,Left_V7,Left_V3CD,visual,visual,L,L,0.1020451
+12,Right_V7,Right_IP0,visual,dorsal attention,R,R,0.0936744
+13,Right_PGp,Right_IP1,dorsal attention,frontoparietal,R,R,0.0827524
+14,Left_MIP,Left_IP0,dorsal attention,dorsal attention,L,L,0.07811005
+15,Left_MIP,Left_PGp,dorsal attention,dorsal attention,L,L,0.07606412
+16,Right_IPS1,Right_PGp,dorsal attention,dorsal attention,R,R,0.07416429
+17,Left_PGp,Left_LO3,dorsal attention,visual,L,L,-0.07326017
+18,Right_PGp,Right_V3CD,dorsal attention,visual,R,R,-0.0700698
+19,Right_IP1,Right_IP0,frontoparietal,dorsal attention,R,R,0.069549225
+20,Right_POS2,Left_POS2,default mode,frontoparietal,R,L,0.06810926
+21,Right_V7,Right_V3CD,visual,visual,R,R,0.067853734
+22,Right_V6A,Right_V3CD,visual,visual,R,R,0.06735953
+23,Left_V3B,Left_V3CD,visual,visual,L,L,0.06715357
+24,Right_V3B,Right_V6A,visual,visual,R,R,0.06617613
+25,Left_V7,Left_V3B,visual,visual,L,L,0.06603859
+26,Left_V6A,Left_V3CD,visual,visual,L,L,0.065793134
+27,Right_IPS1,Right_V3B,dorsal attention,visual,R,R,0.06505014
+28,Right_ProS,Right_V6A,visual,visual,R,R,0.06498906
+29,Left_IPS1,Left_PGp,dorsal attention,dorsal attention,L,L,0.06463516
+30,Right_PGp,Right_IP0,dorsal attention,dorsal attention,R,R,0.06373647

@@ -1,0 +1,62 @@
+=== Stage 1: load FC session 1 + 2 ===
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3023: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[:, None]
+/ext3/miniforge3/envs/kraken_env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:3024: RuntimeWarning: invalid value encountered in divide
+  c /= stddev[None, :]
+FC session 1 shape: (957, 64620)
+FC session 2 shape: (957, 64620)
+
+=== Stage 2: per-edge scan-rescan Pearson r ===
+  per-edge reliability r: shape=(64620,), NaN edges=0
+  min=0.0048, max=0.9025
+  mean=0.4517, median=0.4407
+  p1: 0.1515
+  p5: 0.2287
+  p25: 0.3514
+  p50: 0.4407
+  p75: 0.5512
+  p95: 0.6969
+  p99: 0.7719
+  Saved -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/sanity_checks/tract_check/retest_icc_results/fc_edge_reliability_pearson.npy
+
+=== Stage 3: re-run decisive enrichment with FC reliability ===
+  Spearman(|PC3|, FC reliability) = +0.2332 (p=0)
+  OLS R² of |PC3| ~ FC reliability alone = 0.0321
+  Full-model R² (strength + distance + FC reliability) = 0.4120
+
+=== Top network-pair enrichment: RAW vs RESIDUALIZED (strength+distance+FC-reliability) ===
+                              net_pair  n_total  n_raw_top200  n_resid_top200  enrichment_raw  enrichment_resid
+                      visual || visual     1431            53              59          11.967            13.321
+  dorsal attention || dorsal attention     1128            27              20           7.734             5.729
+            dorsal attention || visual     2592            36              40           4.487             4.986
+      frontoparietal || frontoparietal      990             8               5           2.611             1.632
+    dorsal attention || frontoparietal     2160            10               8           1.496             1.197
+      default mode || dorsal attention     3984            17              16           1.379             1.298
+    somatosensory || ventral attention     2576             9               7           1.129             0.878
+ventral attention || ventral attention     1035             3               1           0.937             0.312
+
+=== Headline pair survival (3-proxy partial) ===
+  visual || visual                              raw= 11.967  resid= 13.321  Δ=+1.355
+  dorsal attention || dorsal attention          raw=  7.734  resid=  5.729  Δ=-2.005
+  dorsal attention || visual                    raw=  4.487  resid=  4.986  Δ=+0.499
+
+Retest reliability + tract_check joint verdict
+============================================================
+  Strength + distance + FC reliability jointly explain 41.2% of |PC3|.
+  Headline pair survival under 3-proxy residual:
+    visual||visual      = 13.32x
+    DAN||DAN            = 5.73x
+    DAN||visual         = 4.99x
+
+  -> HEDGE. Headline pairs survive but reduced under the joint partial.
+     => Strong but not bulletproof claim; report all three numbers.
+
+Caveats (still standing):
+  - This is FC reliability, NOT SC reliability. They are different physical
+    constructs. We use it because it's the only same-subject scan-rescan
+    measure available from this cache; gold-standard SC ICC requires the
+    HCP retest dMRI release (not in this project).
+  - Even so, FC reliability passing the partialling test is an independent
+    cross-check on the strength+distance proxy result.
+
+Saved -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/sanity_checks/tract_check/retest_icc_results/retest_findings.txt

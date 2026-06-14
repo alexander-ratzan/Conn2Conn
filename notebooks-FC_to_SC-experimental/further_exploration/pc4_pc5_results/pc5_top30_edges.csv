@@ -1,0 +1,31 @@
+rank,region_i,region_j,net_i,net_j,hemi_i,hemi_j,loading
+1,Right_V6,Right_POS1,visual,default mode,R,R,0.08327733
+2,Left_VIP,Left_IP1,dorsal attention,frontoparietal,L,L,-0.078578845
+3,Left_VIP,Left_MIP,dorsal attention,dorsal attention,L,L,-0.07390008
+4,Left_LIPd,Left_IP1,dorsal attention,frontoparietal,L,L,0.07077889
+5,Right_VIP,Right_MIP,dorsal attention,dorsal attention,R,R,-0.06957222
+6,Left_LIPv,Left_VIP,dorsal attention,dorsal attention,L,L,-0.06665402
+7,Right_LIPv,Right_VIP,dorsal attention,dorsal attention,R,R,-0.060684808
+8,Right_V7,Right_V3CD,visual,visual,R,R,-0.058416493
+9,Left_MIP,Left_LIPd,dorsal attention,dorsal attention,L,L,0.05473395
+10,Left_7Am,Left_7PL,dorsal attention,dorsal attention,L,L,-0.0536704
+11,Left_7Pm,Left_7Am,frontoparietal,dorsal attention,L,L,-0.052593406
+12,Right_POS2,Right_ProS,default mode,visual,R,R,-0.052264106
+13,Right_7PL,Right_PGp,dorsal attention,dorsal attention,R,R,-0.052231263
+14,Left_DVT,Left_V3CD,visual,visual,L,L,-0.05189014
+15,Right_DVT,Right_PGs,visual,default mode,R,R,0.05169817
+16,Left_7AL,Left_VIP,dorsal attention,dorsal attention,L,L,-0.051308066
+17,Left_24dd,Left_6mp,somatosensory,somatosensory,L,L,-0.0504907
+18,Left_V7,Left_IP0,visual,dorsal attention,L,L,0.050159495
+19,Left_VIP,Left_LIPd,dorsal attention,dorsal attention,L,L,-0.049942143
+20,Left_LIPd,Left_PGs,dorsal attention,default mode,L,L,0.04972236
+21,Right_IPS1,Right_V3CD,dorsal attention,visual,R,R,-0.049705435
+22,Left_MIP,Left_IP2,dorsal attention,frontoparietal,L,L,0.04948658
+23,Right_POS2,Right_PreS,default mode,default mode,R,R,-0.049049027
+24,Right_LIPd,Right_IP1,dorsal attention,frontoparietal,R,R,0.04800489
+25,Left_V3A,Left_PH,visual,dorsal attention,L,L,0.047599133
+26,Left_V4,Left_V7,visual,visual,L,L,-0.047011483
+27,Left_IP1,Left_PGs,frontoparietal,default mode,L,L,0.046822228
+28,Left_IP1,Left_PFm,frontoparietal,frontoparietal,L,L,0.046721395
+29,Left_V4,Left_PH,visual,dorsal attention,L,L,0.046666387
+30,Right_V4,Right_LO2,visual,visual,R,R,0.046611056
