@@ -69,21 +69,25 @@ def _blocks_to_latents(blocks_train, blocks_test, k_per_block=K_PCA):
     (bv, demo) standardized and passed through raw."""
     Ztr_parts, Zte_parts = [], []
     for Xtr, Xte in zip(blocks_train, blocks_test):
-        if Xtr.shape[1] <= k_per_block:
+        # Defensive cap: PCA n_components <= min(features, n_samples-1) so small-n
+        # subsamples (learning curve) don't crash.
+        n_comp = min(k_per_block, Xtr.shape[1], max(1, Xtr.shape[0] - 1))
+        if Xtr.shape[1] <= n_comp:
             sc = StandardScaler().fit(Xtr)
             Ztr_parts.append(sc.transform(Xtr)); Zte_parts.append(sc.transform(Xte))
         else:
-            p = PCA(n_components=k_per_block, random_state=0).fit(Xtr)
+            p = PCA(n_components=n_comp, random_state=0).fit(Xtr)
             ztr, zte = p.transform(Xtr), p.transform(Xte)
             sc = StandardScaler().fit(ztr)
             Ztr_parts.append(sc.transform(ztr)); Zte_parts.append(sc.transform(zte))
     return np.concatenate(Ztr_parts, axis=1), np.concatenate(Zte_parts, axis=1)
 
 
-def residual_cognition_blocks(blocks_train, blocks_test, y_train, n_folds=N_FOLDS, alpha=1.0):
+def residual_cognition_blocks(blocks_train, blocks_test, y_train, n_folds=N_FOLDS,
+                              alpha=1.0, k_per_block=K_PCA):
     """Multimodal-sink additive residual cognition. Per-block PCA -> concat -> OOF-BR
     template + KernelRidge residual. Returns (final, template). template = linear sink."""
-    Z_tr, Z_te = _blocks_to_latents(blocks_train, blocks_test)
+    Z_tr, Z_te = _blocks_to_latents(blocks_train, blocks_test, k_per_block=k_per_block)
     ok = ~np.isnan(y_train)
     Z_ok, y_ok = Z_tr[ok], y_train[ok]
     oof = np.zeros_like(y_ok)
@@ -101,24 +105,30 @@ def residual_cognition_blocks(blocks_train, blocks_test, y_train, n_folds=N_FOLD
 
 
 def residual_reconstruct_blocks(blocks_train, blocks_test, Y_train,
-                                k_tgt=K_PCA, k_pls=K_PLS, n_folds=N_FOLDS, alpha=1.0):
+                                k_tgt=K_PCA, k_pls=K_PLS, n_folds=N_FOLDS, alpha=1.0,
+                                k_per_block=K_PCA):
     """Multimodal-sink additive residual reconstruction. Per-block PCA(src) -> concat ->
     OOF-PLS template + KernelRidge residual -> inverse-PCA. Returns (final, template)
-    in original target edge space."""
-    Z_tr, Z_te = _blocks_to_latents(blocks_train, blocks_test)
-    pca_tgt = PCA(n_components=min(k_tgt, Y_train.shape[1]), random_state=0).fit(Y_train)
+    in original target edge space. Component counts capped at n_samples-1 for small-n."""
+    Z_tr, Z_te = _blocks_to_latents(blocks_train, blocks_test, k_per_block=k_per_block)
+    n_tr = Z_tr.shape[0]
+    k_tgt_eff = min(k_tgt, Y_train.shape[1], max(1, n_tr - 1))
+    pca_tgt = PCA(n_components=k_tgt_eff, random_state=0).fit(Y_train)
     Y_lat = pca_tgt.transform(Y_train)
     oof = np.zeros_like(Y_lat)
     kf = KFold(n_splits=n_folds, shuffle=True, random_state=0)
     for tr_idx, va_idx in kf.split(Z_tr):
-        pls = PLSRegression(n_components=k_pls, scale=True, max_iter=2000)
+        # PLS n_components <= min(features, fold-train samples - 1).
+        k_pls_eff = min(k_pls, Z_tr.shape[1], max(1, len(tr_idx) - 1))
+        pls = PLSRegression(n_components=k_pls_eff, scale=True, max_iter=2000)
         pls.fit(Z_tr[tr_idx], Y_lat[tr_idx])
-        oof[va_idx] = pls.predict(Z_tr[va_idx])
+        oof[va_idx] = pls.predict(Z_tr[va_idx]).reshape(len(va_idx), -1)
     resid_lat = Y_lat - oof
     gamma = _median_gamma(Z_tr)
     kr = KernelRidge(kernel="rbf", alpha=alpha, gamma=gamma).fit(Z_tr, resid_lat)
-    pls_full = PLSRegression(n_components=k_pls, scale=True, max_iter=2000).fit(Z_tr, Y_lat)
-    tmpl_lat = pls_full.predict(Z_te)
+    k_pls_full = min(k_pls, Z_tr.shape[1], max(1, n_tr - 1))
+    pls_full = PLSRegression(n_components=k_pls_full, scale=True, max_iter=2000).fit(Z_tr, Y_lat)
+    tmpl_lat = pls_full.predict(Z_te).reshape(Z_te.shape[0], -1)
     final_lat = tmpl_lat + kr.predict(Z_te)
     return (pca_tgt.inverse_transform(final_lat).astype(np.float32),
             pca_tgt.inverse_transform(tmpl_lat).astype(np.float32))

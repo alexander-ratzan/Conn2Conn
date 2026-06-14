@@ -24,6 +24,7 @@ case "$EXP" in
   n4cog)   SCRIPT=n4_residual_cognition.py;        OUT=$NL/n4_cog_output.txt ;;
   n5cog)   SCRIPT=n5_sink_cognition.py;            OUT=$NL/n5_cog_output.txt ;;
   n5recon) SCRIPT=n5_sink_reconstruction.py;       OUT=$NL/n5_recon_output.txt ;;
+  n6)      SCRIPT=n6_scaling_curve.py;             OUT=$NL/n6_scaling_output.txt ;;
   *) echo "unknown exp: $EXP"; exit 2 ;;
 esac
 
