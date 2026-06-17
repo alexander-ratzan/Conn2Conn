@@ -7,9 +7,12 @@
 ## TL;DR
 
 FC is **mostly noise at the single-edge level but highly reliable as a whole connectome**,
-and SC predicts only a small fraction of even the *reproducible* FC signal. This is the
-physical counterpart to MASTER_FINDINGS F10 (statistical saturation): the FC→SC / SC→FC
-prediction gap is part genuine cross-modal independence, part FC being edge-noisy.
+and SC predicts only a small fraction of even the *reproducible* FC signal — and that
+shortfall is **not explained by FC measurement noise** (proven per-subject). This is the
+physical counterpart to MASTER_FINDINGS F10 (statistical saturation): the SC→FC gap is
+demonstrably not an FC-noise artifact; genuine cross-modal independence is the strong
+interpretation, pending the one data-blocked piece (SC's own reliability — needs
+test-retest dMRI). **CLOSED, filed as F10-supporting (MASTER A6).**
 
 - **FC reliability ceiling** (between-session, Glasser): demeaned_r **0.49**, fingerprint
   top1 **0.93**, avg_rank **0.99**.
@@ -106,19 +109,49 @@ person-level. (`outputs/g_per_subject_*`, `g_reliability_hist.png`.)
   Keeping only high-reliability subjects raises the ceiling (0.49→0.58) but SC's achieved
   stays flat (~0.08), so the fraction drops. The noisy tail was never the bottleneck.
 - (bv+demo→FC holds ~0.20–0.21 across all filters.)
-- **Conclusion**: at the per-subject level too, the SC→FC gap is *genuine cross-modal
-  independence*, not per-subject measurement noise — if it were noise, cleaner subjects
-  would be more predictable and filtering would help; neither happens. Reinforces E.
+- **Why flat r=0.01 is the strong outcome (not a weak/null one):** per-subject achieved
+  prediction is *mechanically* bounded by reliability (you can't predict noise), so the
+  default expectation was a **positive** slope by construction. We got flat. SC captures a
+  fixed ~0.08 whether a subject's FC is reliable (0.78) or near-noise (0.0) — which *rules
+  out* the boring ceiling-effect explanation. The filtering result corroborates by going
+  the "wrong" way: dropping unreliable subjects *lowers* the captured fraction
+  (0.169→0.137) because the ceiling rises while achieved stays pinned. Ceiling moves,
+  achieved doesn't = SC has a fixed, modest grip on FC unrelated to FC's measurement quality.
+- **The bv+demo contrast is what makes it a clean dissociation (not an artifact):** the
+  analysis *does* detect a real reliability effect when one exists — bv+demo→FC mildly
+  tracks reliability (r=0.15). That SC's slope is flat while the baseline's isn't means the
+  flatness is not a methodological artifact (it would have hit both).
+- **Conclusion (with the caveat riding it):** the airtight claim is **the SC→FC gap is not
+  FC-measurement-noise and not per-subject reliability** — decisively, at the per-subject
+  level. The reading "SC doesn't *contain* that part of FC" is the strong **interpretation**,
+  but is not fully separable from "SC contains it but measures it too noisily, *uniformly*
+  across subjects" — a uniform SC noise floor would also produce a flat line. Distinguishing
+  those needs SC test-retest (data-blocked). So: 95% of the way to genuine independence; the
+  last 5% is the SC-reliability hole. Reinforces E.
 - (`outputs/h_per_subject_achieved_vs_ceiling.csv`, `h_reliability_filtered_summary.csv`,
   `h_correlations.csv`, `h_achieved_vs_ceiling_scatter.png`.)
 
+## Status: CLOSED (supporting item for F10)
+
+This module has done its pre-grid job: it confirms the cross-modal ceiling is not an
+FC-measurement-noise artifact, in our native metric, per-subject. **Filed as F10-supporting
+in MASTER_FINDINGS (Appendix A6). No further per-subject reliability analysis is warranted
+here** — the finding is extracted; the discipline now is to run the reproducibility grid
+this de-risked, not to chase the per-subject rabbit hole.
+
 ## What this resolves and what stays open
 
-- **Resolves**: how much of FC is noise (edge-level ~64%; whole-connectome reliable), and
-  that SC→FC is *not* noise-ceiling-limited — it leaves reliable FC signal unexplained, so
-  the cross-modal gap is real independence. Sharpens F10 with a physical denominator.
+- **Resolves (airtight)**: how much of FC is noise (edge-level ~64%; whole-connectome
+  reliable), and that the SC→FC gap is **not FC-measurement-noise and not per-subject
+  reliability** — decisively, per-subject (flat r=0.01 vs the baseline's r=0.15).
+  Sharpens F10 with a physical denominator.
+- **Interpretation (strong, pending data)**: the natural reading is "SC doesn't *contain*
+  that part of FC" — but a *uniform* SC noise floor would also produce the flat line, so
+  this last step is not fully separable from FC-side evidence alone.
 - **Open (data-blocked)**: SC's own noise floor, and FC→SC disattenuated by SC reliability
   — both need test-retest dMRI (not in HCP-YA). ⚠️ literature plug-in only until sourced.
+  This is the 5% gap between "not-noise-on-the-FC-side" (proven) and "genuine independence"
+  (interpretation).
 
 ## Caveats
 - Within-session rung confounded by phase-encode distortion (above).

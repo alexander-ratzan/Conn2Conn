@@ -237,6 +237,28 @@ independent FC scan-rescan reliability proxy (joint R² 41.2% vs 41.0%).
 - **CSV**: `sanity_checks/tract_check/enrichment_residual_top200.csv`, `retest_icc_results/enrichment_residual_with_fc_reliability.csv`, `retest_icc_results/fc_reliability_summary.csv`
 - **MD**: `sanity_checks/tract_check/findings.md`, `README.md`
 
+### A6 — FC noise / reliability ceiling (defends C2 / F10) — **CLOSED**
+The cross-modal ceiling is **not an FC-measurement-noise artifact** — shown in our native
+metric, per-subject. FC between-session reliability ceiling (Glasser) = demeaned_r **0.49**
+(fingerprint top1 0.93); FC edge variance is **~30% trait / ~64% noise** yet the whole
+connectome is 93% identifiable (distributed signal). **SC→FC captures ~17% of the
+reproducible FC signal**, and — decisively — a subject's SC→FC quality is **uncorrelated
+with their own FC reliability** (Pearson r=**0.01**, vs the bv+demo baseline's r=0.15), and
+reliability-filtering does **not** sharpen it (fraction 0.169→0.137 as the ceiling rises but
+achieved stays pinned at ~0.08). So the gap is **not FC-noise and not per-subject
+reliability** (airtight); "SC doesn't *contain* it" is the strong interpretation, pending
+SC test-retest (a uniform SC noise floor would also produce the flat line). Per-subject
+reliability is heterogeneous (~0–0.78, std 0.12, left-skewed) and a stable subject trait
+(within-vs-between ρ=0.41). **Status: closed — done its pre-grid job; SC-side reliability
+remains the one data-blocked open item.**
+- **CSV**: `sanity_checks/noise_sanity_check/outputs/` — `a_reliability_ceiling.csv`,
+  `b_variance_decomposition.csv`, `f_discriminability.csv`, `e_crossmodal_disattenuation.csv`,
+  `g_per_subject_summary.csv`, `h_per_subject_achieved_vs_ceiling.csv`,
+  `h_reliability_filtered_summary.csv`, `h_correlations.csv`, `noise_synthesis.csv`
+  (+ figures `g_reliability_hist.png`, `h_achieved_vs_ceiling_scatter.png`)
+- **MD**: `sanity_checks/noise_sanity_check/findings_noise.md`, `README.md`;
+  roadmap `planning/roadmap/noise-sanity-check.md`
+
 ### Negatives kept / deliberately not chased
 SC carries no non-demographic cognition signal (F4); cognition ceiling is structural (C2);
 CNN/autoencoder not chased (wrong inductive bias for non-grid edges); rigorous HCP-retest
@@ -266,6 +288,7 @@ family-structure inference, not molecular).
 | PC3 reliability (A5) | `sanity_checks/tract_check/` | `findings.md` |
 | Tractography r2t (F9, ceiling) | `tractography_predict/` | `findings.md`, `findings_in_depth.md` |
 | Nonlinear/residual/sink/scaling (F10, ceiling) | `non-linear-sanity-check/` | `findings_nonlinear.md`, `findings_residual.md`, `findings_scaling.md` |
+| FC noise / reliability ceiling (A6, C2/F10-supporting, **closed**) | `sanity_checks/noise_sanity_check/` | `findings_noise.md` |
 
 *All quantitative values trace to the cited CSVs (executed notebooks / SLURM runs).
 Confirmatory claims (baseline, ceiling, asymmetry) are robust; the mechanism is
