@@ -1,0 +1,16 @@
+PC4 verdict
+============================================================
+stable across seeds (|cos| >= 0.85)?       True  (0.900)
+FC-predictable (median R² >= 0.10)?        True  (0.120)
+PC4 is sex+BV confound (R²_test >= 0.60)?  False  (-0.023)
+  -> drop in FC->R² after partialling      +0.005
+intra-hemispheric (top << base)?           True
+rich-club elevated (>1.3x base)?           True
+energy peaked (top-1% > 0.10)?             True
+# stable enriched network pairs:           3
+
+=> PC4 is a stable, FC-predictable structural mode beyond demographics.
+   Stable enriched network pairs:
+     - visual || visual: median enrichment 16.26x
+     - dorsal attention || visual: median enrichment 6.86x
+     - dorsal attention || dorsal attention: median enrichment 6.59x
