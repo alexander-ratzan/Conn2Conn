@@ -83,6 +83,35 @@ Reads:
 - `pearson` fraction >1.0 is an artifact (raw pearson is dominated by the shared population
   mean and is uninformative here — use demeaned_r); not reported as meaningful.
 
+## G + H. Per-subject reliability + does prediction track it?
+
+**G — per-subject reliability is heterogeneous and a stable trait.** The 0.49 ceiling is a
+mean; per-subject between-session reliability spans ~0 to 0.78 (Glasser: mean 0.489,
+median 0.494, std **0.117**, skew **−0.58**, non-normal p=5e-15), with a low tail (~2% of
+subjects < 0.2; one at −0.002 = pure noise). It's a stable subject property
+(within-vs-between per-subject ρ=0.41) — consistent with motion/compliance being
+person-level. (`outputs/g_per_subject_*`, `g_reliability_hist.png`.)
+
+**H — SC→FC is NOT noise-limited per subject; the gap is uniform independence.**
+- A subject's SC→FC prediction quality is **uncorrelated** with their own FC reliability
+  ceiling: Pearson **r=0.01 (p=0.72)**, Spearman ≈0. (bv+demo→FC weakly tracks it,
+  r=0.15, p=2e-5.) So cleaner-FC subjects are **not** more predictable from SC.
+- **Reliability-filtering does not sharpen SC→FC** — it makes the fraction *worse*:
+  | filter | n | SC achieved | SC ceiling | SC fraction |
+  |---|---|---|---|---|
+  | all | 857 | 0.083 | 0.491 | **0.169** |
+  | drop rel<0.2 | 841 | 0.083 | 0.498 | 0.167 |
+  | drop bottom 10% | 771 | 0.083 | 0.517 | 0.160 |
+  | keep top 50% | 429 | 0.080 | 0.582 | **0.137** |
+  Keeping only high-reliability subjects raises the ceiling (0.49→0.58) but SC's achieved
+  stays flat (~0.08), so the fraction drops. The noisy tail was never the bottleneck.
+- (bv+demo→FC holds ~0.20–0.21 across all filters.)
+- **Conclusion**: at the per-subject level too, the SC→FC gap is *genuine cross-modal
+  independence*, not per-subject measurement noise — if it were noise, cleaner subjects
+  would be more predictable and filtering would help; neither happens. Reinforces E.
+- (`outputs/h_per_subject_achieved_vs_ceiling.csv`, `h_reliability_filtered_summary.csv`,
+  `h_correlations.csv`, `h_achieved_vs_ceiling_scatter.png`.)
+
 ## What this resolves and what stays open
 
 - **Resolves**: how much of FC is noise (edge-level ~64%; whole-connectome reliable), and
