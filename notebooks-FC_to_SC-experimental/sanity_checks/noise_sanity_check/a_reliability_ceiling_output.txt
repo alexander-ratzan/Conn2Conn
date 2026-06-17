@@ -1,0 +1,15 @@
+[A] Glasser: n=1018, edges=64620
+[A] 4S456Parcels: n=1018, edges=103740
+
+[A] saved -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/sanity_checks/noise_sanity_check/outputs/a_reliability_ceiling.csv
+
+        parc    n          comparison  demeaned_pearson  pearson  top1_acc  avg_rank    mse      r2
+     Glasser 1018 within_session_run1            0.3645   0.7099    0.7750    0.9682 0.0331 -0.3800
+     Glasser 1018 within_session_run2            0.3598   0.7005    0.8291    0.9888 0.0330 -0.3432
+     Glasser 1018     between_session            0.4905   0.8134    0.9332    0.9916 0.0179 -0.1195
+4S456Parcels 1018 within_session_run1            0.3371   0.6704    0.7750    0.9694 0.0324 -0.4662
+4S456Parcels 1018 within_session_run2            0.3310   0.6609    0.8261    0.9896 0.0322 -0.4263
+4S456Parcels 1018     between_session            0.4565   0.7832    0.9361    0.9934 0.0175 -0.2337
+
+[A] note: top1_acc on between_session = whole-connectome fingerprinting accuracy.
+[A] note: within_session (LR vs RL) carries a phase-encode distortion confound.

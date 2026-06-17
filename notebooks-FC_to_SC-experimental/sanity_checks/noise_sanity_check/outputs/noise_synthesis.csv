@@ -1,0 +1,4 @@
+headline
+"FC between-session reliability ceiling (Glasser): demeaned_r=0.491, fingerprint top1=0.933, avg_rank=0.992"
+"FC edge variance (Glasser): trait=30%, state=4%, within-session=2%, noise=64%; averaged-connectome reliability G=0.59"
+SC->FC captures 17% of the reproducible FC signal (demeaned_r 0.085 of ceiling 0.491)

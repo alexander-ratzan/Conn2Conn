@@ -1,0 +1,11 @@
+[F] Glasser: fingerprint_top1=0.9273 discriminability=0.9976
+[F] 4S456Parcels: fingerprint_top1=0.9342 discriminability=0.9986
+
+[F] saved -> /scratch/ans9868/Conn2Conn/notebooks-FC_to_SC-experimental/sanity_checks/noise_sanity_check/outputs/f_discriminability.csv
+
+        parc    n  fingerprint_top1  discriminability
+     Glasser 1018            0.9273            0.9976
+4S456Parcels 1018            0.9342            0.9986
+
+[F] high top1/discriminability + modest per-edge reliability (B) = the distributed-
+[F] signal reconciliation: connectomes match in aggregate even when edges are noisy.
