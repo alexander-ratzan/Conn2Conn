@@ -46,7 +46,9 @@ def achieved(source):
             X_te = np.concatenate([sp["bv_test"], sp["demo_test"]], axis=1)
         else:
             raise ValueError(source)
-        pred = pca_pls_predict(X_tr, X_te, FC_tr)
+        # cap components for low-dim inputs (bv+demo is ~26 features, not 256)
+        k = min(256, X_tr.shape[1])
+        pred = pca_pls_predict(X_tr, X_te, FC_tr, k_src=k, k_pls=min(64, k))
         p = full_panel_eval(pred, FC_te, FC_tr.mean(axis=0))
         for m in METRICS:
             accum[m].append(float(p.get(m, np.nan)))
