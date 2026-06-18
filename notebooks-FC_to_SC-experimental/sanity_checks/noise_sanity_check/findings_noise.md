@@ -23,6 +23,23 @@ test-retest dMRI). **CLOSED, filed as F10-supporting (MASTER A6).**
 - **Parcellation-robust** (4S456 nearly identical).
 - **SC noise itself remains UNMEASURED** — no test-retest dMRI in HCP-YA.
 
+## The honest bottom line on "how much is noise"
+
+There isn't one number, and that's not a failure to find a straight answer — the question
+is genuinely **level-dependent**. The straight answer is the set:
+
+1. **A single FC measurement is ~64% noise** (per-edge individual-difference variance).
+2. **Your averaged usable connectome is ~41% noise** (reliability G ≈ 0.59).
+3. **The reproducible individual signal you can actually predict tops out at demeaned-r
+   0.49** (the between-session ceiling), and it is **heterogeneous across people (0 to
+   0.78)**.
+4. **Of that reproducible 0.49, SC explains ~17%, flat across subjects** (independent of
+   each subject's own reliability).
+
+(Caveat that rides #4: this is the FC-side accounting; SC's *own* noise floor is unmeasured
+— so "SC explains 17% of reproducible FC" is exact, while "the other 83% is signal SC
+doesn't contain" is the strong interpretation, pending SC test-retest.)
+
 ## A. Reliability ceiling (native metric)
 
 | parc | comparison | demeaned_r | pearson | top1 (fingerprint) | avg_rank |
