@@ -77,6 +77,51 @@ doesn't contain" is the strong interpretation, pending SC test-retest.)
 > implicitly treats per-subject reliability as an individual bound — report it as a
 > descriptive ratio at most, and lean on the **correlation/flatness** statement (and the
 > bv+demo contrast) for the actual claim, not on pointwise "fraction of ceiling."
+>
+> ---
+>
+> ### Two ceilings are different objects (and we should report both, labeled)
+>
+> There are **two distinct ceilings**; conflating them is the deeper source of the tension.
+>
+> - **Ceiling A — data / reproducibility ceiling** (`FC_day1 ↔ FC_day2`). *How reproducible
+>   is the target itself?* Model-free, a property of the **data**. "Individual FC only agrees
+>   with itself at **0.49**, so no predictor can exceed the reproducible signal." Valid at
+>   population level, breaks per-subject (above).
+> - **Ceiling B — model / oracle ceiling** (`FC→FC`, `SC→SC` through the *same* PCA→PLS
+>   pipeline). *How well can THIS model class predict the target from a perfect same-modality
+>   copy?* A property of **model + data together**. "Even predicting FC from FC, PCA→PLS only
+>   reaches X — the architecture has a representational limit." (`SC→SC` oracle ≈ **0.647**
+>   from earlier work — to recompute consistently in the grid; `FC→FC` = **[to compute]**.)
+>
+> **Ceiling B fixes both earlier complaints:**
+> - **Not exceeded per-subject** — it's a within-modality prediction run through the *same
+>   pipeline / estimator / CV / metric* as the cross-modal predictions; an apples-to-apples
+>   upper reference, no "two noisy scans" comparison that can flip.
+> - **Available for SC** — `SC→SC` is just a prediction task, no test-retest needed. The
+>   SC-side data gap that blocks Ceiling A **disappears** for B, so both directions get a
+>   consistent ceiling.
+>
+> **But B is a *looser* bound than A** (the "???" catch): `FC→FC` can exploit
+> **session-specific signal that wouldn't replicate** in a fresh scan, so B can sit *above*
+> A. B measures "max ability of the model to reproduce *this* connectome," not "max
+> recoverable *individual trait*." **B cannot substitute for A** for the biological fraction.
+>
+> **How to report — a two-rung reference, each labeled for what it bounds:**
+> - **SC→FC achieved: 0.085.**
+> - **Ceiling B (model oracle), both directions:** `FC→FC` = [to compute], `SC→SC` ≈ 0.647 →
+>   "within-modality is the architecture's best case; cross-modal loses this much." Clean,
+>   consistent, available both directions, never exceeded per-subject → the **model-capacity /
+>   cross-modal-loss** story.
+> - **Ceiling A (data reproducibility): 0.49**, FC-side only, heterogeneous → "of the
+>   *reproducible* signal, SC gets ~17%." The **biological** fraction, with the per-subject
+>   caveat + SC-side gap flagged.
+>
+> **Honesty sentence to carry:** *"The within-modality oracle (FC→FC) is a model-capacity
+> reference and exceeds the cross-session reproducibility limit, because it can fit
+> session-specific signal that does not replicate; we therefore disattenuate biological
+> claims against the reproducibility ceiling (A) and use the oracle (B) only to quantify
+> cross-modal vs within-modality loss."*
 
 ## A. Reliability ceiling (native metric)
 
