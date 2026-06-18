@@ -40,6 +40,44 @@ is genuinely **level-dependent**. The straight answer is the set:
 — so "SC explains 17% of reproducible FC" is exact, while "the other 83% is signal SC
 doesn't contain" is the strong interpretation, pending SC test-retest.)
 
+> ### #**REVIEW AND QUESTION** — is "ceiling" valid per-subject, or only at the population level?
+>
+> *(Flagged for review — logic below seems sound but wants a second look before it hardens
+> any per-subject claim. It does NOT affect the population headline or the flatness result;
+> it sharpens how we're allowed to phrase the per-subject material.)*
+>
+> **The disattenuation logic (Spearman 1904) is a *population* theorem**, not a per-subject
+> law: the correlation between two variables is bounded by the geometric mean of their
+> reliabilities **in expectation, over a population.** A single subject's "reliability"
+> (correlation between their two scans) is **one noisy number from a single pair of
+> measurements** — large standard error. So is their achieved prediction. Comparing two
+> noisy single-subject estimates, some will land achieved > reliability **purely by sampling
+> noise** — especially low-reliability subjects, whose reliability estimate sits near zero
+> and is easy to exceed by chance. (The −0.002 subject isn't truly perfectly unpredictable;
+> −0.002 is noise around some small true value, and a noisy achieved score can exceed it.)
+>
+> **Precise statement:** the ceiling is a **valid population bound but an invalid
+> per-subject bound** — per-subject reliability is a single noisy estimate, not a true
+> per-person limit. The theorem holds on average, not pointwise; treating it pointwise
+> produces the contradiction we saw (achieved > "ceiling" for some subjects).
+>
+> **Corrected framing (threads both concerns):**
+> - **Population level — keep "ceiling".** "Across subjects, individual FC reproduces at
+>   mean demeaned-r 0.49; SC→FC captures ~17% of that." The disattenuation is legitimate
+>   here and is not exceeded on average. → stays in the main text (bottom-line #3, E).
+> - **Per-subject level — do NOT call it a ceiling.** Call it **"per-subject reliability"**
+>   and describe its *distribution* (0–0.78, ρ=0.41, a stable trait). Frame the H result as
+>   **"SC's prediction is *uncorrelated* with subject reliability"** (a relationship between
+>   two measured quantities) — **not** "SC stays below each subject's ceiling," which is the
+>   framing that breaks.
+>
+> **Net:** the H conclusion stands (flat r=0.01 = SC prediction is reliability-independent),
+> and it's arguably *cleaner* under this framing. The thing to fix downstream: the
+> per-subject `fraction_of_ceiling` column in `h_per_subject_achieved_vs_ceiling.csv`
+> implicitly treats per-subject reliability as an individual bound — report it as a
+> descriptive ratio at most, and lean on the **correlation/flatness** statement (and the
+> bv+demo contrast) for the actual claim, not on pointwise "fraction of ceiling."
+
 ## A. Reliability ceiling (native metric)
 
 | parc | comparison | demeaned_r | pearson | top1 (fingerprint) | avg_rank |
