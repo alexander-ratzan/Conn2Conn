@@ -8,7 +8,7 @@ the current `notebooks-FC_to_SC-experimental/` workspace is organized.
 The suite should rerun the core claims from scratch with:
 
 - 10 seeds
-- 3 parcellations
+- 2 parcellations (Glasser, 4S456Parcels — only 2 available; see STOP gate)
 - deterministic estimators
 - all reconstruction metrics
 - downstream behavior/cognition metrics
@@ -140,13 +140,22 @@ Required:
 
 ```text
 10 seeds
-3 parcellations
+2 parcellations  (Glasser 360, 4S456Parcels 456) — RESOLVED, see below
 task_type in {reconstruction, downstream, leak_check}
 ```
 
-Parcellations should be verified against available local/HPC caches before locking names.
-Known candidates include `Glasser` and `4S456Parcels`; the third should be confirmed
-before implementation.
+> ✅ **STOP GATE RESOLVED (2026-06, parcellation count): only 2 parcellations are
+> available, and FC is the hard cap.** Verified across (a) local atlas labels, (b) the
+> precomputed SC/FC/node-feature caches, and (c) the **raw HCP source**: the xcpd
+> functional output contains only `seg-Glasser` and `seg-4S456Parcels`. Cross-modal work
+> needs matching FC+SC at the same parcellation, so FC caps the grid at **2**. A third
+> parcellation would require re-running xcpd on the fMRI with an added atlas
+> (Schaefer/Gordon/another 4S resolution) — a multi-day processing job, out of scope.
+> **Decision: lock the grid at 2 parcellations** (Glasser 360 = classical anatomical;
+> 4S456 = 456-region multi-resolution AtlasPack). Frame the claim as "replicates across
+> two parcellations," which already kills the single-atlas-artifact objection (the noise
+> module confirmed clean cross-parcellation replication). Revisit only if a third atlas is
+> ever processed through xcpd.
 
 ## Metrics
 

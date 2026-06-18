@@ -65,7 +65,7 @@ The locked design:
 - `bv+demo` is an input/feature set, not a model.
 - Reconstruction and downstream are separate claim-driven tables.
 - No Krakencoder, no learnable PLS, no MLP, no CovProjector in this grid.
-- 10 seeds x 3 parcellations x reconstruction/downstream/leak-check tasks.
+- 10 seeds x 2 parcellations (Glasser, 4S456Parcels — only 2 available, FC-capped) x reconstruction/downstream/leak-check tasks.
 - All reconstruction metrics plus downstream cognition/behavior metrics.
 
 See [reproducibility_and_grid_plan.md](reproducibility_and_grid_plan.md).
