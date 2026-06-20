@@ -333,7 +333,7 @@ swept object). Train and test generated the *same way*:
 | Field | Rule |
 |---|---|
 | key | `(parcellation, seed)` on every artifact |
-| split | re-derived from `seed`; downstream asserts loaded artifact's subject index == its own split |
+| split | **frozen once, loaded by all cells** (recon + downstream); align by `subject_id`; never re-derived (BP-2). One split per `seed`, identical across both parcellations (verified). |
 | imputation estimator | fixed PCA→PLS (not the swept estimator) |
 | train generation | same call as test (`X_tr → X_tr`), naive in-sample, constant across rows |
 | format | per-subject rows preserved; **no seed-mean collapse at write time** (aggregation is in summarize) |
@@ -371,8 +371,10 @@ flagged** "contains subject-info, interpret cognition columns only."
 1. Verify available parcellations and cache paths. ✅ (2: Glasser, 4S456 — STOP gate resolved)
 2. Write `grid.yml` with explicit input-set rows and estimator rows (+ low-dim caps,
    per-block scaling for `connectome+bv+demo`).
-3. Generate `configs/expected_cells.csv` from `grid.yml` (per-task valid (input,target)
-   pairs; KR 3×3 = 9 rows each) — the completeness ground truth.
+3. **Freeze the 10 splits once** → `configs/splits/seed{0..9}.json` ({train,val,test} subject
+   IDs on the cross-parc canonical ~957; identical across parcellations). Every cell LOADS
+   these (BP-2). Also generate `configs/expected_cells.csv` from `grid.yml` (per-task valid
+   (input,target) pairs; KR 3×3 = 9 rows each) — the completeness ground truth.
 4. Implement reconstruction runner — writes metrics + the 6 handoff artifacts, per-subject,
    FLAT W&B keys; per-cell write-time assertion (sentinel+reason for expected NaN).
 5. Implement downstream runner — **joins on `subject_id`** + asserts handoff artifacts exist
@@ -390,21 +392,30 @@ flagged** "contains subject-info, interpret cognition columns only."
 
 ## ⚠️ Known breakage risks — pre-empt before launch (silently-wrong, not crashes)
 
-**BP-1 — `connectome+bv+demo` needs per-block scaling, or subject-info vanishes.**
+**BP-1 — `connectome+bv+demo` needs per-block scaling, or subject-info vanishes. ✅ LOCKED.**
 Concatenating a 64,620-edge connectome with ~26 bv+demo features and running one PCA lets
 the 64,620 edge columns *swamp* the 26 feature columns — bv+demo contributes ~0 variance, so
 "does the connectome add over subject-info" becomes meaningless (the subject-info is
-numerically invisible). Runs without erroring → **silently wrong**. Fix: **z-score each block
-and PCA per block, then concat the latents** (the scale-fair pattern already used in
-`tractography_predict/_tract_setup.block_pca_pls_predict` and `_residual._blocks_to_latents`).
-Reuse that, do not raw-concat.
+numerically invisible). Runs without erroring → **silently wrong**. **Fix (locked): reuse the
+existing `_blocks_to_latents` / `block_pca_pls_predict` pattern — PCA the edge block to 256,
+keep bv+demo as raw z-scored 26 dims (do NOT PCA the low-dim block), concat the latents, feed
+to the estimator.** Never raw-concat.
 
-**BP-2 — split-match must be an ordered / ID join, not set-equality or positional.**
-If reconstruction writes `pred_*` in subject order A and downstream re-derives the split in
-order B (same subjects, different order), a positional index-equality assert either fails
-spuriously or — worse — **silently misaligns rows** (subject i's imputed SC paired with
-subject j's cognition). Fix: artifacts carry an explicit `subject_id` index; downstream
-**joins on `subject_id`** (and asserts the set matches), never assumes positional order.
+**BP-2 — splits are FROZEN ONCE and LOADED everywhere (never re-derived). ✅ LOCKED (Option B).**
+The risk: if recon writes `pred_*` in one subject order and downstream re-derives the split in
+another (or the split *logic* drifts later), rows silently misalign (subject i's imputed SC
+paired with subject j's cognition). **Fix (locked): compute the 10 seed splits a single time,
+write `(seed) → {train_ids, val_ids, test_ids}` to disk, and have every grid cell LOAD it —
+recon and downstream both. Align all artifacts by `subject_id` against that frozen canonical
+order (set-equality assert as belt-and-suspenders). Re-derivation is a cross-check, never the
+primary path.**
+- **Cross-parcellation (Option B), verified free:** subject availability is **identical across
+  parcellations** (SC: 1063=1063 symdiff 0; FC: 1090=1090 symdiff 0; SC∩FC = 1060 both), and
+  the rest of the canonical (FreeSurfer/demographics/node-features) is parcellation-independent.
+  So freezing the split on the cross-parcellation canonical (~957 with bv+demo+SC+FC) yields
+  **identical subjects across Glasser and 4S456 for every seed at zero n-cost** (Option A would
+  produce the same set here — B dominates and coincides). → clean within-subject parcellation
+  comparison.
 
 ## Completeness Contract — every expected cell must be written (W&B FLAT)
 
