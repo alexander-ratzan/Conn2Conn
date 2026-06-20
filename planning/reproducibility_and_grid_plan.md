@@ -151,11 +151,27 @@ task_type in {reconstruction, downstream, leak_check}
 > needs matching FC+SC at the same parcellation, so FC caps the grid at **2**. A third
 > parcellation would require re-running xcpd on the fMRI with an added atlas
 > (Schaefer/Gordon/another 4S resolution) — a multi-day processing job, out of scope.
-> **Decision: lock the grid at 2 parcellations** (Glasser 360 = classical anatomical;
-> 4S456 = 456-region multi-resolution AtlasPack). Frame the claim as "replicates across
+> **Decision: lock the grid at 2 parcellations** (Glasser 360 = multimodal HCP-MMP1.0,
+> NOT anatomical — DK is the anatomical one; 4S456 = 456-region multi-resolution AtlasPack).
+> Frame the claim as "replicates across
 > two parcellations," which already kills the single-atlas-artifact objection (the noise
 > module confirmed clean cross-parcellation replication). Revisit only if a third atlas is
 > ever processed through xcpd.
+
+## Provenance: what the notebooks used vs. what the grid adds
+
+**The entire F1–F10 story in the notebooks is Glasser-only.** The shared `_setup.py` default
+is `PARCELLATION="Glasser"`; the main closed-form notebook (F1–F8), `further_exploration`
+(PC3 mechanism), `tractography_predict` (E1–E5), `preprocessing_check`, `tract_check`, and
+`non-linear-sanity-check` (N1–N6) all ran **Glasser exclusively**. The **only** module that
+exercised 4S456Parcels is the noise sanity check (it ran both).
+
+**So the grid's value-add is not re-confirming Glasser — it runs the whole spine (F1–F5) on
+4S456 for the first time.** The parcellation axis is therefore *genuinely new evidence*, not
+a reproduction, for everything except the noise module. **Watch the 4S456 F1–F5 cells first**
+— that is the one place the grid can actually *surprise* us; everything Glasser is expected
+to reproduce the notebooks. (And 4S456 is the larger/worst-case parcellation — hence the
+smoke test runs there.)
 
 ## Metrics
 
@@ -353,14 +369,68 @@ flagged** "contains subject-info, interpret cognition columns only."
 ## Implementation Order
 
 1. Verify available parcellations and cache paths. ✅ (2: Glasser, 4S456 — STOP gate resolved)
-2. Write `grid.yml` with explicit input-set rows and estimator rows (+ low-dim caps).
-3. Implement reconstruction runner — writes metrics + the 6 handoff artifacts, per-subject.
-4. Implement downstream runner — **asserts** the handoff artifacts + split match before running.
-5. Implement leak checks — hard-fail thresholds; `combined_pred_*` exemption+flag.
-6. Add offline W&B logging + local CSV mirrors (CSV is source of truth).
-7. Run a one-seed / one-parcellation **smoke test** via sbatch (never login node).
-8. Launch full grid on Torch only after smoke test passes.
-9. Summarize into `reports/reproduction_findings.md` (metric-reporting-order above).
+2. Write `grid.yml` with explicit input-set rows and estimator rows (+ low-dim caps,
+   per-block scaling for `connectome+bv+demo`).
+3. Generate `configs/expected_cells.csv` from `grid.yml` (per-task valid (input,target)
+   pairs; KR 3×3 = 9 rows each) — the completeness ground truth.
+4. Implement reconstruction runner — writes metrics + the 6 handoff artifacts, per-subject,
+   FLAT W&B keys; per-cell write-time assertion (sentinel+reason for expected NaN).
+5. Implement downstream runner — **joins on `subject_id`** + asserts handoff artifacts exist
+   before running (BP-2).
+6. Implement leak checks — hard-fail thresholds; `combined_pred_*` exemption+flag.
+7. Add offline W&B logging (`WANDB_MODE=offline`, flat keys) + local CSV mirrors (source of truth).
+8. Run a one-seed **smoke test on 4S456Parcels** (NOT Glasser) via sbatch — 4S456 is the
+   worst case (103,740 edges vs 64,620, +60% → bigger PCA / more memory / slower KR); if it
+   passes there, Glasser is free. Never the login node.
+9. Launch full grid on Torch only after smoke test passes.
+10. Run `verify_completeness.py` (diff actual CSV vs `expected_cells.csv`; hard-fail on any
+    missing cell) **before** trusting any summary.
+11. Summarize into `reports/reproduction_findings.md` (metric-reporting-order above);
+    inspect the **4S456 F1–F5 cells first** (the genuinely-new evidence).
+
+## ⚠️ Known breakage risks — pre-empt before launch (silently-wrong, not crashes)
+
+**BP-1 — `connectome+bv+demo` needs per-block scaling, or subject-info vanishes.**
+Concatenating a 64,620-edge connectome with ~26 bv+demo features and running one PCA lets
+the 64,620 edge columns *swamp* the 26 feature columns — bv+demo contributes ~0 variance, so
+"does the connectome add over subject-info" becomes meaningless (the subject-info is
+numerically invisible). Runs without erroring → **silently wrong**. Fix: **z-score each block
+and PCA per block, then concat the latents** (the scale-fair pattern already used in
+`tractography_predict/_tract_setup.block_pca_pls_predict` and `_residual._blocks_to_latents`).
+Reuse that, do not raw-concat.
+
+**BP-2 — split-match must be an ordered / ID join, not set-equality or positional.**
+If reconstruction writes `pred_*` in subject order A and downstream re-derives the split in
+order B (same subjects, different order), a positional index-equality assert either fails
+spuriously or — worse — **silently misaligns rows** (subject i's imputed SC paired with
+subject j's cognition). Fix: artifacts carry an explicit `subject_id` index; downstream
+**joins on `subject_id`** (and asserts the set matches), never assumes positional order.
+
+## Completeness Contract — every expected cell must be written (W&B FLAT)
+
+The plan lists *what to log* but must also enforce *that every expected
+(task × input × target × metric × estimator × parcellation × seed) cell actually gets
+written* — the silent failure mode (a swallowed try/except, a target left out of a loop, a
+dropped NaN) is invisible until a final-table cell is blank. Logging ≠ completeness.
+
+- **Enumerate the expected grid as data, up front** → `configs/expected_cells.csv`, generated
+  from `grid.yml`. This is the ground truth of "what should exist." It is **per-task, not one
+  flat cross-product** — only the valid (input, target) pairs: oracle rows (FC→FC, SC→SC)
+  have reconstruction cells only; imputation rows (`pred_*`) have downstream cells only; etc.
+- **KernelRidge 3×3 (bandwidth/gamma × alpha) = 9 rows per KR cell** — log all 9 (the goal is
+  to show flatness), and the manifest must **expect all 9** or the verifier will mis-count.
+- **Per-cell assertion at write time** — every expected metric column present and non-null,
+  OR an explicit sentinel + reason ("n/a: avg_rank undefined for degenerate case"). An
+  *expected* NaN gets the sentinel; an *unexpected* NaN hard-fails. Never silently absent.
+- **`verify_completeness.py` after the whole grid** — diffs actual CSV against
+  `expected_cells.csv`, reports missing cells, hard-fails if any expected cell is absent.
+  ~30 lines; the single highest-value guard for the "we forgot CogFluid for pred_FC" worry.
+- **W&B keys must be FLAT** — log `metrics/{task}/{input}/{target}/{metric}` as flat string
+  keys, NOT nested objects. W&B's column view flattens/drops nested keys inconsistently, which
+  is exactly how columns silently vanish in the UI. Flat keys = the **full table is visible**
+  in W&B; and because **CSV is the source of truth**, completeness is checked on the CSV
+  regardless. (Reconstruction and downstream have different cell shapes — the manifest carries
+  both; the verifier knows which (input,target) pairs are valid per task.)
 
 ## Governing Principle
 
@@ -371,5 +441,6 @@ State the claim it answers in one sentence, or do not add it.
 ```
 
 Estimators earn their place by the robustness question they close. Inputs earn their
-place by the finding they isolate.
+place by the finding they isolate. **And: every expected cell is written and verified —
+exhaustiveness is checkable (the manifest), not hoped-for (the loop).**
 
