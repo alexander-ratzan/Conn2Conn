@@ -323,12 +323,13 @@ def load_scalar_target(sp: dict, name: str):
         pull = lambda idx: np.array([look.get(int(s), np.nan) for s in subj[idx]], dtype=np.float64)
         return pull(tr), pull(te)
     if name == "age":
-        age = np.asarray(base.metadata_df["age"], dtype=np.float64)
+        age = pd.to_numeric(base.metadata_df["age"], errors="coerce").to_numpy(dtype=np.float64)
         return age[tr], age[te]
     if name == "sex":
-        sx = base.metadata_df["sex"].values
-        if sx.dtype == object:
-            sx = np.array([1.0 if str(v).upper().startswith("M") else 0.0 for v in sx])
+        sx = base.metadata_df["sex"].to_numpy()                 # robust to pyarrow string dtype
+        if not np.issubdtype(np.asarray(sx).dtype, np.number):
+            sx = np.array([1.0 if str(v).upper().startswith("M") else 0.0 for v in sx],
+                          dtype=np.float64)
         else:
             sx = sx.astype(np.float64)
         return sx[tr], sx[te]
