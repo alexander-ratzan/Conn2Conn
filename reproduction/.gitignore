@@ -1,0 +1,8 @@
+# offline W&B run dirs (noisy/large; CSV is the source of truth)
+outputs/wandb/
+# SLURM + run logs + sentinels (transient)
+slurm-*.out
+*_output.txt
+DONE_*.sentinel
+ERROR_*.sentinel
+# keep: splits/*.json, outputs/*.csv, configs/*
