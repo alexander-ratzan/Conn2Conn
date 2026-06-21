@@ -100,6 +100,16 @@ and **Ceiling B** (FC→FC / SC→SC oracles). Once 20/20 is verified + committe
 - **`--exclude` is blocked by NYU policy** — can't dodge a bad node directly; use cancel+retry.
 - **4S456 runs ~2–3h vs Glasser <1.5h** (+60% edges) — it's the time-limit-binding parcellation.
 - Per-unit CSVs + `verify_completeness` make stragglers cheap to backfill (only re-run the gaps).
+- **FUTURE OPTIMIZATION — cache the PCA compression (one per parc·seed·input, not per cell).**
+  Every cell currently re-fits PCA from scratch; the same input's PCA is recomputed
+  **11× (reconstruction variants)** and up to **55× (downstream: 5 targets × 11 variants)** —
+  and the 103,740-dim 4S456 PCA is exactly the slow part. Fix: cache the fitted PCA / latents
+  (`Z_train`/`Z_test`, tiny) in an in-process dict per unit, keyed by `(input, k[, NaN-mask])`;
+  estimators consume the cached latents and do only their own step. **Bit-identical** if keyed by
+  the target NaN-mask (PCA is deterministic, `random_state=0`) → a cached re-run is a pure
+  speedup, validatable cell-for-cell vs this grid. Est. **~2–4× off downstream, ~30–50% off total
+  wall-time**; would have made 4S456 s6's downstream minutes instead of >1h (no timeout). Do this
+  before any future full re-run.
 
 ## Decision log
 - 2026-06-20: grid lives at project-root `reproduction/`, all Python. Theory/TODO split.
