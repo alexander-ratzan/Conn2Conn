@@ -45,7 +45,10 @@ from _setup import (                             # noqa: E402
 from sklearn.decomposition import PCA            # noqa: E402
 from sklearn.preprocessing import StandardScaler  # noqa: E402
 from sklearn.kernel_ridge import KernelRidge     # noqa: E402
-from sklearn.linear_model import BayesianRidge    # noqa: E402
+from sklearn.linear_model import BayesianRidge, LinearRegression  # noqa: E402
+from sklearn.cross_decomposition import PLSRegression  # noqa: E402
+from sklearn.metrics import balanced_accuracy_score  # noqa: E402
+from scipy import stats as _scipy_stats           # noqa: E402
 from _tract_setup import (                        # noqa: E402  (block-scaling + KR helpers, BP-1)
     block_pca_pls_predict, _median_gamma,
 )
@@ -284,6 +287,138 @@ def per_subject_metrics(pred, true, mu):
         top1[i] = 1.0 if pos == 0 else 0.0
     return pd.DataFrame({"demeaned_pearson": dcos, "pearson": pear, "mse": mse,
                          "r2": r2, "rank": rank, "top1": top1})
+
+
+# ============================================================================
+# DOWNSTREAM (Phase C) — scalar targets: cognition (results) + sex/age (leak checks)
+# ============================================================================
+COG_TARGETS = ["CogTotalComp_Unadj", "CogFluidComp_Unadj", "CogCrystalComp_Unadj"]
+COG_ALIAS = {"CogTotal": "CogTotalComp_Unadj", "CogFluid": "CogFluidComp_Unadj",
+             "CogCryst": "CogCrystalComp_Unadj"}
+LEAK_TARGETS = ["sex", "age"]
+_COG_CACHE = {}
+
+
+def _cog_lookup():
+    if "df" not in _COG_CACHE:
+        csv = next(p for p in [
+            Path("/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/HCP1200_UNRESTRICTED.csv"),
+            Path("/scratch/ans9868/Conn2Conn/data/HCP1200_UNRESTRICTED.csv"),
+        ] if p.exists())
+        df = pd.read_csv(csv)[["Subject"] + COG_TARGETS]
+        df["Subject"] = df["Subject"].astype(int)
+        _COG_CACHE["df"] = df.set_index("Subject")
+    return _COG_CACHE["df"]
+
+
+def load_scalar_target(sp: dict, name: str):
+    """Return (y_train, y_test) aligned to the split's train/test subject order, NaN-aware.
+    Cognition from HCP NIH-Toolbox CSV; sex (0/1) + age (yrs) from metadata."""
+    base = sp["base"]
+    subj = np.asarray(base.metadata_df["subject"]).astype(int)
+    tr, te = sp["train_idx"], sp["test_idx"]
+    if name in COG_ALIAS or name in COG_TARGETS:
+        col = COG_ALIAS.get(name, name)
+        look = _cog_lookup()[col]
+        pull = lambda idx: np.array([look.get(int(s), np.nan) for s in subj[idx]], dtype=np.float64)
+        return pull(tr), pull(te)
+    if name == "age":
+        age = np.asarray(base.metadata_df["age"], dtype=np.float64)
+        return age[tr], age[te]
+    if name == "sex":
+        sx = base.metadata_df["sex"].values
+        if sx.dtype == object:
+            sx = np.array([1.0 if str(v).upper().startswith("M") else 0.0 for v in sx])
+        else:
+            sx = sx.astype(np.float64)
+        return sx[tr], sx[te]
+    raise ValueError(f"unknown scalar target {name!r}")
+
+
+def is_leak_target(name: str) -> bool:
+    return name in LEAK_TARGETS
+
+
+# --- scalar estimators (NaN-aware; drop missing-y rows in train) -------------
+def pca_pls_scalar(X_tr, X_te, y_tr):
+    ok = ~np.isnan(y_tr); k = min(256, X_tr.shape[1])
+    p = PCA(n_components=k, random_state=0).fit(X_tr[ok])
+    pls = PLSRegression(n_components=min(32, k), scale=True, max_iter=2000).fit(
+        p.transform(X_tr[ok]), y_tr[ok])
+    return pls.predict(p.transform(X_te)).ravel()
+
+
+def bayesian_ridge_scalar(X_tr, X_te, y_tr):
+    ok = ~np.isnan(y_tr); k = min(256, X_tr.shape[1])
+    p = PCA(n_components=k, random_state=0).fit(X_tr[ok])
+    br = BayesianRidge(max_iter=500).fit(p.transform(X_tr[ok]), y_tr[ok])
+    return br.predict(p.transform(X_te))
+
+
+def _kr_scalar(gamma_mult, alpha):
+    def fn(X_tr, X_te, y_tr):
+        ok = ~np.isnan(y_tr); k = min(256, X_tr.shape[1])
+        p = PCA(n_components=k, random_state=0).fit(X_tr[ok])
+        Z_tr = p.transform(X_tr[ok]); Z_te = p.transform(X_te)
+        sc = StandardScaler().fit(Z_tr); Z_tr = sc.transform(Z_tr); Z_te = sc.transform(Z_te)
+        kr = KernelRidge(kernel="rbf", alpha=alpha, gamma=_median_gamma(Z_tr) * gamma_mult).fit(Z_tr, y_tr[ok])
+        return kr.predict(Z_te)
+    return fn
+
+
+SCALAR_ESTIMATOR_SPECS = {
+    "pca_pls":        [{"params": {}, "fn": pca_pls_scalar}],
+    "bayesian_ridge": [{"params": {}, "fn": bayesian_ridge_scalar}],
+    "kernel_ridge":   [{"params": {"gamma_mult": gm, "alpha": a}, "fn": _kr_scalar(gm, a)}
+                       for gm in (0.5, 1.0, 2.0) for a in (0.1, 1.0, 10.0)],
+}
+
+
+# --- downstream metrics ------------------------------------------------------
+def scalar_regression_metrics(pred, true):
+    ok = ~np.isnan(true) & ~np.isnan(pred)
+    if ok.sum() < 3:
+        return {"pearson": np.nan, "spearman": np.nan, "r2": np.nan, "n_eval": int(ok.sum())}
+    p = pred[ok]; t = true[ok]
+    pear = float(_scipy_stats.pearsonr(p, t)[0])
+    spear = float(_scipy_stats.spearmanr(p, t)[0])
+    sstot = float(((t - t.mean()) ** 2).sum())
+    r2 = 1.0 - float(((p - t) ** 2).sum()) / max(sstot, 1e-12)
+    return {"pearson": pear, "spearman": spear, "r2": r2, "n_eval": int(ok.sum())}
+
+
+def sex_balanced_accuracy(pred, true):
+    ok = ~np.isnan(true) & ~np.isnan(pred)
+    if ok.sum() < 3:
+        return np.nan
+    return float(balanced_accuracy_score((true[ok] >= 0.5).astype(int), (pred[ok] >= 0.5).astype(int)))
+
+
+def residualize_on_baseline(y_tr, y_te, base_tr, base_te):
+    """Return (y_tr_resid, y_te_resid): cognition with the bv+demo OLS term removed (train fit).
+    Isolates the non-demographic component (the residualized_score reference)."""
+    ok = ~np.isnan(y_tr)
+    ols = LinearRegression().fit(base_tr[ok], y_tr[ok])
+    yr_tr = y_tr.copy(); yr_te = y_te.copy()
+    yr_tr[ok] = y_tr[ok] - ols.predict(base_tr[ok])
+    okte = ~np.isnan(y_te)
+    yr_te[okte] = y_te[okte] - ols.predict(base_te[okte])
+    return yr_tr, yr_te
+
+
+def paired_permutation_lift_p(pred_input, pred_base, true, n_perm=2000, seed=0):
+    """Paired sign-flip permutation: H0 = input predicts the target no better than the
+    bv+demo baseline. Statistic = mean per-subject squared-error improvement
+    (e_base^2 - e_input^2); p = P(perm >= observed). Lower p => input beats baseline."""
+    ok = ~np.isnan(true) & ~np.isnan(pred_input) & ~np.isnan(pred_base)
+    if ok.sum() < 5:
+        return np.nan
+    d = (true[ok] - pred_base[ok]) ** 2 - (true[ok] - pred_input[ok]) ** 2  # >0 = input better
+    obs = float(d.mean())
+    rng = np.random.default_rng(seed)
+    signs = rng.choice([-1.0, 1.0], size=(n_perm, d.size))
+    perm = (signs * d).mean(axis=1)
+    return float((1.0 + np.sum(perm >= obs)) / (1.0 + n_perm))
 
 
 # ============================================================================
