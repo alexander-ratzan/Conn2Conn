@@ -1,0 +1,120 @@
+{
+  "git_commit": "7e186d7",
+  "n_seeds": 10,
+  "parcellations_verified": [
+    "Glasser",
+    "4S456Parcels"
+  ],
+  "seeds": [
+    {
+      "seed": 0,
+      "n_train": 683,
+      "n_val": 79,
+      "n_test": 195,
+      "n_total": 957,
+      "parc_verified": {
+        "Glasser": true,
+        "4S456Parcels": true
+      }
+    },
+    {
+      "seed": 1,
+      "n_train": 683,
+      "n_val": 79,
+      "n_test": 195,
+      "n_total": 957,
+      "parc_verified": {
+        "Glasser": true,
+        "4S456Parcels": true
+      }
+    },
+    {
+      "seed": 2,
+      "n_train": 683,
+      "n_val": 79,
+      "n_test": 195,
+      "n_total": 957,
+      "parc_verified": {
+        "Glasser": true,
+        "4S456Parcels": true
+      }
+    },
+    {
+      "seed": 3,
+      "n_train": 683,
+      "n_val": 79,
+      "n_test": 195,
+      "n_total": 957,
+      "parc_verified": {
+        "Glasser": true,
+        "4S456Parcels": true
+      }
+    },
+    {
+      "seed": 4,
+      "n_train": 683,
+      "n_val": 79,
+      "n_test": 195,
+      "n_total": 957,
+      "parc_verified": {
+        "Glasser": true,
+        "4S456Parcels": true
+      }
+    },
+    {
+      "seed": 5,
+      "n_train": 683,
+      "n_val": 79,
+      "n_test": 195,
+      "n_total": 957,
+      "parc_verified": {
+        "Glasser": true,
+        "4S456Parcels": true
+      }
+    },
+    {
+      "seed": 6,
+      "n_train": 683,
+      "n_val": 79,
+      "n_test": 195,
+      "n_total": 957,
+      "parc_verified": {
+        "Glasser": true,
+        "4S456Parcels": true
+      }
+    },
+    {
+      "seed": 7,
+      "n_train": 683,
+      "n_val": 79,
+      "n_test": 195,
+      "n_total": 957,
+      "parc_verified": {
+        "Glasser": true,
+        "4S456Parcels": true
+      }
+    },
+    {
+      "seed": 8,
+      "n_train": 683,
+      "n_val": 79,
+      "n_test": 195,
+      "n_total": 957,
+      "parc_verified": {
+        "Glasser": true,
+        "4S456Parcels": true
+      }
+    },
+    {
+      "seed": 9,
+      "n_train": 682,
+      "n_val": 79,
+      "n_test": 196,
+      "n_total": 957,
+      "parc_verified": {
+        "Glasser": true,
+        "4S456Parcels": true
+      }
+    }
+  ]
+}
