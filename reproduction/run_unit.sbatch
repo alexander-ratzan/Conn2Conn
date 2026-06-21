@@ -7,7 +7,7 @@
 #SBATCH --partition=cpu_short
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48G
-#SBATCH --time=03:00:00
+#SBATCH --time=08:00:00
 #SBATCH --job-name=grid_unit
 #SBATCH --array=0-19%4
 #SBATCH --output=/scratch/ans9868/Conn2Conn/reproduction/logs/unit-%A_%a.out
