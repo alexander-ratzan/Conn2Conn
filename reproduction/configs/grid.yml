@@ -1,0 +1,37 @@
+# Reproducibility grid — declarative summary (human-readable).
+# The authoritative enumeration is gen_expected_cells.py, which derives configs/expected_cells.csv
+# from the SAME constants the runners use (so the manifest cannot drift). This file documents it.
+
+axes:
+  parcellations: [Glasser, 4S456Parcels]          # only 2 available (FC-capped); STOP gate resolved
+  seeds: [0,1,2,3,4,5,6,7,8,9]                     # FROZEN once in splits/seed{0..9}.json (BP-2)
+  estimators:
+    pca_pls: 1 variant                             # protagonist (closed-form)
+    bayesian_ridge: 1 variant                      # regularized linear
+    kernel_ridge: 9 variants                       # RBF, 3x3 gamma_mult{0.5,1,2} x alpha{0.1,1,10}
+
+reconstruction_pairs:                              # explicit claim-driven (input -> target)
+  - FC -> SC        # asymmetry (F1)
+  - SC -> FC        # asymmetry (F1)
+  - bv -> SC; bv -> FC; demo -> SC; demo -> FC     # modality dissociation (F2)
+  - bv+demo -> SC; bv+demo -> FC                   # baseline C1
+  - FC+bv+demo -> SC; SC+bv+demo -> FC             # connectome adds over subject-info (BP-1 block)
+  - FC -> FC; SC -> SC                             # within-modality oracle = Ceiling B
+
+downstream:
+  inputs: [bv+demo, obs_FC, obs_SC, obs_FC+obs_SC, pred_SC, pred_FC,
+           obs_FC+bv+demo, obs_SC+bv+demo, pred_SC+bv+demo, pred_FC+bv+demo]
+  result_targets: [CogTotal, CogFluid, CogCryst]
+  leak_targets: [sex, age]                         # guardrail: sex>0.99 / age>0.85 hard-fail (combined_* exempt+flag)
+  metrics: [pearson, spearman, r2, lift_over_bvdemo, lift_perm_p, residualized_pearson]
+
+invariants:
+  - splits frozen once, loaded+asserted everywhere (BP-2); handoff joined on subject_id
+  - connectome+bv+demo per-block scaled (BP-1)
+  - low-dim cap k_src=min(256,width), k_pls=min(64,k_src)
+  - CSV is source of truth; full run uses --no-wandb (offline W&B validated in smoke)
+
+orchestration:
+  unit: one array task per (parcellation x seed) = 20 units, %4 concurrent x 8 CPU (QOS cap 32)
+  per_unit: reconstruction -> handoff -> downstream -> leak (per-unit CSVs in outputs/parts/)
+  finalize: gen_expected_cells -> merge_parts -> verify_completeness (hard-fail) -> global leak -> summarize

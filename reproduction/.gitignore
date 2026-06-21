@@ -4,6 +4,12 @@ outputs/wandb_cache/
 outputs/wandb_home/
 # handoff artifacts (large .npy imputed connectomes; regenerated, consumed locally by downstream)
 outputs/artifacts/
+# per-unit part CSVs (merged into outputs/*.csv) + array logs + sentinels
+outputs/parts/
+logs/
+sentinels/
+# keep: splits/*.json, outputs/reconstruction.csv, outputs/downstream.csv, outputs/leak_verdict.csv,
+#       configs/expected_cells.csv, reports/*.md
 # SLURM + run logs + sentinels (transient)
 slurm-*.out
 *_output.txt
