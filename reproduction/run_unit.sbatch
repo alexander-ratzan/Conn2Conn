@@ -6,12 +6,16 @@
 #SBATCH --account=torch_pr_60_tandon_priority
 #SBATCH --partition=cpu_short
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=48G
+#SBATCH --mem=24G
 #SBATCH --time=04:00:00
 #SBATCH --job-name=grid_unit
+# RESOURCES (measured): per-unit peak RSS ~10 GB (Glasser) / ~14.4 GB (4S456); CPU eff 68-90%
+#   on 8 cores. The first run requested 48G -> only ~30% used -> 4x48=192G tripped
+#   QOSMaxMemoryPerUser, throttling to 2-4 concurrent. 24G (66% headroom over 14.4 GB peak)
+#   roughly DOUBLES concurrency under the per-user memory QOS. 8 CPU is correctly sized.
 # NOTE: NYU submit plugin caps CPU jobs at 4h cluster-wide (5h/8h rejected "CPU job setup
-# not valid"; --exclude is also blocked by policy). 4h covers Glasser (<1.5h) and 4S456
-# (~2-3h, worst 2:48) with margin. Pathological nodes (e.g. cl012) are handled by cancel+retry.
+#   not valid"; --exclude is also blocked by policy). 4h covers Glasser (<1.5h) and 4S456
+#   (~2-3h, worst 2:48) with margin. Pathological nodes (e.g. cl012) -> cancel+retry.
 #SBATCH --array=0-19%4
 #SBATCH --output=/scratch/ans9868/Conn2Conn/reproduction/logs/unit-%A_%a.out
 

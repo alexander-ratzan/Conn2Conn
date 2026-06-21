@@ -25,3 +25,12 @@ pipeline. See `../planning/reproducibility_and_grid_plan_theory.md` (why) and
 ## W&B (offline)
 No API key on Torch → `WANDB_MODE=offline`. Runs write to `outputs/wandb/`; `wandb sync` later
 if a key is attached. The CSVs are authoritative regardless.
+
+## Next steps after the grid (scope boundary)
+This grid is the confirmatory engine for the **spine only** — F1–F5 + Ceiling B — on both
+parcellations. It does **not** cover: **F6/F7** (family-structure & heritability of *predicted*
+connectomes — a separate pass that reuses the `outputs/artifacts/.../pred_*` handoff artifacts),
+**F8** (PC3 mechanism), **F9** (tractography), **F10** (nonlinear nulls — own modules, done).
+Post-grid: interpret 4S456-vs-Glasser, fold numbers into `MASTER_FINDINGS.md`, then the
+F6/F7 heritability pass. Full detail in
+`../planning/reproducibility_and_grid_plan_todo.md` (Next Steps + Ops learnings).

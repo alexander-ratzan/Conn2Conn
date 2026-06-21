@@ -70,7 +70,40 @@ Conn2Conn/reproduction/
 - Low-dim inputs capped: `k_src=min(256, width)`, `k_pls=min(64, k_src)`.
 - All compute on sbatch; sync via git bridge; no squeue polling.
 
+## Next Steps (post-grid) — what the grid does and does NOT cover
+
+The reproducibility grid is the confirmatory engine for the **spine only**: F1 (asymmetry),
+F2 (dissociation), F3 (imputation utility), F4 (FC cognition), F5 (baseline + SC underperforms),
+and **Ceiling B** (FC→FC / SC→SC oracles). Once 20/20 is verified + committed:
+
+1. **Interpretation pass** — confirm the 4S456 F1–F5 cells track Glasser (the genuinely-new
+   cross-parcellation evidence); flag any surprise.
+2. **Fold grid numbers into `MASTER_FINDINGS.md`** — replace older ad-hoc-run figures with the
+   single consistent grid pass (retires the "numbers from different runs" correctness debt).
+3. **NOT covered by this grid (separate passes / existing modules):**
+   - **F6 / F7 — family structure & heritability of *predicted* connectomes** (MZ/DZ/sibling
+     AUC, predictor-vs-identifier tradeoff). The grid *produced* the `pred_*` handoff artifacts
+     but did not run the family-pair analysis on them — that's a **new pass that reuses the
+     artifacts** (`outputs/artifacts/{parc}/seed{seed}/pred_*`). Likely the next build.
+   - **F8 (PC3 mechanism)**, **F9 (tractography r2t)**, **F10 (nonlinear nulls)** — own modules,
+     already complete; the grid does not re-run them.
+4. **Deferred niceties:** bootstrap CIs on headline numbers (F3 ratios, F4 fractions, F5 lifts);
+   reconcile **Ceiling A** (0.49 cross-session reproducibility) vs **Ceiling B** (FC→FC≈0.672,
+   SC→SC oracle) in `sanity_checks/noise_sanity_check/findings_noise.md` now that B is computed.
+
+## Ops learnings (NYU Torch — for any future full re-run)
+- **Memory was over-asked:** peak RSS ~10 GB (Glasser) / ~14.4 GB (4S456) vs 48 GB requested.
+  Fixed runner to **`--mem=24G`** → ~2× concurrency under the per-user memory QOS
+  (`QOSMaxMemoryPerUser` had throttled us to 2–4 wide). **8 CPU is correctly sized** (68–90% eff).
+- **CPU jobs are capped at 4h cluster-wide** by an NYU submit plugin (5h/8h rejected with
+  "CPU job setup is not valid", on both cpu_short and cpu_prem). 4h covers both parcellations.
+- **`--exclude` is blocked by NYU policy** — can't dodge a bad node directly; use cancel+retry.
+- **4S456 runs ~2–3h vs Glasser <1.5h** (+60% edges) — it's the time-limit-binding parcellation.
+- Per-unit CSVs + `verify_completeness` make stragglers cheap to backfill (only re-run the gaps).
+
 ## Decision log
 - 2026-06-20: grid lives at project-root `reproduction/`, all Python. Theory/TODO split.
 - Splits frozen at `reproduction/splits/` (Option B; A==B verified, identical across parc).
 - Smoke = bv + bv+demo (low-dim, simplest) to validate W&B+CSV plumbing first.
+- 2026-06-21: full grid = 13,640 cells (2,640 recon + 11,000 downstream); reproduced
+  F1/F4/F5/Ceiling-B on both parcellations. Resources right-sized (mem 48G→24G).
