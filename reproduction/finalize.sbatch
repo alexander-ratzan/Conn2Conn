@@ -34,9 +34,11 @@ apptainer exec --fakeroot \
     python verify_completeness.py >> $LOG 2>&1
     VERIFY=\$?
     echo \"verify exit=\$VERIFY\" >> $LOG
-    echo '=== global leak check ===' >> $LOG
-    if grep -h LEAK_FAIL outputs/parts/leak_*.csv >> $LOG 2>/dev/null; then
-        echo 'GLOBAL LEAK_FAIL detected' >> $LOG; LEAK=1; else echo 'no non-exempt leak' >> $LOG; LEAK=0; fi
+    echo '=== leak check on MERGED downstream (authoritative) ===' >> $LOG
+    python run_leak_checks.py --downstream-csv outputs/downstream.csv \
+        --out outputs/leak_verdict.csv >> $LOG 2>&1
+    LEAK=\$?
+    echo \"leak exit=\$LEAK\" >> $LOG
     echo '=== summarize ===' >> $LOG &&
     python summarize.py >> $LOG 2>&1
     [ \$VERIFY -eq 0 ] && [ \$LEAK -eq 0 ]

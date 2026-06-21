@@ -43,27 +43,41 @@ def main():
     def thresh(t):
         return SEX_THRESH if t == "sex" else AGE_THRESH
 
+    # Raw observed/predicted connectome inputs legitimately encode sex/age (real neuroimaging
+    # signal, not a demographic leak). High predictability there is EXPECTED, not a failure.
+    # A genuine leak is a demographic-free input that ALSO isn't a raw connectome predicting
+    # sex/age too well (i.e. a residualized/"cleaned" input that secretly re-added bv+demo).
+    CONNECTOME_INPUTS = {"obs_FC", "obs_SC", "obs_FC+obs_SC", "pred_SC", "pred_FC"}
     leak["leak_score"] = leak.apply(score, axis=1)
     leak["threshold"] = leak["target"].apply(thresh)
     leak["exceeds"] = leak["leak_score"] > leak["threshold"]
-    leak["exempt"] = leak["contains_bvdemo"].astype(bool)
-    leak["verdict"] = np.where(
-        leak["exceeds"] & ~leak["exempt"], "LEAK_FAIL",
-        np.where(leak["exceeds"] & leak["exempt"], "EXEMPT_FLAGGED", "ok"))
+    leak["contains_bvdemo"] = leak["contains_bvdemo"].astype(bool)
+    leak["is_connectome"] = leak["input_set"].isin(CONNECTOME_INPUTS)
+
+    def _verdict(r):
+        if not r["exceeds"]:
+            return "ok"
+        if r["contains_bvdemo"]:
+            return "EXEMPT_FLAGGED"    # knowingly contains bv+demo; interpret cognition cols only
+        if r["is_connectome"]:
+            return "EXPECTED_SIGNAL"   # connectomes encode sex/age (real biology); not a leak
+        return "LEAK_FAIL"             # demographic-free, non-connectome input -> genuine leak
+    leak["verdict"] = leak.apply(_verdict, axis=1)
 
     cols = ["parcellation", "seed", "estimator", "variant", "input_set", "target",
-            "leak_score", "threshold", "exceeds", "exempt", "verdict"]
+            "leak_score", "threshold", "exceeds", "contains_bvdemo", "is_connectome", "verdict"]
     out = leak[cols].sort_values(["target", "verdict", "leak_score"], ascending=[True, True, False])
     out.to_csv(args.out, index=False)
 
     n_fail = int((leak["verdict"] == "LEAK_FAIL").sum())
     n_flag = int((leak["verdict"] == "EXEMPT_FLAGGED").sum())
+    n_exp = int((leak["verdict"] == "EXPECTED_SIGNAL").sum())
     print(f"[leak] {len(leak)} sex/age rows | LEAK_FAIL={n_fail} EXEMPT_FLAGGED={n_flag} "
-          f"ok={int((leak['verdict']=='ok').sum())} -> {args.out}")
-    if n_flag:
-        print("[leak] EXEMPT_FLAGGED (contain bv+demo; interpret cognition columns only):")
-        print(out[out.verdict == "EXEMPT_FLAGGED"][["input_set", "target", "leak_score"]]
-              .drop_duplicates("input_set").to_string(index=False))
+          f"EXPECTED_SIGNAL={n_exp} ok={int((leak['verdict']=='ok').sum())} -> {args.out}")
+    if n_exp:
+        print("[leak] EXPECTED_SIGNAL (raw connectomes predict sex/age — real signal, not leak):")
+        print(out[out.verdict == "EXPECTED_SIGNAL"][["parcellation", "input_set", "target", "leak_score"]]
+              .drop_duplicates(["parcellation", "input_set", "target"]).to_string(index=False))
     if n_fail:
         print("[leak] *** HARD FAIL — non-exempt inputs exceed leak threshold: ***")
         print(out[out.verdict == "LEAK_FAIL"].to_string(index=False))

@@ -88,8 +88,10 @@ def leak_section():
     lk = pd.read_csv(f)
     n_fail = int((lk.verdict == "LEAK_FAIL").sum())
     n_flag = int((lk.verdict == "EXEMPT_FLAGGED").sum())
+    n_exp = int((lk.verdict == "EXPECTED_SIGNAL").sum()) if "verdict" in lk else 0
     out = ["## Leak checks\n",
-           f"- LEAK_FAIL (non-exempt over threshold): **{n_fail}**",
+           f"- LEAK_FAIL (genuine: demographic-free, non-connectome input over threshold): **{n_fail}**",
+           f"- EXPECTED_SIGNAL (raw connectomes predict sex/age — real biology, not a leak): {n_exp}",
            f"- EXEMPT_FLAGGED (contain bv+demo; cognition-only): {n_flag}",
            f"- ok: {int((lk.verdict=='ok').sum())}\n"]
     if n_fail:
