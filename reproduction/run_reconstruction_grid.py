@@ -95,6 +95,13 @@ def main():
 
     os.environ.setdefault("WANDB_MODE", "offline")
     os.environ.setdefault("WANDB_DIR", str(OUTPUTS_DIR))
+    # redirect wandb-core's cache/config/log dirs off the :ro overlay HOME (/root) -> scratch,
+    # otherwise wandb-core errors "mkdir /root/.cache/wandb: disk quota exceeded" (non-fatal noise)
+    _wb_cache = OUTPUTS_DIR / "wandb_cache"
+    _wb_cache.mkdir(parents=True, exist_ok=True)
+    os.environ.setdefault("WANDB_CACHE_DIR", str(_wb_cache))
+    os.environ.setdefault("WANDB_CONFIG_DIR", str(_wb_cache / "config"))
+    os.environ.setdefault("XDG_CACHE_HOME", str(_wb_cache / "xdg"))
     use_wandb = not args.no_wandb
     commit = git_commit()
     csv_path = Path(args.csv)

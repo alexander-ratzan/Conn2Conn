@@ -25,6 +25,8 @@ apptainer exec --fakeroot \
     export PYTHONNOUSERSITE=True PYTHONDONTWRITEBYTECODE=1
     export OMP_NUM_THREADS=16 OPENBLAS_NUM_THREADS=16 MKL_NUM_THREADS=16
     export WANDB_MODE=offline WANDB_DIR=$RD/outputs
+    export HOME=$RD/outputs/wandb_home XDG_CACHE_HOME=$RD/outputs/wandb_cache/xdg
+    mkdir -p \$HOME \$XDG_CACHE_HOME
     cd $RD
     python run_reconstruction_grid.py --smoke > smoke_recon_output.txt 2>&1
 " || { echo failed; touch "$RD/ERROR_smoke.sentinel"; exit 1; }
