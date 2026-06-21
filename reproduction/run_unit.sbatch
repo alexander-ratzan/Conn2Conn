@@ -4,10 +4,10 @@
 # (full inputs x cognition+leak) -> leak verdict. Per-unit CSVs in outputs/parts/ (no
 # collisions); merged + verified + summarized by finalize.sbatch (chained via dependency).
 #SBATCH --account=torch_pr_60_tandon_priority
-#SBATCH --partition=cpu_short
+#SBATCH --partition=cpu_prem
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48G
-#SBATCH --time=08:00:00
+#SBATCH --time=05:00:00
 #SBATCH --job-name=grid_unit
 #SBATCH --array=0-19%4
 #SBATCH --output=/scratch/ans9868/Conn2Conn/reproduction/logs/unit-%A_%a.out
