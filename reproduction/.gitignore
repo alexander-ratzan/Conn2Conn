@@ -8,6 +8,8 @@ outputs/artifacts/
 outputs/parts/
 logs/
 sentinels/
+# smoke-test leftovers (validation only; not the real grid outputs)
+outputs/*smoke*.csv
 # keep: splits/*.json, outputs/reconstruction.csv, outputs/downstream.csv, outputs/leak_verdict.csv,
 #       configs/expected_cells.csv, reports/*.md
 # SLURM + run logs + sentinels (transient)
