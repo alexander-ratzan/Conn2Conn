@@ -2,6 +2,8 @@
 outputs/wandb/
 outputs/wandb_cache/
 outputs/wandb_home/
+# handoff artifacts (large .npy imputed connectomes; regenerated, consumed locally by downstream)
+outputs/artifacts/
 # SLURM + run logs + sentinels (transient)
 slurm-*.out
 *_output.txt
