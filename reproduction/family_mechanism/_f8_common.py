@@ -84,8 +84,11 @@ def base_rates(atlas_idx, net_col, triu_i, triu_j, n_edges):
     """Network-pair counts over ALL edges + interhemispheric base fraction (depth1.1 cell 10)."""
     hemi_i = atlas_idx.loc[triu_i, "hemisphere"].values
     hemi_j = atlas_idx.loc[triu_j, "hemisphere"].values
-    net_i = atlas_idx.loc[triu_i, net_col].astype(str).values
-    net_j = atlas_idx.loc[triu_j, net_col].astype(str).values
+    # fillna BEFORE str: 4S456 has 56 subcortical/cerebellar parcels with NaN network_label;
+    # older pandas .astype(str) can leave NaN as float -> breaks sorted([str,float]). "NA" is
+    # also the honest label (no Yeo network for subcortex).
+    net_i = atlas_idx.loc[triu_i, net_col].fillna("NA").astype(str).values
+    net_j = atlas_idx.loc[triu_j, net_col].fillna("NA").astype(str).values
     net_pair_all = np.array([" || ".join(sorted([a, b])) for a, b in zip(net_i, net_j)])
     all_pair_counts = pd.Series(net_pair_all).value_counts()
     interhemi_base = float((hemi_i != hemi_j).mean())
@@ -106,8 +109,8 @@ def pc3_localization(pc_vec, atlas_idx, net_col, triu_i, triu_j, all_pair_counts
                                 != atlas_idx.loc[tj, "hemisphere"].values).mean())
         richclub_frac = float((is_hub[ti] & is_hub[tj]).mean())
         top_pair = np.array([" || ".join(sorted([a, b])) for a, b in zip(
-            atlas_idx.loc[ti, net_col].astype(str).values,
-            atlas_idx.loc[tj, net_col].astype(str).values)])
+            atlas_idx.loc[ti, net_col].fillna("NA").astype(str).values,
+            atlas_idx.loc[tj, net_col].fillna("NA").astype(str).values)])
         for pair, n_obs in pd.Series(top_pair).value_counts().items():
             n_exp = all_pair_counts.get(pair, 0) * (K / n_edges)
             enr = (n_obs / n_exp) if n_exp > 0 else np.nan
