@@ -1,0 +1,7 @@
+# transient per-unit caches + logs + sentinels (npz pair sims are regenerated on Torch)
+outputs/parts/
+logs/
+sentinels/
+__pycache__/
+# keep: the merged result CSVs (source of truth) + reports
+!outputs/family_auc.csv
