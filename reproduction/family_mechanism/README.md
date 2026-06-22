@@ -10,9 +10,12 @@ fix the notebook first.
 ## Status
 - **F6 + F7 — BUILT & VALIDATED.** Aggregation reproduces the notebook's `aggregate_auc.csv`
   bit-for-bit (AUC err 1e-16, perm-p err 0, bootstrap CI err 6e-8). See tests below.
-- **F8 — staged (next increment).** Port of `depth1_spectral_mechanism.ipynb` +
-  `depth1.1_pc_stability_and_confounds.ipynb` (per-PC FC→PC R², per-PC family AUC, confound R²,
-  cross-seed PC alignment, network enrichment via `data/atlas_info/<parc>_dseg_reformatted.csv`).
+- **F8 — BUILT & VALIDATED.** Port of `depth1_spectral_mechanism.ipynb` +
+  `depth1.1_pc_stability_and_confounds.ipynb` (per-PC FC→PC R², per-PC family AUC, sex+bv confound,
+  PC1 residualization, cross-seed PC alignment, PC3 network enrichment via
+  `data/atlas_info/<parc>_dseg_reformatted.csv`; network col Glasser=`community_yeo` /
+  4S456=`network_label`). Localization math reproduces the notebook's saved seed-0 `sc_pc_loadings.npy`
+  exactly (energy 0.630678, interhemi base 0.501393, top-50 edge region-mapping 50/50).
 
 ## Files
 - `_fm_common.py` — shared layer. Lazy data import (`_data()`; needs torch/Torch) so the pure
@@ -26,10 +29,21 @@ fix the notebook first.
 - `run_fm_unit.sbatch` — array 0–19 (2 parc × 10 seeds), 24G/4h/8CPU (same profile as main grid).
 - `tests/` — see below.
 
+## Files (F8)
+- `_f8_common.py` — PC-mechanism helpers (parc-aware atlas, per-PC AUC/R², cosine alignment,
+  energy, localization/enrichment) + `compute_seed()` (data layer, runs on Torch).
+- `run_f8_pcmech.py --parc <P> --seed <S>` — one unit → per-unit npz; self-checks Glasser/seed0
+  against the notebook (pair counts, FC→PC R², confound, PC3 AUC).
+- `finalize_f8.py` — cross-seed alignment + confound + PC3 localization/enrichment + verdict →
+  `outputs/f8_{per_pc,stability,pc3_localization,pc3_enrichment_agg}.csv`; Glasser regression guard.
+- `run_f8_unit.sbatch` / `finalize_f8.sbatch` / `submit_f8.sh` — same light profile as F6/F7.
+
 ## Tests (run locally, no torch / no connectome data)
 ```bash
-python reproduction/family_mechanism/tests/test_aggregation_matches_notebook.py  # vs real notebook CSV
-python reproduction/family_mechanism/tests/test_helpers.py                        # helper correctness
+python reproduction/family_mechanism/tests/test_aggregation_matches_notebook.py     # F6/F7 vs notebook CSV
+python reproduction/family_mechanism/tests/test_helpers.py                           # F6/F7 helper correctness
+python reproduction/family_mechanism/tests/test_f8_localization_matches_notebook.py  # F8 vs saved seed-0 loadings
+python reproduction/family_mechanism/tests/test_f8_helpers.py                        # F8 helper correctness
 ```
 `test_aggregation_matches_notebook.py` feeds the notebook's own per-seed `.npz` (the expensive
 connectome-derived pair sims) into our aggregation and asserts we reproduce `aggregate_auc.csv`
