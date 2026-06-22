@@ -7,11 +7,16 @@
 #SBATCH --account=torch_pr_60_tandon_priority
 #SBATCH --partition=cpu_short
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=24G
-#SBATCH --time=04:00:00
+#SBATCH --mem=16G
+#SBATCH --time=01:00:00
 #SBATCH --job-name=fm_unit
-#SBATCH --array=0-19%6
+#SBATCH --array=0-19%10
 #SBATCH --output=/scratch/ans9868/Conn2Conn/reproduction/family_mechanism/logs/fm-%A_%a.out
+# RESOURCES: F6/F7 is LIGHT vs the main grid (no KR sweep / no downstream / no F8). Work per unit
+#   = 4 pca_pls + 1 combined_predict + 2 OLS + tiny cosine mats. Notebook seed_*.npz timestamps
+#   show ~3 min/seed (Glasser); 4S456 ~5 min (+60% edges). Peak RSS ~4-8 GB -> 16G is ample.
+#   10x16=160G stays under the ~192G QOSMaxMemoryPerUser ceiling -> %10 finishes 20 units in ~2
+#   waves (~15 min). 1h time limit is generous (worst unit ~5 min); zero timeout risk.
 
 set -u
 ROOT=/scratch/ans9868/Conn2Conn

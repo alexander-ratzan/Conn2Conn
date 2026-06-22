@@ -37,12 +37,24 @@ exactly — the strongest off-cluster "matches the notebook" check. `test_helper
 copied helpers against reference implementations (FDR vs statsmodels, AUC vs sklearn, etc.).
 
 ## Run on Torch
+One command — submits the 20-unit array and chains finalize via `--dependency=afterok` (finalize
+runs only if every unit succeeds). Nothing to poll; watch the sentinels.
 ```bash
 cd /scratch/ans9868/Conn2Conn/reproduction/family_mechanism
-sbatch run_fm_unit.sbatch          # 20 units -> outputs/parts/<parc>/family_seed*.npz
-python finalize_fm.py              # pool -> outputs/family_auc.csv (+ Glasser regression guard)
+bash submit_fm.sh
+# progress (passive, NO squeue):
+ls sentinels/DONE_fm_*.sentinel 2>/dev/null | grep -v finalize | wc -l   # /20
+test -f sentinels/DONE_fm_finalize.sentinel && echo FINALIZE DONE
+cat logs/fm_finalize.txt ; column -s, -t outputs/family_auc.csv | head
 ```
-Estimated ~10–20 min/unit; ~1–1.5 h wall at 6-wide; same memory profile as the main grid.
+Dedicated scripts (light profile — F6/F7 has no KR sweep / no downstream / no F8):
+- `run_fm_unit.sbatch` — array 0–19 `%10`, **16G / 8 CPU / 1 h** (peak RSS ~4–8 GB).
+- `finalize_fm.sbatch` — single task, 8G / 30 min, runs `finalize_fm.py` in-container.
+- `submit_fm.sh` — submits both with the dependency wired.
+
+**Estimated runtime:** ~3 min/unit (Glasser) / ~5 min (4S456) — anchored on the notebook's
+`seed_*.npz` timestamps. ~15–20 min wall at `%10` (2 waves) + ~3–5 min finalize, plus SLURM queue.
+1 h time limit is generous (worst unit ~5 min); zero timeout risk.
 
 ## What F6/F7 produce
 `outputs/family_auc.csv`: per (parcellation, variant, relation) AUC + bootstrap CI + perm-p + FDR.
