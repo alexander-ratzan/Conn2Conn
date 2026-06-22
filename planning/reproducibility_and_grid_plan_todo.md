@@ -1,7 +1,8 @@
 # Reproducibility Grid — ACTIVE STEPS / TODO
 
-Companion to `reproducibility_and_grid_plan_theory.md` (the *why*). This is the *what-now*:
-the concrete build order, file-by-file, with status. Everything is **Python files** under
+Companion to `reproducibility_and_grid_plan_theory.md` (the *why*) and
+`reproducibility_and_grid_plan_runlog.md` (the *what-it-cost*: timings, resources, contention).
+This is the *what-now*: the concrete build order, file-by-file, with status. Everything is **Python files** under
 `reproduction/` at the **project root** (not buried in `notebooks-FC_to_SC-experimental/`).
 All compute on Torch via **sbatch** (never login node); sync via **git** (never scp).
 

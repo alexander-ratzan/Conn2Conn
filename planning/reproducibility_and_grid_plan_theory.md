@@ -1,5 +1,8 @@
 # Reproducibility And Grid Plan
 
+> Companions: `reproducibility_and_grid_plan_todo.md` (build order/status) and
+> `reproducibility_and_grid_plan_runlog.md` (actual timings, resources, partition limits, contention).
+
 ## Purpose
 
 Create a clean, reproducible grid suite for the Conn2Conn FC-to-SC methods paper after
