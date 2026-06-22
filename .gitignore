@@ -37,3 +37,8 @@ wav2vec_incremental_multi_gpu_raytunessl.py
 # context packages
 context_packages/
 *_context/
+
+# secrets — never commit
+.env
+.env.*
+.wandb-venv/
