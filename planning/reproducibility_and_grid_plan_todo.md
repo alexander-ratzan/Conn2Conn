@@ -81,16 +81,42 @@ and **Ceiling B** (FC→FC / SC→SC oracles). Once 20/20 is verified + committe
    cross-parcellation evidence); flag any surprise.
 2. **Fold grid numbers into `MASTER_FINDINGS.md`** — replace older ad-hoc-run figures with the
    single consistent grid pass (retires the "numbers from different runs" correctness debt).
-3. **NOT covered by this grid (separate passes / existing modules):**
-   - **F6 / F7 — family structure & heritability of *predicted* connectomes** (MZ/DZ/sibling
-     AUC, predictor-vs-identifier tradeoff). The grid *produced* the `pred_*` handoff artifacts
-     but did not run the family-pair analysis on them — that's a **new pass that reuses the
-     artifacts** (`outputs/artifacts/{parc}/seed{seed}/pred_*`). Likely the next build.
-   - **F8 (PC3 mechanism)**, **F9 (tractography r2t)**, **F10 (nonlinear nulls)** — own modules,
-     already complete; the grid does not re-run them.
+3. **NOT covered by the spine grid (separate passes / modules):**
+   - **F6 / F7 — family structure & predictor/identifier tradeoff** — ✅ BUILT + validated in
+     `reproduction/family_mechanism/` (ports STEP 8.1–8.3; matches notebook to 1e-16). Running on
+     both parcs × 10 seeds. Reuses `pred_*` logic; emits `outputs/family_auc.csv`.
+   - **F8 — PC3 mechanism** — ✅ BUILT + validated in `reproduction/family_mechanism/`
+     (ports depth1 + depth1.1; localization matches notebook seed-0 exactly). Parc-aware.
+   - **F9 (tractography r2t)**, **F10 (nonlinear nulls)** — own notebook modules, complete but
+     **Glasser-only**; the spine grid does not re-run them. See item 5 for the F10 grid.
 4. **Deferred niceties:** bootstrap CIs on headline numbers (F3 ratios, F4 fractions, F5 lifts);
    reconcile **Ceiling A** (0.49 cross-session reproducibility) vs **Ceiling B** (FC→FC≈0.672,
    SC→SC oracle) in `sanity_checks/noise_sanity_check/findings_noise.md` now that B is computed.
+5. **TODO — F10 nonlinear-nulls grid (the "we tried to add signal nonlinearly and it didn't
+   help" pass).** Port the `non-linear-sanity-check/` experiments into a deterministic grid on
+   **both parcellations × 10 frozen seeds** (currently Glasser-only) so the null is replicated,
+   not single-atlas. The story to confirm: **four orthogonal nonlinear probes are all null —
+   you can't recover the FC↔SC / cognition gap with a bigger model or more data in this regime.**
+   - **Methods / probes to grid** (all already implemented; reuse `_tract_setup.py` + `_residual.py`):
+     - **N1–N3 model class:** KernelRidge (RBF, median-γ heuristic, α=1) and HistGradientBoosting
+       vs linear PLS/BR — cognition unlock, FC→SC/SC→FC reconstruction, marginal-over-SC.
+       *(HGB fails the FC sanity probe at n≈683 → keep it but flag it non-load-bearing; KernelRidge
+       is the trustworthy probe.)*
+     - **N4 residual-boost:** OOF-linear template + KernelRidge on the residual (hand the model the
+       linear answer free; loss = improvement over it). The most sensitive test.
+     - **N5 multimodal sink:** FC×SC×r2t interaction residual (does combining modalities nonlinearly
+       help — it dilutes).
+     - **N6 data-scaling curve:** nonlinear gap vs n (100/200/400/~683) — is the ceiling structural
+       or sample-size? (Glasser showed flat → structural.)
+   - **Expected outcome (from the Glasser single-run):** KernelRidge recon Δ ≈ −0.002 (no gain),
+     N4 recon a *tiny* real +0.005 (p=0.001, but ~4× below the +0.02 threshold), cognition dead-flat,
+     N6 gap flat in n. Replicate the sign + magnitude on 4S456.
+   - **Reuse:** frozen splits + the spine grid's saved `pred_*` where applicable; same light sbatch
+     profile as `family_mechanism/` (16G/8CPU/1h, array 0–19, dependency-chained finalize).
+   - **Validation discipline (as for F6/F7/F8):** port helpers **verbatim** from
+     `_tract_setup.py`/`_residual.py`; add a local test that re-aggregates the notebook's saved
+     `n*_results.csv` / `*_synthesis.csv` and reproduces `findings_{nonlinear,residual,scaling}.md`
+     numbers before launching. Lands as a sibling module, e.g. `reproduction/nonlinear_nulls/`.
 
 ## Ops learnings (NYU Torch — for any future full re-run)
 - **Memory was over-asked:** peak RSS ~10 GB (Glasser) / ~14.4 GB (4S456) vs 48 GB requested.
