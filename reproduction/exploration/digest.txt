@@ -1,0 +1,183 @@
+==============================================================================
+1. ESTIMATOR COMPARISON — within-modal oracle (Ceiling B) and cross-modal
+
+  [4S456Parcels] demeaned_pearson by estimator:
+    FC->FC oracle       pca=0.418  bayesian=0.632  kernel=0.631
+    SC->SC oracle       pca=0.386  bayesian=0.622  kernel=0.618
+    FC->SC x-modal      pca=0.146  bayesian=0.171  kernel=0.143
+    SC->FC x-modal      pca=0.087  bayesian=0.101  kernel=0.082
+
+  [Glasser] demeaned_pearson by estimator:
+    FC->FC oracle       pca=0.451  bayesian=0.673  kernel=0.672
+    SC->SC oracle       pca=0.376  bayesian=0.648  kernel=0.645
+    FC->SC x-modal      pca=0.136  bayesian=0.166  kernel=0.133
+    SC->FC x-modal      pca=0.084  bayesian=0.104  kernel=0.080
+
+==============================================================================
+2. KERNEL_RIDGE 3x3 HP SENSITIVITY (does gamma/alpha matter?)
+
+  [4S456Parcels] FC->SC  within-seed max-min spread over 9 HPs (mean over seeds) = 0.0046
+    grid (rows=gamma_mult, cols=alpha):
+    hp_alpha        0.1    1.0    10.0
+    hp_gamma_mult                     
+    0.5            0.144  0.144  0.143
+    1.0            0.143  0.144  0.143
+    2.0            0.141  0.144  0.140
+
+  [4S456Parcels] FC->FC  within-seed max-min spread over 9 HPs (mean over seeds) = 0.0054
+    grid (rows=gamma_mult, cols=alpha):
+    hp_alpha        0.1    1.0    10.0
+    hp_gamma_mult                     
+    0.5            0.632  0.632  0.631
+    1.0            0.632  0.632  0.630
+    2.0            0.632  0.632  0.627
+
+  [Glasser] FC->SC  within-seed max-min spread over 9 HPs (mean over seeds) = 0.0038
+    grid (rows=gamma_mult, cols=alpha):
+    hp_alpha        0.1    1.0    10.0
+    hp_gamma_mult                     
+    0.5            0.133  0.134  0.133
+    1.0            0.132  0.134  0.132
+    2.0            0.131  0.133  0.131
+
+  [Glasser] FC->FC  within-seed max-min spread over 9 HPs (mean over seeds) = 0.0046
+    grid (rows=gamma_mult, cols=alpha):
+    hp_alpha        0.1    1.0    10.0
+    hp_gamma_mult                     
+    0.5            0.673  0.673  0.672
+    1.0            0.673  0.672  0.671
+    2.0            0.672  0.672  0.668
+
+==============================================================================
+3. CROSS-PARCELLATION CONSISTENCY (Glasser vs 4S456, pca_pls recon)
+  pair                Glasser      4S456        Δ    %diff
+  FC->SC                0.136      0.146    0.011     7.7%
+  SC->FC                0.084      0.087    0.003     3.6%
+  bv->SC                0.162      0.185    0.023    14.5%
+  bv->FC                0.049      0.045   -0.003    -6.8%
+  demo->SC              0.130      0.133    0.003     2.1%
+  demo->FC              0.111      0.105   -0.006    -5.4%
+  bv+demo->SC           0.169      0.191    0.022    12.9%
+  bv+demo->FC           0.100      0.094   -0.006    -6.4%
+  FC+bv+demo->SC        0.171      0.184    0.013     7.8%
+  SC+bv+demo->FC        0.105      0.106    0.001     1.2%
+
+==============================================================================
+4. F2 DISSOCIATION — bv(anatomy) vs demo(demographics) into each modality
+
+  [4S456Parcels]
+    ->SC: bv=0.185  demo=0.133  ratio bv/demo=1.39
+    ->FC: bv=0.045  demo=0.105  ratio bv/demo=0.43
+
+  [Glasser]
+    ->SC: bv=0.162  demo=0.130  ratio bv/demo=1.24
+    ->FC: bv=0.049  demo=0.111  ratio bv/demo=0.44
+
+==============================================================================
+5. CONNECTOME OVER bv+demo (reconstruction) — does adding FC/SC help predict the other?
+  [4S456Parcels] ->SC: bv+demo=0.191  FC+bv+demo=0.184 (Δ=-0.007)  FC alone=0.146
+  [4S456Parcels] ->FC: bv+demo=0.094  SC+bv+demo=0.106 (Δ=+0.012)  SC alone=0.087
+  [Glasser] ->SC: bv+demo=0.169  FC+bv+demo=0.171 (Δ=+0.002)  FC alone=0.136
+  [Glasser] ->FC: bv+demo=0.100  SC+bv+demo=0.105 (Δ=+0.005)  SC alone=0.084
+
+==============================================================================
+6. DOWNSTREAM lift_over_bvdemo (bayesian_ridge), cognition, with sig fraction
+
+  [4S456Parcels]  (lift mean±std | frac seeds perm_p<.05 | median p)
+    obs_FC             Total:+0.086±0.053[20%,p=0.090] Fluid:+0.037±0.033[0%,p=0.347] Cryst:+0.122±0.083[60%,p=0.041]
+    obs_SC             Total:-0.103±0.052[0%,p=0.927] Fluid:-0.118±0.052[0%,p=0.971] Cryst:-0.095±0.073[0%,p=0.883]
+    obs_FC+obs_SC      Total:+0.087±0.050[50%,p=0.073] Fluid:+0.043±0.045[0%,p=0.228] Cryst:+0.121±0.086[60%,p=0.033]
+    pred_SC            Total:-0.005±0.081[0%,p=0.612] Fluid:-0.010±0.058[0%,p=0.843] Cryst:-0.012±0.111[20%,p=0.629]
+    pred_FC            Total:-0.088±0.080[0%,p=0.871] Fluid:-0.072±0.067[0%,p=0.906] Cryst:-0.109±0.082[0%,p=0.896]
+    obs_FC+bv+demo     Total:+0.109±0.045[70%,p=0.019] Fluid:+0.062±0.041[40%,p=0.158] Cryst:+0.146±0.077[70%,p=0.008]
+    pred_SC+bv+demo    Total:+0.048±0.052[50%,p=0.143] Fluid:+0.042±0.041[20%,p=0.216] Cryst:+0.056±0.066[50%,p=0.048]
+
+  [Glasser]  (lift mean±std | frac seeds perm_p<.05 | median p)
+    obs_FC             Total:+0.088±0.062[30%,p=0.080] Fluid:+0.044±0.041[0%,p=0.326] Cryst:+0.133±0.088[60%,p=0.031]
+    obs_SC             Total:-0.111±0.062[0%,p=0.939] Fluid:-0.120±0.043[0%,p=0.977] Cryst:-0.101±0.082[0%,p=0.817]
+    obs_FC+obs_SC      Total:+0.090±0.061[40%,p=0.075] Fluid:+0.048±0.045[0%,p=0.212] Cryst:+0.136±0.095[80%,p=0.022]
+    pred_SC            Total:-0.018±0.052[0%,p=0.651] Fluid:-0.053±0.059[0%,p=0.875] Cryst:-0.010±0.068[0%,p=0.582]
+    pred_FC            Total:-0.113±0.050[0%,p=0.940] Fluid:-0.097±0.042[0%,p=0.953] Cryst:-0.135±0.068[0%,p=0.960]
+    obs_FC+bv+demo     Total:+0.115±0.052[70%,p=0.016] Fluid:+0.073±0.041[40%,p=0.095] Cryst:+0.162±0.077[80%,p=0.002]
+    pred_SC+bv+demo    Total:+0.040±0.025[40%,p=0.123] Fluid:+0.022±0.036[0%,p=0.510] Cryst:+0.061±0.034[60%,p=0.037]
+
+==============================================================================
+7. DOES DOWNSTREAM ESTIMATOR MATTER? obs_FC->CogCryst lift by estimator
+  [4S456Parcels] pca=+0.183  bayesian=+0.122  kernel=+0.145
+  [Glasser] pca=+0.200  bayesian=+0.133  kernel=+0.143
+
+==============================================================================
+8. SEX/AGE prediction (leak-checks, but = biology signal). bayesian_ridge
+
+  [4S456Parcels]
+    bv+demo      sex bal_acc=0.929  age pearson=0.833
+    obs_FC       sex bal_acc=0.935  age pearson=0.469
+    obs_SC       sex bal_acc=0.927  age pearson=0.385
+    pred_FC      sex bal_acc=0.891  age pearson=0.285
+    pred_SC      sex bal_acc=0.900  age pearson=0.315
+
+  [Glasser]
+    bv+demo      sex bal_acc=0.945  age pearson=0.840
+    obs_FC       sex bal_acc=0.918  age pearson=0.429
+    obs_SC       sex bal_acc=0.910  age pearson=0.336
+    pred_FC      sex bal_acc=0.874  age pearson=0.253
+    pred_SC      sex bal_acc=0.873  age pearson=0.278
+
+==============================================================================
+9. IDENTIFIABILITY (avg_rank, top1_acc) — recon pca_pls
+
+  [4S456Parcels] (avg_rank / top1)
+    FC->SC           avg_rank=0.897  top1=0.151
+    SC->FC           avg_rank=0.730  top1=0.049
+    bv+demo->SC      avg_rank=0.908  top1=0.173
+    FC+bv+demo->SC   avg_rank=0.938  top1=0.232
+    FC->FC           avg_rank=1.000  top1=0.997
+
+  [Glasser] (avg_rank / top1)
+    FC->SC           avg_rank=0.875  top1=0.120
+    SC->FC           avg_rank=0.714  top1=0.049
+    bv+demo->SC      avg_rank=0.875  top1=0.129
+    FC+bv+demo->SC   avg_rank=0.914  top1=0.169
+    FC->FC           avg_rank=1.000  top1=0.999
+
+==============================================================================
+10. ANOMALY HUNT
+
+  (a) demo > bv (demographics beat anatomy proxies) cases [pca_pls]:
+    [4S456Parcels] ->SC: bv=0.185 demo=0.133
+    [4S456Parcels] ->FC: bv=0.045 demo=0.105 <-- demo wins
+    [Glasser] ->SC: bv=0.162 demo=0.130
+    [Glasser] ->FC: bv=0.049 demo=0.111 <-- demo wins
+
+  (b) most-negative downstream lifts (pred_* hurting):
+    Glasser       pred_FC  CogCryst  lift=-0.135
+    Glasser       obs_SC   CogFluid  lift=-0.120
+    4S456Parcels  obs_SC   CogFluid  lift=-0.118
+    Glasser       pred_FC  CogTotal  lift=-0.113
+    Glasser       obs_SC   CogTotal  lift=-0.111
+    4S456Parcels  pred_FC  CogCryst  lift=-0.109
+    4S456Parcels  obs_SC   CogTotal  lift=-0.103
+    Glasser       obs_SC   CogCryst  lift=-0.101
+
+  (c) seed stability (CV = std/|mean|) of headline recon cells [pca_pls]:
+    [4S456Parcels] FC->SC   mean=0.146 std=0.003 CV=1.78%
+    [4S456Parcels] SC->FC   mean=0.087 std=0.006 CV=7.00%
+    [4S456Parcels] FC->FC   mean=0.418 std=0.032 CV=7.68%
+    [4S456Parcels] SC->SC   mean=0.386 std=0.028 CV=7.33%
+    [Glasser] FC->SC   mean=0.136 std=0.007 CV=4.95%
+    [Glasser] SC->FC   mean=0.084 std=0.008 CV=9.08%
+    [Glasser] FC->FC   mean=0.451 std=0.025 CV=5.52%
+    [Glasser] SC->SC   mean=0.376 std=0.017 CV=4.58%
+
+  (d) fraction of within-modal oracle (Ceiling B, BR) reached by cross-modal (pca_pls):
+    [4S456Parcels] FC->SC 0.146 / SC->SC oracle 0.622 = 23.6% of ceiling
+    [Glasser] FC->SC 0.136 / SC->SC oracle 0.648 = 21.0% of ceiling
+
+==============================================================================
+11. LEAK VERDICTS
+  {'ok': 3344, 'EXEMPT_FLAGGED': 1052, 'EXPECTED_SIGNAL': 4}
+  EXPECTED_SIGNAL rows (raw connectome predicts sex/age):
+    4S456Parcels  obs_FC+obs_SC sex   score=0.995 thr=0.99
+    4S456Parcels  obs_FC+obs_SC sex   score=0.995 thr=0.99
+    Glasser       obs_FC+obs_SC sex   score=0.995 thr=0.99
+    4S456Parcels  obs_FC+obs_SC sex   score=0.991 thr=0.99
