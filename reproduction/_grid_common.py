@@ -341,7 +341,16 @@ def is_leak_target(name: str) -> bool:
 
 
 # --- scalar estimators (NaN-aware; drop missing-y rows in train) -------------
+# float64 BEFORE PCA: bv+demo has exactly-collinear one-hot columns (sex/race each sum to 1 ->
+# rank-deficient). PCA's SVD in float32 is ill-conditioned on that and loses the demographic
+# directions split-dependently (e.g. bv+demo->age fell to 0.46 on some seeds; float64 -> 1.000).
+# The reconstruction path was protected by PLSRegression(scale=True); the scalar path was not.
+def _f64(*arrs):
+    return [np.asarray(a, np.float64) for a in arrs]
+
+
 def pca_pls_scalar(X_tr, X_te, y_tr):
+    X_tr, X_te = _f64(X_tr, X_te)
     ok = ~np.isnan(y_tr); k = min(256, X_tr.shape[1])
     p = PCA(n_components=k, random_state=0).fit(X_tr[ok])
     pls = PLSRegression(n_components=min(32, k), scale=True, max_iter=2000).fit(
@@ -350,6 +359,7 @@ def pca_pls_scalar(X_tr, X_te, y_tr):
 
 
 def bayesian_ridge_scalar(X_tr, X_te, y_tr):
+    X_tr, X_te = _f64(X_tr, X_te)
     ok = ~np.isnan(y_tr); k = min(256, X_tr.shape[1])
     p = PCA(n_components=k, random_state=0).fit(X_tr[ok])
     br = BayesianRidge(max_iter=500).fit(p.transform(X_tr[ok]), y_tr[ok])
@@ -358,6 +368,7 @@ def bayesian_ridge_scalar(X_tr, X_te, y_tr):
 
 def _kr_scalar(gamma_mult, alpha):
     def fn(X_tr, X_te, y_tr):
+        X_tr, X_te = _f64(X_tr, X_te)
         ok = ~np.isnan(y_tr); k = min(256, X_tr.shape[1])
         p = PCA(n_components=k, random_state=0).fit(X_tr[ok])
         Z_tr = p.transform(X_tr[ok]); Z_te = p.transform(X_te)
