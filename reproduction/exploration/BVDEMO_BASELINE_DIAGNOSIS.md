@@ -22,6 +22,13 @@ need to predict sex/age), while cognition prediction rides on the well-condition
 directions. So the bug's entire blast radius was the **sex/age leak-check panel** (never a finding) —
 e.g. the S4 figure that flagged this. F1/F2/Ceiling-B/F6/F7/F8 never used this path and are unaffected.
 
+**Reconstruction confirmed unaffected (no re-run needed).** `bv+demo→SC` (the only recon pair with a
+collinear *source*) is float32 ≡ float64 to 4 decimals via the actual capped estimators
+(BR 0.1864=0.1864, 0.1753=0.1753; PLS within 5e-4). The bug needs the *target* to BE the collinear
+column (the leak case); when the target is a connectome, the bvdemo-source prediction is robust. So
+the reconstruction grid (`reconstruction.csv`) is untouched; only `downstream.csv`'s sex/age rows
+changed.
+
 ---
 
 ## Original investigation (kept for the record)
