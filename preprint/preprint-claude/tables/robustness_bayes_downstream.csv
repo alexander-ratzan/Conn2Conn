@@ -1,50 +1,50 @@
 parcellation,input_set,target,n,post_mean,post_sd,hdi_lo,hdi_hi,P_gt0,P_gt_rope,P_in_rope,decision,BF10
-Glasser,obs_FC,CogTotal,10,0.0876,0.0206,0.0409,0.1343,0.9989,0.9952,0.0045,credibly beats baseline,21.5665
-Glasser,obs_FC,CogFluid,10,0.0443,0.0138,0.0131,0.0756,0.9946,0.9439,0.0555,undecided,5.8607
-Glasser,obs_FC,CogCryst,10,0.1332,0.0294,0.0668,0.1997,0.9993,0.9981,0.0017,credibly beats baseline,30.5205
-Glasser,obs_SC,CogTotal,10,-0.1108,0.0207,-0.1575,-0.0641,0.0002,0.0001,0.0008,credibly below baseline,79.332
-Glasser,obs_SC,CogFluid,10,-0.1202,0.0143,-0.1524,-0.088,0.0,0.0,0.0,credibly below baseline,1502.8367
+Glasser,obs_FC,CogTotal,10,0.0876,0.0206,0.0409,0.1343,0.9989,0.9952,0.0045,credibly beats baseline,21.5662
+Glasser,obs_FC,CogFluid,10,0.0443,0.0138,0.0131,0.0756,0.9946,0.9439,0.0555,undecided,5.8606
+Glasser,obs_FC,CogCryst,10,0.1332,0.0294,0.0668,0.1997,0.9993,0.9981,0.0017,credibly beats baseline,30.5204
+Glasser,obs_SC,CogTotal,10,-0.1108,0.0207,-0.1575,-0.0641,0.0002,0.0001,0.0008,credibly below baseline,79.3316
+Glasser,obs_SC,CogFluid,10,-0.1202,0.0143,-0.1524,-0.088,0.0,0.0,0.0,credibly below baseline,1502.8623
 Glasser,obs_SC,CogCryst,10,-0.1012,0.0272,-0.1626,-0.0397,0.0024,0.0008,0.0069,credibly below baseline,11.3077
 Glasser,obs_FC+obs_SC,CogTotal,10,0.0901,0.0205,0.0438,0.1364,0.9991,0.9962,0.0035,credibly beats baseline,26.1978
-Glasser,obs_FC+obs_SC,CogFluid,10,0.0483,0.015,0.0145,0.0821,0.9949,0.9547,0.0447,undecided,6.0596
-Glasser,obs_FC+obs_SC,CogCryst,10,0.1356,0.0315,0.0643,0.2068,0.999,0.9974,0.0022,credibly beats baseline,23.1254
-Glasser,obs_FC+bv+demo,CogTotal,10,0.1152,0.0174,0.0757,0.1546,1.0,0.9998,0.0002,credibly beats baseline,288.5227
-Glasser,obs_FC+bv+demo,CogFluid,10,0.0729,0.0138,0.0416,0.1041,0.9997,0.998,0.002,credibly beats baseline,72.0108
-Glasser,obs_FC+bv+demo,CogCryst,10,0.1619,0.0255,0.1042,0.2196,0.9999,0.9998,0.0001,credibly beats baseline,222.8132
+Glasser,obs_FC+obs_SC,CogFluid,10,0.0483,0.015,0.0145,0.0821,0.9949,0.9547,0.0447,undecided,6.0597
+Glasser,obs_FC+obs_SC,CogCryst,10,0.1356,0.0315,0.0643,0.2068,0.999,0.9974,0.0022,credibly beats baseline,23.1262
+Glasser,obs_FC+bv+demo,CogTotal,10,0.1152,0.0174,0.0757,0.1546,1.0,0.9998,0.0002,credibly beats baseline,288.5205
+Glasser,obs_FC+bv+demo,CogFluid,10,0.0729,0.0138,0.0416,0.1041,0.9997,0.998,0.002,credibly beats baseline,72.0097
+Glasser,obs_FC+bv+demo,CogCryst,10,0.1619,0.0255,0.1042,0.2196,0.9999,0.9998,0.0001,credibly beats baseline,222.8144
 Glasser,obs_SC+bv+demo,CogTotal,10,-0.0498,0.0169,-0.088,-0.0115,0.0082,0.0013,0.0547,undecided,4.1937
-Glasser,obs_SC+bv+demo,CogFluid,10,-0.0664,0.0137,-0.0973,-0.0355,0.0004,0.0001,0.0039,credibly below baseline,44.9243
+Glasser,obs_SC+bv+demo,CogFluid,10,-0.0664,0.0137,-0.0973,-0.0355,0.0004,0.0001,0.0039,credibly below baseline,44.9237
 Glasser,obs_SC+bv+demo,CogCryst,10,-0.0348,0.0206,-0.0813,0.0117,0.0622,0.0129,0.2316,undecided,0.9032
 Glasser,pred_SC,CogTotal,10,-0.0178,0.0175,-0.0573,0.0216,0.1667,0.0291,0.5188,undecided,0.473
 Glasser,pred_SC,CogFluid,10,-0.0527,0.0195,-0.0969,-0.0085,0.0122,0.0024,0.0617,undecided,3.058
 Glasser,pred_SC,CogCryst,10,-0.0097,0.0228,-0.0612,0.0418,0.3401,0.1124,0.5567,undecided,0.3337
-Glasser,pred_FC,CogTotal,10,-0.1126,0.0165,-0.15,-0.0753,0.0,0.0,0.0002,credibly below baseline,354.1095
-Glasser,pred_FC,CogFluid,10,-0.0966,0.0142,-0.1286,-0.0646,0.0,0.0,0.0002,credibly below baseline,356.8275
-Glasser,pred_FC,CogCryst,10,-0.1353,0.0228,-0.1868,-0.0837,0.0001,0.0,0.0003,credibly below baseline,146.6744
-Glasser,pred_SC+bv+demo,CogTotal,10,0.0397,0.0084,0.0206,0.0588,0.9994,0.9778,0.0222,credibly beats baseline,37.3046
+Glasser,pred_FC,CogTotal,10,-0.1126,0.0165,-0.15,-0.0753,0.0,0.0,0.0002,credibly below baseline,354.1066
+Glasser,pred_FC,CogFluid,10,-0.0966,0.0142,-0.1286,-0.0646,0.0,0.0,0.0002,credibly below baseline,356.8237
+Glasser,pred_FC,CogCryst,10,-0.1353,0.0228,-0.1868,-0.0837,0.0001,0.0,0.0003,credibly below baseline,146.6759
+Glasser,pred_SC+bv+demo,CogTotal,10,0.0397,0.0084,0.0206,0.0588,0.9994,0.9778,0.0222,credibly beats baseline,37.3049
 Glasser,pred_SC+bv+demo,CogFluid,10,0.0215,0.012,-0.0056,0.0486,0.9471,0.5494,0.4471,undecided,1.0128
-Glasser,pred_SC+bv+demo,CogCryst,10,0.0607,0.0112,0.0353,0.086,0.9998,0.9972,0.0027,credibly beats baseline,82.8145
+Glasser,pred_SC+bv+demo,CogCryst,10,0.0607,0.0112,0.0353,0.086,0.9998,0.9972,0.0027,credibly beats baseline,82.8141
 Glasser,pred_FC+bv+demo,CogTotal,10,-0.0378,0.0133,-0.0678,-0.0077,0.0097,0.0009,0.1061,undecided,3.6746
 Glasser,pred_FC+bv+demo,CogFluid,10,-0.0383,0.0136,-0.0692,-0.0074,0.0103,0.001,0.1055,undecided,3.5047
 Glasser,pred_FC+bv+demo,CogCryst,10,-0.0399,0.0139,-0.0714,-0.0085,0.0092,0.001,0.0919,undecided,3.8059
-4S456Parcels,obs_FC,CogTotal,10,0.0862,0.0175,0.0466,0.1258,0.9996,0.9978,0.0021,credibly beats baseline,48.0629
+4S456Parcels,obs_FC,CogTotal,10,0.0862,0.0175,0.0466,0.1258,0.9996,0.9978,0.0021,credibly beats baseline,48.0628
 4S456Parcels,obs_FC,CogFluid,10,0.0375,0.011,0.0127,0.0622,0.9962,0.9275,0.0723,undecided,7.724
-4S456Parcels,obs_FC,CogCryst,10,0.122,0.0277,0.0594,0.1845,0.9992,0.9975,0.0022,credibly beats baseline,26.3766
+4S456Parcels,obs_FC,CogCryst,10,0.122,0.0277,0.0594,0.1845,0.9992,0.9975,0.0022,credibly beats baseline,26.3765
 4S456Parcels,obs_SC,CogTotal,10,-0.1031,0.0174,-0.1424,-0.0638,0.0001,0.0,0.0005,credibly below baseline,146.7668
-4S456Parcels,obs_SC,CogFluid,10,-0.1184,0.0174,-0.1578,-0.079,0.0,0.0,0.0001,credibly below baseline,346.7226
+4S456Parcels,obs_SC,CogFluid,10,-0.1184,0.0174,-0.1578,-0.079,0.0,0.0,0.0001,credibly below baseline,346.7315
 4S456Parcels,obs_SC,CogCryst,10,-0.0947,0.0243,-0.1496,-0.0397,0.0018,0.0005,0.0061,credibly below baseline,14.0853
-4S456Parcels,obs_FC+obs_SC,CogTotal,10,0.0867,0.0167,0.0489,0.1245,0.9997,0.9984,0.0015,credibly beats baseline,64.9816
-4S456Parcels,obs_FC+obs_SC,CogFluid,10,0.0434,0.0149,0.0097,0.0771,0.9914,0.9247,0.0742,undecided,4.0314
-4S456Parcels,obs_FC+obs_SC,CogCryst,10,0.1213,0.0287,0.0565,0.1862,0.9989,0.9968,0.0028,credibly beats baseline,21.2981
-4S456Parcels,obs_FC+bv+demo,CogTotal,10,0.1088,0.015,0.0749,0.1427,1.0,0.9999,0.0001,credibly beats baseline,539.9996
+4S456Parcels,obs_FC+obs_SC,CogTotal,10,0.0867,0.0167,0.0489,0.1245,0.9997,0.9984,0.0015,credibly beats baseline,64.987
+4S456Parcels,obs_FC+obs_SC,CogFluid,10,0.0434,0.0149,0.0097,0.0771,0.9914,0.9247,0.0742,undecided,4.0315
+4S456Parcels,obs_FC+obs_SC,CogCryst,10,0.1213,0.0287,0.0565,0.1862,0.9989,0.9968,0.0028,credibly beats baseline,21.2972
+4S456Parcels,obs_FC+bv+demo,CogTotal,10,0.1088,0.015,0.0749,0.1427,1.0,0.9999,0.0001,credibly beats baseline,539.9945
 4S456Parcels,obs_FC+bv+demo,CogFluid,10,0.0622,0.0137,0.0312,0.0933,0.9993,0.9934,0.0065,credibly beats baseline,30.4924
-4S456Parcels,obs_FC+bv+demo,CogCryst,10,0.1457,0.0256,0.0877,0.2037,0.9998,0.9996,0.0004,credibly beats baseline,111.8059
+4S456Parcels,obs_FC+bv+demo,CogCryst,10,0.1457,0.0256,0.0877,0.2037,0.9998,0.9996,0.0004,credibly beats baseline,111.8061
 4S456Parcels,obs_SC+bv+demo,CogTotal,10,-0.0516,0.0154,-0.0863,-0.0168,0.0042,0.0006,0.0344,undecided,7.1195
 4S456Parcels,obs_SC+bv+demo,CogFluid,10,-0.0767,0.0181,-0.1175,-0.0358,0.0011,0.0002,0.0057,credibly below baseline,21.6526
 4S456Parcels,obs_SC+bv+demo,CogCryst,10,-0.0423,0.0185,-0.0842,-0.0003,0.0243,0.0042,0.1258,undecided,1.8035
 4S456Parcels,pred_SC,CogTotal,10,-0.0051,0.027,-0.0661,0.056,0.4274,0.1885,0.5146,undecided,0.3136
 4S456Parcels,pred_SC,CogFluid,10,-0.0101,0.0195,-0.0542,0.0339,0.3081,0.0782,0.6099,undecided,0.3464
 4S456Parcels,pred_SC,CogCryst,10,-0.0115,0.037,-0.0952,0.0722,0.3813,0.2082,0.38,undecided,0.322
-4S456Parcels,pred_FC,CogTotal,10,-0.088,0.0266,-0.1481,-0.0279,0.0045,0.0014,0.014,credibly below baseline,6.7082
+4S456Parcels,pred_FC,CogTotal,10,-0.088,0.0266,-0.1481,-0.0279,0.0045,0.0014,0.014,credibly below baseline,6.7083
 4S456Parcels,pred_FC,CogFluid,10,-0.0718,0.0222,-0.1221,-0.0215,0.0052,0.0013,0.0211,credibly below baseline,6.0456
 4S456Parcels,pred_FC,CogCryst,10,-0.1089,0.0274,-0.1709,-0.0468,0.0016,0.0006,0.0045,credibly below baseline,15.3916
 4S456Parcels,pred_SC+bv+demo,CogTotal,10,0.0477,0.0174,0.0083,0.0872,0.9885,0.9269,0.0713,undecided,3.2111

@@ -118,7 +118,7 @@ age = [d[(d.parcellation == parc) & (d.estimator == "bayesian_ridge") &
 ax.barh(range(len(li)), age, color="#AF7AC5", edgecolor="white")
 ax.set_yticks(range(len(li))); ax.set_yticklabels(li, fontsize=8); ax.invert_yaxis()
 ax.set_xlabel("age pearson"); ax.set_title("age (leak check)"); ax.set_xlim(0, 1.05)
-ax.text(0.99, len(li) - 0.5, "pred_X+bv+demo → ~1.0:\nexpected, bv+demo encodes age",
+ax.text(0.99, len(li) - 0.5, "any input with bv+demo → ~1.0:\nexpected, bv+demo encodes age/sex\n(float64 PCA fix, commit 69add40)",
         ha="right", fontsize=7, color="#666", style="italic")
 fig.suptitle("S4 · Leak-check targets (Glasser, BayesianRidge). "
              "Sex/age are diagnostics, not scientific outcomes.",

@@ -83,6 +83,8 @@ These results separate reconstruction from utility. A predicted connectome can b
 
 The negative downstream result could have several mundane explanations. The grid and supplementary checks test these explicitly.
 
+The supplement expands this section into an audit trail rather than a grab bag of controls: expected-cell completeness, leakage checks, reconstruction-to-utility decoupling, estimator robustness, nonlinear and residualized models, richer tractography features, FC-noise accounting, family-mechanism localization, preprocessing-axis stress tests, and a triage table separating questions closed by existing data from experiments that require new measurements.
+
 First, the cross-modal asymmetry is not an artifact of PCA reduction. In a reduction-axis sanity check, the FC-\textgreater SC / SC-\textgreater FC ratio remained greater than 1.0 across learned PCA, full PLS on raw 64,620-edge vectors, and three Johnson-Lindenstrauss random projections. Median ratios ranged from 1.39x to 1.81x across methods, with Wilcoxon \texttt{p\ \textless{}=\ 0.001} against a ratio of 1.0 for all methods.
 
 Second, the ceiling is not recovered by richer models. KernelRidge and other nonlinear checks did not reveal hidden signal beyond the linear baselines; the KernelRidge 3x3 hyperparameter sweep was nearly degenerate, with within-seed spreads around 0.004-0.005 in \texttt{demeaned\_pearson}.

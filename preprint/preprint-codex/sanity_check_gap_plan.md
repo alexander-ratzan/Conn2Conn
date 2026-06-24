@@ -19,6 +19,12 @@ This file separates checks already closed from existing repository outputs from 
 
 - Per-subject FC reliability does not explain SC->FC achieved performance.
 
+- Expected-vs-observed grid completeness is exact for the reproduction outputs.
+
+- Estimator, nonlinear, residual, sink, richer-tractography, scaling, and preprocessing variants do not rescue cognition.
+
+- Family PC3 stability/localization and FC-noise accounting are summarized from existing structured outputs.
+
 
 ## Requires New Data Or New Runs
 

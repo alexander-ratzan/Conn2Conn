@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2025.11.16)  23 JUN 2026 20:42
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2025.11.16)  24 JUN 2026 11:17
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -568,20 +568,16 @@ Package pdftex.def Info: figures/fig3_utility_checkpoint.pdf  used on input line
 
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
- [4 <./figures/fig2_directional_translation.pdf>]
-<figures/fig4_closed_escape_routes.pdf, id=239, 926.41028pt x 602.35072pt>
+ [4 <./figures/fig2_directional_translation.pdf>] [5 <./figures/fig3_utility_checkpoint.pdf>]
+<figures/fig4_closed_escape_routes.pdf, id=336, 926.41028pt x 602.35072pt>
 File: figures/fig4_closed_escape_routes.pdf Graphic file (type pdf)
 <use figures/fig4_closed_escape_routes.pdf>
-Package pdftex.def Info: figures/fig4_closed_escape_routes.pdf  used on input line 98.
+Package pdftex.def Info: figures/fig4_closed_escape_routes.pdf  used on input line 100.
 (pdftex.def)             Requested size: 397.48499pt x 258.43591pt.
-
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
- [5 <./figures/fig3_utility_checkpoint.pdf>]
 <figures/fig5_signal_changes_with_objective.pdf, id=337, 852.71877pt x 601.773pt>
 File: figures/fig5_signal_changes_with_objective.pdf Graphic file (type pdf)
 <use figures/fig5_signal_changes_with_objective.pdf>
-Package pdftex.def Info: figures/fig5_signal_changes_with_objective.pdf  used on input line 113.
+Package pdftex.def Info: figures/fig5_signal_changes_with_objective.pdf  used on input line 115.
 (pdftex.def)             Requested size: 397.48499pt x 280.51022pt.
 
 Underfull \vbox (badness 10000) has occurred while \output is active []
@@ -603,7 +599,7 @@ Here is how much of TeX's memory you used:
  36 hyphenation exceptions out of 8191
  75i,8n,79p,2116b,458s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </Users/user/Library/TinyTeX/texmf-dist/fonts/type1/public/cm-super/sftt1000.pfb></Users/user/Library/TinyTeX/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></Users/user/Library/TinyTeX/texmf-dist/fonts/type1/urw/times/utmr8a.pfb>
-Output written on conn2conn_preprint.pdf (8 pages, 233202 bytes).
+Output written on conn2conn_preprint.pdf (8 pages, 233584 bytes).
 PDF statistics:
  586 PDF objects out of 1000 (max. 8388607)
  154 compressed objects within 2 object streams

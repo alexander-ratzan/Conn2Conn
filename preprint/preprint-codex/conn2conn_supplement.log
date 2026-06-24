@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2025.11.16)  23 JUN 2026 21:47
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2025.11.16)  24 JUN 2026 11:12
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1230,686 +1230,1016 @@ Underfull \hbox (badness 10000) in paragraph at lines 1168--1169
  []
 
 [14]
-Underfull \hbox (badness 10000) in paragraph at lines 1182--1184
-[]\T1/ptm/m/n/10 (+20) Reconstruction qual-ity is de-cou-pled from cog-ni-tive lift; see
- []
-
-[15]
-Underfull \hbox (badness 10000) in alignment at lines 1311--1315
-[] [] [] []
+Underfull \hbox (badness 10000) in alignment at lines 1177--1181
+[] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1315--1317
-[] [] [] []
+Underfull \hbox (badness 10000) in alignment at lines 1181--1183
+[] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1317--1330
-[] [] [] []
+Underfull \hbox (badness 10000) in alignment at lines 1183--1190
+[] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1340--1344
-[] [] [] []
+Underfull \hbox (badness 10000) in alignment at lines 1200--1204
+[] [] [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1344--1346
-[] [] [] []
+Underfull \hbox (badness 10000) in alignment at lines 1204--1206
+[] [] [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1346--1359
-[] [] [] []
+Underfull \hbox (badness 10000) in alignment at lines 1206--1225
+[] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1237--1241
+[] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1241--1243
+[] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1243--1256
+[] [] [] [] [] []
+ []
+
+ignored error: Infinite glue shrinkage found in box being split [15]
+Underfull \hbox (badness 10000) in alignment at lines 1262--1266
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1266--1268
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1268--1281
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1287--1291
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1291--1293
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1293--1306
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1311--1312
+[]\T1/ptm/m/n/10 (+20) Source: non-lin-ear/residual/sink: notebooks-FC_to_SC-experimental/ non-linear-sanity-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1311--1312
+\T1/ptm/m/n/10 (+20) check/ n1_cognition_summary.csv; notebooks-FC_to_SC-experimental/ non-linear-sanity-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1311--1312
+\T1/ptm/m/n/10 (+20) check/ n4_cog_summary.csv; notebooks-FC_to_SC-experimental/ non-linear-sanity-check/
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1316--1320
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1320--1322
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1322--1344
+[] [] [] [] []
  []
 
 ignored error: Infinite glue shrinkage found in box being split [16]
-Underfull \hbox (badness 10000) in alignment at lines 1371--1375
+Overfull \hbox (54.2986pt too wide) in alignment at lines 1350--1354
+[] [] [] [] [] [] [] []
+ []
+
+
+Overfull \hbox (54.2986pt too wide) in alignment at lines 1354--1356
+[] [] [] [] [] [] [] []
+ []
+
+
+Overfull \hbox (54.2986pt too wide) in alignment at lines 1356--1358
+[] [] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1363--1364
+[]\T1/ptm/m/n/10 (+20) Source: richer trac-tog-ra-phy: notebooks-FC_to_SC-experimental/ trac-tog-ra-phy_predict/
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1363--1364
+\T1/ptm/m/n/10 (+20) e5_downstream_summary.csv; notebooks-FC_to_SC-experimental/ trac-tog-ra-phy_predict/
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1368--1372
+[] [] [] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1372--1374
+[] [] [] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1374--1385
+[] [] [] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1390--1391
+[]\T1/ptm/m/n/10 (+20) Source: scal-ing: notebooks-FC_to_SC-experimental/ non-linear-sanity-check/
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1395--1399
+[] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1399--1401
+[] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1401--1412
+[] [] [] [] [] [] []
+ []
+
+[17]
+Underfull \hbox (badness 10000) in alignment at lines 1428--1432
+[] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1432--1434
+[] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1434--1437
+[] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1443--1447
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1447--1449
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1449--1452
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1458--1462
+[] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1462--1464
+[] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1464--1469
+[] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1475--1479
 [] [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1375--1377
+Underfull \hbox (badness 10000) in alignment at lines 1479--1481
 [] [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1377--1408
+Underfull \hbox (badness 10000) in alignment at lines 1481--1490
 [] [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1414--1418
+Underfull \hbox (badness 10000) in alignment at lines 1496--1500
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1500--1502
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1502--1511
+[] [] [] [] []
+ []
+
+[18]
+Underfull \hbox (badness 10000) in alignment at lines 1523--1527
+[] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1527--1529
+[] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1529--1531
+[] [] [] [] [] [] []
+ []
+
+
+Overfull \hbox (4.04553pt too wide) in alignment at lines 1537--1541
+[] [] [] [] [] [] [] []
+ []
+
+
+Overfull \hbox (4.04553pt too wide) in alignment at lines 1541--1543
+[] [] [] [] [] [] [] []
+ []
+
+
+Overfull \hbox (4.04553pt too wide) in alignment at lines 1543--1546
+[] [] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1552--1556
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1556--1558
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1558--1567
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1573--1577
+[] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1577--1579
+[] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1579--1582
+[] [] [] []
+ []
+
+[19]
+Underfull \hbox (badness 10000) in paragraph at lines 1601--1603
+[]\T1/ptm/m/n/10 (+20) Reconstruction qual-ity is de-cou-pled from cog-ni-tive lift; see
+ []
+
+[20]
+Underfull \hbox (badness 10000) in alignment at lines 1736--1740
+[] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1740--1742
+[] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1742--1755
+[] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1765--1769
+[] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1769--1771
+[] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1771--1784
+[] [] [] []
+ []
+
+ignored error: Infinite glue shrinkage found in box being split [21]
+Underfull \hbox (badness 10000) in alignment at lines 1796--1800
 [] [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1418--1420
+Underfull \hbox (badness 10000) in alignment at lines 1800--1802
 [] [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1420--1451
+Underfull \hbox (badness 10000) in alignment at lines 1802--1833
 [] [] [] [] [] []
  []
 
-ignored error: Infinite glue shrinkage found in box being split [17]
-Underfull \hbox (badness 2529) in paragraph at lines 1508--1509
+
+Underfull \hbox (badness 10000) in alignment at lines 1839--1843
+[] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1843--1845
+[] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 1845--1876
+[] [] [] [] [] []
+ []
+
+ignored error: Infinite glue shrinkage found in box being split [22]
+Underfull \hbox (badness 2529) in paragraph at lines 1933--1934
 \T1/ptm/b/n/10 (+20) ens F2)[] \T1/ptm/m/n/10 (+20) Not just "bv pre-dicts SC." It\TS1/ptm/m/n/10 (+20) '\T1/ptm/m/n/10 (+20) s a crossed dis-so-ci-a-tion, on both par-cel-la-tions
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1511--1515
+Underfull \hbox (badness 10000) in alignment at lines 1936--1940
 [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1515--1517
+Underfull \hbox (badness 10000) in alignment at lines 1940--1942
 [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1517--1521
+Underfull \hbox (badness 10000) in alignment at lines 1942--1946
 [] [] []
  []
 
-[18]
-Underfull \hbox (badness 2941) in paragraph at lines 1550--1551
+[23]
+Underfull \hbox (badness 2941) in paragraph at lines 1975--1976
  []\T1/ptm/b/n/10 (+20) 6. The finer par-cel-la-tion specif-i-cally boosts struc-ture pre-dic-tion (struc-tured, not
  []
 
 
-Underfull \hbox (badness 4429) in paragraph at lines 1550--1551
+Underfull \hbox (badness 4429) in paragraph at lines 1975--1976
 \T1/ptm/b/n/10 (+20) noise)[] \T1/ptm/m/n/10 (+20) 4S456 vs Glasser is \T1/ptm/m/it/10 (+20) not \T1/ptm/m/n/10 (+20) a wash -- the dif-fer-ence is signed and con-sis-tent
  []
 
 
-Underfull \hbox (badness 1199) in paragraph at lines 1554--1555
+Underfull \hbox (badness 1199) in paragraph at lines 1979--1980
  []\T1/ptm/b/n/10 (+20) 7. Cross-modal pre-dic-tion cap-tures only ~20-24% of the achiev-able ceil-ing (hon-est
  []
 
 
-Underfull \hbox (badness 1024) in paragraph at lines 1554--1555
+Underfull \hbox (badness 1024) in paragraph at lines 1979--1980
 \T1/ptm/b/n/10 (+20) fram-ing)[] \T1/ptm/m/n/10 (+20) FC->SC (pca_pls) / SC->SC or-a-cle (BR) = \T1/ptm/b/n/10 (+20) 23.6% (4S456), 21.0% (Glasser)
  []
 
-[19]
-Underfull \hbox (badness 10000) in alignment at lines 1616--1620
+[24]
+Underfull \hbox (badness 10000) in alignment at lines 2041--2045
 [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1620--1622
+Underfull \hbox (badness 10000) in alignment at lines 2045--2047
 [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1622--1625
+Underfull \hbox (badness 10000) in alignment at lines 2047--2050
 [] [] [] []
  []
 
-[20]
-Underfull \hbox (badness 10000) in alignment at lines 1643--1647
+[25]
+Underfull \hbox (badness 10000) in alignment at lines 2068--2072
 [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1647--1649
+Underfull \hbox (badness 10000) in alignment at lines 2072--2074
 [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1649--1654
+Underfull \hbox (badness 10000) in alignment at lines 2074--2079
 [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1668--1672
+Underfull \hbox (badness 10000) in alignment at lines 2093--2097
 [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1672--1674
+Underfull \hbox (badness 10000) in alignment at lines 2097--2099
 [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1674--1677
+Underfull \hbox (badness 10000) in alignment at lines 2099--2102
 [] [] []
  []
 
-[21]
-Overfull \hbox (4.99597pt too wide) in alignment at lines 1721--1725
+[26]
+Overfull \hbox (4.99597pt too wide) in alignment at lines 2146--2150
 [] [] [] [] [] [] []
  []
 
 
-Overfull \hbox (4.99597pt too wide) in alignment at lines 1725--1727
+Overfull \hbox (4.99597pt too wide) in alignment at lines 2150--2152
 [] [] [] [] [] [] []
  []
 
 
-Overfull \hbox (4.99597pt too wide) in alignment at lines 1727--1733
+Overfull \hbox (4.99597pt too wide) in alignment at lines 2152--2158
 [] [] [] [] [] [] []
  []
 
-[22]
-Underfull \hbox (badness 10000) in paragraph at lines 1782--1784
+[27]
+Underfull \hbox (badness 10000) in paragraph at lines 2207--2209
 []\T1/cmtt/m/n/10 method_b_full_pls.py \T1/ptm/m/n/10 (+20) + \T1/cmtt/m/n/10 _output.txt \T1/ptm/m/n/10 (+20) + \T1/cmtt/m/n/10 method_b_results.csv \T1/ptm/m/n/10 (+20) +
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1786--1788
+Underfull \hbox (badness 10000) in paragraph at lines 2211--2213
 []\T1/cmtt/m/n/10 synthesize_reduction_axis.py \T1/ptm/m/n/10 (+20) + \T1/cmtt/m/n/10 _output.txt \T1/ptm/m/n/10 (+20) +
  []
 
-[23]
-Underfull \hbox (badness 1817) in paragraph at lines 1853--1854
+[28]
+Underfull \hbox (badness 1817) in paragraph at lines 2278--2279
 \T1/ptm/m/n/10 (+20) independent), and it\TS1/ptm/m/n/10 (+20) '\T1/ptm/m/n/10 (+20) s ar-guably \T1/ptm/m/it/10 (+20) cleaner \T1/ptm/m/n/10 (+20) un-der this fram-ing. The thing
  []
 
 
-Underfull \hbox (badness 3803) in paragraph at lines 1853--1854
+Underfull \hbox (badness 3803) in paragraph at lines 2278--2279
 \T1/ptm/m/n/10 (+20) to fix down-stream: the per-subject \T1/cmtt/m/n/10 fraction_of_ceiling \T1/ptm/m/n/10 (+20) col-umn in
  []
 
-[24]
-Underfull \hbox (badness 10000) in alignment at lines 1899--1903
+[29]
+Underfull \hbox (badness 10000) in alignment at lines 2324--2328
 [] [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1903--1905
+Underfull \hbox (badness 10000) in alignment at lines 2328--2330
 [] [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1905--1910
+Underfull \hbox (badness 10000) in alignment at lines 2330--2335
 [] [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1918--1922
+Underfull \hbox (badness 10000) in alignment at lines 2343--2347
 [] [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1922--1924
+Underfull \hbox (badness 10000) in alignment at lines 2347--2349
 [] [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1924--1927
+Underfull \hbox (badness 10000) in alignment at lines 2349--2352
 [] [] [] [] [] []
  []
 
-[25]
-Underfull \hbox (badness 1817) in paragraph at lines 1930--1931
+[30]
+Underfull \hbox (badness 1817) in paragraph at lines 2355--2356
 []\T1/ptm/m/n/10 (+20) At the single-edge level \T1/ptm/b/n/10 (+20) ~64-68% of between-subject vari-ance is mea-sure-ment noise\T1/ptm/m/n/10 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1935--1939
+Underfull \hbox (badness 10000) in alignment at lines 2360--2364
 [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1939--1941
+Underfull \hbox (badness 10000) in alignment at lines 2364--2366
 [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 1941--1944
+Underfull \hbox (badness 10000) in alignment at lines 2366--2369
 [] [] []
- []
-
-
-Underfull \hbox (badness 10000) in alignment at lines 1954--1958
-[] [] [] [] []
- []
-
-
-Underfull \hbox (badness 10000) in alignment at lines 1958--1960
-[] [] [] [] []
- []
-
-
-Underfull \hbox (badness 10000) in alignment at lines 1960--1966
-[] [] [] [] []
- []
-
-[26]
-Underfull \hbox (badness 10000) in paragraph at lines 2002--2003
-[]\T1/ptm/m/n/10 (+20) (\T1/cmtt/m/n/10 outputs/h_per_subject_achieved_vs_ceiling.csv\T1/ptm/m/n/10 (+20) ,
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 2002--2003
-\T1/cmtt/m/n/10 h_reliability_filtered_summary.csv\T1/ptm/m/n/10 (+20) , \T1/cmtt/m/n/10 h_correlations.csv\T1/ptm/m/n/10 (+20) ,
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 2040--2042
-[]\T1/cmtt/m/n/10 outputs/a_reliability_ceiling.csv\T1/ptm/m/n/10 (+20) , \T1/cmtt/m/n/10 b_variance_decomposition.csv\T1/ptm/m/n/10 (+20) ,
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 2040--2042
-\T1/cmtt/m/n/10 b_variance_components_{Glasser,4S456Parcels}.npz\T1/ptm/m/n/10 (+20) ,
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 2040--2042
-\T1/cmtt/m/n/10 f_discriminability.csv\T1/ptm/m/n/10 (+20) , \T1/cmtt/m/n/10 e_crossmodal_disattenuation.csv\T1/ptm/m/n/10 (+20) ,
- []
-
-[27]
-Underfull \hbox (badness 10000) in paragraph at lines 2042--2044
-[]\T1/ptm/m/n/10 (+20) scripts: \T1/cmtt/m/n/10 build_fc_cells.py\T1/ptm/m/n/10 (+20) , \T1/cmtt/m/n/10 a_\T1/ptm/m/n/10 (+20) /\T1/cmtt/m/n/10 b_\T1/ptm/m/n/10 (+20) /\T1/cmtt/m/n/10 e_\T1/ptm/m/n/10 (+20) /\T1/cmtt/m/n/10 f_\T1/ptm/m/n/10 (+20) , \T1/cmtt/m/n/10 synthesize_noise.py\T1/ptm/m/n/10 (+20) ,
- []
-
-
-Underfull \hbox (badness 10000) in alignment at lines 2058--2062
-[] [] [] []
- []
-
-
-Underfull \hbox (badness 10000) in alignment at lines 2062--2064
-[] [] [] []
- []
-
-
-Underfull \hbox (badness 10000) in alignment at lines 2064--2068
-[] [] [] []
- []
-
-
-Underfull \hbox (badness 10000) in alignment at lines 2122--2126
-[] [] [] []
- []
-
-
-Underfull \hbox (badness 10000) in alignment at lines 2126--2128
-[] [] [] []
- []
-
-
-Underfull \hbox (badness 10000) in alignment at lines 2128--2137
-[] [] [] []
- []
-
-[28]
-Underfull \hbox (badness 10000) in paragraph at lines 2182--2184
-[]\T1/cmtt/m/n/10 decisive_partialled_enrichment.py \T1/ptm/m/n/10 (+20) + \T1/cmtt/m/n/10 _output.txt \T1/ptm/m/n/10 (+20) +
- []
-
-[29]
-Underfull \hbox (badness 10000) in alignment at lines 2206--2210
-[] [] [] [] [] [] []
- []
-
-
-Underfull \hbox (badness 10000) in alignment at lines 2210--2212
-[] [] [] [] [] [] []
- []
-
-
-Underfull \hbox (badness 10000) in alignment at lines 2212--2218
-[] [] [] [] [] [] []
- []
-
-
-Underfull \hbox (badness 10000) in alignment at lines 2236--2240
-[] [] [] [] [] [] []
- []
-
-
-Underfull \hbox (badness 10000) in alignment at lines 2240--2242
-[] [] [] [] [] [] []
- []
-
-
-Underfull \hbox (badness 10000) in alignment at lines 2242--2246
-[] [] [] [] [] [] []
- []
-
-
-Underfull \hbox (badness 10000) in alignment at lines 2276--2280
-[] [] [] [] []
- []
-
-
-Underfull \hbox (badness 10000) in alignment at lines 2280--2282
-[] [] [] [] []
- []
-
-
-Underfull \hbox (badness 10000) in alignment at lines 2282--2290
-[] [] [] [] []
- []
-
-[30]
-Underfull \hbox (badness 10000) in paragraph at lines 2347--2349
-[]\T1/cmtt/m/n/10 e1_source_rep_results.csv\T1/ptm/m/n/10 (+20) , \T1/cmtt/m/n/10 e2_asymmetry_results.csv \T1/ptm/m/n/10 (+20) + \T1/cmtt/m/n/10 _summary.csv\T1/ptm/m/n/10 (+20) ,
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 2347--2349
-\T1/cmtt/m/n/10 e3_marginal_results.csv \T1/ptm/m/n/10 (+20) + \T1/cmtt/m/n/10 _summary.csv\T1/ptm/m/n/10 (+20) , \T1/cmtt/m/n/10 e4_* \T1/ptm/m/n/10 (+20) (3 CSVs),
- []
-
-[31]
-Underfull \hbox (badness 10000) in alignment at lines 2373--2377
-[] [] [] []
- []
-
-
-Underfull \hbox (badness 10000) in alignment at lines 2377--2379
-[] [] [] []
  []
 
 
 Underfull \hbox (badness 10000) in alignment at lines 2379--2383
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 2383--2385
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 2385--2391
+[] [] [] [] []
+ []
+
+[31]
+Underfull \hbox (badness 10000) in paragraph at lines 2427--2428
+[]\T1/ptm/m/n/10 (+20) (\T1/cmtt/m/n/10 outputs/h_per_subject_achieved_vs_ceiling.csv\T1/ptm/m/n/10 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 2427--2428
+\T1/cmtt/m/n/10 h_reliability_filtered_summary.csv\T1/ptm/m/n/10 (+20) , \T1/cmtt/m/n/10 h_correlations.csv\T1/ptm/m/n/10 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 2465--2467
+[]\T1/cmtt/m/n/10 outputs/a_reliability_ceiling.csv\T1/ptm/m/n/10 (+20) , \T1/cmtt/m/n/10 b_variance_decomposition.csv\T1/ptm/m/n/10 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 2465--2467
+\T1/cmtt/m/n/10 b_variance_components_{Glasser,4S456Parcels}.npz\T1/ptm/m/n/10 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 2465--2467
+\T1/cmtt/m/n/10 f_discriminability.csv\T1/ptm/m/n/10 (+20) , \T1/cmtt/m/n/10 e_crossmodal_disattenuation.csv\T1/ptm/m/n/10 (+20) ,
+ []
+
+[32]
+Underfull \hbox (badness 10000) in paragraph at lines 2467--2469
+[]\T1/ptm/m/n/10 (+20) scripts: \T1/cmtt/m/n/10 build_fc_cells.py\T1/ptm/m/n/10 (+20) , \T1/cmtt/m/n/10 a_\T1/ptm/m/n/10 (+20) /\T1/cmtt/m/n/10 b_\T1/ptm/m/n/10 (+20) /\T1/cmtt/m/n/10 e_\T1/ptm/m/n/10 (+20) /\T1/cmtt/m/n/10 f_\T1/ptm/m/n/10 (+20) , \T1/cmtt/m/n/10 synthesize_noise.py\T1/ptm/m/n/10 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 2483--2487
 [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2393--2397
+Underfull \hbox (badness 10000) in alignment at lines 2487--2489
 [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2397--2399
+Underfull \hbox (badness 10000) in alignment at lines 2489--2493
 [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2399--2403
+Underfull \hbox (badness 10000) in alignment at lines 2547--2551
 [] [] [] []
  []
 
 
-Underfull \hbox (badness 1735) in paragraph at lines 2416--2417
+Underfull \hbox (badness 10000) in alignment at lines 2551--2553
+[] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 2553--2562
+[] [] [] []
+ []
+
+[33]
+Underfull \hbox (badness 10000) in paragraph at lines 2607--2609
+[]\T1/cmtt/m/n/10 decisive_partialled_enrichment.py \T1/ptm/m/n/10 (+20) + \T1/cmtt/m/n/10 _output.txt \T1/ptm/m/n/10 (+20) +
+ []
+
+[34]
+Underfull \hbox (badness 10000) in alignment at lines 2631--2635
+[] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 2635--2637
+[] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 2637--2643
+[] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 2661--2665
+[] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 2665--2667
+[] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 2667--2671
+[] [] [] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 2701--2705
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 2705--2707
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 2707--2715
+[] [] [] [] []
+ []
+
+[35]
+Underfull \hbox (badness 10000) in paragraph at lines 2772--2774
+[]\T1/cmtt/m/n/10 e1_source_rep_results.csv\T1/ptm/m/n/10 (+20) , \T1/cmtt/m/n/10 e2_asymmetry_results.csv \T1/ptm/m/n/10 (+20) + \T1/cmtt/m/n/10 _summary.csv\T1/ptm/m/n/10 (+20) ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 2772--2774
+\T1/cmtt/m/n/10 e3_marginal_results.csv \T1/ptm/m/n/10 (+20) + \T1/cmtt/m/n/10 _summary.csv\T1/ptm/m/n/10 (+20) , \T1/cmtt/m/n/10 e4_* \T1/ptm/m/n/10 (+20) (3 CSVs),
+ []
+
+[36]
+Underfull \hbox (badness 10000) in alignment at lines 2798--2802
+[] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 2802--2804
+[] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 2804--2808
+[] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 2818--2822
+[] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 2822--2824
+[] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 2824--2828
+[] [] [] []
+ []
+
+
+Underfull \hbox (badness 1735) in paragraph at lines 2841--2842
  []\T1/ptm/b/n/10 (+20) N2 -- non-lin-ear re-con-struc-tion + asym-me-try[] \T1/ptm/m/n/10 (+20) Ker-nel-Ridge vs lin-ear PLS, FC->X de-
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2419--2423
+Underfull \hbox (badness 10000) in alignment at lines 2844--2848
 [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2423--2425
+Underfull \hbox (badness 10000) in alignment at lines 2848--2850
 [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2425--2429
+Underfull \hbox (badness 10000) in alignment at lines 2850--2854
 [] [] [] [] []
  []
 
-[32]
-Underfull \hbox (badness 10000) in alignment at lines 2437--2441
+[37]
+Underfull \hbox (badness 10000) in alignment at lines 2862--2866
 [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2441--2443
+Underfull \hbox (badness 10000) in alignment at lines 2866--2868
 [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2443--2447
+Underfull \hbox (badness 10000) in alignment at lines 2868--2872
 [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2457--2461
+Underfull \hbox (badness 10000) in alignment at lines 2882--2886
 [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2461--2463
+Underfull \hbox (badness 10000) in alignment at lines 2886--2888
 [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2463--2466
+Underfull \hbox (badness 10000) in alignment at lines 2888--2891
 [] [] []
  []
 
-[33]
-Underfull \hbox (badness 10000) in paragraph at lines 2516--2517
+[38]
+Underfull \hbox (badness 10000) in paragraph at lines 2941--2942
 []\T1/ptm/m/n/10 (+20) nonlinear pre-dic-tors live in \T1/cmtt/m/n/10 ../tractography_predict/_tract_setup.py
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 2516--2517
+Underfull \hbox (badness 10000) in paragraph at lines 2941--2942
 \T1/ptm/m/n/10 (+20) (\T1/cmtt/m/n/10 kernelridge_predict\T1/ptm/m/n/10 (+20) , \T1/cmtt/m/n/10 kernelridge_blocks_predict\T1/ptm/m/n/10 (+20) , \T1/cmtt/m/n/10 hgb_scalar_predict\T1/ptm/m/n/10 (+20) ,
  []
 
 
-Underfull \hbox (badness 1033) in paragraph at lines 2523--2524
+Underfull \hbox (badness 1033) in paragraph at lines 2948--2949
 \T1/ptm/b/n/10 (+20) Run\T1/ptm/m/n/10 (+20) : 2026-06-13, jobs 10759407/408 (N4), 10759825/826 (N5), par-al-lel \T1/cmtt/m/n/10 :ro\T1/ptm/m/n/10 (+20) , 10 seeds,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 2543--2544
+Underfull \hbox (badness 10000) in paragraph at lines 2968--2969
  []\T1/ptm/b/n/10 (+20) N4cog (cog-ni-tion): NULL[] \T1/cmtt/m/n/10 final = OOF-BR template + KernelRidge(residual)\T1/ptm/m/n/10 (+20) .
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2550--2554
+Underfull \hbox (badness 10000) in alignment at lines 2975--2979
 [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2554--2556
+Underfull \hbox (badness 10000) in alignment at lines 2979--2981
 [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2556--2563
+Underfull \hbox (badness 10000) in alignment at lines 2981--2988
 [] [] [] [] []
  []
 
-[34]
-Underfull \hbox (badness 10000) in alignment at lines 2575--2579
-[] [] [] [] []
- []
-
-
-Underfull \hbox (badness 10000) in alignment at lines 2579--2581
+[39]
+Underfull \hbox (badness 10000) in alignment at lines 3000--3004
 [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2581--2585
+Underfull \hbox (badness 10000) in alignment at lines 3004--3006
 [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2605--2609
+Underfull \hbox (badness 10000) in alignment at lines 3006--3010
+[] [] [] [] []
+ []
+
+
+Underfull \hbox (badness 10000) in alignment at lines 3030--3034
 [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2609--2611
+Underfull \hbox (badness 10000) in alignment at lines 3034--3036
 [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2611--2617
+Underfull \hbox (badness 10000) in alignment at lines 3036--3042
 [] [] []
  []
 
 
-Underfull \hbox (badness 1540) in paragraph at lines 2660--2661
+Underfull \hbox (badness 1540) in paragraph at lines 3085--3086
 \T1/ptm/b/n/10 (+20) Run\T1/ptm/m/n/10 (+20) : 2026-06-14, job 10782789, 10 seeds, mul-ti-modal sink, train sub-sam-pled at n =
  []
 
-[35]
-Underfull \hbox (badness 10000) in alignment at lines 2671--2675
+[40]
+Underfull \hbox (badness 10000) in alignment at lines 3096--3100
 [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2675--2677
+Underfull \hbox (badness 10000) in alignment at lines 3100--3102
 [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2677--2682
+Underfull \hbox (badness 10000) in alignment at lines 3102--3107
 [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2690--2694
+Underfull \hbox (badness 10000) in alignment at lines 3115--3119
 [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2694--2696
+Underfull \hbox (badness 10000) in alignment at lines 3119--3121
 [] [] [] [] []
  []
 
 
-Underfull \hbox (badness 10000) in alignment at lines 2696--2701
+Underfull \hbox (badness 10000) in alignment at lines 3121--3126
 [] [] [] [] []
  []
 
-[36]
-Underfull \hbox (badness 1107) in paragraph at lines 2735--2737
+[41]
+Underfull \hbox (badness 1107) in paragraph at lines 3160--3162
 []\T1/cmtt/m/n/10 n6_scaling_curve.py\T1/ptm/m/n/10 (+20) , \T1/cmtt/m/n/10 synthesize_scaling.py\T1/ptm/m/n/10 (+20) , \T1/cmtt/m/n/10 _residual.py \T1/ptm/m/n/10 (+20) (n-aware block
  []
 
 
-Underfull \hbox (badness 2799) in paragraph at lines 2748--2749
+Underfull \hbox (badness 2799) in paragraph at lines 3173--3174
 \T1/ptm/m/n/10 (+20) Second grid pass: repli-cates the family-structure (F6), predictor/identifier-tradeoff (F7),
  []
 
 
-Underfull \hbox (badness 3439) in paragraph at lines 2748--2749
+Underfull \hbox (badness 3439) in paragraph at lines 3173--3174
 \T1/ptm/m/n/10 (+20) and PC-mechanism (F8) find-ings on \T1/ptm/b/n/10 (+20) both par-cel-la-tions x 10 frozen seeds\T1/ptm/m/n/10 (+20) , so they
  []
 
 
-Underfull \hbox (badness 2384) in paragraph at lines 2748--2749
+Underfull \hbox (badness 2384) in paragraph at lines 3173--3174
 \T1/ptm/m/n/10 (+20) stop be-ing Glasser-only single-run re-sults. Faith-ful ports of the note-books (canon-i-cal
  []
 
 
-Underfull \hbox (badness 3547) in paragraph at lines 2755--2757
+Underfull \hbox (badness 3547) in paragraph at lines 3180--3182
 []\T1/ptm/b/n/10 (+20) F6 + F7 -- BUILT & VAL-I-DATED. \T1/ptm/m/n/10 (+20) Ag-gre-ga-tion re-pro-duces the note-book\TS1/ptm/m/n/10 (+20) '\T1/ptm/m/n/10 (+20) s
  []
 
 
-Underfull \hbox (badness 1668) in paragraph at lines 2757--2758
+Underfull \hbox (badness 1668) in paragraph at lines 3182--3183
 []\T1/ptm/b/n/10 (+20) F8 -- BUILT & VAL-I-DATED. \T1/ptm/m/n/10 (+20) Port of \T1/cmtt/m/n/10 depth1_spectral_mechanism.ipynb \T1/ptm/m/n/10 (+20) +
  []
 
-[37]
-Overfull \hbox (29.86107pt too wide) in paragraph at lines 2785--2787
+[42]
+Overfull \hbox (29.86107pt too wide) in paragraph at lines 3210--3212
 \T1/ptm/m/n/10 (-20) dict -> \T1/cmtt/m/n/10 outputs/f8_{per_pc,stability,pc3_localization,pc3_enrichment_agg}.csv\T1/ptm/m/n/10 (-20) ;
  []
 
 
-Overfull \hbox (15.19464pt too wide) in paragraph at lines 2797--2797
+Overfull \hbox (15.19464pt too wide) in paragraph at lines 3222--3222
 []\T1/cmtt/m/n/7 python reproduction/family_mechanism/tests/test_helpers.py                           # F6/F7 helper correctness[] 
  []
 
 
-Overfull \hbox (26.34814pt too wide) in paragraph at lines 2797--2797
+Overfull \hbox (26.34814pt too wide) in paragraph at lines 3222--3222
 []\T1/cmtt/m/n/7 python reproduction/family_mechanism/tests/test_f8_localization_matches_notebook.py  # F8 vs saved seed-0 loadings[] 
  []
 
 
-Overfull \hbox (4.04114pt too wide) in paragraph at lines 2797--2797
+Overfull \hbox (4.04114pt too wide) in paragraph at lines 3222--3222
 []\T1/cmtt/m/n/7 python reproduction/family_mechanism/tests/test_f8_helpers.py                        # F8 helper correctness[] 
  []
 
 
-Underfull \hbox (badness 1308) in paragraph at lines 2799--2800
+Underfull \hbox (badness 1308) in paragraph at lines 3224--3225
 []\T1/cmtt/m/n/10 test_aggregation_matches_notebook.py \T1/ptm/m/n/10 (+20) feeds the note-book\TS1/ptm/m/n/10 (+20) '\T1/ptm/m/n/10 (+20) s own per-seed \T1/cmtt/m/n/10 .npz \T1/ptm/m/n/10 (+20) (the
  []
 
 
-Underfull \hbox (badness 1810) in paragraph at lines 2799--2800
+Underfull \hbox (badness 1810) in paragraph at lines 3224--3225
 \T1/ptm/m/n/10 (+20) ex-pen-sive connectome-derived pair sims) into our ag-gre-ga-tion and as-serts we re-pro-duce
  []
 
 
-Underfull \hbox (badness 2875) in paragraph at lines 2799--2800
+Underfull \hbox (badness 2875) in paragraph at lines 3224--3225
 \T1/cmtt/m/n/10 aggregate_auc.csv \T1/ptm/m/n/10 (+20) ex-actly -- the strongest off-cluster "matches the note-book" check.
  []
 
 
-Underfull \hbox (badness 3803) in paragraph at lines 2803--2804
+Underfull \hbox (badness 3803) in paragraph at lines 3228--3229
  []\T1/ptm/b/n/10 (+20) Run on Torch[] \T1/ptm/m/n/10 (+20) One com-mand -- sub-mits the 20-unit ar-ray and chains fi-nal-ize via
  []
 
 
-Underfull \hbox (badness 3792) in paragraph at lines 2837--2838
+Underfull \hbox (badness 3792) in paragraph at lines 3262--3263
 []\T1/ptm/b/n/10 (+20) F7 \T1/ptm/m/n/10 (+20) is read off the same ta-ble: \T1/cmtt/m/n/10 pred_SC_raw \T1/ptm/m/n/10 (+20) sep-a-rates sib-lings (0.680) but
  []
 
-[38]
-Underfull \hbox (badness 1337) in paragraph at lines 2861--2863
+[43]
+Underfull \hbox (badness 1337) in paragraph at lines 3286--3288
 []\T1/ptm/b/n/10 (+20) noise\T1/ptm/m/n/10 (+20) : notebooks-FC_to_SC-experimental/ san-ity_checks/ noise_sanity_check/ find-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 2865--2867
+Underfull \hbox (badness 10000) in paragraph at lines 3290--3292
 []\T1/ptm/b/n/10 (+20) nonlinear\T1/ptm/m/n/10 (+20) : notebooks-FC_to_SC-experimental/ non-linear-sanity-check/ find-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 2867--2869
+Underfull \hbox (badness 10000) in paragraph at lines 3292--3294
 []\T1/ptm/b/n/10 (+20) residual\T1/ptm/m/n/10 (+20) : notebooks-FC_to_SC-experimental/ non-linear-sanity-check/ find-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 2877--2879
+Underfull \hbox (badness 10000) in paragraph at lines 3302--3304
 []\T1/ptm/b/n/10 (+20) FC re-li-a-bil-ity ceil-ing\T1/ptm/m/n/10 (+20) : notebooks-FC_to_SC-experimental/ san-ity_checks/
  []
 
 
-Underfull \hbox (badness 1762) in paragraph at lines 2881--2883
+Underfull \hbox (badness 1762) in paragraph at lines 3306--3308
 []\T1/ptm/b/n/10 (+20) Reliability fil-ter-ing sum-mary\T1/ptm/m/n/10 (+20) : notebooks-FC_to_SC-experimental/ san-ity_checks/
  []
 
 
-Underfull \hbox (badness 2512) in paragraph at lines 2889--2891
+Underfull \hbox (badness 2512) in paragraph at lines 3314--3316
 []\T1/ptm/b/n/10 (+20) Tractography marginal sum-mary\T1/ptm/m/n/10 (+20) : notebooks-FC_to_SC-experimental/ trac-tog-ra-
  []
 
-[39]
-Underfull \hbox (badness 10000) in paragraph at lines 2907--2909
+[44]
+Underfull \hbox (badness 10000) in paragraph at lines 3332--3334
 []\T1/ptm/b/n/10 (+20) Scaling sum-mary\T1/ptm/m/n/10 (+20) : notebooks-FC_to_SC-experimental/ non-linear-sanity-check/
  []
 
-) [40] (./conn2conn_supplement.aux)
+
+Underfull \hbox (badness 10000) in paragraph at lines 3358--3360
+[]\T1/ptm/b/n/10 (+20) Scaling re-sults\T1/ptm/m/n/10 (+20) : notebooks-FC_to_SC-experimental/ non-linear-sanity-check/
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 3368--3370
+[]\T1/ptm/b/n/10 (+20) Family PC3 lo-cal-iza-tion\T1/ptm/m/n/10 (+20) : re-pro-duc-tion/ fam-ily_mechanism/ out-puts/
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 3370--3372
+[]\T1/ptm/b/n/10 (+20) Family PC3 en-rich-ment\T1/ptm/m/n/10 (+20) : re-pro-duc-tion/ fam-ily_mechanism/ out-puts/
+ []
+
+
+Underfull \hbox (badness 4660) in paragraph at lines 3376--3378
+[]\T1/ptm/b/n/10 (+20) FC vari-ance de-com-po-si-tion\T1/ptm/m/n/10 (+20) : notebooks-FC_to_SC-experimental/ san-ity_checks/
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 3378--3380
+[]\T1/ptm/b/n/10 (+20) Crossmodal dis-at-ten-u-a-tion\T1/ptm/m/n/10 (+20) : notebooks-FC_to_SC-experimental/ san-ity_checks/
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 3380--3381
+[]\T1/ptm/b/n/10 (+20) FC dis-crim-inabil-ity\T1/ptm/m/n/10 (+20) : notebooks-FC_to_SC-experimental/ san-ity_checks/
+ []
+
+) [45] (./conn2conn_supplement.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2025-11-06>
  ***********
 Package rerunfilecheck Info: File `conn2conn_supplement.out' has not changed.
-(rerunfilecheck)             Checksum: 4E2CA3ACFD412BF60FEBE9E4E69EF424;19887.
+(rerunfilecheck)             Checksum: 8CB970E0E84DAA4457C117F802E1B880;23345.
  ) 
 Here is how much of TeX's memory you used:
- 16612 strings out of 469476
- 262980 string characters out of 5468031
- 747646 words of memory out of 5000000
- 44300 multiletter control sequences out of 15000+600000
+ 16683 strings out of 469476
+ 264114 string characters out of 5468031
+ 750291 words of memory out of 5000000
+ 44338 multiletter control sequences out of 15000+600000
  681776 words of font info for 363 fonts, out of 8000000 for 9000
  36 hyphenation exceptions out of 8191
- 75i,8n,79p,1042b,686s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 75i,8n,79p,1042b,714s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </Users/user/Library/TinyTeX/texmf-dist/fonts/type1/public/cm-super/sftt0800.pfb></Users/user/Library/TinyTeX/texmf-dist/fonts/type1/public/cm-super/sftt1000.pfb></Users/user/Library/TinyTeX/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></Users/user/Library/TinyTeX/texmf-dist/fonts/type1/urw/times/utmbi8a.pfb></Users/user/Library/TinyTeX/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></Users/user/Library/TinyTeX/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on conn2conn_supplement.pdf (40 pages, 278309 bytes).
+Output written on conn2conn_supplement.pdf (45 pages, 291329 bytes).
 PDF statistics:
- 769 PDF objects out of 1000 (max. 8388607)
- 707 compressed objects within 8 object streams
- 300 named destinations out of 1000 (max. 500000)
- 54377 words of extra memory for PDF output out of 61914 (max. 10000000)
+ 855 PDF objects out of 1000 (max. 8388607)
+ 788 compressed objects within 8 object streams
+ 333 named destinations out of 1000 (max. 500000)
+ 54457 words of extra memory for PDF output out of 61914 (max. 10000000)
 

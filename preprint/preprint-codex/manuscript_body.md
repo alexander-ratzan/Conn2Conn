@@ -150,6 +150,12 @@ observed FC, observed SC, observed FC+SC, imputed SC, and imputed FC.
 The negative downstream result could have several mundane explanations. The grid and supplementary
 checks test these explicitly.
 
+The supplement expands this section into an audit trail rather than a grab bag of controls:
+expected-cell completeness, leakage checks, reconstruction-to-utility decoupling, estimator
+robustness, nonlinear and residualized models, richer tractography features, FC-noise accounting,
+family-mechanism localization, preprocessing-axis stress tests, and a triage table separating
+questions closed by existing data from experiments that require new measurements.
+
 First, the cross-modal asymmetry is not an artifact of PCA reduction. In a reduction-axis sanity
 check, the FC->SC / SC->FC ratio remained greater than 1.0 across learned PCA, full PLS on raw
 64,620-edge vectors, and three Johnson-Lindenstrauss random projections. Median ratios ranged from

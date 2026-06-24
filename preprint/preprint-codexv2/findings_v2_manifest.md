@@ -1,0 +1,36 @@
+# Findings v2 Source Manifest
+
+- **handoff**: `dev-notes/PROJECT-HANDOFF-2026-06-22.md`
+- **master_findings**: `notebooks-FC_to_SC-experimental/MASTER_FINDINGS.md`
+- **exploration**: `reproduction/exploration/FINDINGS_EXPLORATION.md`
+- **reproduction_findings**: `reproduction/reports/reproduction_findings.md`
+- **reconstruction**: `reproduction/outputs/reconstruction.csv`
+- **downstream**: `reproduction/outputs/downstream.csv`
+- **leak**: `reproduction/outputs/leak_verdict.csv`
+- **family_auc**: `reproduction/family_mechanism/outputs/family_auc.csv`
+- **f8_per_pc**: `reproduction/family_mechanism/outputs/f8_per_pc.csv`
+- **f8_stability**: `reproduction/family_mechanism/outputs/f8_stability.csv`
+- **f8_localization**: `reproduction/family_mechanism/outputs/f8_pc3_localization.csv`
+- **f8_enrichment**: `reproduction/family_mechanism/outputs/f8_pc3_enrichment_agg.csv`
+- **tract_e1**: `notebooks-FC_to_SC-experimental/tractography_predict/e1_source_rep_results.csv`
+- **tract_e2**: `notebooks-FC_to_SC-experimental/tractography_predict/e2_asymmetry_summary.csv`
+- **tract_e3**: `notebooks-FC_to_SC-experimental/tractography_predict/e3_marginal_summary.csv`
+- **tract_e5**: `notebooks-FC_to_SC-experimental/tractography_predict/e5_downstream_summary.csv`
+- **tract_findings**: `notebooks-FC_to_SC-experimental/tractography_predict/findings.md`
+- **nl_n1**: `notebooks-FC_to_SC-experimental/non-linear-sanity-check/n1_cognition_summary.csv`
+- **nl_n2**: `notebooks-FC_to_SC-experimental/non-linear-sanity-check/n2_reconstruction_summary.csv`
+- **nl_n3**: `notebooks-FC_to_SC-experimental/non-linear-sanity-check/n3_marginal_summary.csv`
+- **nl_n4_cog**: `notebooks-FC_to_SC-experimental/non-linear-sanity-check/n4_cog_summary.csv`
+- **nl_n4_recon**: `notebooks-FC_to_SC-experimental/non-linear-sanity-check/n4_recon_summary.csv`
+- **nl_n5_cog**: `notebooks-FC_to_SC-experimental/non-linear-sanity-check/n5_cog_summary.csv`
+- **nl_n5_recon**: `notebooks-FC_to_SC-experimental/non-linear-sanity-check/n5_recon_summary.csv`
+- **nl_n6**: `notebooks-FC_to_SC-experimental/non-linear-sanity-check/n6_scaling_summary.csv`
+- **nl_findings**: `notebooks-FC_to_SC-experimental/non-linear-sanity-check/findings_nonlinear.md`
+- **residual_findings**: `notebooks-FC_to_SC-experimental/non-linear-sanity-check/findings_residual.md`
+- **scaling_findings**: `notebooks-FC_to_SC-experimental/non-linear-sanity-check/findings_scaling.md`
+- **reduction_axis**: `notebooks-FC_to_SC-experimental/sanity_checks/preprocessing_check/reduction_axis_summary.csv`
+- **noise_hcorr**: `notebooks-FC_to_SC-experimental/sanity_checks/noise_sanity_check/outputs/h_correlations.csv`
+- **noise_hfilter**: `notebooks-FC_to_SC-experimental/sanity_checks/noise_sanity_check/outputs/h_reliability_filtered_summary.csv`
+- **tract_check**: `notebooks-FC_to_SC-experimental/sanity_checks/tract_check/findings.md`
+- **noise_findings**: `notebooks-FC_to_SC-experimental/sanity_checks/noise_sanity_check/findings_noise.md`
+- **preprocessing_findings**: `notebooks-FC_to_SC-experimental/sanity_checks/preprocessing_check/findings.md`

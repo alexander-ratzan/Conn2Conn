@@ -900,6 +900,354 @@ Interpretation: the SC achieved-vs-ceiling correlation is essentially flat, whil
 Source: per-subject reliability: notebooks-FC_to_SC-experimental/ sanity_checks/ noise_sanity_check/ outputs/ h_correlations.csv; notebooks-FC_to_SC-experimental/ sanity_checks/ noise_sanity_check/ outputs/ h_per_subject_achieved_vs_ceiling.csv.
 
 
+# Existing-Data Gap Closure, Pass 2
+
+
+This second pass adds checks that were still latent in the existing result files: grid completeness, estimator robustness, nonlinear-capacity rescue attempts, richer-tractography downstream rescue, scaling behavior, and preprocessing-axis stress tests.
+
+
+## E7. Expected-Cell Manifest Is Complete
+
+
+| task           | estimator      | observed_cells | expected_cells | missing_cells |
+| -------------- | -------------- | -------------- | -------------- | ------------- |
+| downstream     | bayesian_ridge | 1000           | 1000           | 0             |
+| downstream     | kernel_ridge   | 9000           | 9000           | 0             |
+| downstream     | pca_pls        | 1000           | 1000           | 0             |
+| reconstruction | bayesian_ridge | 240            | 240            | 0             |
+| reconstruction | kernel_ridge   | 2160           | 2160           | 0             |
+| reconstruction | pca_pls        | 240            | 240            | 0             |
+
+
+Manifest check: expected rows = 13640, observed rows = 13640, missing = 0, extra = 0. The reproduction grid is not a hand-picked subset; every declared cell is present exactly once in the combined reconstruction/downstream outputs.
+
+
+
+Source: grid completeness: reproduction/ configs/ expected_cells.csv; reproduction/ outputs/ reconstruction.csv; reproduction/ outputs/ downstream.csv.
+
+
+
+## E8. Estimator Robustness Of the Cognition Null
+
+
+| input_set       | estimator      | parcellation | n   | mean_lift | median_perm_p | mean_pearson |
+| --------------- | -------------- | ------------ | --- | --------- | ------------- | ------------ |
+| obs_FC+bv+demo  | bayesian_ridge | 4S456Parcels | 30  | 0.106     | 0.039         | 0.438        |
+| obs_FC+bv+demo  | bayesian_ridge | Glasser      | 30  | 0.117     | 0.028         | 0.449        |
+| obs_FC+bv+demo  | kernel_ridge   | 4S456Parcels | 270 | 0.113     | 1.000         | 0.256        |
+| obs_FC+bv+demo  | kernel_ridge   | Glasser      | 270 | 0.104     | 0.992         | 0.246        |
+| obs_FC+bv+demo  | pca_pls        | 4S456Parcels | 30  | 0.113     | 0.127         | 0.323        |
+| obs_FC+bv+demo  | pca_pls        | Glasser      | 30  | 0.161     | 0.016         | 0.353        |
+| pred_SC         | bayesian_ridge | 4S456Parcels | 30  | -0.009    | 0.712         | 0.323        |
+| pred_SC         | bayesian_ridge | Glasser      | 30  | -0.027    | 0.711         | 0.305        |
+| pred_SC         | kernel_ridge   | 4S456Parcels | 270 | -0.007    | 0.062         | 0.136        |
+| pred_SC         | kernel_ridge   | Glasser      | 270 | -0.016    | 0.050         | 0.125        |
+| pred_SC         | pca_pls        | 4S456Parcels | 30  | -0.049    | 0.997         | 0.161        |
+| pred_SC         | pca_pls        | Glasser      | 30  | -0.059    | 0.998         | 0.133        |
+| pred_SC+bv+demo | bayesian_ridge | 4S456Parcels | 30  | 0.049     | 0.161         | 0.381        |
+| pred_SC+bv+demo | bayesian_ridge | Glasser      | 30  | 0.041     | 0.130         | 0.373        |
+| pred_SC+bv+demo | kernel_ridge   | 4S456Parcels | 270 | 0.017     | 0.002         | 0.160        |
+| pred_SC+bv+demo | kernel_ridge   | Glasser      | 270 | 0.008     | 0.003         | 0.149        |
+| pred_SC+bv+demo | pca_pls        | 4S456Parcels | 30  | 0.009     | 0.998         | 0.219        |
+| pred_SC+bv+demo | pca_pls        | Glasser      | 30  | 0.019     | 0.997         | 0.211        |
+
+
+Interpretation: the downstream null is not a single-estimator accident. Predicted SC alone is non-positive across pca_pls, Bayesian ridge, and kernel ridge families. Adding bv+demo produces small lifts, but the positive observed-FC+bv+demo benchmark remains larger.
+
+
+
+Source: estimator robustness: reproduction/ outputs/ downstream.csv.
+
+
+
+## E9. Nonlinear Capacity Does Not Rescue Cognition
+
+
+Best nonlinear SC/r2t cognition rows by lift over bv+demo:
+
+
+| rep      | estimator | target               | pearson | r2     | lift_over_bvdemo |
+| -------- | --------- | -------------------- | ------- | ------ | ---------------- |
+| SC       | KR        | CogCrystalComp_Unadj | 0.241   | -2.468 | -0.029           |
+| SC       | KR        | CogFluidComp_Unadj   | 0.113   | -1.603 | -0.076           |
+| SC       | linear_BR | CogCrystalComp_Unadj | 0.267   | 0.058  | -0.079           |
+| SC       | KR        | CogTotalComp_Unadj   | 0.190   | -1.239 | -0.091           |
+| SC       | linear_BR | CogTotalComp_Unadj   | 0.261   | 0.058  | -0.111           |
+| r2t_corr | KR        | CogFluidComp_Unadj   | 0.078   | -0.934 | -0.112           |
+| SC       | linear_BR | CogFluidComp_Unadj   | 0.180   | 0.023  | -0.130           |
+| r2t_corr | linear_BR | CogFluidComp_Unadj   | 0.157   | 0.013  | -0.152           |
+| r2t_corr | HGB       | CogFluidComp_Unadj   | 0.057   | -0.004 | -0.168           |
+| SC_r2t   | linear_BR | CogTotalComp_Unadj   | 0.196   | -0.029 | -0.176           |
+| r2t      | linear_BR | CogTotalComp_Unadj   | 0.196   | -0.029 | -0.176           |
+| SC_r2t   | linear_BR | CogFluidComp_Unadj   | 0.130   | -0.093 | -0.179           |
+
+
+Residual-learning final-minus-template deltas:
+
+
+| rep      | target               | template | final | final_minus_template |
+| -------- | -------------------- | -------- | ----- | -------------------- |
+| SC       | CogCrystalComp_Unadj | 0.194    | 0.192 | -0.001               |
+| SC       | CogFluidComp_Unadj   | 0.128    | 0.120 | -0.008               |
+| SC       | CogTotalComp_Unadj   | 0.197    | 0.192 | -0.005               |
+| SC_r2t   | CogCrystalComp_Unadj | 0.165    | 0.162 | -0.002               |
+| SC_r2t   | CogFluidComp_Unadj   | 0.128    | 0.131 | 0.003                |
+| SC_r2t   | CogTotalComp_Unadj   | 0.173    | 0.176 | 0.003                |
+| r2t      | CogCrystalComp_Unadj | 0.165    | 0.162 | -0.002               |
+| r2t      | CogFluidComp_Unadj   | 0.128    | 0.131 | 0.003                |
+| r2t      | CogTotalComp_Unadj   | 0.173    | 0.176 | 0.003                |
+| r2t_corr | CogCrystalComp_Unadj | 0.033    | 0.036 | 0.003                |
+| r2t_corr | CogFluidComp_Unadj   | 0.100    | 0.099 | -0.001               |
+| r2t_corr | CogTotalComp_Unadj   | 0.104    | 0.101 | -0.003               |
+
+
+Multimodal sink summary:
+
+
+| rep           | target               | pearson | spearman | r2    |
+| ------------- | -------------------- | ------- | -------- | ----- |
+| FC            | CogCrystalComp_Unadj | 0.452   | 0.431    | 0.196 |
+| FC            | CogFluidComp_Unadj   | 0.306   | 0.288    | 0.087 |
+| FC            | CogTotalComp_Unadj   | 0.436   | 0.403    | 0.172 |
+| bv+demo       | CogCrystalComp_Unadj | 0.349   | 0.349    | 0.100 |
+| bv+demo       | CogFluidComp_Unadj   | 0.298   | 0.288    | 0.082 |
+| bv+demo       | CogTotalComp_Unadj   | 0.373   | 0.345    | 0.132 |
+| sink_linear   | CogCrystalComp_Unadj | 0.414   | 0.402    | 0.165 |
+| sink_linear   | CogFluidComp_Unadj   | 0.301   | 0.296    | 0.088 |
+| sink_linear   | CogTotalComp_Unadj   | 0.401   | 0.381    | 0.153 |
+| sink_residual | CogCrystalComp_Unadj | 0.415   | 0.399    | 0.144 |
+| sink_residual | CogFluidComp_Unadj   | 0.286   | 0.280    | 0.058 |
+| sink_residual | CogTotalComp_Unadj   | 0.381   | 0.363    | 0.113 |
+
+
+Interpretation: stronger nonlinear model classes, residual boosts, and multimodal sink variants fail to convert SC/richer-tractography representations into a cognition win. The best downstream behavior still follows observed FC or baseline covariates, not reconstructed structural signal.
+
+
+
+Source: nonlinear/residual/sink: notebooks-FC_to_SC-experimental/ non-linear-sanity-check/ n1_cognition_summary.csv; notebooks-FC_to_SC-experimental/ non-linear-sanity-check/ n4_cog_summary.csv; notebooks-FC_to_SC-experimental/ non-linear-sanity-check/ n5_cog_summary.csv.
+
+
+
+## E10. Richer Tractography Does Not Rescue Downstream Utility
+
+
+| rep          | target               | pearson_raw | pearson_resid | lift_over_bvdemo_raw |
+| ------------ | -------------------- | ----------- | ------------- | -------------------- |
+| FC           | CogCrystalComp_Unadj | 0.451       | 0.374         | 0.105                |
+| FC           | CogFluidComp_Unadj   | 0.342       | 0.218         | 0.033                |
+| FC           | CogTotalComp_Unadj   | 0.451       | 0.264         | 0.078                |
+| SC           | CogCrystalComp_Unadj | 0.267       | 0.086         | -0.079               |
+| SC           | CogFluidComp_Unadj   | 0.180       | 0.006         | -0.130               |
+| SC           | CogTotalComp_Unadj   | 0.261       | 0.040         | -0.111               |
+| SC_r2t       | CogCrystalComp_Unadj | 0.160       | 0.028         | -0.187               |
+| SC_r2t       | CogFluidComp_Unadj   | 0.135       | 0.072         | -0.174               |
+| SC_r2t       | CogTotalComp_Unadj   | 0.196       | 0.048         | -0.177               |
+| bv+demo      | CogCrystalComp_Unadj | 0.346       |               | 0.000                |
+| bv+demo      | CogFluidComp_Unadj   | 0.309       |               | 0.000                |
+| bv+demo      | CogTotalComp_Unadj   | 0.372       |               | 0.000                |
+| r2t          | CogCrystalComp_Unadj | 0.164       | 0.027         | -0.183               |
+| r2t          | CogFluidComp_Unadj   | 0.130       | 0.061         | -0.179               |
+| r2t          | CogTotalComp_Unadj   | 0.196       | 0.049         | -0.176               |
+| r2t->synthFC | CogCrystalComp_Unadj | 0.180       |               | -0.166               |
+| r2t->synthFC | CogFluidComp_Unadj   | 0.197       |               | -0.113               |
+| r2t->synthFC | CogTotalComp_Unadj   | 0.202       |               | -0.170               |
+| r2t_corr     | CogCrystalComp_Unadj | 0.103       | -0.009        | -0.244               |
+| r2t_corr     | CogFluidComp_Unadj   | 0.157       | 0.079         | -0.152               |
+| r2t_corr     | CogTotalComp_Unadj   | 0.151       | -0.029        | -0.221               |
+
+
+Marginal SC+r2t reconstruction increment:
+
+
+| n_seeds | median_dp_SC | median_dp_SC_r2t | median_delta | min_delta | max_delta | wilcoxon_p_two_sided | wilcoxon_p_one_sided_greater |
+| ------- | ------------ | ---------------- | ------------ | --------- | --------- | -------------------- | ---------------------------- |
+| 10      | 0.085        | 0.079            | -0.001       | -0.012    | 0.006     | 0.049                | 0.981                        |
+
+
+Interpretation: richer tractography features neither improve the SC representation materially nor rescue cognition. The marginal reconstruction delta is approximately zero to negative, and downstream r2t variants remain below observed FC and often below the bv+demo baseline.
+
+
+
+Source: richer tractography: notebooks-FC_to_SC-experimental/ tractography_predict/ e5_downstream_summary.csv; notebooks-FC_to_SC-experimental/ tractography_predict/ e3_marginal_summary.csv.
+
+
+
+## E11. Sample-Size Scaling Does Not Reveal a Hidden Positive Gap
+
+
+| task           | n_sub | n_seeds | median_linear | median_final | median_gap | gap_min | gap_max  | wilcoxon_p_gap_gt0 |
+| -------------- | ----- | ------- | ------------- | ------------ | ---------- | ------- | -------- | ------------------ |
+| cognition      | 100   | 10      | 0.302         | 0.290        | -0.009     | -0.035  | -0.002   | 1.000              |
+| cognition      | 200   | 10      | 0.327         | 0.324        | -0.015     | -0.032  | 0.012    | 0.993              |
+| cognition      | 400   | 10      | 0.394         | 0.380        | -0.012     | -0.034  | 3.69e-04 | 0.999              |
+| cognition      | 682   | 1       | 0.482         | 0.486        | 0.004      | 0.004   | 0.004    | 0.500              |
+| cognition      | 683   | 9       | 0.391         | 0.375        | -0.013     | -0.030  | 0.005    | 0.990              |
+| reconstruction | 100   | 10      | 0.041         | 0.035        | -0.005     | -0.008  | 2.36e-04 | 0.999              |
+| reconstruction | 200   | 10      | 0.067         | 0.065        | -0.002     | -0.006  | 0.005    | 0.884              |
+| reconstruction | 400   | 10      | 0.094         | 0.093        | -0.002     | -0.004  | 4.27e-04 | 0.990              |
+| reconstruction | 682   | 1       | 0.110         | 0.107        | -0.003     | -0.003  | -0.003   | 1.000              |
+| reconstruction | 683   | 9       | 0.110         | 0.110        | -8.87e-04  | -0.004  | 0.001    | 0.980              |
+
+
+Interpretation: increasing training size in the tested regime does not uncover a latent nonlinear/residual advantage. The cognition gap is mostly negative through n=683, while reconstruction also converges to approximately zero incremental gain.
+
+
+
+Source: scaling: notebooks-FC_to_SC-experimental/ non-linear-sanity-check/ n6_scaling_summary.csv.
+
+
+
+## E12. Preprocessing-Axis Stress Tests Preserve Directionality
+
+
+| method      | jl_variant     | direction | median_dp | median_rank | median_top1 | n  |
+| ----------- | -------------- | --------- | --------- | ----------- | ----------- | -- |
+| FULL_PLS    |                | FC->SC    | 0.138     | 0.864       | 0.115       | 10 |
+| FULL_PLS    |                | SC->FC    | 0.076     | 0.657       | 0.033       | 10 |
+| JL_PLS_PCA  | gaussian_dense | FC->SC    | 0.084     | 0.744       | 0.044       | 10 |
+| JL_PLS_PCA  | gaussian_dense | SC->FC    | 0.061     | 0.652       | 0.026       | 10 |
+| JL_PLS_PCA  | sparse_auto    | FC->SC    | 0.084     | 0.749       | 0.036       | 10 |
+| JL_PLS_PCA  | sparse_auto    | SC->FC    | 0.059     | 0.658       | 0.018       | 10 |
+| JL_PLS_PCA  | sparse_third   | FC->SC    | 0.085     | 0.748       | 0.036       | 10 |
+| JL_PLS_PCA  | sparse_third   | SC->FC    | 0.053     | 0.653       | 0.021       | 10 |
+| PCA_PLS_PCA |                | FC->SC    | 0.135     | 0.879       | 0.118       | 10 |
+| PCA_PLS_PCA |                | SC->FC    | 0.085     | 0.713       | 0.051       | 10 |
+
+
+Interpretation: the FC->SC > SC->FC directionality survives PCA-PLS-PCA, full PLS, and JL-PLS-PCA variants. This makes the result less dependent on a particular dimensionality-reduction path.
+
+
+
+Source: preprocessing methods: notebooks-FC_to_SC-experimental/ sanity_checks/ preprocessing_check/ method_a_results.csv; notebooks-FC_to_SC-experimental/ sanity_checks/ preprocessing_check/ method_b_results.csv; notebooks-FC_to_SC-experimental/ sanity_checks/ preprocessing_check/ method_c_results.csv.
+
+
+# Existing-Data Gap Closure, Pass 3
+
+
+This pass tightens two interpretive edges: whether the family/mechanism result is stable and localized, and how the FC measurement-noise accounting should be read.
+
+
+## E13. Family Mechanism Is Stable, Localized, and Not Just Rich-Club Confounding
+
+
+PC3 stability and family signal:
+
+
+| parcellation | anchor_pc | median_abs_cos | min_abs_cos | median_expl_var | median_FC_to_PC_R2 | median_AUC_sibling |
+| ------------ | --------- | -------------- | ----------- | --------------- | ------------------ | ------------------ |
+| Glasser      | 3         | 0.886          | 0.825       | 0.015           | 0.225              | 0.581              |
+| 4S456Parcels | 3         | 0.942          | 0.867       | 0.015           | 0.029              | 0.557              |
+
+
+PC3 predictability/confound summary from per-seed outputs:
+
+
+| parcellation | median_FC_to_PC_R2 | median_AUC_sibling | median_confound_R2 | n  |
+| ------------ | ------------------ | ------------------ | ------------------ | -- |
+| 4S456Parcels | 0.029              | 0.557              | -0.019             | 10 |
+| Glasser      | 0.223              | 0.575              | -0.029             | 10 |
+
+
+Localization summary:
+
+
+| parcellation | K   | interhemi_top | richclub_top | energy_top1pct | anchor_cos_min | n  |
+| ------------ | --- | ------------- | ------------ | -------------- | -------------- | -- |
+| 4S456Parcels | 100 | 0.190         | 0.250        | 0.554          | 0.867          | 10 |
+| 4S456Parcels | 200 | 0.145         | 0.268        | 0.554          | 0.867          | 10 |
+| Glasser      | 100 | 0.000         | 0.095        | 0.621          | 0.825          | 10 |
+| Glasser      | 200 | 0.013         | 0.120        | 0.621          | 0.825          | 10 |
+
+
+Top network enrichments across seeds:
+
+
+| parcellation | net_pair                             | n_seeds | median_enrichment | min_enrichment | median_n_obs |
+| ------------ | ------------------------------------ | ------- | ----------------- | -------------- | ------------ |
+| Glasser      | visual // visual                     | 10      | 11.741            | 9.709          | 52.000       |
+| Glasser      | dorsal attention // dorsal attention | 10      | 8.163             | 4.583          | 28.500       |
+| 4S456Parcels | DorsAttn // DorsAttn                 | 10      | 6.014             | 4.510          | 12.000       |
+| Glasser      | dorsal attention // visual           | 10      | 4.861             | 4.114          | 39.000       |
+| 4S456Parcels | SomMot // SomMot                     | 10      | 4.343             | 3.545          | 24.500       |
+| 4S456Parcels | Vis // Vis                           | 10      | 2.693             | 0.850          | 9.500        |
+| 4S456Parcels | Cont // DorsAttn                     | 10      | 2.494             | 1.735          | 11.500       |
+| 4S456Parcels | NA // SomMot                         | 10      | 2.346             | 1.804          | 19.500       |
+
+
+Reliability/distance residualized top-200 enrichment:
+
+
+| net_pair                             | n_raw_top200 | n_resid_top200 | enrichment_raw | enrichment_resid |
+| ------------------------------------ | ------------ | -------------- | -------------- | ---------------- |
+| visual // visual                     | 53           | 59             | 11.967         | 13.321           |
+| dorsal attention // dorsal attention | 27           | 20             | 7.734          | 5.729            |
+| dorsal attention // visual           | 36           | 40             | 4.487          | 4.986            |
+| frontoparietal // frontoparietal     | 8            | 5              | 2.611          | 1.632            |
+| default mode // dorsal attention     | 17           | 16             | 1.379          | 1.298            |
+| somatosensory // somatosensory       | 1            | 6              | 0.210          | 1.259            |
+| dorsal attention // frontoparietal   | 10           | 8              | 1.496          | 1.197            |
+| somatosensory // ventral attention   | 9            | 7              | 1.129          | 0.878            |
+
+
+Interpretation: PC3 is aligned across seeds, carries sibling/family information, and is spatially concentrated in visual and dorsal-attention edges. The residualized top-200 check says this localization survives obvious reliability/tractography proxies rather than collapsing into a generic high-strength or rich-club artifact.
+
+
+
+Source: family localization: reproduction/ family_mechanism/ outputs/ f8_stability.csv; reproduction/ family_mechanism/ outputs/ f8_per_pc.csv; reproduction/ family_mechanism/ outputs/ f8_pc3_localization.csv; reproduction/ family_mechanism/ outputs/ f8_pc3_enrichment_agg.csv; notebooks-FC_to_SC-experimental/ sanity_checks/ tract_check/ enrichment_residual_top200.csv.
+
+
+
+## E14. FC Noise Accounting: Edge Noise Is Large, Aggregate Identity Is Still Reliable
+
+
+FC edge-level reliability summary:
+
+
+| n_subjects | n_edges | n_nan_edges | mean_r | median_r | p5    | p95   |
+| ---------- | ------- | ----------- | ------ | -------- | ----- | ----- |
+| 957        | 64620   | 0           | 0.452  | 0.441    | 0.229 | 0.697 |
+
+
+Variance decomposition:
+
+
+| parc         | n_edges | trait_frac_mean | state_frac_mean | within_sess_frac_mean | noise_frac_mean | G_mean | G_median |
+| ------------ | ------- | --------------- | --------------- | --------------------- | --------------- | ------ | -------- |
+| Glasser      | 64620   | 0.301           | 0.035           | 0.021                 | 0.643           | 0.585  | 0.600    |
+| 4S456Parcels | 103740  | 0.261           | 0.035           | 0.021                 | 0.683           | 0.519  | 0.561    |
+
+
+Crossmodal disattenuation:
+
+
+| source      | metric           | achieved | ceiling | fraction_of_ceiling |
+| ----------- | ---------------- | -------- | ------- | ------------------- |
+| SC->FC      | demeaned_pearson | 0.085    | 0.491   | 0.173               |
+| SC->FC      | pearson          | 0.829    | 0.813   | 1.019               |
+| SC->FC      | top1_acc         | 0.051    | 0.933   | 0.055               |
+| SC->FC      | avg_rank         | 0.713    | 0.992   | 0.719               |
+| bv+demo->FC | demeaned_pearson | 0.098    | 0.491   | 0.200               |
+| bv+demo->FC | pearson          | 0.835    | 0.813   | 1.026               |
+| bv+demo->FC | top1_acc         | 0.026    | 0.933   | 0.027               |
+| bv+demo->FC | avg_rank         | 0.683    | 0.992   | 0.689               |
+
+
+Whole-connectome discriminability:
+
+
+| parc         | n    | fingerprint_top1 | discriminability |
+| ------------ | ---- | ---------------- | ---------------- |
+| Glasser      | 1018 | 0.927            | 0.998            |
+| 4S456Parcels | 1018 | 0.934            | 0.999            |
+
+
+Interpretation: the apparent tension is real but resolved. Individual edges are substantially noisy, yet whole-connectome fingerprints are highly discriminable. SC->FC captures only a small fraction of reproducible demeaned FC signal and a small fraction of fingerprint top-1 identity, so the negative result is not simply a failure to recognize subjects in aggregate.
+
+
+
+Source: FC noise accounting: notebooks-FC_to_SC-experimental/ sanity_checks/ tract_check/ retest_icc_results/ fc_reliability_summary.csv; notebooks-FC_to_SC-experimental/ sanity_checks/ noise_sanity_check/ outputs/ b_variance_decomposition.csv; notebooks-FC_to_SC-experimental/ sanity_checks/ noise_sanity_check/ outputs/ e_crossmodal_disattenuation.csv; notebooks-FC_to_SC-experimental/ sanity_checks/ noise_sanity_check/ outputs/ f_discriminability.csv.
+
+
 
 # New Data and Experiment Triage
 
@@ -926,6 +1274,12 @@ This file separates checks already closed from existing repository outputs from 
 - Family AUC shows predicted connectomes can preserve identity/family signal when the representation selects for it.
 
 - Per-subject FC reliability does not explain SC->FC achieved performance.
+
+- Expected-vs-observed grid completeness is exact for the reproduction outputs.
+
+- Estimator, nonlinear, residual, sink, richer-tractography, scaling, and preprocessing variants do not rescue cognition.
+
+- Family PC3 stability/localization and FC-noise accounting are summarized from existing structured outputs.
 
 
 ## Requires New Data Or New Runs
@@ -2475,3 +2829,18 @@ Taken together, these checks support a narrow but strong conclusion. FC-SC trans
 - **Detailed tractography downstream**: notebooks-FC_to_SC-experimental/ tractography_predict/ e5_downstream_results.csv
 - **Per-subject FC achieved-vs-ceiling**: notebooks-FC_to_SC-experimental/ sanity_checks/ noise_sanity_check/ outputs/ h_per_subject_achieved_vs_ceiling.csv
 - **FC achieved-vs-ceiling correlations**: notebooks-FC_to_SC-experimental/ sanity_checks/ noise_sanity_check/ outputs/ h_correlations.csv
+- **Nonlinear cognition results**: notebooks-FC_to_SC-experimental/ non-linear-sanity-check/ n1_cognition_summary.csv
+- **Residual cognition results**: notebooks-FC_to_SC-experimental/ non-linear-sanity-check/ n4_cog_summary.csv
+- **Sink cognition results**: notebooks-FC_to_SC-experimental/ non-linear-sanity-check/ n5_cog_summary.csv
+- **Scaling results**: notebooks-FC_to_SC-experimental/ non-linear-sanity-check/ n6_scaling_summary.csv
+- **Preprocessing method A**: notebooks-FC_to_SC-experimental/ sanity_checks/ preprocessing_check/ method_a_results.csv
+- **Preprocessing method B**: notebooks-FC_to_SC-experimental/ sanity_checks/ preprocessing_check/ method_b_results.csv
+- **Preprocessing method C**: notebooks-FC_to_SC-experimental/ sanity_checks/ preprocessing_check/ method_c_results.csv
+- **Family PC per-component**: reproduction/ family_mechanism/ outputs/ f8_per_pc.csv
+- **Family PC3 localization**: reproduction/ family_mechanism/ outputs/ f8_pc3_localization.csv
+- **Family PC3 enrichment**: reproduction/ family_mechanism/ outputs/ f8_pc3_enrichment_agg.csv
+- **Reliability-residualized PC3 enrichment**: notebooks-FC_to_SC-experimental/ sanity_checks/ tract_check/ enrichment_residual_top200.csv
+- **FC reliability summary**: notebooks-FC_to_SC-experimental/ sanity_checks/ tract_check/ retest_icc_results/ fc_reliability_summary.csv
+- **FC variance decomposition**: notebooks-FC_to_SC-experimental/ sanity_checks/ noise_sanity_check/ outputs/ b_variance_decomposition.csv
+- **Crossmodal disattenuation**: notebooks-FC_to_SC-experimental/ sanity_checks/ noise_sanity_check/ outputs/ e_crossmodal_disattenuation.csv
+- **FC discriminability**: notebooks-FC_to_SC-experimental/ sanity_checks/ noise_sanity_check/ outputs/ f_discriminability.csv

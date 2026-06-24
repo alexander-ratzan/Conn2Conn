@@ -1,5 +1,5 @@
 # Fdb version 4
-["pdflatex"] 1782261764.67039 "conn2conn_preprint.tex" "conn2conn_preprint.pdf" "conn2conn_preprint" 1782261764.98737 0
+["pdflatex"] 1782314258.93913 "conn2conn_preprint.tex" "conn2conn_preprint.pdf" "conn2conn_preprint" 1782314259.47371 0
   "/Users/user/Library/TinyTeX/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/Users/user/Library/TinyTeX/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc" 1136849721 2971 def0b6c1f0b107b3b936def894055589 ""
   "/Users/user/Library/TinyTeX/texmf-dist/fonts/tfm/adobe/times/ptmb8r.tfm" 1136768653 4524 6bce29db5bc272ba5f332261583fee9c ""
@@ -98,15 +98,15 @@
   "/Users/user/Library/TinyTeX/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1773613666 406813 f7604dc321e40e1c547eb66540a581ed ""
   "/Users/user/Library/TinyTeX/texmf-var/web2c/pdftex/pdflatex.fmt" 1763322827 2285553 6ff339bba17fe8180ba8de902444f8e4 ""
   "/Users/user/Library/TinyTeX/texmf.cnf" 1763322225.61488 708 85fd07691b6294ba94c59dbc62380410 ""
-  "conn2conn_preprint.aux" 1782261764.94787 4812 b5893833e816df068d75c2de91627d66 "pdflatex"
-  "conn2conn_preprint.out" 1782261764.94836 1995 600a592ead3ce32724bf3fcb743ed3a6 "pdflatex"
+  "conn2conn_preprint.aux" 1782314259.40743 4812 b5893833e816df068d75c2de91627d66 "pdflatex"
+  "conn2conn_preprint.out" 1782314259.40825 1995 600a592ead3ce32724bf3fcb743ed3a6 "pdflatex"
   "conn2conn_preprint.tex" 1782261754.56626 1256 a09c429178b6dc06a24dd007fa0b71a5 ""
   "figures/fig1_evaluation_spine.pdf" 1782260461.36619 26258 8a19fab0a006bcdd24e3e880b3691ca6 ""
   "figures/fig2_directional_translation.pdf" 1782260461.75245 34715 6e93ca4d0c195853b1b5cb3205e1298f ""
   "figures/fig3_utility_checkpoint.pdf" 1782260462.22371 36879 cffb06dfae7aba614d6ec0e947612b17 ""
   "figures/fig4_closed_escape_routes.pdf" 1782260462.6938 38246 9ab50d20b53ca89bed5c3107cb08b149 ""
   "figures/fig5_signal_changes_with_objective.pdf" 1782260463.0581 38688 6e873e856a13956d78d9d742387a2ce5 ""
-  "manuscript_body.tex" 1782261729.84405 18565 e3082e7bab9c1dd0d50f3aa89b7fb6de ""
+  "manuscript_body.tex" 1782314243.72969 19024 35f65d9fddccda375b0da9708c7cfec1 ""
   "neurips_2026.sty" 1782261408.65789 13462 818d80447f57703e59b8270885421e82 ""
   (generated)
   "conn2conn_preprint.aux"

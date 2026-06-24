@@ -106,7 +106,7 @@ The grid separates two axes that are often conflated: the \emph{input set} (FC, 
 \begin{figure}[h]
   \centering
   \includegraphics[width=\linewidth]{S4_leak_checks.pdf}
-  \caption{\textbf{Supplementary: leak checks.} Sex and age prediction by input (Glasser, BayesianRidge). These are diagnostics, not scientific outcomes.}
+  \caption{\textbf{Supplementary: leak checks.} Sex and age prediction by input (Glasser, BayesianRidge). These are diagnostics, not scientific outcomes; any input containing \bvdemo{} reaches $\approx$1.0 because it literally encodes sex/age (consistent across seeds after the float64 scalar-PCA fix, commit 69add40, which left cognition and reconstruction byte-identical).}
   \label{fig:s4}
 \end{figure}
 

@@ -1,5 +1,5 @@
 # Fdb version 4
-["pdflatex"] 1782265662.90985 "conn2conn_supplement.tex" "conn2conn_supplement.pdf" "conn2conn_supplement" 1782265663.50734 0
+["pdflatex"] 1782313926.00612 "conn2conn_supplement.tex" "conn2conn_supplement.pdf" "conn2conn_supplement" 1782313927.12863 0
   "/Users/user/Library/TinyTeX/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/Users/user/Library/TinyTeX/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc" 1136849721 2971 def0b6c1f0b107b3b936def894055589 ""
   "/Users/user/Library/TinyTeX/texmf-dist/fonts/tfm/adobe/times/ptmb8c.tfm" 1136768653 1340 d2f6275bc4fa3f07e3bc50aae2c71eab ""
@@ -115,11 +115,11 @@
   "/Users/user/Library/TinyTeX/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1773613666 406813 f7604dc321e40e1c547eb66540a581ed ""
   "/Users/user/Library/TinyTeX/texmf-var/web2c/pdftex/pdflatex.fmt" 1763322827 2285553 6ff339bba17fe8180ba8de902444f8e4 ""
   "/Users/user/Library/TinyTeX/texmf.cnf" 1763322225.61488 708 85fd07691b6294ba94c59dbc62380410 ""
-  "conn2conn_supplement.aux" 1782265663.41768 56034 b521b1b90d4a390821968ea98ad9ded1 "pdflatex"
-  "conn2conn_supplement.out" 1782265663.4199 19887 4e2ca3acfd412bf60febe9e4e69ef424 "pdflatex"
+  "conn2conn_supplement.aux" 1782313926.96449 62783 674137e436e642216c47f500759ee03b "pdflatex"
+  "conn2conn_supplement.out" 1782313926.96854 23345 8cb970e0e84daa4457c117f802e1b880 "pdflatex"
   "conn2conn_supplement.tex" 1782262450.55906 1508 f71403c76ab5d54f4152ca44a1a9affd ""
   "neurips_2026.sty" 1782261408.65789 13462 818d80447f57703e59b8270885421e82 ""
-  "supplement_sanity_checks_body.tex" 1782265661.61722 174647 a6c946cee504530383e74066a196c1de ""
+  "supplement_sanity_checks_body.tex" 1782313924.72362 197180 6b923d7007ee711f5e94002c0425dc18 ""
   (generated)
   "conn2conn_supplement.aux"
   "conn2conn_supplement.log"

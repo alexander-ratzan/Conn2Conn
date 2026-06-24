@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+
+# LaTeX build artifacts (keep the .pdf and .tex)
+*.aux
+*.log
+*.out
+*.fls
+*.fdb_latexmk
+*.toc
+*.synctex.gz

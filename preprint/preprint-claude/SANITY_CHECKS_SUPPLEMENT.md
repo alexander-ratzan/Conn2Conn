@@ -464,13 +464,27 @@ failures.
 
 | Verdict | Meaning | Count |
 |---|---|---:|
-| `ok` | no threshold violation | 3,344 |
+| `ok` | no threshold violation | 3,326 |
 | `EXPECTED_SIGNAL` | raw connectome predicts sex/age — biological, not a leak | 4 |
-| `EXEMPT_FLAGGED` | input contains `bv+demo`; cognition rows interpretable, sex/age expected | 1,052 |
+| `EXEMPT_FLAGGED` | input contains `bv+demo`; cognition rows interpretable, sex/age expected | 1,070 |
 | `LEAK_FAIL` | non-exempt derived input exceeds threshold | **0** |
 
-Only the combined observed FC+SC input crossed the sex threshold (expected biological signal).
 No demographic-free derived input triggered `LEAK_FAIL`.
+
+**float64 fix to the scalar PCA path (commit 69add40).** The scalar (downstream) estimators
+originally ran PCA in **float32**. The `bv+demo` input contains exactly-collinear one-hot
+encodings of sex and race (each dummy set sums to 1), making its feature matrix rank-deficient;
+float32 SVD is numerically ill-conditioned on a rank-deficient matrix and scrambled the
+low-variance principal directions that carry the demographic information by a *seed-dependent*
+amount — so predicting the leak-check targets that live in those directions (sex/age from
+`bv+demo`) collapsed instead of reading ≈1.0 (e.g. `bv+demo`→age fell to 0.46 on seed 7). That
+is the S4 inconsistency. **Fix:** cast the scalar-path inputs to float64 before PCA
+(`pca_pls_scalar`, `bayesian_ridge_scalar`, `_kr_scalar` in `_grid_common.py`); float64 SVD is
+well-conditioned and recovers the directions exactly. The reconstruction path never had this
+problem because `PLSRegression(scale=True)` standardizes the data. **Blast radius = the one
+diagnostic panel:** `bv+demo`→sex 0.945→1.0, →age 0.840→1.0; cognition (F4/F5) byte-identical
+(max |Δlift| = 0; baseline 0.359/0.283/0.354), reconstruction unaffected, F6–F8 untouched, and
+0 `LEAK_FAIL` preserved.
 
 **Estimator-reporting rule.** Reconstruction leads with `demeaned_pearson` (raw Pearson is
 dominated by the population-mean connectome). Downstream scalar targets are reported with

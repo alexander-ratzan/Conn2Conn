@@ -460,13 +460,26 @@ load-bearing metrics and zero hard leak failures.
 \toprule
 \textbf{Verdict} & \textbf{Meaning} & \textbf{Count} \\
 \midrule
-\texttt{ok} & no threshold violation & 3{,}344 \\
+\texttt{ok} & no threshold violation & 3{,}326 \\
 \texttt{EXPECTED\_SIGNAL} & raw connectome predicts sex/age (biological) & 4 \\
-\texttt{EXEMPT\_FLAGGED} & input contains \bvdemo; sex/age expected & 1{,}052 \\
+\texttt{EXEMPT\_FLAGGED} & input contains \bvdemo; sex/age expected & 1{,}070 \\
 \texttt{LEAK\_FAIL} & non-exempt derived input exceeds threshold & \textbf{0} \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\textbf{float64 fix to the scalar PCA path.} The scalar (downstream) estimators originally ran
+PCA in float32. The \bvdemo{} input contains exactly-collinear one-hot encodings of sex and
+race (each dummy set sums to 1), so its feature matrix is rank-deficient; float32 SVD is
+ill-conditioned on a rank-deficient matrix and scrambled the low-variance directions that carry
+the demographic signal by a seed-dependent amount (e.g.\ \bvdemo$\rightarrow$age fell to 0.46 on
+one seed instead of $\approx$1.0). Casting the scalar-path inputs to float64 before PCA
+(\texttt{\_grid\_common.py}, commit 69add40) recovers those directions exactly. \emph{Blast
+radius:} only the sex/age leak diagnostics --- \bvdemo$\rightarrow$sex 0.945$\to$1.0,
+$\rightarrow$age 0.840$\to$1.0 (the labels are literally input columns). Cognition (F4/F5) is
+byte-identical (max $|\Delta\text{lift}|=0$; baseline 0.359/0.283/0.354), reconstruction is
+unaffected (\bvdemo$\rightarrow$SC is float32 $\equiv$ float64 under PLS scaling), F6--F8 do not
+touch this path, and 0 \texttt{LEAK\_FAIL} is preserved.
 
 \textbf{Estimator-reporting rule.} Reconstruction leads with \dpear{} (raw Pearson is
 dominated by the population-mean connectome); downstream scalar targets use BayesianRidge. A
@@ -480,8 +493,9 @@ notebooks with exact or near-exact regression tests.
   \centering
   \includegraphics[width=\linewidth]{S4_leak_checks.pdf}
   \caption{Sex and age prediction by input (Glasser). These are diagnostics, not scientific
-  outcomes; \texttt{pred\_X+bv+demo} reaching $\sim$1.0 for age is expected because
-  \bvdemo{} encodes age.}
+  outcomes; any input containing \bvdemo{} reaches $\sim$1.0 for sex/age because \bvdemo{}
+  literally encodes them (after the float64 PCA fix, these read $\approx$1.0 consistently
+  across seeds).}
 \end{figure}
 
 \FloatBarrier
