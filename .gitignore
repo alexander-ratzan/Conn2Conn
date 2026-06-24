@@ -42,3 +42,9 @@ context_packages/
 .env
 .env.*
 .wandb-venv/
+reproduction/outputs/downstream_PREFIX32BUG.csv
+reproduction/exploration/*.out
+reproduction/exploration/recheck*.csv
+reproduction/exploration/recheck*.sbatch
+reproduction/exploration/diag_real.sbatch
+reproduction/exploration/diag_badseeds.sbatch
