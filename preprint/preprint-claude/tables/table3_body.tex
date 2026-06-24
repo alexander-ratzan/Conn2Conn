@@ -1,0 +1,15 @@
+\begin{tabular}{@{}lrrlp{0.34\linewidth}@{}}
+\toprule
+\textbf{Finding} & \textbf{Glasser} & \textbf{4S456} & \textbf{Estimator} & \textbf{Interpretation} \\
+\midrule
+FC$\rightarrow$SC reconstruction & 0.136 & 0.146 & PCA$\rightarrow$PLS & FC recovers SC deviations \\
+SC$\rightarrow$FC reconstruction & 0.084 & 0.087 & PCA$\rightarrow$PLS & weaker reverse direction \\
+FC$\rightarrow$SC / SC$\rightarrow$FC ratio & 1.615$\times$ & 1.679$\times$ & PCA$\rightarrow$PLS & directional asymmetry \\
+FC$\rightarrow$FC oracle ceiling & 0.673 & 0.632 & BayesianRidge & self-predictability \textasciitilde{}equal \\
+SC$\rightarrow$SC oracle ceiling & 0.648 & 0.622 & BayesianRidge & self-predictability \textasciitilde{}equal \\
+bv+demo $\rightarrow$ CogCryst & 0.354 & 0.354 & BayesianRidge & the checkpoint to beat \\
+obs FC CogCryst lift & +0.133 & +0.122 & BayesianRidge & FC clears the baseline \\
+obs SC CogCryst lift & -0.101 & -0.095 & BayesianRidge & SC below baseline \\
+pred FC CogCryst lift & -0.135 & -0.109 & BayesianRidge & imputation is harmful \\
+\bottomrule
+\end{tabular}

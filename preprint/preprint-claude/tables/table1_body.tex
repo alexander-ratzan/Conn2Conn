@@ -1,0 +1,16 @@
+\begin{tabular}{@{}l p{0.66\linewidth}@{}}
+\toprule
+\textbf{Field} & \textbf{Value} \\
+\midrule
+Cohort & HCP Young Adults (FC + SC + demographics + brain-volume) \\
+Subjects (per split) & \textasciitilde{}878 (683 train / 195 test, family-aware) \\
+Splits & 10 frozen, family-aware (siblings/twins kept on one side) \\
+Parcellation A & Glasser --- 360 regions, 64,620 edges \\
+Parcellation B & 4S456Parcels --- 456 regions, 103,740 edges \\
+Connectome rep. & upper-triangle edge vector \\
+Primary recon metric & demeaned\_pearson (per-subject, train-mean removed) \\
+Secondary metrics & avg\_rank, top1\_acc (fingerprint), r2/mse \\
+Recon estimator & PCA(256)$\rightarrow$PLS(64)$\rightarrow$inverse-PCA (+ BayesianRidge, KernelRidge controls) \\
+Downstream estimator & BayesianRidge (reportable for scalar targets) \\
+\bottomrule
+\end{tabular}

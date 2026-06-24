@@ -1,0 +1,17 @@
+\begin{tabular}{@{}lllllp{0.24\linewidth}@{}}
+\toprule
+\textbf{Task} & \textbf{Input} & \textbf{Target} & \textbf{Estimator} & \textbf{Metric} & \textbf{Claim tested} \\
+\midrule
+Reconstruction & FC & SC & PCA$\rightarrow$PLS & demeaned\_pearson & cross-modal FC$\rightarrow$SC \\
+Reconstruction & SC & FC & PCA$\rightarrow$PLS & demeaned\_pearson & cross-modal SC$\rightarrow$FC \\
+Oracle & FC & FC & BayesianRidge & demeaned\_pearson & within-modality ceiling \\
+Oracle & SC & SC & BayesianRidge & demeaned\_pearson & within-modality ceiling \\
+Baseline & bv+demo & SC/FC & PCA$\rightarrow$PLS & demeaned\_pearson & subject-info $\rightarrow$ connectome \\
+Downstream & bv+demo & Cognition & BayesianRidge & pearson / lift & checkpoint baseline \\
+Downstream & obs\_FC & Cognition & BayesianRidge & lift\_over\_bvdemo & does FC beat baseline? \\
+Downstream & obs\_SC & Cognition & BayesianRidge & lift\_over\_bvdemo & does SC beat baseline? \\
+Downstream & pred\_SC / pred\_FC & Cognition & BayesianRidge & lift\_over\_bvdemo & does imputation transfer? \\
+Leak check & any & sex / age & BayesianRidge & bal\_acc / pearson & diagnostic, not outcome \\
+Family & pred\_SC variants & MZ/DZ/sib & --- & AUC & identity signal survives? \\
+\bottomrule
+\end{tabular}

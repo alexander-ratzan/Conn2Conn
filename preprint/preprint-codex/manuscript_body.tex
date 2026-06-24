@@ -1,0 +1,147 @@
+\section{Abstract}\label{abstract}
+
+Cross-modal connectome prediction is often treated as a route from one brain measurement to another: if structural connectivity (SC) can predict functional connectivity (FC), or FC can predict SC, then the predicted connectome may stand in for the missing modality. We tested this assumption in HCP Young Adults using two parcellations, 10 frozen family-aware splits, deterministic estimators, and a grid that separates reconstruction from downstream cognitive utility. Cross-modal prediction was real and directional: FC predicted individual deviations in SC better than SC predicted FC (1.61x in Glasser and 1.68x in 4S456Parcels with PCA-\textgreater PLS). This asymmetry was not explained by within-modality reliability, because FC and SC were similarly self-predictable under oracle same-modality controls. However, reconstruction did not imply downstream utility. A cheap brain-volume plus demographics baseline (\texttt{bv+demo}) predicted cognition substantially, observed FC provided the only consistent lift over this baseline, observed SC underperformed it, and imputed connectomes did not transfer FC\textquotesingle s cognitive signal through SC. In particular, FC imputed from SC was not merely unhelpful but consistently below the \texttt{bv+demo} baseline. Additional sanity checks ruled out several easy explanations: the ceiling was not a PCA artifact, nonlinear models and richer tractography features did not recover the missing signal, scaling trends did not suggest a growing nonlinear gap, and the SC-\textgreater FC shortfall was not explained by FC measurement noise. Predicted connectomes did carry family signal, but optimizing reconstruction and optimizing identification selected different information. These results support a reporting standard for connectome translation studies: report individual-deviation reconstruction metrics, always include a cheap subject-information baseline for downstream claims, and separate reconstruction accuracy from utility.
+
+\section{1. Introduction}\label{1-introduction}
+
+Structural and functional connectomes describe the same brain from different measurement perspectives. This has made FC-SC translation an attractive goal: infer the missing modality, compare modalities in a common space, and use the predicted connectome for behavior, cognition, or individual identification. A successful reconstruction number can make this goal look solved.
+
+But connectome translation has two distinct questions. The first is reconstruction: can one modality recover individual deviations in the other? The second is utility: does the recovered connectome carry information that matters for the target analysis? A model can succeed at the first and fail at the second. In neuroimaging, the gap is especially important because many downstream outcomes are already predictable from cheap subject-level information such as age, sex, and anatomy-derived brain volumes.
+
+This paper treats FC-SC prediction as a methods problem rather than a leaderboard problem. We ask what cross-modal prediction proves, what it fails to prove, and which baselines should be required before a predicted connectome is treated as useful. The central checkpoint is a brain-volume plus demographics baseline (\texttt{bv+demo}). For downstream cognition, beating the group mean is too weak; the connectome must beat subject information that is already available in most imaging studies.
+
+We make four contributions. First, we reproduce and characterize the known FC-\textgreater SC \textgreater{} SC-\textgreater FC asymmetry under a deterministic grid across two parcellations and 10 frozen splits. Second, we show that the apparent value of translation changes once cognition is evaluated against \texttt{bv+demo}: observed FC helps, SC does not, and imputed connectomes do not rescue the gap. Third, we close several escape routes with sanity checks: reduction choice, nonlinear models, richer structural representations, sample-size trends, and FC reliability do not explain away the ceiling in this healthy young adult regime. Fourth, we show that predicted connectomes are not globally useless: they carry family signal, but reconstruction and identification pull on different information.
+
+\section{2. Data and Evaluation Design}\label{2-data-and-evaluation-design}
+
+We used HCP Young Adults subjects with both resting-state FC and diffusion-derived SC available, plus demographics and anatomy-derived brain-volume features. Connectomes were represented as upper-triangle edge vectors. Analyses were run on two parcellations: Glasser (360 regions; 64,620 edges) and 4S456Parcels (456 regions; 103,740 edges). Splits were frozen once for 10 seeds and reused across reconstruction, downstream prediction, imputation, leak checks, and family analyses. Family-aware splitting kept siblings and twins on the same side of the split.
+
+The primary reconstruction metric was \texttt{demeaned\_pearson}: the per-subject correlation/cosine after subtracting the training-set group mean connectome from both the prediction and target. This is the load-bearing metric because raw Pearson is dominated by the shared population mean structure of the connectome. We also tracked fingerprinting metrics (\texttt{avg\_rank}, \texttt{top1\_acc}) and conventional regression metrics, but these are secondary or diagnostic.
+
+For reconstruction, the main closed-form estimator was PCA(256)-\textgreater PLS(64)-\textgreater inverse-PCA. We also ran BayesianRidge and KernelRidge controls. For downstream scalar targets, BayesianRidge is the reportable estimator: PCA-\textgreater PLS and KernelRidge scalar rows were retained diagnostically but are ill-conditioned and not numerically stable for low-signal scalar regression. Every reported number therefore names its estimator.
+
+The grid separates two axes that are often conflated:
+
+\begin{itemize}
+\tightlist
+\item
+  The input set: FC, SC, brain volumes (\texttt{bv}), demographics (\texttt{demo}), \texttt{bv+demo}, observed connectomes plus \texttt{bv+demo}, and imputed connectomes.
+\item
+  The estimator: the mathematical mapping from input to output.
+\end{itemize}
+
+For reconstruction, we evaluate FC-\textgreater SC, SC-\textgreater FC, subject-information baselines, connectome plus subject-information inputs, and same-modality oracle controls. For downstream cognition, we ask whether observed or imputed connectomes improve prediction of CogTotal, CogFluid, and CogCryst over \texttt{bv+demo}. Sex and age are evaluated as leak checks, not as scientific outcomes.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{fig1_evaluation_spine.pdf}
+  \caption{\textbf{Evaluation spine.} Inputs, targets, frozen splits, reconstruction branch, downstream branch, sanity-check branch, and family-signal branch.}
+  \label{fig:evaluation-spine}
+\end{figure}
+
+\textbf{Table 1. Dataset and parcellations.} HCP-YA cohort, split sizes, atlas nodes/edges, and metrics.
+
+\textbf{Table 2. Task grid and claims.} Reader-facing map of each input-\textgreater target row and the claim it tests.
+
+\section{3. Cross-Modal Prediction Is Directional}\label{3-cross-modal-prediction-is-directional}
+
+FC predicted SC substantially better than SC predicted FC. With PCA-\textgreater PLS, the mean \texttt{demeaned\_pearson} across seeds was 0.136 for FC-\textgreater SC and 0.084 for SC-\textgreater FC in Glasser, a 1.61x ratio. In 4S456Parcels, FC-\textgreater SC reached 0.146 and SC-\textgreater FC 0.087, a 1.68x ratio. The direction was stable across seeds and parcellations.
+
+This asymmetry is not simply because FC or SC is a noisier target. Same-modality oracle controls showed that FC and SC were comparably self-predictable. With BayesianRidge, the FC-\textgreater FC oracle was 0.673 in Glasser and 0.632 in 4S456Parcels; the SC-\textgreater SC oracle was 0.648 and 0.622 respectively. Thus the target modalities have similar within-modality ceilings, while the cross-modal directions differ strongly.
+
+The baselines also showed a clean double dissociation. Brain-volume features were better predictors of SC than demographics were, whereas demographics were more than twice as predictive of FC as brain volumes were. This crossover matters because it shows that "subject information" is not one generic confound. Anatomy and demographics align differently with structure and function.
+
+The finer 4S456Parcels atlas added a useful nuance. Every input-\textgreater SC row improved relative to Glasser, while input-\textgreater FC rows were slightly lower. The larger parcellation appears to expose more predictable structural detail rather than merely adding noise.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{fig2_directional_translation.pdf}
+  \caption{\textbf{Directional translation.} FC-to-SC and SC-to-FC reconstruction, seed-level asymmetry ratios, within-modality oracle controls, and anatomy/demographics double dissociation.}
+  \label{fig:directional-translation}
+\end{figure}
+
+\section{4. Reconstruction Does Not Imply Cognitive Utility}\label{4-reconstruction-does-not-imply-cognitive-utility}
+
+The downstream grid changed the interpretation of cross-modal prediction. The \texttt{bv+demo} baseline itself predicted cognition: with BayesianRidge, CogTotal was 0.359 in both parcellations, CogFluid 0.283, and CogCryst 0.354. This is the bar a connectome must clear.
+
+Observed FC was the only connectome input that consistently improved over this bar. In Glasser, observed FC predicted CogCryst at 0.487, lifting 0.133 over \texttt{bv+demo} with median paired-permutation \texttt{p=0.0307}. In 4S456Parcels, observed FC predicted CogCryst at 0.476, lifting 0.122 over baseline with \texttt{p=0.0407}. The strongest rows were observed FC plus \texttt{bv+demo}, especially for CogCryst (0.516 in Glasser, lift 0.162; 0.500 in 4S456Parcels, lift 0.146).
+
+Observed SC did not clear the same baseline. In Glasser, observed SC was below \texttt{bv+demo} for CogTotal, CogFluid, and CogCryst, with lifts of -0.111, -0.120, and -0.101. In 4S456Parcels, the corresponding lifts were -0.103, -0.118, and -0.095.
+
+Imputation did not transfer FC\textquotesingle s utility through SC. SC imputed from FC was roughly neutral to slightly below baseline. FC imputed from SC was consistently harmful: in Glasser, \texttt{pred\_FC} lifted CogTotal, CogFluid, and CogCryst by -0.113, -0.097, and -0.135. In 4S456Parcels, the corresponding lifts were -0.088, -0.072, and -0.109. The important point is not merely that imputation failed to help. It injected structured information that made the cognition predictor worse than the cheap subject-information baseline.
+
+These results separate reconstruction from utility. A predicted connectome can be measurable, replicable, and still fail the downstream task it was supposed to enable.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{fig3_utility_checkpoint.pdf}
+  \caption{\textbf{Utility checkpoint.} Cognition prediction, lift over the \texttt{bv+demo} subject-information baseline, and observed-versus-imputed connectome contrasts.}
+  \label{fig:utility-checkpoint}
+\end{figure}
+
+\section{5. The Ceiling Is Structural in This Regime}\label{5-the-ceiling-is-structural-in-this-regime}
+
+The negative downstream result could have several mundane explanations. The grid and supplementary checks test these explicitly.
+
+First, the cross-modal asymmetry is not an artifact of PCA reduction. In a reduction-axis sanity check, the FC-\textgreater SC / SC-\textgreater FC ratio remained greater than 1.0 across learned PCA, full PLS on raw 64,620-edge vectors, and three Johnson-Lindenstrauss random projections. Median ratios ranged from 1.39x to 1.81x across methods, with Wilcoxon \texttt{p\ \textless{}=\ 0.001} against a ratio of 1.0 for all methods.
+
+Second, the ceiling is not recovered by richer models. KernelRidge and other nonlinear checks did not reveal hidden signal beyond the linear baselines; the KernelRidge 3x3 hyperparameter sweep was nearly degenerate, with within-seed spreads around 0.004-0.005 in \texttt{demeaned\_pearson}.
+
+Third, richer structural representations did not help. Named-bundle tractography features predicted FC worse than streamline-count SC, added no marginal value over count-SC, and did not improve cognition above the subject-information floor.
+
+Fourth, the SC-\textgreater FC shortfall is not explained by FC measurement noise. FC was noisy at the single-edge level but reliable as a whole connectome: the between-session FC reliability ceiling in Glasser was \texttt{demeaned\_r=0.491} with fingerprint \texttt{top1=0.933}. SC-\textgreater FC captured only about 17\% of that reproducible FC signal. Moreover, a subject\textquotesingle s SC-\textgreater FC prediction quality was essentially uncorrelated with that subject\textquotesingle s FC reliability (\texttt{r=0.01}), and filtering to high-reliability subjects raised the ceiling without improving SC-\textgreater FC prediction. The measured gap is therefore not an FC-side noise artifact.
+
+These checks do not prove that SC can never predict cognition. They make a narrower and more useful claim: in healthy young adults, under cross-sectional normal-range cognition, the missing utility is not recovered by obvious changes in dimensionality reduction, model class, structural representation, or sample size within this regime.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{fig4_closed_escape_routes.pdf}
+  \caption{\textbf{Closed escape routes.} Oracle fractions, reduction-axis robustness, richer-structure nulls, nonlinear checks, scaling trends, and FC-side noise accounting.}
+  \label{fig:closed-escape-routes}
+\end{figure}
+
+\section{6. Predicted Connectomes Carry Family Signal but Objectives Diverge}\label{6-predicted-connectomes-carry-family-signal-but-objectives-diverge}
+
+The failure to improve cognition does not mean predicted connectomes are empty. Predicted SC from FC carried family structure. In both parcellations, \texttt{pred\_SC\_resid\_bvdemo} separated siblings from unrelated subjects with AUC around 0.81, far above the \texttt{bv+demo} baseline around 0.56. This shows that cross-modal prediction can preserve individualized, heritable signal not reducible to the subject-information baseline.
+
+However, the signal depends on the objective. A combined predictor optimized for reconstruction collapsed to chance for sibling separation, around 0.50 AUC, even though it performed well under reconstruction-style objectives. The practical lesson is that one predicted connectome cannot be assumed to serve every purpose. Reconstruction, cognition, and identification select different components of the data.
+
+An exploratory mechanism analysis localized part of the family signal to a small, FC-predictable, low-variance SC mode. The exact component index was parcellation-dependent: the mode aligned with PC3 in Glasser and PC4 in 4S456Parcels. PC1 was dominated by sex and brain-volume confounding and should not be over-interpreted as biological mechanism. Because the mechanism effect is small and component labels migrate across atlases, we treat it as hypothesis-generating. The robust claim is the objective tradeoff, not a settled named-component mechanism.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{fig5_signal_changes_with_objective.pdf}
+  \caption{\textbf{Signal changes with objective.} Family AUCs, reconstruction/identification tradeoff, and the property-selected low-variance mechanism mode.}
+  \label{fig:objective-signal}
+\end{figure}
+
+\section{7. Discussion}\label{7-discussion}
+
+Cross-modal connectome prediction works, but it does not mean what it is often taken to mean. FC predicts SC better than SC predicts FC, and this directional structure is stable across atlases, seeds, and reduction checks. Yet downstream cognition tells a stricter story: observed FC helps, SC does not clear a cheap subject-information baseline, and imputed connectomes do not transfer utility from one modality to the other.
+
+The main reporting implication is simple. Connectome translation papers should report:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Individual-deviation reconstruction metrics such as \texttt{demeaned\_pearson}, not only raw population-mean-dominated correlations.
+\item
+  Same-modality oracle references, so cross-modal performance is placed against a model-capacity ceiling.
+\item
+  A cheap subject-information baseline such as \texttt{bv+demo} for downstream behavior or cognition.
+\item
+  Separate evaluations for reconstruction, downstream prediction, and identification.
+\item
+  Split manifests, leak checks, and completeness checks for any large grid.
+\end{enumerate}
+
+The study also narrows where structural signal might still matter. The wall shown here is regime-specific: healthy young adults, cross-sectional data, and normal-range cognition. Clinical or lesioned populations, longitudinal designs, developmental change, or very large cohorts could expose structural signals that are weak or confounded here. The point is not to stop asking those questions. It is to carry the right checkpoint into them: does the connectome beat subject-level information?
+
+\section{8. Limitations}\label{8-limitations}
+
+This is a single-cohort study in HCP Young Adults. The sample is healthy, young, and not representative of clinical or lifespan variation. The outcomes are normal-range cognitive measures, not diagnostic endpoints. SC test-retest data were not available in HCP-YA, so FC-side reliability could be measured directly but SC-side reliability remains data-blocked. The F8 mechanism analysis is exploratory: the property replicates better than the component label, and its effect size is small. Finally, the negative results apply to this regime and these data; they should be treated as a strong checkpoint rather than a universal impossibility theorem.
+
+\section{9. Conclusion}\label{9-conclusion}
+
+FC-SC translation is reproducible, directional, and scientifically informative. But reconstruction accuracy alone is not enough. In HCP-YA, observed FC is the useful cognitive modality, SC and imputed connectomes do not beat cheap subject information for cognition, and predicted connectomes carry family signal only under objectives that preserve it. The field should therefore treat cross-modal prediction as a set of separable claims: reconstructability, downstream utility, and identity signal. Each needs its own baseline.
