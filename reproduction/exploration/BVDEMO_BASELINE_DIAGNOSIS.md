@@ -1,4 +1,31 @@
-# Why does `bv+demo` not perfectly predict its own sex/age? (in progress)
+# Why does `bv+demo` not perfectly predict its own sex/age? — RESOLVED
+
+## TL;DR (resolution)
+**Root cause:** a **float32 numerical bug**. `bv+demo` contains exactly-collinear one-hot columns
+(sex/race each sum to 1 → rank-deficient); PCA's SVD in **float32** is ill-conditioned on that and
+dropped the demographic directions by a **split-dependent** amount. `bv+demo→age` per seed was
+`[0.99,1.0,0.90,0.94,0.77,0.77,0.86,0.46,1.0,0.72]` (float32) vs **1.000 on every seed (float64)**.
+The reconstruction path was protected by `PLSRegression(scale=True)`; the scalar `PCA→{BR,PLS,KR}`
+path had neither scaling nor float64.
+
+**Fix:** cast `X` to float64 before PCA in the scalar estimators (`_grid_common.py`, commit `69add40`).
+
+**Impact on the science — NONE.** Full 20-unit downstream re-run (commit `f8d84d1`):
+- **Cognition (F4/F5): byte-identical.** `max |lift Δ|` across ALL cognition cells = **0.0**;
+  `bv+demo→Cog{Total,Fluid,Cryst}` baseline unchanged (0.359/0.283/0.354 both before & after).
+- **Leak diagnostics (sex/age): fixed.** `bv+demo→sex` 0.945→**1.000**, `→age` 0.840→**1.000**
+  (both parcs) — now correctly perfect since the labels are in the features.
+- **0 LEAK_FAIL** maintained (ok 3326 / EXEMPT_FLAGGED 1070 / EXPECTED_SIGNAL 4).
+
+Why cognition was untouched: float32 only mangled the *collinear demographic directions* (what you
+need to predict sex/age), while cognition prediction rides on the well-conditioned brain-volume
+directions. So the bug's entire blast radius was the **sex/age leak-check panel** (never a finding) —
+e.g. the S4 figure that flagged this. F1/F2/Ceiling-B/F6/F7/F8 never used this path and are unaffected.
+
+---
+
+## Original investigation (kept for the record)
+
 
 **Observed (downstream.csv, BR, Glasser):** `bv+demo → sex` = 0.945 (bal acc), `→ age` = 0.840 (r),
 even though `bv+demo` contains `sex_oh` and `age_z`. `pred_X+bv+demo` → ~1.0. Flagged as a possible
