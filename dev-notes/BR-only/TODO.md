@@ -41,16 +41,20 @@ _Last updated: 2026-06-26 (module built+committed 3498a0f, synced to torch via t
 - ✅ Confirmed torch deps unchanged since f8d84d1 (`_grid_common`/`_setup`/`_tract_setup` identical;
       float64 leak fix already present). Container SIF + overlay ext3 verified.
 
-## Phase 2 — Pilot (Glasser, seed 0)
-- ✅ Submitted `sbatch --array=0 run_br_unit.sbatch` → job 11824527_0, running on cs613
-- 🟡 Watching `sentinels/DONE_br_0` via background watcher (bowwnc36p) + `say` ping; no squeue polling
-- ⏸️ Verify: 18×5 = 90 downstream rows, all finite, 0 LEAK_FAIL
-- ⏸️ Eyeball pred_* CogCryst lifts vs spine PLS (pred_FC −0.135, pred_SC −0.010) → note direction
-- ⏸️ **Decision gate:** wiring clean? proceed to full fan-out
+## Phase 2 — Pilot (Glasser, seed 0) ✅ PASS
+- ✅ Ran job 11824527_0 on cs613 (~25 min); 90 rows written
+- ✅ 18×5 = 90 rows, finite, **0 LEAK_FAIL** (all sex>0.99 are demo-containing → exempt)
+- ✅ **VALIDATION:** 6 carried-over non-imputation inputs match spine seed0 **byte-for-byte**
+      (dlift=0.0000) → wiring correct
+- ✅ **FINDING (seed 0):** BR-impute beats PLS on imputed inputs —
+      `pred_SC` lift **+0.215** vs PLS +0.121 (≈2×, p=0.0009); `pred_FC` +0.026 vs PLS −0.028
+      (harmful→neutral). Caveat: `obs_FC+pred_SC`≈`obs_FC` (pred_SC adds nothing on top of FC).
+- ✅ **Decision gate: PASS** → full fan-out launched
 
-## Phase 3 — Full (Glasser × 10 seeds)
-- ⏸️ `bash submit_br.sh` → array 0–9 + afterok finalize; watch `ls sentinels/DONE_br_*.sentinel | wc -l` → /10
-- ⏸️ 900 downstream rows; verify completeness vs `expected_cells_br.csv` (hard-fail on gaps)
+## Phase 3 — Full (Glasser × 10 seeds) 🟡 RUNNING
+- ✅ `bash submit_br.sh` → array **11826375** (0–9, %10) + afterok finalize **11826376**
+- 🟡 Watching finalize sentinel via background watcher (bsfwml0o8); no squeue polling
+- ⏸️ 900 downstream rows; finalize verifies completeness vs `expected_cells_br.csv` (hard-fail on gaps)
 - ⏸️ Leak verdict on merged (expect 0 LEAK_FAIL)
 - ⏸️ Aggregate mean ± std over seeds; `say` ping on finalize
 
