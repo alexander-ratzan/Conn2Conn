@@ -100,7 +100,7 @@ where:
 Linear $M$ on 256-dim latents, $n=683$ → trains in seconds. **Predict:** highest sibling AUC; lowest
 reconstruction.
 
-### 1C — Rayleigh quotient (closed-form middle ground; optional)
+### 1C — Rayleigh quotient (closed-form middle ground) — ❌ DEFERRED (skip; circle back if needed)
 **What it does:** find the linear map whose predictions carry the **most between-subject variance** while
 still reconstructing SC — a variance-maximizing compromise:
 
@@ -171,18 +171,22 @@ reconstruction objective," not "does imputation finally beat FC."
 
 ## 5. Evaluation (the 3-axis scorecard)
 
-For each new estimator, on Glasser × 10 seeds, fill the row:
+For each new estimator, on **Glasser × 5 seeds** (0–4), fill the row:
 - **Reconstruction:** FC→SC `demeaned_pearson`, `avg_rank`, `top1` (reuse `full_panel_eval`).
 - **Identity:** sibling AUC of `pred_SC_resid_bvdemo` (reuse `br_family`).
-- **Cognition:** `pred_SC` + `pred_SC+bv+demo` lift on Cog{Total,Fluid,Cryst} (reuse `br_imputation`).
+- **Cognition:** `pred_SC` + `pred_SC+bv+demo` lift on Cog{Total,Fluid,Cryst} (reuse `br_imputation`),
+  led by **CogCryst** (the supervised target) with Total/Fluid as transfer checks.
 - **Mechanism:** per-PC amplitude/recovery (reuse `probe_shrinkage.py`) — does Obj1 restore the tail?
 
-Compare against the BR and PLS rows we already have. Success = the diagonal (each objective wins its axis).
+Compare against the BR and PLS rows we already have (re-aggregate those on the same 5 seeds for a fair
+row-to-row comparison). Success = the diagonal (each objective wins its axis).
 
 ## 6. Build order
-1. **1A** (amplitude-restore) + **2C** (cognition-weighted) — both closed-form, ~a day, confirm directions move.
+1. **Phase 1 — closed-form (FIRST):** **1A** (amplitude-restore) + **2C** (cognition-weighted), BR
+   backbone, 5-fold OOF, CogCryst-resid target. Confirm directions move.
 2. Gate: if 1A ↑ identity and 2C ↑ cognition vs BR/PLS, proceed.
-3. **1B** (contrastive) + **2A/2B** (supervised/multi-task) — gradient versions for the clean frontier.
+3. **Phase 2 — gradient/supervised (ALL THREE Obj2 worth trying — they're genuinely different):**
+   **1B** (contrastive), **2A** (supervised basis), **2B** (multi-task). 1C deferred.
 4. Optional: λ-sweep (2B) to draw the reconstruct↔cognition curve; 4S456 replication.
 
 ## 7. Isolation / outputs
@@ -197,14 +201,25 @@ artifacts, own CSVs. Spine + br_imputation + br_family untouched. Estimators imp
   objective-vs-objective, not vs-FC.
 - Glasser only; 4S456 deferred.
 
-## 9. Open questions (confirm before build)
-1. Base regressor for 1A / per-PC for 2C: BR or PLS as the backbone? (suggest BR — it's where the
-   shrinkage is, so amplitude-restore has the most to fix.)
-2. Cognition target for 2C/2A: single (CogCryst, strongest) or all three jointly? (suggest CogCryst first.)
-3. OOF folds within train: 5-fold? (suggest 5.)
-4. Identity metric to optimize in 1B: sibling AUC needs family pairs (only in test) → optimize the
-   **self-identifiability** surrogate (rank/top1 of pred_i vs true_i) on train, then evaluate sibling
-   AUC on test. Confirm that surrogate is acceptable.
+## 9. Decisions (resolved 2026-06-26)
+1. **Backbone = BayesianRidge** (where the shrinkage is → amplitude-restore has the most to fix). ✓
+2. **Cognition target = CogCryst, supervised on its bv+demo *residual*** (genuine non-demographic
+   biomarker; strongest connectome signal; thesis-aligned). **Evaluate on all three** raw targets via
+   `lift_over_bvdemo` — CogCryst = matched, CogTotal/CogFluid = transfer/generalization checks. **Scalar**
+   for Phase 1 (3-vector is a later extension). Cheap side-check in 2C: also run **raw-CogCryst**
+   supervision so we can see whether residualizing was necessary.
+   - *Why CogCryst:* CogFluid is too weak to optimize against (a null would be uninterpretable); CogCryst
+     has F4-confirmed real connectome signal beyond demographics, so it's the fairest test of whether a
+     cognition objective can do anything. Residualizing guards against the objective just chasing the
+     demographic confound (CogCryst is the most demographically loaded).
+3. **OOF = 5-fold** within train. ✓
+4. **1B identity target = self-identifiability surrogate** (rank/top1 of pred_i vs true_i) on train,
+   evaluate sibling AUC on test. ✓ Accepted as *not perfectly* matched to the family objective — can
+   swap the 1B objective to a family-aware loss later if warranted.
 
 ## Decisions locked
-- (none yet — this is the draft; fill on go-ahead)
+- **Seeds:** Glasser × **5** (seeds 0–4); re-aggregate BR/PLS reference rows on the same 5 for fairness.
+- **Objective 1:** build **1A** + **1B**; **1C deferred** (skip, circle back if needed).
+- **Objective 2:** build **all three** (2C, 2A, 2B) — they're genuinely different approaches.
+- **Backbone** BR · **5-fold OOF** · **target** CogCryst-resid (eval all three) · **1B** self-ID surrogate.
+- **Scope:** Glasser only (4S456 deferred); isolated `reproduction/obj_functions/`; reuse existing harnesses.
