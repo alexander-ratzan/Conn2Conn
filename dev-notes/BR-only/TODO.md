@@ -71,6 +71,16 @@ _Last updated: 2026-06-26 (full run complete + recovered straggler; FINDINGS.md 
 - ⬜ Optional: fold one-line into MASTER_FINDINGS.md (BR-impute nuance to F5) — pending Adel's call
 - ⬜ Optional later: 4S456 replication; W&B upload of downstream_br.csv
 
+## Phase 5 — BR-family heritability (F6/F7) 🟡 RUNNING
+> Motivation: cognition showed no real boost from imputed connectomes; **heritability is the one
+> place predicted connectomes have value** (PLS `pred_SC_resid_bvdemo` sibling AUC ≈ 0.81). Does BR
+> push it higher / change the F7 collapse?
+- ✅ Built `reproduction/br_family/` — faithful port of `family_mechanism/`, pred_* via BR
+      (obs/combined/bvdemo_to_SC unchanged → built-in sanity guard). Committed 7d54601, synced to torch.
+- ✅ Launched array **11852193** (Glasser 0–9, %10) + afterok finalize **11852194**; PLS family_auc present
+- 🟡 Watching finalize sentinel (background); finalize prints BR-vs-PLS sibling AUC + guard
+- ⏸️ Pull `family_auc_br.csv`, confirm guard (est-indep variants match PLS), write findings, commit
+
 ## Deferred / out of scope
 - ❌ 4S456 parcellation (later pass if results warrant)
 - ❌ OOF train imputation (orthogonal; in-sample kept on purpose — PLAN §6)
