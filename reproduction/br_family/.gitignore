@@ -1,0 +1,4 @@
+outputs/parts/
+logs/
+sentinels/
+# family_auc_br.csv (the result) is NOT ignored — it's the source of truth.
