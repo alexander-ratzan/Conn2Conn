@@ -52,6 +52,28 @@ not just the `combined_pred` head. And F7 itself replicates: `combined_pred_SC` 
 n.s.)** under BR too — forcing the connectome to predict *and* carry subject-info collapses identity
 regardless of estimator.
 
+## Headline 4 — mechanism CONFIRMED (shrinkage probe)
+`../br_imputation/probe_shrinkage.py` recomputes `pred_SC` with both estimators on the same splits
+and measures where each spends its fidelity (Glasser × 10 seeds):
+
+- **Demeaned amplitude:** BR retains **0.182×** of the true `‖pred − μ‖`, PLS **0.306×** — BR sits
+  ~1.7× closer to the group mean.
+- **Per-target-PC, top→tail** (amplitude ratio `std(pred)/std(true)`):
+
+  | PC bin | corr_BR | corr_PLS | amp_BR | amp_PLS |
+  |---|---|---|---|---|
+  | 1–10 | **0.347** | 0.335 | 0.384 | 0.519 |
+  | 11–50 | **0.139** | 0.135 | 0.228 | 0.470 |
+  | 51–128 | 0.059 | **0.071** | 0.092 | 0.426 |
+  | 129–256 | 0.025 | **0.037** | **0.044** | **0.382** |
+
+Direction recovery crosses over at ~PC 50 (BR wins top, PLS wins tail); amplitude is the smoking
+gun — BR collapses the tail (0.384→**0.044**) while PLS stays flat (0.519→**0.382**), ~**9× more
+tail amplitude for PLS**. BR's evidence shrinkage flattens the low-variance, FC-unpredictable tail
+toward the mean — optimal for squared error/cognition, but that tail is the idiosyncratic structure
+that fingerprints families. **The same shrinkage that makes BR the better reconstructor makes it the
+worse identifier.** F7 is now measured, not asserted.
+
 ## Takeaway
 - **Where the predicted connectome wins:** heritability, not cognition. `pred_SC_resid_bvdemo` carries
   real sibling signal (AUC 0.76–0.81) far above demographics.

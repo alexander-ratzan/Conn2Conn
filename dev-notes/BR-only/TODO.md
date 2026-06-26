@@ -85,6 +85,14 @@ _Last updated: 2026-06-26 (full run complete + recovered straggler; FINDINGS.md 
 - ✅ This is the F7 reconstruct/identify tradeoff **at the estimator level**. `FINDINGS.md` written.
 - ✅ Pulled `family_auc_br.csv`, committed + pushed.
 
+## Phase 6 — Mechanism probe (why the reconstruct/identify split) ✅
+- ✅ `br_imputation/probe_shrinkage.py` — BR vs PLS demeaned-norm + per-PC recovery (Glasser ×10, job 11857644)
+- ✅ **CONFIRMED:** BR retains 0.182× true deviation amplitude vs PLS 0.306× (BR ~1.7× closer to mean)
+- ✅ **CONFIRMED:** per-PC amplitude — BR collapses the tail (0.384→0.044) vs PLS flat (0.519→0.382),
+      ~9× more tail amplitude for PLS; corr crossover at ~PC 50. The same shrinkage that makes BR the
+      better reconstructor makes it the worse identifier → F7 measured, not asserted.
+- ✅ Result in `br_family/FINDINGS.md` (Headline 4) + `br_imputation/outputs/probe_shrinkage.csv`
+
 ## Deferred / out of scope
 - ❌ 4S456 parcellation (later pass if results warrant)
 - ❌ OOF train imputation (orthogonal; in-sample kept on purpose — PLAN §6)
