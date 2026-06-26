@@ -1,0 +1,9 @@
+# large imputed connectome artifacts — regenerated, consumed locally (mirror spine artifacts/)
+outputs/artifacts/
+# slurm logs + sentinels are run-local
+logs/
+sentinels/
+# per-seed parts are intermediate; the merged downstream_br.csv is the source of truth
+outputs/parts/
+outputs/wandb_home/
+outputs/wandb_cache/
