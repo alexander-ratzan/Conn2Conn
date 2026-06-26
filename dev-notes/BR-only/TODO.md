@@ -51,12 +51,17 @@ _Last updated: 2026-06-26 (module built+committed 3498a0f, synced to torch via t
       (harmful→neutral). Caveat: `obs_FC+pred_SC`≈`obs_FC` (pred_SC adds nothing on top of FC).
 - ✅ **Decision gate: PASS** → full fan-out launched
 
-## Phase 3 — Full (Glasser × 10 seeds) 🟡 RUNNING
+## Phase 3 — Full (Glasser × 10 seeds) 🟡 RECOVERING STRAGGLER
 - ✅ `bash submit_br.sh` → array **11826375** (0–9, %10) + afterok finalize **11826376**
-- 🟡 Watching finalize sentinel via background watcher (bsfwml0o8); no squeue polling
+- ✅ **9/10 seeds completed** (90 rows each). Seeds 1–9 clean.
+- ⚠️ **Straggler:** seed 0 (task 11826375_0) hit a **slow node (cs605) → 2h TIME LIMIT** (86/90 rows).
+      Classic runlog pathological-node story. Original finalize 11826376 went `DependencyNeverSatisfied`.
+- ✅ Recovery: scancel'd dead finalize (mine); resubmitted seed-0 `--array=0 --time=04:00:00`
+      → job **11835475_0** (4h margin). run_br_unit.py unlinks the partial CSV first (clean redo).
+- 🟡 Chained watcher (b0k0cioyr): wait seed-0 → auto-submit `finalize_br.sbatch` → wait finalize.
 - ⏸️ 900 downstream rows; finalize verifies completeness vs `expected_cells_br.csv` (hard-fail on gaps)
 - ⏸️ Leak verdict on merged (expect 0 LEAK_FAIL)
-- ⏸️ Aggregate mean ± std over seeds; `say` ping on finalize
+- ⏸️ Aggregate mean ± std over seeds
 
 ## Phase 4 — Analysis & writeup
 - ⏸️ Compare BR-imputed vs PLS-imputed pred_* lifts (does F5 move?)
