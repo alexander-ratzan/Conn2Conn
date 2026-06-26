@@ -1,0 +1,202 @@
+% =====================================================================
+%  Conn2Conn — the three estimators used in the reproduction grid
+%  Source of truth: reproduction/_grid_common.py
+%                   notebooks-FC_to_SC-experimental/further_exploration/_setup.py
+%                   notebooks-FC_to_SC-experimental/tractography_predict/_tract_setup.py
+%  (This documents the GRID estimators, not the notebook prototypes.)
+% =====================================================================
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\Xtr}{X_{\mathrm{tr}}}
+\newcommand{\Xte}{X_{\mathrm{te}}}
+\newcommand{\Ytr}{Y_{\mathrm{tr}}}
+
+\title{\textbf{Conn2Conn: the three grid estimators}\\[2pt]
+\large PCA--PLS, PCA--BayesianRidge, PCA--KernelRidge(RBF)}
+\author{Reproduction grid (\code{reproduction/\_grid\_common.py})}
+\date{}
+
+\begin{document}
+\maketitle
+
+\noindent
+The reproducibility grid evaluates exactly \textbf{three estimators}, expanded into
+\textbf{11 estimator-variants} per cell (\code{pca\_pls}$\times1$ + \code{bayesian\_ridge}$\times1$
++ \code{kernel\_ridge}$\times9$). All three share one scaffold and differ only in the regressor
+that lives in the compressed latent space. This note describes that shared scaffold first
+(\S\ref{sec:scaffold}), then each estimator (\S\ref{sec:pls}--\S\ref{sec:kr}), then the
+two structural variants every estimator is run through (\S\ref{sec:variants}).
+
+% =====================================================================
+\section{The shared scaffold (the parts common to all three)}\label{sec:scaffold}
+% =====================================================================
+
+Every connectome is an \textbf{upper-triangle edge vector} of a region$\times$region matrix
+(Glasser: $64{,}620$ edges; 4S456Parcels: $103{,}740$). Predicting one connectome from another
+is a regression from a $\sim$10$^5$-dim input to a $\sim$10$^5$-dim output with only
+$n_{\mathrm{train}}\!\approx\!683$ subjects --- hopelessly underdetermined in edge space. Every
+estimator therefore runs the same five-part pipeline; only Part~3 changes.
+
+\begin{enumerate}[leftmargin=2.2em,label=\textbf{P\arabic*.}]
+\item \textbf{Source compression.}
+  Fit $\mathrm{PCA}$ on the training input and project both partitions:
+  \[
+    Z^{\mathrm{src}} = \mathrm{PCA}_{k_{\mathrm{src}}}(\Xtr)\!\cdot\!X,
+    \qquad k_{\mathrm{src}} = \min(256,\ \text{width}).
+  \]
+\item \textbf{Target compression.}
+  Fit a \emph{separate} $\mathrm{PCA}$ on the training target:
+  \[
+    Z^{\mathrm{tgt}}_{\mathrm{tr}} = \mathrm{PCA}_{k_{\mathrm{tgt}}}(\Ytr)\!\cdot\!\Ytr,
+    \qquad k_{\mathrm{tgt}} = \min(256,\ \text{width}).
+  \]
+\item \textbf{Latent regressor.}
+  Learn $f: Z^{\mathrm{src}} \to Z^{\mathrm{tgt}}$ on the train latents.
+  \emph{This is the only part that differs between the three estimators.}
+\item \textbf{Inverse-PCA.}
+  Map the predicted target latents back to edge space:
+  $\hat Y = \mathrm{PCA}_{k_{\mathrm{tgt}}}^{-1}\big(f(Z^{\mathrm{src}}_{\mathrm{te}})\big).$
+\item \textbf{Evaluation.} \code{full\_panel\_eval} computes the panel
+  $\{$\code{mse}, \code{r2}, \code{pearson}, \textbf{\code{demeaned\_pearson}}, \code{top1\_acc},
+  \code{avg\_rank}$\}$. The load-bearing metric is \textbf{\code{demeaned\_pearson}}: the
+  per-subject cosine between predicted and true connectomes \emph{after subtracting the training
+  group-mean} --- i.e.\ how well individual deviation from the average brain is recovered (raw
+  pearson is $\approx0.8$--$0.9$ for everything and meaningless).
+\end{enumerate}
+
+\paragraph{The low-dim cap ($k_{\mathrm{src}}\!=\!256,\,k_{\mathrm{tgt}}\!=\!256,\,k_{\mathrm{pls}}\!=\!64$).}
+Baked into \code{\_grid\_common.capped\_*}. It is the central regularizer: it forces every model
+to operate in a $\le256$-dim subspace, which is why ``bigger model / more data'' does not help
+(F10) --- the bottleneck is the rank of the shared FC$\leftrightarrow$SC subspace, not model
+capacity. Narrow inputs (\code{bv} $\sim$16-dim, \code{demo}) are capped to their own width.
+
+% =====================================================================
+\section{Estimator 1 --- \code{pca\_pls} (PCA $\to$ PLS $\to$ inverse-PCA)}\label{sec:pls}
+% =====================================================================
+
+\textbf{Role:} the closed-form workhorse for \emph{reconstruction} headlines.
+\textbf{Part~3:} a single Partial-Least-Squares regression jointly mapping all source latents to
+all target latents,
+\[
+  \mathrm{PLSRegression}\big(n_{\mathrm{components}}=k_{\mathrm{pls}}=64,\ \texttt{scale=True},\ \texttt{max\_iter}=2000\big).
+\]
+PLS finds paired projections of $Z^{\mathrm{src}}$ and $Z^{\mathrm{tgt}}$ with maximal covariance,
+so it captures \emph{shared} cross-modal directions rather than fitting each target dimension
+independently. \texttt{scale=True} standardizes columns internally --- this is what protected the
+reconstruction path from the float32 ill-conditioning that bit the scalar path (\S\ref{sec:variants}).
+Closed-form, deterministic, fast. Implementation: \code{pca\_pls\_predict} in \code{\_setup.py}.
+
+% =====================================================================
+\section{Estimator 2 --- \code{bayesian\_ridge} (PCA $\to$ per-component BayesianRidge)}\label{sec:br}
+% =====================================================================
+
+\textbf{Role:} the strongest oracle and \textbf{the only stable estimator for scalar / cognition
+targets}. \textbf{Part~3:} fit one independent \texttt{BayesianRidge} per target PCA component,
+\[
+  \hat z^{\mathrm{tgt}}_{k} = \mathrm{BayesianRidge}(\texttt{max\_iter}{=}300)\ \text{fit on}\
+  (Z^{\mathrm{src}}_{\mathrm{tr}},\, z^{\mathrm{tgt}}_{\mathrm{tr},k}),
+  \qquad k = 1,\dots,k_{\mathrm{tgt}}.
+\]
+Bayesian ridge places a Gaussian prior on the weights and \emph{infers} the ridge penalty
+(precision $\alpha,\lambda$) from the data per component via evidence maximization --- so each of
+the $\le256$ target modes gets its own automatically-tuned regularization, no CV needed. Slower
+than PLS ($k_{\mathrm{tgt}}$ separate fits) but the per-mode adaptivity makes it the most reliable
+estimator for ill-conditioned targets. Implementation: \code{br\_per\_component\_predict}.
+
+\medskip\noindent\textbf{Reporting rule:} reconstruction headlines may use either \code{pca\_pls}
+or \code{bayesian\_ridge}; \textbf{downstream/cognition must use \code{bayesian\_ridge}} --- the
+PDF's oracle ($0.647$) and cognition baseline ($0.359$) reproduce to the digit only when the
+estimator is held to BR (the ``numbers don't match'' scare was estimator confusion).
+
+% =====================================================================
+\section{Estimator 3 --- \code{kernel\_ridge} (PCA $\to$ standardize $\to$ KRR-RBF), a $3\times3$ sweep}\label{sec:kr}
+% =====================================================================
+
+\textbf{Role:} the trustworthy \emph{nonlinear probe} --- the null that says ``you can't recover
+the FC$\leftrightarrow$SC gap with a nonlinear model.'' \textbf{Part~3:} standardize the source
+latents (\texttt{StandardScaler}), then fit a multi-output kernel ridge regression with an RBF
+kernel mapping to the target latents,
+\[
+  \hat Z^{\mathrm{tgt}} = \mathrm{KernelRidge}\big(\texttt{kernel=rbf},\ \alpha,\ \gamma\big),
+  \qquad \gamma = \gamma_{\mathrm{med}}\cdot m_\gamma .
+\]
+\begin{itemize}[leftmargin=1.4em]
+\item \textbf{Bandwidth $\gamma$} is set by the \emph{median pairwise-distance heuristic}
+  $\gamma_{\mathrm{med}} = 1/(2\cdot\mathrm{median}\,\lVert z_i - z_j\rVert^2)$ on a deterministic
+  300-point subsample (\code{\_median\_gamma}), then scaled by a multiplier
+  $m_\gamma \in \{0.5, 1.0, 2.0\}$.
+\item \textbf{Ridge penalty} $\alpha \in \{0.1, 1.0, 10.0\}$.
+\end{itemize}
+The $3\times3$ grid of $(m_\gamma,\alpha)$ gives the \textbf{9 variants}, tagged
+\code{kernel\_ridge[alpha=$a$,gamma\_mult=$g$]}. \textbf{Finding:} the sweep is \emph{degenerate}
+--- \code{demeaned\_pearson} spreads only $\sim0.004$ across all 9 cells, so all 9 collapse to
+effectively one model. That flatness \emph{is} the result: nonlinearity and HP tuning buy nothing
+in this regime. Implementation: \code{\_kr\_single} / \code{\_kr\_grid}; prototype
+\code{kernelridge\_predict} in \code{\_tract\_setup.py}.
+
+% =====================================================================
+\section{The two structural variants each estimator runs through}\label{sec:variants}
+% =====================================================================
+
+Each estimator above is exposed as both a \emph{single-matrix} function and a \emph{block}
+function, and is reused on a separate \emph{scalar} path for downstream. These are the same three
+models, re-plumbed --- not new models.
+
+\paragraph{(a) Single vs.\ Block (BP-1: per-block scaling).}
+For plain connectome inputs (\code{FC}, \code{SC}) the source PCA is fit on one matrix.
+For mixed inputs \code{FC+bv+demo} / \code{SC+bv+demo}, a naive concatenation would let the
+$10^5$-dim connectome swamp the tiny $\sim$16-dim subject-info block in a single shared PCA. The
+\textbf{block} path (\code{capped\_block\_*}, \code{block\_pca\_pls\_predict}) instead gives each
+block its own latent budget: wide blocks get \texttt{PCA}($k_{\mathrm{per\_block}}{=}256$), narrow
+blocks (\code{bv}, \code{demo}) are z-scored and passed through raw, then the latents are
+concatenated before Part~3. This is \textbf{BP-1}; it is why \code{demo} can still influence a
+prediction dominated by a huge connectome.
+
+\paragraph{(b) Scalar (downstream) path.}
+For scalar targets --- cognition (\code{CogTotal/Fluid/Cryst}) and the sex/age leak-checks --- the
+target PCA (P2) and inverse-PCA (P4) are dropped; the regressor predicts the scalar directly
+(\code{pca\_pls\_scalar}, \code{bayesian\_ridge\_scalar}, \code{\_kr\_scalar}). Two differences
+matter:
+\begin{itemize}[leftmargin=1.4em]
+\item \textbf{float64 before PCA.} \code{bv+demo} contains exactly-collinear one-hot columns
+  (\code{sex}/\code{race} each sum to 1 $\Rightarrow$ rank-deficient). float32 SVD is
+  ill-conditioned on that and \emph{lost the demographic directions split-dependently}
+  (e.g.\ \code{bv+demo}$\to$\code{age} collapsed to $0.46$ on some seeds; float64 $\to 1.000$).
+  The reconstruction path was shielded by \code{PLSRegression(scale=True)}; the scalar path was
+  not, hence the explicit \code{\_f64} cast. (This was the June leak-diagnostics bug fix.)
+\item For scalar PLS, \code{n\_components} is capped at $\min(32,k)$ (one scalar target needs far
+  fewer components than a $256$-mode connectome).
+\end{itemize}
+Downstream is judged by \textbf{\code{lift\_over\_bvdemo}} (score minus the \code{bv+demo}
+baseline, same estimator/seed) with a paired sign-flip permutation $p$
+(\code{paired\_permutation\_lift\_p}); sex/age are leak-checks, not findings.
+
+% =====================================================================
+\section*{Summary table}
+% =====================================================================
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}lp{3.3cm}p{6.0cm}p{2.4cm}@{}}
+\toprule
+\textbf{Estimator} & \textbf{Latent regressor (P3)} & \textbf{Why / role} & \textbf{Variants} \\
+\midrule
+\code{pca\_pls} & PLS, $k_{\mathrm{pls}}{=}64$, \texttt{scale=True} & closed-form workhorse; shared-covariance directions; reconstruction headline & 1 \\
+\code{bayesian\_ridge} & per-component BayesianRidge, evidence-tuned penalty & strongest oracle; \emph{only} stable scalar estimator (cognition) & 1 \\
+\code{kernel\_ridge} & RBF KRR, median-$\gamma$, $(m_\gamma,\alpha)$ sweep & nonlinear null probe; degenerate ($\Delta\!\sim\!0.004$) & 9 ($3\times3$) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent\textbf{Not in the grid (deliberately):} Krakencoder, learnable PLS, MLP/GNN,
+CovProjector --- those live in the notebook exploration; the grid is the linear/closed-form
+confirmatory spine plus one honest nonlinear null.
+
+\end{document}

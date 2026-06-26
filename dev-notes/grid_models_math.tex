@@ -1,0 +1,285 @@
+% =====================================================================
+%  Conn2Conn — the three grid estimators, RIGOROUS / COURSE-STYLE MATH
+%  Companion to grid_models.tex (the overview). This file gives, per model:
+%    objective/loss, the equations + matrix sizes, and how it learns
+%    (naive closed form AND the optimized route the libraries actually use).
+%  Source of truth: reproduction/_grid_common.py, _setup.py, _tract_setup.py
+% =====================================================================
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\T}{^{\!\top}}
+\newcommand{\Xtr}{\mathbf{X}}
+\newcommand{\Ytr}{\mathbf{Y}}
+\newcommand{\Z}{\mathbf{Z}}
+\newcommand{\W}{\mathbf{W}}
+\newcommand{\bzero}{\mathbf{0}}
+\newcommand{\bI}{\mathbf{I}}
+\newcommand{\norm}[1]{\lVert #1 \rVert}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator{\Cov}{Cov}
+\DeclareMathOperator{\tr}{tr}
+
+\title{\textbf{Conn2Conn grid estimators --- the mathematics}\\[2pt]
+\large objectives, equations, matrix dimensions, and learning rules}
+\date{}
+
+\begin{document}
+\maketitle
+
+% =====================================================================
+\section{Notation and dimensions}\label{sec:notation}
+% =====================================================================
+
+One frozen split has $n=683$ train, $79$ val, $m=195$ test subjects. A connectome is an
+upper-triangle edge vector of width $p$ (Glasser $p=64{,}620$; 4S456Parcels $p=103{,}740$).
+
+\begin{center}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Symbol & Shape & Meaning \\
+\midrule
+$\Xtr$            & $\R^{n\times p}$    & train source connectome ($n{=}683$ rows) \\
+$\Xtr_\star$      & $\R^{m\times p}$    & test source connectome ($m{=}195$) \\
+$\Ytr$            & $\R^{n\times q}$    & train target connectome ($q\!\approx\!p$) \\
+$k_s$             & $256$               & source PCA rank, $k_s=\min(256,p)$ \\
+$k_t$             & $256$               & target PCA rank, $k_t=\min(256,q)$ \\
+$\ell$            & $64$                & PLS latent components ($32$ on the scalar path) \\
+$\mathbf{U}_x$    & $\R^{p\times k_s}$  & source PCA loadings (orthonormal columns) \\
+$\mathbf{U}_y$    & $\R^{q\times k_t}$  & target PCA loadings \\
+$\Z=\Xtr\mathbf{U}_x$ & $\R^{n\times k_s}$ & source latent scores (train) \\
+$\W=\Ytr\mathbf{U}_y$ & $\R^{n\times k_t}$ & target latent scores (train) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+The key structural fact: $p,q\sim10^5$ but $n=683$, so the edge-space regression
+$\Ytr\approx\Xtr\mathbf{B}$, $\mathbf{B}\in\R^{p\times q}$ has $\sim10^{10}$ unknowns and is
+hopelessly rank-deficient. All three estimators avoid it by working in the $\le256$-dim PCA
+latent space. Only the latent map $f:\Z\!\to\!\W$ differs between them.
+
+% =====================================================================
+\section{Shared front-end: PCA compression (and its inverse)}\label{sec:pca}
+% =====================================================================
+
+\paragraph{Objective.} PCA finds the orthonormal basis maximizing retained variance
+(equivalently minimizing reconstruction error). For the source, with centered
+$\widetilde{\Xtr}=\Xtr-\mathbf 1\bar{\mathbf x}\T$,
+\[
+  \mathbf{U}_x \;=\; \argmax_{\mathbf U\T\mathbf U=\bI_{k_s}}\ \tr\!\big(\mathbf U\T\,\widetilde\Xtr\T\widetilde\Xtr\,\mathbf U\big)
+  \;=\; \argmin_{\mathrm{rank}\le k_s}\ \big\lVert \widetilde\Xtr - \widetilde\Xtr\,\mathbf U\mathbf U\T \big\rVert_F^2 .
+\]
+The solution is the top-$k_s$ eigenvectors of the $p\times p$ covariance
+$\mathbf C=\tfrac1{n-1}\widetilde\Xtr\T\widetilde\Xtr$.
+
+\paragraph{Naive learning.} Form $\mathbf C\in\R^{p\times p}$ and eigendecompose:
+$O(p^2 n + p^3)$. With $p=10^5$ this is $\sim10^{15}$ flops and $\mathbf C$ alone is $40$\,GB ---
+\emph{infeasible}, and pointless because $\mathrm{rank}(\widetilde\Xtr)\le n-1=682\ll p$.
+
+\paragraph{Optimized learning (what runs).} Since $n\ll p$, use the economy SVD
+$\widetilde\Xtr=\mathbf A\,\boldsymbol\Sigma\,\mathbf B\T$ with
+$\mathbf A\in\R^{n\times r}$, $\boldsymbol\Sigma\in\R^{r\times r}$, $\mathbf B\in\R^{p\times r}$,
+$r\le n-1$. Then $\mathbf U_x=\mathbf B_{:,1:k_s}$ and the scores are read off directly,
+$\Z=\widetilde\Xtr\mathbf U_x=\mathbf A\boldsymbol\Sigma$ (truncated). The cheap route is the
+\emph{Gram trick}: eigendecompose the $n\times n$ matrix $\widetilde\Xtr\widetilde\Xtr\T$
+($683\times683$) to get $\mathbf A,\boldsymbol\Sigma$, then
+$\mathbf B=\widetilde\Xtr\T\mathbf A\boldsymbol\Sigma^{-1}$. Cost $O(n^2 p)$ --- linear in $p$.
+\code{sklearn.decomposition.PCA(random\_state=0)} uses truncated/randomized SVD, the same idea.
+
+\paragraph{Inverse-PCA (P4).} Predictions live in latent space and are pushed back to edges by the
+(orthonormal) adjoint:
+\[
+  \widehat{\Ytr}_\star \;=\; \widehat{\W}_\star\,\mathbf{U}_y\T + \mathbf 1\,\bar{\mathbf y}\T,
+  \qquad \widehat{\W}_\star\in\R^{m\times k_t},\ \ \mathbf U_y\T\in\R^{k_t\times q}.
+\]
+This is a fixed linear decoder; no learning. Everything below produces $\widehat\W_\star$.
+
+% =====================================================================
+\section{Estimator 1 --- PCA--PLS}\label{sec:pls}
+% =====================================================================
+
+\paragraph{Objective.} Partial Least Squares extracts $\ell=64$ paired latent directions
+$(\mathbf w_a,\mathbf c_a)$ that maximize the \emph{covariance} of the projected source and target
+scores:
+\[
+  (\mathbf w_a,\mathbf c_a)\;=\;\argmax_{\norm{\mathbf w}=\norm{\mathbf c}=1}\ \Cov\!\big(\Z_{a-1}\mathbf w,\ \W_{a-1}\mathbf c\big)
+  \;=\;\argmax_{\norm{\mathbf w}=\norm{\mathbf c}=1}\ \mathbf w\T\,\Z_{a-1}\T\W_{a-1}\,\mathbf c ,
+\]
+subject to orthogonality of successive source scores $\mathbf t_a=\Z_{a-1}\mathbf w_a$. Unlike PCA
+(variance of $\Z$ alone) or OLS (correlation), PLS targets shared \emph{cross-modal} covariance ---
+the right objective when both blocks are high-dim and collinear.
+
+\paragraph{Structure.} For component $a$, the optimum $(\mathbf w_a,\mathbf c_a)$ is the leading
+singular vector pair of the $k_s\times k_t$ cross-covariance
+$\mathbf M_{a-1}=\Z_{a-1}\T\W_{a-1}$. The blocks are then \emph{deflated} (rank-1 removed) and the
+process repeats. After $\ell$ components the map collapses to a single \textbf{linear, rank-$\le\ell$}
+operator
+\[
+  \boxed{\ \widehat{\W}_\star=\Z_\star\,\mathbf B_{\mathrm{PLS}}\ },\qquad
+  \mathbf B_{\mathrm{PLS}}=\mathbf R\,\mathbf Q\T\in\R^{k_s\times k_t},\quad
+  \mathbf R=\mathbf W^\ast\big(\mathbf P\T\mathbf W^\ast\big)^{-1},
+\]
+where $\mathbf W^\ast=[\mathbf w_1\cdots\mathbf w_\ell]\in\R^{k_s\times\ell}$ (x-weights),
+$\mathbf P\in\R^{k_s\times\ell}$ (x-loadings), $\mathbf Q\in\R^{k_t\times\ell}$ (y-loadings).
+So PLS = a deliberately \textbf{low-rank ridge-like linear regression}; $\ell=64\ll k_s=256$ is the
+regularizer. (\code{scale=True} standardizes every column of $\Z,\W$ first.)
+
+\paragraph{Naive learning.} Per component, full SVD of $\mathbf M_{a-1}\in\R^{256\times256}$:
+$O(k_s k_t\min(k_s,k_t))$ per step $\times\,\ell$ --- wasteful, since only the \emph{top} singular
+pair is needed.
+
+\paragraph{Optimized learning (NIPALS, what \code{sklearn} runs).} Get just the leading singular
+vector by power iteration, then deflate. This is the algorithm:
+\begin{algorithm}[H]
+\caption{NIPALS for PLS2 (mode A) --- $\ell$ components}
+\begin{algorithmic}[1]
+\State $\Z_0\!\gets\!\Z,\ \W_0\!\gets\!\W$ \Comment{column-scaled}
+\For{$a=1,\dots,\ell$}
+  \State init $\mathbf c$; \Repeat
+    \State $\mathbf w\!\gets\!\Z_{a-1}\T\W_{a-1}\mathbf c$, $\ \mathbf w\!\gets\!\mathbf w/\norm{\mathbf w}$ \Comment{x-weights}
+    \State $\mathbf t\!\gets\!\Z_{a-1}\mathbf w$ \Comment{x-scores, $\in\R^n$}
+    \State $\mathbf c\!\gets\!\W_{a-1}\T\mathbf t/(\mathbf t\T\mathbf t)$, $\ \mathbf c\!\gets\!\mathbf c/\norm{\mathbf c}$ \Comment{y-weights}
+  \Until{$\mathbf w$ converged} \Comment{= power iteration on $\mathbf M_{a-1}\mathbf M_{a-1}\T$}
+  \State $\mathbf p\!\gets\!\Z_{a-1}\T\mathbf t/(\mathbf t\T\mathbf t)$;\quad $\mathbf q\!\gets\!\W_{a-1}\T\mathbf t/(\mathbf t\T\mathbf t)$ \Comment{loadings}
+  \State $\Z_a\!\gets\!\Z_{a-1}-\mathbf t\mathbf p\T$;\quad $\W_a\!\gets\!\W_{a-1}-\mathbf t\mathbf q\T$ \Comment{deflate}
+\EndFor
+\State assemble $\mathbf B_{\mathrm{PLS}}=\mathbf R\mathbf Q\T$
+\end{algorithmic}
+\end{algorithm}
+\noindent Cost $\approx O(\ell\cdot n k_s)$ --- linear in everything, closed-form and deterministic.
+
+% =====================================================================
+\section{Estimator 2 --- PCA--BayesianRidge (per target component)}\label{sec:br}
+% =====================================================================
+
+The $k_t=256$ target latents are fit \emph{independently}: one Bayesian linear regression per
+column $\mathbf y_k=\W_{:,k}\in\R^n$, $k=1,\dots,256$.
+
+\paragraph{Probabilistic model / loss.} For target column $k$,
+\[
+  \mathbf y_k=\Z\,\boldsymbol\beta_k+\boldsymbol\varepsilon,\quad
+  \boldsymbol\varepsilon\sim\mathcal N(\bzero,\alpha^{-1}\bI_n),\quad
+  \boldsymbol\beta_k\sim\mathcal N(\bzero,\lambda^{-1}\bI_{k_s}).
+\]
+The negative log-posterior is a \textbf{ridge loss with a learned penalty}
+$\rho=\lambda/\alpha$:
+\[
+  \boldsymbol\beta_k^{\mathrm{MAP}}=\argmin_{\boldsymbol\beta}\ \tfrac{\alpha}{2}\norm{\mathbf y_k-\Z\boldsymbol\beta}^2+\tfrac{\lambda}{2}\norm{\boldsymbol\beta}^2 .
+\]
+Unlike plain ridge, the noise precision $\alpha$ and weight precision $\lambda$ are not fixed ---
+they are estimated from the data by maximizing the marginal likelihood (evidence), giving each of
+the 256 modes its own automatically-tuned shrinkage (no cross-validation).
+
+\paragraph{Structure (posterior).} Gaussian, closed-form:
+\[
+  \boldsymbol\Sigma_k=\big(\lambda\bI_{k_s}+\alpha\,\Z\T\Z\big)^{-1},\qquad
+  \mathbf m_k=\alpha\,\boldsymbol\Sigma_k\,\Z\T\mathbf y_k,\qquad
+  \widehat{\W}_{\star,k}=\Z_\star\,\mathbf m_k .
+\]
+Prediction is again \textbf{linear} per component; stacking gives
+$\widehat\W_\star=\Z_\star\mathbf M$, $\mathbf M=[\mathbf m_1\cdots\mathbf m_{256}]\in\R^{k_s\times k_t}$.
+
+\paragraph{Naive learning.} Alternate: (i) solve the $k_s\times k_s$ system for $\mathbf m_k$;
+(ii) update $\alpha,\lambda$ from the evidence. Each iteration re-inverts/solves
+$(\lambda\bI+\alpha\Z\T\Z)$ at $O(k_s^3)=256^3$, repeated up to \code{max\_iter} ($300$ recon /
+$500$ scalar) \emph{per component} $\times256$ components --- the $256^3$ inside the loop is the
+waste.
+
+\paragraph{Optimized learning (what \code{sklearn} runs).} Take the SVD
+$\Z=\mathbf A\,\mathrm{diag}(\sigma_i)\,\mathbf G\T$ \emph{once}. In its eigenbasis every quantity
+is diagonal, so each evidence update is $O(k_s)$ instead of $O(k_s^3)$:
+\begin{align*}
+  \text{effective d.o.f.}\quad & \gamma=\sum_{i}\frac{\sigma_i^2}{\sigma_i^2+\lambda/\alpha},\\
+  \lambda\leftarrow\frac{\gamma}{\mathbf m_k\T\mathbf m_k},\qquad
+  & \alpha\leftarrow\frac{n-\gamma}{\norm{\mathbf y_k-\Z\mathbf m_k}^2},\\
+  \mathbf m_k=\mathbf G\,\mathrm{diag}\!\Big(\tfrac{\sigma_i}{\sigma_i^2+\lambda/\alpha}\Big)\mathbf A\T\mathbf y_k. &
+\end{align*}
+Iterate $\alpha,\lambda,\mathbf m_k$ to convergence. One SVD amortizes all 256 fits;
+deterministic. (\textbf{Note --- scalar path:} for cognition/sex/age the $\Z$ are cast to
+\code{float64} \emph{before} the PCA, because the collinear \code{bv+demo} one-hots make the
+float32 SVD rank-deficient and drop demographic directions split-dependently.)
+
+% =====================================================================
+\section{Estimator 3 --- PCA--KernelRidge (RBF), a $3\times3$ sweep}\label{sec:kr}
+% =====================================================================
+
+The one nonlinear estimator. Source latents are first standardized,
+$\Z\!\to\!\Z$ with zero mean / unit variance per column (\code{StandardScaler}).
+
+\paragraph{Feature map / kernel.} An RBF kernel implicitly lifts each $\mathbf z\in\R^{k_s}$ into an
+infinite-dim feature space $\phi(\mathbf z)$ with inner product
+\[
+  \kappa(\mathbf z_i,\mathbf z_j)=\exp\!\big(-\gamma\,\norm{\mathbf z_i-\mathbf z_j}^2\big),\qquad
+  \mathbf K\in\R^{n\times n},\ \ \mathbf K_{ij}=\kappa(\mathbf z_i,\mathbf z_j).
+\]
+$\mathbf K$ is $683\times683$ (cf.\ the $256\times256$ latent operators of the linear models).
+
+\paragraph{Objective (RKHS).} For the multi-output target $\W$,
+\[
+  \widehat f=\argmin_{f\in\mathcal H}\ \sum_{i=1}^{n}\norm{\mathbf w_i-f(\mathbf z_i)}^2+\alpha\,\norm{f}_{\mathcal H}^2 .
+\]
+\paragraph{Structure (representer theorem).} The minimizer is a kernel expansion on the training
+points, $f(\mathbf z)=\sum_i \kappa(\mathbf z,\mathbf z_i)\,\boldsymbol\beta_i$, with dual
+coefficients
+\[
+  \boxed{\ \boldsymbol\beta=(\mathbf K+\alpha\bI_n)^{-1}\W\ }\in\R^{n\times k_t},\qquad
+  \widehat{\W}_\star=\mathbf K_\star\,\boldsymbol\beta,
+\]
+where the test--train kernel $\mathbf K_\star\in\R^{m\times n}$ has
+$(\mathbf K_\star)_{ij}=\exp(-\gamma\norm{\mathbf z^\star_i-\mathbf z_j}^2)$. The prediction is
+\textbf{linear in $\mathbf K_\star$ but nonlinear in $\mathbf z$} --- that is the whole point of
+including it (a genuine nonlinear probe).
+
+\paragraph{Hyperparameters (the $3\times3$ grid).}
+\begin{itemize}[leftmargin=1.4em,nosep]
+\item \textbf{Bandwidth} $\gamma=\gamma_{\mathrm{med}}\cdot m_\gamma$, with the median heuristic
+  $\gamma_{\mathrm{med}}=\dfrac{1}{2\cdot\mathrm{median}_{i<j}\norm{\mathbf z_i-\mathbf z_j}^2}$
+  (computed on a deterministic 300-point subsample), $m_\gamma\in\{0.5,1,2\}$.
+\item \textbf{Ridge} $\alpha\in\{0.1,1,10\}$.
+\end{itemize}
+$\Rightarrow 9$ variants. Empirically \code{demeaned\_pearson} varies by only $\sim0.004$ across the
+grid --- the surface is flat (the null result that nonlinearity/HP-tuning buys nothing here).
+
+\paragraph{Naive vs.\ optimized learning.} The solve is a single linear system
+$(\mathbf K+\alpha\bI)\boldsymbol\beta=\W$. Naively, invert $\mathbf K+\alpha\bI$ explicitly
+($O(n^3)$ then a matmul). Optimized (\code{sklearn.kernel\_ridge}): one Cholesky factorization
+$\mathbf K+\alpha\bI=\mathbf L\mathbf L\T$ ($O(n^3)=683^3$, done \emph{once}), then all $k_t=256$
+right-hand sides solved by back-substitution ($O(n^2 k_t)$). At $n=683$ the exact solve is cheap,
+so no Nystr\"om/conjugate-gradient approximation is used --- the kernel is dense and exact.
+
+% =====================================================================
+\section{One-line contrast}\label{sec:contrast}
+% =====================================================================
+\begin{center}
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{@{}lllll@{}}
+\toprule
+Model & Objective & Solution & Learns by & Map $\Z\!\to\!\W$ \\
+\midrule
+PCA--PLS & max cross-cov. & $\mathbf B=\mathbf R\mathbf Q\T$, rank $\le\ell$ & NIPALS power iter.\,+\,deflation & linear (low-rank) \\
+PCA--BR & ridge w/ learned $\rho$ & $\mathbf m_k=\alpha\boldsymbol\Sigma_k\Z\T\mathbf y_k$ & evidence max.\ (SVD once) & linear \\
+PCA--KRR & RKHS ridge & $\boldsymbol\beta=(\mathbf K{+}\alpha\bI)^{-1}\W$ & one Cholesky solve & \textbf{nonlinear} in $\mathbf z$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent All three are deterministic and closed-form (or fixed-point); the only randomness is the
+seeded truncated-SVD inside PCA, fixed by \code{random\_state=0}. Two of three produce a linear
+latent map and differ only in \emph{how the $256\times256$ coefficient matrix is regularized}
+(low-rank covariance vs.\ per-mode evidence ridge); the third lifts to an RKHS and is the lone
+nonlinear test --- which comes back null.
+
+\end{document}
