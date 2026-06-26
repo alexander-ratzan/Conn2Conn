@@ -60,6 +60,18 @@ def obj1a_amplitude_restore(FC_tr, FC_te, SC_tr, ctx=None):
     return pca.inverse_transform(What_te * g).astype(np.float32)
 
 
+# --- Diagnostic: obj1a WITHOUT the reliability gate (g_k = amplitude gap only) --
+def obj1a_ungated_restore(FC_tr, FC_te, SC_tr, ctx=None):
+    """Ablation of obj1a: drop the reliability factor r_k, restore full per-PC amplitude
+    everywhere (including the noisy low-reliability tail). Tests whether the gate was the
+    problem, or whether the tail is unrecoverable noise (corr~0.04 -> scaling adds noise)."""
+    Z_tr, Z_te = _src_latents(FC_tr, FC_te)
+    pca, W_tr = _tgt_pca(SC_tr)
+    What_te, What_oof = _br_latent(Z_tr, Z_te, W_tr, oof=True)
+    g = W_tr.std(0) / (What_oof.std(0) + EPS)                # NO r_k gate
+    return pca.inverse_transform(What_te * g).astype(np.float32)
+
+
 # --- Objective 2C: cognition-weighted reconstruction ---------------------------
 def _oof_cog_beta(W_tr, c_tr, n_splits=5):
     """OOF-averaged ridge coefficients of cognition ~ target latents -> per-PC relevance beta."""
