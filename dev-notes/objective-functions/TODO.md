@@ -18,13 +18,15 @@ _Last updated: 2026-06-26 (decisions locked: 5 seeds, BR backbone, CogCryst-resi
       1B self-ID surrogate · **Glasser × 5 seeds** · 1A+1B (skip 1C) · all of 2C/2A/2B
 - ✅ **GO-AHEAD given** — build the cheap closed-form cuts
 
-## Phase 1 — Closed-form first cuts (Glasser × 5; confirm directions move)
-- ⬜ `reproduction/obj_functions/` skeleton (mirror `br_imputation/`)
-- ⬜ **1A** per-PC amplitude restoration — BR backbone, reliability-gated `g_k`, 5-fold OOF
-- ⬜ **2C** cognition-weighted reconstruction — OOF `β_k²` from CogCryst-resid; +raw-CogCryst side-check
-- ⬜ Save `pred_*` artifacts; run the 3-axis scorecard (recon panel + br_imputation + br_family + probe),
-      re-aggregating BR/PLS reference rows on the same 5 seeds
-- ⬜ **Gate:** does 1A ↑ sibling AUC and 2C ↑ cognition lift (CogCryst) vs BR/PLS?
+## Phase 1 — Closed-form first cuts (Glasser × 5; confirm directions move) 🟡
+- ✅ `reproduction/obj_functions/` built (committed ddb0094): `_obj_estimators.py`, `run_obj_unit.py`
+      (3 axes/seed), `finalize_obj.py` (scorecard), sbatch/submit/README
+- ✅ **1A** per-PC amplitude restoration — BR backbone, reliability-gated `g_k`, 5-fold OOF
+- ✅ **2C** cognition-weighted reconstruction — OOF `β_k²` from CogCryst-resid + raw-CogCryst side-check
+- ✅ 3-axis scorecard built into the runner (recon `full_panel_eval` + identity sib-AUC via `_fm_common`
+      + cognition lift via `bayesian_ridge_scalar`); BR/PLS computed inline on the same 5 seeds
+- 🟡 **Pilot seed 0 running** (job 11860548, watcher bhrn28nti) — validate wiring before fan-out
+- ⏸️ **Gate:** does 1A ↑ sibling AUC and 2C ↑ cognition lift (CogCryst) vs BR/PLS?
 
 ## Phase 2 — Gradient / supervised versions (all 3 Obj2 are different → all worth trying)
 - ⏸️ **1B** contrastive InfoNCE linear map (self-ID surrogate; identity-optimal)
