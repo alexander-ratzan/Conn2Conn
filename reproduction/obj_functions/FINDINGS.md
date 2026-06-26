@@ -36,8 +36,17 @@ for reconstruction, PLS's covariance-retention near-optimal for identity, and **
 BR output (amplitude restore / cognition reweight) does not beat either.** "You can't cheaply optimize
 the connectome for a third objective" fits the paper's redirect thesis.
 
-## Open / next (not run)
-- **Diagnostic:** ungated obj1a (restore tail without the reliability gate) to nail *why* it failed.
-- **Phase 2 (fair test):** gradient 1B (contrastive) / 2B (multi-task) optimize the objective end-to-end
-  rather than patching BR's output — but the structural F7 result sets low expectations.
+## Status: PARKED (closed as a negative)
+We built and correctly ran several well-motivated objective functions — an **identity-maximizing** one
+(restore between-participant difference) and **cognition-maximizing** ones (weight/supervise toward the
+biomarker) — and **none beat the BR/PLS baselines on the axis it was designed to win.** The
+reconstruct↔identify frontier did not move. That's the result: *you can't cheaply re-aim a BR-imputed
+connectome at a third objective* — consistent with the structural F7 mechanism (the probe showed BR's
+shrinkage is near-optimal and the discriminative tail is directionally noise, corr≈0.04).
+
+This line is closed. See [`../../dev-notes/objective-functions/TODO.md`](../../dev-notes/objective-functions/TODO.md)
+for the parked **future TODO** (gradient versions 1B/2B as the untried "fair test", low expectations).
+
 - Caveat: Glasser × 5 only.
+- A confirmatory **ungated-obj1a diagnostic** (job 11881048) is finishing; its one-line result will be
+  appended below for the record, but it does not change the conclusion.
