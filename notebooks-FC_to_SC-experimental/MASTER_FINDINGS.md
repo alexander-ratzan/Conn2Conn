@@ -151,6 +151,25 @@ drowns the within-family signal. Reconstruct OR discriminate, not both from one 
 - **Evidence (MD)**: `model_overviews/results/FINDINGS.md`; `sanity_checks/preprocessing_check/findings.md`
 - *Confidence: high (confirmed not-a-bug).*
 
+### F7b — The reconstruct/identify tradeoff is set by the estimator's objective (BR vs PLS), with a measured mechanism
+Swapping the imputation estimator from PLS to **BayesianRidge** (the stronger reconstructor)
+sharpens F7 *at the estimator level*. BR reconstructs better (FC→SC demeaned-r **0.166 vs PLS
+0.136**; marginally higher cognition lift) but is the **worse identifier**: sibling AUC for
+`pred_SC_resid_bvdemo` drops to **0.763 (BR) vs 0.810 (PLS)**, and BR is lower on every imputed
+variant. F6 still replicates under BR (0.763 ≫ demographic baseline 0.563, p<1e-4) and F7 still
+holds (`combined_pred_SC` 0.505, n.s.).
+**Mechanism (measured, Glasser ×10):** BR's evidence-tuned per-component shrinkage flattens the
+low-variance target-PC tail toward the group mean — it retains only **0.182×** of the true
+individual-deviation amplitude vs PLS's **0.306×**, and per-PC amplitude collapses **0.384 → 0.044**
+down the spectrum vs PLS's nearly-flat **0.519 → 0.382** (~9× more tail amplitude for PLS;
+direction-recovery corr crosses over at ~PC 50). The same shrinkage that wins the high-variance bulk
+(reconstruction / cognition) erases the low-variance idiosyncratic tail that fingerprints families.
+*You cannot optimize one connectome to both reconstruct and identify — and the estimator's objective
+is one knob on that tradeoff.*
+- **Evidence (CSV)**: `../reproduction/br_family/outputs/family_auc_br.csv` (BR sibling AUC + CI + perm + FDR); `../reproduction/br_imputation/outputs/probe_shrinkage.csv` (per-PC amplitude + recovery, BR vs PLS); `../reproduction/br_imputation/outputs/downstream_br.csv` (cognition, 18 inputs × 10 seeds)
+- **Evidence (MD)**: `../reproduction/br_family/FINDINGS.md`; `../reproduction/br_imputation/FINDINGS.md`
+- *Confidence: high. Estimator-independent variants reproduce the PLS run to float tolerance (wiring validated); Glasser × 10 with bootstrap CIs + permutation p; mechanism measured on identical splits. Glasser only (4S456 deferred).*
+
 ---
 
 ## PART 3 — EXPLORATORY / HYPOTHESIS-GENERATING (clearly hedged)
