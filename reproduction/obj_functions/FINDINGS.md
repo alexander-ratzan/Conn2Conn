@@ -48,5 +48,21 @@ This line is closed. See [`../../dev-notes/objective-functions/TODO.md`](../../d
 for the parked **future TODO** (gradient versions 1B/2B as the untried "fair test", low expectations).
 
 - Caveat: Glasser × 5 only.
-- A confirmatory **ungated-obj1a diagnostic** (job 11881048) is finishing; its one-line result will be
-  appended below for the record, but it does not change the conclusion.
+
+### Ungated-obj1a diagnostic (closing the "why") — Glasser × 5
+Dropped the reliability gate (restore per-PC amplitude everywhere, incl. the noisy tail):
+
+| estimator | recon dr | sib_AUC | CogCryst lift |
+|---|---|---|---|
+| BR | 0.163 | 0.771 | 0.037 |
+| PLS | 0.134 | **0.812** | −0.003 |
+| obj1a (gated) | 0.162 | 0.752 | 0.018 |
+| **obj1a_ungated** | **0.108** | 0.774 | 0.074 |
+
+- Removing the gate **raised** sib_AUC (0.752 → 0.774) — so the gate *was* over-conservative — but it
+  only recovered to **≈ BR (0.771)** and **never reached PLS (0.812)**, while **cratering reconstruction
+  (0.163 → 0.108)** (scaling the directionally-noisy tail adds noise).
+- **Conclusion (mechanism pinned):** PLS's identity edge is **not** "more tail amplitude" — it's
+  *directionally better* (covariance-based) tail predictions. BR's tail is directional noise
+  (corr ≈ 0.04, per the probe) that you cannot scale into a fingerprint. So no amplitude-based
+  post-hoc objective can out-identify PLS. The negative is structural, not a tuning artifact. **Closed.**
