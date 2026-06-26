@@ -27,10 +27,13 @@ _Last updated: 2026-06-26 (decisions locked: 5 seeds, BR backbone, CogCryst-resi
       + cognition lift via `bayesian_ridge_scalar`); BR/PLS computed inline on the same 5 seeds
 - ✅ Pilot seed 0 (job 11860548): BR/PLS validated **byte-for-byte** (recon dr 0.163/0.132;
       CogCryst lift BR +0.215 / PLS +0.121 = prior runs). obj1a slow (5-fold OOF = long pole).
-- 🟡 **Full run launched** — seeds 1–4 (array **11865413**) + pilot seed 0; chained watcher bzape530b
-      waits all 5 → finalize → scorecard. (Launched 1–4 not 0–4 to avoid racing the pilot's seed-0 files.)
-- 🟡 Note: 2 unrelated GPU jobs (11865285/86) pending under the account — NOT ours, left untouched.
-- ⏸️ **Gate:** scorecard diagonal — obj1a ↑ sib AUC? obj2c ↑ CogCryst lift vs BR?
+- ✅ Full run done (seeds 0–4, finalize 11868624). scorecard.csv pulled + committed.
+- ✅ **GATE RESULT: diagonal did NOT light up — clean NEGATIVE.**
+      - obj1a (identity) FAILED: sib_AUC 0.752 < BR 0.771 ≪ PLS 0.812 (reliability gate can't restore tail)
+      - obj2c (cognition resid) FAILED: +0.023 < BR +0.037, recon collapsed (0.044)
+      - obj2c_raw (cognition raw): +0.047 vs BR +0.037 = noise-level flicker, costs recon+identity
+      - BR still owns reconstruction, PLS still owns identity → F7 frontier is structural, not a cheap knob
+- ✅ FINDINGS.md written. Phase 1 = clean negative.
 
 ## Phase 2 — Gradient / supervised versions (all 3 Obj2 are different → all worth trying)
 - ⏸️ **1B** contrastive InfoNCE linear map (self-ID surrogate; identity-optimal)

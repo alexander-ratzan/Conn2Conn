@@ -1,0 +1,6 @@
+estimator,recon_demeaned_r,avg_rank,top1_acc,identity_sib_auc,cog_lift_predSC_Cryst,cog_lift_predSCbvd_Cryst,cog_lift_predSC_Total,cog_lift_predSC_Fluid
+BR,0.1628,0.8833,0.1108,0.7712,0.0372,0.0842,0.0272,-0.0220
+PLS,0.1336,0.8749,0.1159,0.8124,-0.0030,0.0646,-0.0038,-0.0596
+obj1a,0.1623,0.8756,0.1026,0.7519,0.0178,0.0731,0.0180,-0.0349
+obj2c,0.0444,0.7053,0.0472,0.6884,0.0229,0.0913,-0.0446,-0.1165
+obj2c_raw,0.1335,0.7856,0.0574,0.6846,0.0465,0.0928,0.0058,-0.0517
