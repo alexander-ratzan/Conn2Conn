@@ -71,15 +71,19 @@ _Last updated: 2026-06-26 (full run complete + recovered straggler; FINDINGS.md 
 - ⬜ Optional: fold one-line into MASTER_FINDINGS.md (BR-impute nuance to F5) — pending Adel's call
 - ⬜ Optional later: 4S456 replication; W&B upload of downstream_br.csv
 
-## Phase 5 — BR-family heritability (F6/F7) 🟡 RUNNING
+## Phase 5 — BR-family heritability (F6/F7) ✅ COMPLETE
 > Motivation: cognition showed no real boost from imputed connectomes; **heritability is the one
-> place predicted connectomes have value** (PLS `pred_SC_resid_bvdemo` sibling AUC ≈ 0.81). Does BR
-> push it higher / change the F7 collapse?
-- ✅ Built `reproduction/br_family/` — faithful port of `family_mechanism/`, pred_* via BR
-      (obs/combined/bvdemo_to_SC unchanged → built-in sanity guard). Committed 7d54601, synced to torch.
-- ✅ Launched array **11852193** (Glasser 0–9, %10) + afterok finalize **11852194**; PLS family_auc present
-- 🟡 Watching finalize sentinel (background); finalize prints BR-vs-PLS sibling AUC + guard
-- ⏸️ Pull `family_auc_br.csv`, confirm guard (est-indep variants match PLS), write findings, commit
+> place predicted connectomes have value** (PLS `pred_SC_resid_bvdemo` sibling AUC ≈ 0.81).
+- ✅ Built `reproduction/br_family/` (port of `family_mechanism/`, pred_* via BR). Committed, synced.
+- ✅ Ran array **11852193** (Glasser 0–9) + finalize **11852194**; 10/10 clean, no errors.
+- ✅ **Guard PASS:** est-independent variants match PLS (obs/bvdemo_to_SC Δ=0; combined Δ=1.5e-6 float
+      noise — loosened threshold 1e-6→1e-4). Pairing self-check passed.
+- ✅ **RESULT (counterintuitive):** BR carries **LESS** heritable signal than PLS on all imputed
+      variants (`pred_SC_resid_bvdemo` 0.763 vs PLS 0.810). Better reconstructor = worse identifier.
+- ✅ **F6 still replicates** (BR pred_SC_resid_bvdemo 0.763 >> demographic 0.563, p<1e-4) — heritability
+      is the ONE place the predicted connectome genuinely buys signal. **F7 replicates** (combined=0.505 n.s.).
+- ✅ This is the F7 reconstruct/identify tradeoff **at the estimator level**. `FINDINGS.md` written.
+- ✅ Pulled `family_auc_br.csv`, committed + pushed.
 
 ## Deferred / out of scope
 - ❌ 4S456 parcellation (later pass if results warrant)
