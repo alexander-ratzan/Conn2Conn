@@ -25,8 +25,12 @@ _Last updated: 2026-06-26 (decisions locked: 5 seeds, BR backbone, CogCryst-resi
 - ✅ **2C** cognition-weighted reconstruction — OOF `β_k²` from CogCryst-resid + raw-CogCryst side-check
 - ✅ 3-axis scorecard built into the runner (recon `full_panel_eval` + identity sib-AUC via `_fm_common`
       + cognition lift via `bayesian_ridge_scalar`); BR/PLS computed inline on the same 5 seeds
-- 🟡 **Pilot seed 0 running** (job 11860548, watcher bhrn28nti) — validate wiring before fan-out
-- ⏸️ **Gate:** does 1A ↑ sibling AUC and 2C ↑ cognition lift (CogCryst) vs BR/PLS?
+- ✅ Pilot seed 0 (job 11860548): BR/PLS validated **byte-for-byte** (recon dr 0.163/0.132;
+      CogCryst lift BR +0.215 / PLS +0.121 = prior runs). obj1a slow (5-fold OOF = long pole).
+- 🟡 **Full run launched** — seeds 1–4 (array **11865413**) + pilot seed 0; chained watcher bzape530b
+      waits all 5 → finalize → scorecard. (Launched 1–4 not 0–4 to avoid racing the pilot's seed-0 files.)
+- 🟡 Note: 2 unrelated GPU jobs (11865285/86) pending under the account — NOT ours, left untouched.
+- ⏸️ **Gate:** scorecard diagonal — obj1a ↑ sib AUC? obj2c ↑ CogCryst lift vs BR?
 
 ## Phase 2 — Gradient / supervised versions (all 3 Obj2 are different → all worth trying)
 - ⏸️ **1B** contrastive InfoNCE linear map (self-ID surrogate; identity-optimal)
