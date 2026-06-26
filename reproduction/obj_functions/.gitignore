@@ -1,0 +1,5 @@
+outputs/parts/
+outputs/artifacts/
+logs/
+sentinels/
+# scorecard.csv (the result) is NOT ignored.
