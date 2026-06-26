@@ -1,11 +1,11 @@
 # BR-only Run — TODO / STATUS
 
 Companion to [PLAN.md](PLAN.md). This is the live checklist — keep the status current.
-**Overall status:** 🟡 BUILT + SYNCED to Torch; PILOT (Glasser seed 0) SUBMITTED & RUNNING (job 11824527_0).
+**Overall status:** ✅ COMPLETE — Glasser × 10 done (900 rows, 0 LEAK_FAIL), analyzed, findings written. 4S456 deferred.
 
 Legend: ⬜ todo · 🟡 in progress · ✅ done · ⏸️ blocked/waiting · ❌ dropped
 
-_Last updated: 2026-06-26 (module built+committed 3498a0f, synced to torch via targeted checkout, pilot submitted)_
+_Last updated: 2026-06-26 (full run complete + recovered straggler; FINDINGS.md written; result CSVs committed)_
 
 ---
 
@@ -58,16 +58,18 @@ _Last updated: 2026-06-26 (module built+committed 3498a0f, synced to torch via t
       Classic runlog pathological-node story. Original finalize 11826376 went `DependencyNeverSatisfied`.
 - ✅ Recovery: scancel'd dead finalize (mine); resubmitted seed-0 `--array=0 --time=04:00:00`
       → job **11835475_0** (4h margin). run_br_unit.py unlinks the partial CSV first (clean redo).
-- 🟡 Chained watcher (b0k0cioyr): wait seed-0 → auto-submit `finalize_br.sbatch` → wait finalize.
-- ⏸️ 900 downstream rows; finalize verifies completeness vs `expected_cells_br.csv` (hard-fail on gaps)
-- ⏸️ Leak verdict on merged (expect 0 LEAK_FAIL)
-- ⏸️ Aggregate mean ± std over seeds
+- ✅ seed-0 redo (11835475_0) done in ~10 min on a normal node (90 rows); finalize 11836005 ran
+- ✅ **900/900 rows complete + finite; 0 LEAK_FAIL** (235 ok / 125 EXEMPT_FLAGGED)
+- ✅ Pulled result CSVs to laptop (`outputs/downstream_br.csv`, `leak_verdict_br.csv`, `expected_cells_br.csv`)
 
-## Phase 4 — Analysis & writeup
-- ⏸️ Compare BR-imputed vs PLS-imputed pred_* lifts (does F5 move?)
-- ⏸️ Rank all 18 inputs by lift per cognition target; flag perm-p < 0.05
-- ⏸️ Inspect the new combos (13/14 obs+pred; 18 everything) for any signal
-- ⏸️ Short findings note in `reproduction/br_imputation/` (+ fold into MASTER_FINDINGS if real)
+## Phase 4 — Analysis & writeup ✅
+- ✅ BR-imputed vs PLS-imputed lifts: **12/12 imputed-input×target deltas positive** (BR > PLS),
+      but small; **F5 holds** (pred_FC still harmful 0/10 sig; pred_SC marginal 3/10 sig)
+- ✅ Ranked 18 inputs by lift (CogCryst) with frac-seeds-sig; FC-dominance reconfirmed
+      (obs_FC+pred_SC ≈ obs_FC; pred_SC adds nothing on top of FC)
+- ✅ `FINDINGS.md` written (3 headlines + leak + caveats + takeaway)
+- ⬜ Optional: fold one-line into MASTER_FINDINGS.md (BR-impute nuance to F5) — pending Adel's call
+- ⬜ Optional later: 4S456 replication; W&B upload of downstream_br.csv
 
 ## Deferred / out of scope
 - ❌ 4S456 parcellation (later pass if results warrant)
