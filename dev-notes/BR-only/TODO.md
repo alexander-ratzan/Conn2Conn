@@ -1,11 +1,11 @@
 # BR-only Run — TODO / STATUS
 
 Companion to [PLAN.md](PLAN.md). This is the live checklist — keep the status current.
-**Overall status:** 🟡 PLAN APPROVED + ops model defined — awaiting go-ahead to build/run. Nothing executed yet.
+**Overall status:** 🟡 BUILT + SYNCED to Torch; PILOT (Glasser seed 0) SUBMITTED & RUNNING (job 11824527_0).
 
 Legend: ⬜ todo · 🟡 in progress · ✅ done · ⏸️ blocked/waiting · ❌ dropped
 
-_Last updated: 2026-06-26 (plan + todo + ops/sbatch section written; no code, no runs)_
+_Last updated: 2026-06-26 (module built+committed 3498a0f, synced to torch via targeted checkout, pilot submitted)_
 
 ---
 
@@ -15,35 +15,35 @@ _Last updated: 2026-06-26 (plan + todo + ops/sbatch section written; no code, no
 - ✅ Write this `TODO.md`
 - ⬜ **GO-AHEAD to start building** ← currently waiting on this
 
-## Phase 1 — Build the module (no runs yet)
-- ⬜ Create `reproduction/br_imputation/` skeleton (`outputs/`, `configs/`, `README.md`)
-- ⬜ `run_br_pilot.py`: BR imputation step (`capped_bayesian_ridge` for pred_{SC,FC}_{train(in-sample),test})
-- ⬜ Save BR artifacts → `outputs/artifacts/Glasser/seed{N}/` (+ `subject_ids_*`, BP-2 join)
-- ⬜ `BR_INPUTS` registry = the 18 names (PLAN §3)
-- ⬜ `build_br_input()` — extend downstream builder to cover the 8 new block names (#11–18)
-- ⬜ Downstream loop: `bayesian_ridge_scalar` only; lift / perm-p / residualized; append `downstream_br.csv`
-- ⬜ Leak classification for new inputs (PLAN §9) → `leak_verdict_br.csv`
-- ⬜ `gen` expected cells → `configs/expected_cells_br.csv`
-- ⬜ `README.md` (what/why + links to PLAN + §6 in-sample note)
-- ⬜ Self-check: imports from `_grid_common` only; **zero edits to spine files/outputs**
+## Phase 1 — Build the module (no runs yet) ✅ (committed 3498a0f)
+- ✅ Create `reproduction/br_imputation/` skeleton (`outputs/`, `configs/`, `README.md`, `.gitignore`)
+- ✅ `run_br_unit.py`: BR imputation step (`capped_bayesian_ridge` for pred_{SC,FC}_{train(in-sample),test})
+- ✅ Save BR artifacts → `outputs/artifacts/Glasser/seed{N}/` (+ `subject_ids_*`, BP-2 join)
+- ✅ `BR_INPUTS` registry = the 18 names (PLAN §3)
+- ✅ `build_br_input()` — covers the 8 new block names (#11–18); +bv+demo uses single bvdemo block
+- ✅ Downstream loop: `bayesian_ridge_scalar` only; lift / perm-p / residualized; per-seed part CSV
+- ✅ Leak classification (PLAN §9): CONTAINS_SUBJECT_INFO vs CONNECTOME_ONLY sets in `run_br_unit.py`
+- ✅ `finalize_br.py`: merge parts → `downstream_br.csv` + `leak_verdict_br.csv` + `expected_cells_br.csv`
+- ✅ `README.md` (what/why + links to PLAN + §6 in-sample note)
+- ✅ Self-check: imports from `_grid_common` only; **zero edits to spine files/outputs**; py_compile + bash -n pass
 
-## Phase 1.5 — Ops / HPC execution setup (sbatch on Torch)
+## Phase 1.5 — Ops / HPC execution setup (sbatch on Torch) ✅
 > The connectome data lives on Torch scratch, so this CANNOT run locally — it ships to the cluster.
-- ⬜ **CLARIFY ACCESS (blocker):** how do I reach Torch? standing rule = no interactive ssh/MFA in
-      autonomous mode. Need either a live authenticated **tmux** session on Torch, or Adel drives
-      the ssh/submit step. (See ops cheat-sheet below.)
-- ⬜ `run_br_unit.sbatch` — array `0-9` (Glasser × 10 seeds; `PARC=Glasser`, `SEED=IDX`), mirrors
-      `run_unit.sbatch` (account `torch_pr_60_tandon_priority`, `cpu_short`, 8 CPU). Resourcing:
-      **`--mem=16G` / `--time=02:00:00` / `--array=0-9%10`** (rationale in ops cheat-sheet).
-- ⬜ Redirect `HOME` + `XDG_CACHE_HOME` + all caches to **`/scratch`** (never `$HOME` → avoids quota).
-- ⬜ `submit_br.sh` — submit array, chain `finalize` via `--dependency=afterok`; print sentinel
-      watch commands (no squeue).
-- ⬜ Sentinels under `sentinels/` (`DONE_br_*` / `ERROR_br_*`); finalize merges parts + verifies.
-- ⬜ Sync via **git bridge** (push → torch ff-merge → origin), NOT scp.
+- ✅ **ACCESS resolved:** `ssh torch` is key-based/non-interactive (BatchMode works); driving via a
+      local `tmux` session + one-shot `ssh torch '...'`. Connectivity + paths verified.
+- ✅ `run_br_unit.sbatch` — `cpu_short`, 8 CPU, **`--mem=16G` / `--time=02:00:00` / `--array=0-9%10`**,
+      account `torch_pr_60_tandon_priority`; PARC=Glasser, SEED=IDX.
+- ✅ Redirect `HOME` + `XDG_CACHE_HOME` to **`/scratch`** inside the apptainer `bash -lc`.
+- ✅ `submit_br.sh` — array + `--dependency=afterok` finalize; prints sentinel watch commands.
+- ✅ `finalize_br.sbatch` + sentinels (`DONE_br_*` / `ERROR_br_*`); finalize merges + verifies.
+- ✅ Sync via **git** (push origin → `git fetch` + targeted `git checkout origin/adel-temp --
+      reproduction/br_imputation` on torch; torch HEAD left at f8d84d1, dirty files untouched). NOT scp.
+- ✅ Confirmed torch deps unchanged since f8d84d1 (`_grid_common`/`_setup`/`_tract_setup` identical;
+      float64 leak fix already present). Container SIF + overlay ext3 verified.
 
 ## Phase 2 — Pilot (Glasser, seed 0)
-- ⏸️ Submit `run_br_unit.sbatch` for seed 0 only (or `--array=0`), watch `sentinels/DONE_br_0`
-- ⏸️ `say` ping on completion; tail `logs/br_Glasser_s0.txt` (no squeue polling)
+- ✅ Submitted `sbatch --array=0 run_br_unit.sbatch` → job 11824527_0, running on cs613
+- 🟡 Watching `sentinels/DONE_br_0` via background watcher (bowwnc36p) + `say` ping; no squeue polling
 - ⏸️ Verify: 18×5 = 90 downstream rows, all finite, 0 LEAK_FAIL
 - ⏸️ Eyeball pred_* CogCryst lifts vs spine PLS (pred_FC −0.135, pred_SC −0.010) → note direction
 - ⏸️ **Decision gate:** wiring clean? proceed to full fan-out
