@@ -35,39 +35,80 @@ It then flows through the harness we already built:
 So the only new code is the estimator `fn`s; evaluation is the existing three harnesses pointed at the
 new `pred_*`.
 
-Notation: source FC train `X` (n×p), target SC train `Y` (n×q); source latents `Z=PCA_k(X)` (n×256);
-target latents `W=(Y−μ)U_yᵀ` (n×256); base map `M: Z→Ŵ`; reconstruct `Ŷ = Ŵ U_y + μ`.
+### Notation (used in §3–§4 — every symbol below)
+
+| symbol | shape | meaning |
+|---|---|---|
+| $n$ | scalar | number of training subjects (≈ 683) |
+| $p,\;q$ | scalar | number of FC edges / SC edges (64,620 each on Glasser) |
+| $X$ | $n\times p$ | training **FC** edge matrix — the source we predict *from* |
+| $Y$ | $n\times q$ | training **SC** edge matrix — the target we **impute** |
+| $\mu$ | $q$ | training group-mean SC connectome (the "average brain") |
+| $U_y$ | $256\times q$ | target **PCA loadings** — orthonormal SC "shape" directions (PCs) |
+| $Z$ | $n\times 256$ | **source latents**: FC compressed to 256 PCA scores |
+| $W$ | $n\times 256$ | **target latents**: each subject's SC deviation on the PCs. $W_{i,k}$ = how strongly subject $i$ expresses SC-PC $k$ |
+| $M$ | map | the learned **map** from source to target latents: $\hat W = M(Z)$ |
+| $\hat W$ | $n\times 256$ | **predicted** target latents |
+| $\hat Y$ | $n\times q$ | reconstructed SC connectome $=\hat W\,U_y+\mu$ |
+| $c$ | $n$ | training **cognition** score per subject (e.g. CogCryst) |
+| $s(a,b)$ | scalar | **demeaned cosine** similarity between connectomes $a,b$ — the identity metric, $s(a,b)=\dfrac{(a-\mu)\cdot(b-\mu)}{\lVert a-\mu\rVert\,\lVert b-\mu\rVert}$ |
 
 ---
 
 ## 3. Objective 1 — maximize between-participant difference (identity)
 
-### 1A — Per-PC amplitude restoration (cheap, closed-form; FIRST)
-Fit a base regressor (BR or PLS), then restore each predicted target-PC's between-subject spread to
-the true train amplitude, **gated by recovery reliability** (don't amplify noise):
-```
-g_k = corr_k * std(W_train[:,k]) / std(Ŵ_train_OOF[:,k])      # corr_k = OOF recovery corr of PC k
-Ŵ_test[:,k] <- g_k * Ŵ_test[:,k]
-```
-- Directly inverts the tail-collapse we measured (BR amp 0.04 → toward 1.0) ONLY where direction is
-  reliably recovered. ~10 lines on top of BR/PLS.
-- **Honesty:** `g_k` must use **out-of-fold** train predictions (k-fold within train) or it's
-  optimistic. The OOF is the only real cost.
-- **Predict:** sibling AUC ↑ (recovers discriminative tail), reconstruction demeaned-r ~flat or ↓
-  (amplitude restoration can add variance without improving cosine).
+**Intuition:** make predicted connectomes *spread out and distinguishable* across people instead of all
+collapsing toward the average brain (which is exactly what BR's shrinkage does). A good identity
+imputation lets you tell subjects — and families — apart.
+
+### 1A — Per-PC amplitude restoration (cheap closed-form; FIRST)
+**What it does:** after a base regressor predicts the SC latents, re-inflate each PC's between-subject
+spread back to the true amount — but only for the PCs it predicts *reliably*, so we restore signal, not
+noise. Applied per target PC $k$:
+
+$$\hat W^{\text{test}}_{:,k}\;\leftarrow\;g_k\cdot \hat W^{\text{test}}_{:,k},
+\qquad
+g_k \;=\; \underbrace{r_k}_{\text{reliability}}\;\cdot\;
+\underbrace{\frac{\operatorname{std}_i\!\big(W_{i,k}\big)}{\operatorname{std}_i\!\big(\hat W^{\text{OOF}}_{i,k}\big)}}_{\text{amplitude gap}}$$
+
+where:
+- $\hat W^{\text{test}}_{:,k}$ — predicted scores of all **test** subjects on SC-PC $k$ (the vector we rescale).
+- $\operatorname{std}_i(\cdot)$ — standard deviation **across subjects** = the between-participant spread.
+- $\operatorname{std}_i(W_{i,k})$ — spread of the **true** scores on PC $k$ (how much real people differ on that mode).
+- $\hat W^{\text{OOF}}_{i,k}$ — the **out-of-fold** predicted score for subject $i$ (predicted by a model trained on *other* folds); using OOF, not in-sample, keeps the gain honest.
+- $r_k$ — across-subject correlation between predicted and true scores on PC $k$ (how reliably the model recovers that mode). Multiplying by $r_k$ means *only restore amplitude where the direction is trustworthy; leave noisy PCs shrunk.*
+
+**Why:** directly inverts the tail-collapse we measured (BR amplitude 0.04 → back toward the true spread),
+reliability-gated. ~10 lines on a BR/PLS backbone. **Predict:** sibling AUC ↑; reconstruction demeaned-r
+flat or slightly ↓.
 
 ### 1B — Contrastive / fingerprint loss (the true objective; gradient, SECOND)
-Train a linear map `M` in latent space with InfoNCE on demeaned cosine `s`:
-```
-L = -Σ_i log [ exp(s(Ŷ_i, Y_i)/τ) / Σ_j exp(s(Ŷ_i, Y_j)/τ) ]
-```
-- Directly optimizes identifiability (avg_rank/top1) — pushes each subject's prediction away from all
-  others. Linear M on 256-dim, n=683 → seconds to train (torch or sklearn+autograd).
-- **Predict:** highest sibling AUC of all estimators; lowest reconstruction.
+**What it does:** train the map so each subject's predicted connectome is closest to *their own* true
+connectome and far from everyone else's — i.e. directly optimize "can you fingerprint people." Minimize
+over the map $M$:
+
+$$\mathcal{L}\;=\;-\sum_{i=1}^{n}\;\log\frac{\exp\!\big(s(\hat Y_i,\,Y_i)/\tau\big)}
+{\displaystyle\sum_{j=1}^{n}\exp\!\big(s(\hat Y_i,\,Y_j)/\tau\big)}$$
+
+where:
+- $\hat Y_i$ — predicted SC connectome for subject $i$ (from the map $M$, via inverse-PCA).
+- $Y_j$ — the **true** SC connectome of subject $j$ (every subject is a candidate to match against).
+- $s(\cdot,\cdot)$ — demeaned cosine similarity (defined in the Notation table) — the identity metric.
+- $\tau$ — temperature; smaller $\tau$ = sharper "must match the exact subject" pressure.
+- The fraction = subject $i$'s prediction similarity to **its own** true connectome ÷ similarity to **everyone**. Maximizing it pushes each subject's prediction *away* from the others — literally "maximize the difference between participants," in the discriminative sense.
+
+Linear $M$ on 256-dim latents, $n=683$ → trains in seconds. **Predict:** highest sibling AUC; lowest
+reconstruction.
 
 ### 1C — Rayleigh quotient (closed-form middle ground; optional)
-Linear `M` maximizing between-subject scatter of predictions s.t. a reconstruction constraint →
-generalized eigenproblem. No gradient descent; less directly tied to the cosine metric than 1B.
+**What it does:** find the linear map whose predictions carry the **most between-subject variance** while
+still reconstructing SC — a variance-maximizing compromise:
+
+$$M^\star=\arg\max_{M}\;\frac{\operatorname{tr}\!\big(\operatorname{Cov}_{\text{between-subj}}(MZ)\big)}{\big\lVert W-MZ\big\rVert_F^{2}}$$
+
+where the **numerator** is the spread of predictions across subjects and the **denominator** is
+reconstruction error. Solvable as a generalized eigenproblem (no gradient descent), but less directly
+tied to the cosine identity metric than 1B.
 
 **Pick:** 1A first (instant read), 1B as the identity-optimal estimator.
 
@@ -75,34 +116,56 @@ generalized eigenproblem. No gradient descent; less directly tied to the cosine 
 
 ## 4. Objective 2 — maximize the cognition biomarker (cognition-supervised)
 
-The imputer sees **train cognition** `c` and builds `pred_SC` to be cognition-predictive.
+**Intuition:** instead of imputing the most *faithful* SC, impute the SC that best *predicts cognition*.
+The imputer is allowed to see **training** cognition $c$; test cognition is never touched.
 
-### 2C — Cognition-weighted PC reconstruction (cheapest; FIRST)
-Weight each target SC-PC's reconstruction by its train cognition-predictiveness:
-```
-β_k from  cog ~ SC-PC_k  (OOF on train);   w_k ∝ β_k²
-impute with BR/PLS but scale the per-PC target by w_k (spend fidelity on cognition-bearing modes)
-```
-Closed-form on top of the existing per-PC estimators.
+### 2C — Cognition-weighted reconstruction (cheapest; FIRST)
+**What it does:** make the imputer spend its effort on the SC modes that carry cognition, and neglect the
+cognition-irrelevant ones. First, on train, regress cognition on the SC latents to score each mode's
+relevance, then fit the map with a **weighted** reconstruction loss:
+
+$$c\;\approx\;\sum_{k=1}^{256}\beta_k\,W_{:,k}
+\;\;\Longrightarrow\;\;w_k\propto\beta_k^{2},
+\qquad
+M=\arg\min_{M}\;\sum_{k=1}^{256} w_k\,\big\lVert W_{:,k}-(MZ)_{:,k}\big\rVert^{2}$$
+
+where:
+- $\beta_k$ — regression weight of SC-PC $k$ when predicting cognition $c$ on train (fit **OOF**). Large $|\beta_k|$ = that SC mode matters for cognition.
+- $w_k\propto\beta_k^{2}$ — per-mode importance weight; cognition-relevant PCs get more weight.
+- $W_{:,k}$ vs $(MZ)_{:,k}$ — true vs predicted score of all subjects on PC $k$.
+- Net effect: the map is pushed to nail the cognition-bearing PCs and may sacrifice the rest.
+
+Closed-form on the per-component backbone. **Predict:** cognition lift ↑ vs BR/PLS; reconstruction ↓.
 
 ### 2A — Supervised target basis (clean; SECOND)
-Replace the unsupervised SC-PCA with **PLS(SC_train, c_train)** → cognition-aligned SC directions `V`;
-impute `FC → V-latents → inverse`. The imputed connectome lives in the cognition-relevant SC subspace.
+**What it does:** swap the unsupervised SC-PCA basis for one built to capture cognition, then impute into it.
 
-### 2B — Multi-task joint loss (frontier knob; gradient, THIRD)
-```
-L = ||Ŵ − W||²  +  λ · ||c − g(Ŵ)||²        # g = linear cognition readout
-```
-Sweep `λ` → trace the reconstruct↔cognition frontier directly.
+$$V=\operatorname{PLS}\big(Y,\,c\big)\;\;(\text{SC directions of maximal covariance with cognition}),
+\qquad W'=(Y-\mu)\,V^{\top}$$
 
-**⚠️ Honesty (critical):** the imputer uses **train** cognition; eval stays on **held-out test**
+where $V$ are the cognition-aligned SC directions (replacing $U_y$) and $W'$ the cognition-aligned target
+latents. Impute $FC\to W'$ and reconstruct with $V$; the imputed connectome lives in the cognition-relevant
+SC subspace.
+
+### 2B — Multi-task joint loss (the frontier knob; gradient, THIRD)
+**What it does:** train one map that both reconstructs SC and predicts cognition, with a dial $\lambda$
+trading the two:
+
+$$\mathcal{L}=\underbrace{\big\lVert W-MZ\big\rVert_F^{2}}_{\text{reconstruct SC}}
+\;+\;\lambda\underbrace{\big\lVert c-g(MZ)\big\rVert^{2}}_{\text{predict cognition}}$$
+
+where:
+- $g(\cdot)$ — a linear readout from predicted latents $MZ$ to a cognition estimate.
+- $\lambda$ — the tradeoff dial: $\lambda=0$ is pure reconstruction (≈ BR); large $\lambda$ is cognition-first. **Sweeping $\lambda$ traces the reconstruct↔cognition frontier directly.**
+
+**⚠️ Honesty (critical):** the imputer uses **train** cognition only; eval stays on **held-out test**
 cognition (no leak). BUT imputer + downstream model double-dip the same train cognition signal →
 **cross-fit / OOF** the imputer's cognition-learning, else train `pred_SC` is optimistically loaded.
-And from F5 the SC↔cognition signal is weak → this can beat the *reconstruction-objective* imputation
-but **won't beat `obs_FC`**. Frame the question as "does a cognition objective recover more cognition
-than a reconstruction objective," not "does imputation finally beat FC."
+And from F5 the SC↔cognition signal is weak → these beat the *reconstruction-objective* imputation but
+**won't beat `obs_FC`**. Frame the question as "does a cognition objective recover more cognition than a
+reconstruction objective," not "does imputation finally beat FC."
 
-**Pick:** 2C first (cheap), 2A second; 2B only if we want the λ-frontier.
+**Pick:** 2C first (cheap), 2A second; 2B only for the λ-frontier.
 
 ---
 
