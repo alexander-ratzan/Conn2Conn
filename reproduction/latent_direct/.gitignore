@@ -1,0 +1,5 @@
+outputs/parts/
+logs/
+sentinels/
+__pycache__/
+!outputs/scorecard_latent.csv
