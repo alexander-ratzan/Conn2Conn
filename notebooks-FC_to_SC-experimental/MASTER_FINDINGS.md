@@ -170,6 +170,23 @@ is one knob on that tradeoff.*
 - **Evidence (MD)**: `../reproduction/br_family/FINDINGS.md`; `../reproduction/br_imputation/FINDINGS.md`
 - *Confidence: high. Estimator-independent variants reproduce the PLS run to float tolerance (wiring validated); Glasser × 10 with bootstrap CIs + permutation p; mechanism measured on identical splits. Glasser only (4S456 deferred).*
 
+### F7c — The tradeoff is a WALL, not a knob: custom objectives can't re-aim the connectome (negative)
+We built and correctly ran four custom imputation objectives to try to *move* the F7 frontier — an
+**identity-maximizing** one (restore between-participant difference: gated + ungated per-PC amplitude)
+and **cognition-maximizing** ones (per-PC cognition weighting, raw + bv+demo-residualized target) — on
+a BR backbone, Glasser × 5, scored on all three axes (reconstruction / sibling-AUC / CogCryst-lift).
+**None beat the BR/PLS baselines on the axis it was built for.** BR stayed the reconstruction champion
+(demeaned-r 0.163), PLS the identity champion (sib AUC 0.812); the objectives landed at or below them.
+A follow-up ablation (ungated amplitude restoration) pinned the mechanism: scaling BR's low-variance
+tail recovers identity only to ≈BR (0.774, never PLS 0.812) **and** craters reconstruction
+(0.163→0.108) — because PLS's identity edge is *directionally-better* (covariance) tail predictions, not
+just more tail amplitude; BR's tail is directional noise (corr≈0.04) you cannot scale into a fingerprint.
+**Takeaway:** you cannot cheaply optimize one connectome for a third objective — the reconstruct↔identify
+tradeoff is structural. Strengthens the redirect thesis (stop engineering past a wall that doesn't move).
+- **Evidence (CSV)**: `../reproduction/obj_functions/outputs/scorecard.csv` (5-seed × 5-estimator × 3-axis); `../reproduction/obj_functions/outputs/diag_ungated.csv` (gate ablation)
+- **Evidence (MD)**: `../reproduction/obj_functions/FINDINGS.md`; plan/parked-future-work in `../dev-notes/objective-functions/{PLAN,TODO}.md`
+- *Confidence: high (clean negative). BR/PLS reproduce prior runs byte-for-byte per seed; Glasser × 5 only; gradient objectives (1B contrastive / 2B multi-task) untried — parked as low-expectation future work.*
+
 ---
 
 ## PART 3 — EXPLORATORY / HYPOTHESIS-GENERATING (clearly hedged)
