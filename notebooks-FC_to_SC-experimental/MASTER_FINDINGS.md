@@ -187,6 +187,26 @@ tradeoff is structural. Strengthens the redirect thesis (stop engineering past a
 - **Evidence (MD)**: `../reproduction/obj_functions/FINDINGS.md`; plan/parked-future-work in `../dev-notes/objective-functions/{PLAN,TODO}.md`
 - *Confidence: high (clean negative). BR/PLS reproduce prior runs byte-for-byte per seed; Glasser × 5 only; gradient objectives (1B contrastive / 2B multi-task) untried — parked as low-expectation future work.*
 
+### F7d — Latent-direct (skip the inverse-PCA round-trip): objectives still dead, but the round-trip was eating cognition
+Re-ran the F7c objectives **classifying on the task-tuned latent directly** (drop `inverse-PCA → re-PCA`;
+BR straight on the latent), Glasser × 3, arms FC2SC/SC2FC/FCSC. Two results:
+1. **Objectives remain a dead end (confirms F7c).** Identity objective `obj1a` (sib AUC 0.748) still loses
+   to plain BR (0.767) and PLS (0.808); the cognition objective `obj2c_raw` (+0.115 CogCryst) beats BR
+   (+0.082) by only +0.033 (within ±0.08 seed scatter), at the *worst* identity (0.698), and never reaches
+   observed FC (+0.133). No manufactured connectome beats its observed scan on the matched axis (real SC
+   wins identity 0.863; real FC wins cognition 0.133). The cognition objective even *hurts* observed FC&SC.
+2. **But the inverse-PCA round-trip was attenuating cognition (pipeline keeper).** Δ(latent-direct −
+   round-trip) on FC2SC: CogCryst **+0.037…+0.069 for every objective**, sibling-AUC **≈0** (isometry —
+   PCA components orthonormal → inverse-transform preserves cosine/identity, only the cognition regression
+   basis is distorted). So **F5's "imputed connectomes don't transfer cognition" was substantially a
+   round-trip artifact**: reconstructed-SC cognition climbs −0.010 (spine) → +0.115 (latent-direct) ≈ 86%
+   of the obs_FC ceiling. Qualifier: FC→SC-reconstructed SC *is* FC information, so this is "the latent
+   preserves FC's signal," not "SC predicts cognition." **Reporting fix for the paper: classify on the
+   latent, not on a round-tripped connectome.**
+- **Evidence (CSV)**: `../reproduction/latent_direct/outputs/scorecard_latent.csv`
+- **Evidence (MD)**: `../reproduction/latent_direct/FINDINGS.md`
+- *Confidence: medium (clean negative on objectives; pipeline effect monotone across all 5 objectives). Glasser × 3 seeds; Δ vs the 5-seed round-trip (not yet seed-matched). Parked — not scaled to 10 seeds / 4S456 by choice.*
+
 ---
 
 ## PART 3 — EXPLORATORY / HYPOTHESIS-GENERATING (clearly hedged)
