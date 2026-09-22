@@ -34,6 +34,11 @@ ray_tmp/
 run_ray_tune_ssl_balanced_1gpu.sbatch
 wav2vec_incremental_multi_gpu_raytunessl.py
 
-# context packages
-context_packages/
 *_context/
+
+# context packages
+# Ignore everything in context_packages (e.g. schematics/binaries)...
+context_packages/**
+# ...but re-allow traversal and track markdown files at any depth
+!context_packages/**/
+!context_packages/**/*.md
