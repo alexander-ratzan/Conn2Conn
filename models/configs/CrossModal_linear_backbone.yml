@@ -1,0 +1,66 @@
+learned: true
+
+# Linear latent backbone (formerly LatentAttnMasked with residual_mode: none):
+# frozen source PCA encoder -> learned affine k x k latent map -> frozen target PCA decoder.
+default:
+  data:
+    source: SC
+    target: FC
+  model:
+    name: CrossModal_linear_backbone
+    n_components_pca_source: 128   # target latent size is tied to this
+    zscore_pca_scores: false
+    l1_reg: 0.0
+    l2_reg: 1.0e-6
+    device: null
+  trainer:
+    lr: 3.0e-4
+    loss_type: composite
+    loss_terms:   # MSE-only by default; the other terms are switched on by the weight search
+      - {name: mse, weight: 1.0}
+      - {name: varmatch, weight: 0.0}
+      - {name: correye, weight: 0.0}
+      - {name: neidist, weight: 0.0}
+    loss_normalize: auto
+    loss_scale_ema_decay: 0.95
+    loss_scale_warmup_steps: 20
+    max_epochs: 150
+    batch_size: 128   # fixed: correye/neidist compare subjects within a batch
+    log_every: 5
+
+search_space:
+  n_components_pca_source:
+    type: choice
+    values: [64, 128, 256]
+  zscore_pca_scores:
+    type: choice
+    values: [false, true]
+  l2_reg:
+    type: loguniform
+    lower: 1.0e-7
+    upper: 1.0e-3
+  l1_reg:
+    type: choice
+    values: [0.0, 1.0e-7, 1.0e-6, 1.0e-5]
+  lr:
+    type: loguniform
+    lower: 1.0e-4
+    upper: 3.0e-3
+  max_epochs:
+    type: choice
+    values: [100, 150, 250]
+  loss_weight_neidist:
+    type: choice
+    values: [0.0, 0.1, 0.25, 0.5, 1.0, 2.0]
+  loss_weight_correye:
+    type: choice
+    values: [0.0, 0.1, 0.25, 0.5, 1.0, 2.0]
+  loss_weight_varmatch:
+    type: choice
+    values: [0.0, 0.1, 0.25, 0.5, 1.0]
+  loss_scale_warmup_steps:
+    type: choice
+    values: [20, 50, 100]
+  loss_scale_ema_decay:
+    type: choice
+    values: [0.9, 0.95, 0.99]

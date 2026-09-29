@@ -21,7 +21,10 @@ default:
     device: null
   trainer:
     lr: 2.0e-3
-    loss_type: mse
+    loss_type: composite
+    loss_terms:   # MSE-only; identity terms withheld until NodalMLP shows learning signal (spec D4)
+      - {name: mse, weight: 1.0}
+    loss_normalize: auto
     max_epochs: 500
     batch_size: 32
     log_every: 2

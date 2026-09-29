@@ -35,7 +35,13 @@ default:
     device: null
   trainer:
     lr: 1.0e-4
-    loss_type: mse
+    loss_type: composite
+    loss_terms:   # MSE-only by default; the other terms are switched on by the weight search
+      - {name: mse, weight: 1.0}
+      - {name: varmatch, weight: 0.0}
+      - {name: correye, weight: 0.0}
+      - {name: neidist, weight: 0.0}
+    loss_normalize: auto
     max_epochs: 200
     batch_size: 64
     log_every: 5
@@ -74,3 +80,18 @@ search_space:
   max_epochs:
     type: choice
     values: [100, 150, 200]
+  loss_weight_neidist:
+    type: choice
+    values: [0.0, 0.1, 0.25, 0.5, 1.0, 2.0]
+  loss_weight_correye:
+    type: choice
+    values: [0.0, 0.1, 0.25, 0.5, 1.0, 2.0]
+  loss_weight_varmatch:
+    type: choice
+    values: [0.0, 0.1, 0.25, 0.5, 1.0]
+  loss_scale_warmup_steps:
+    type: choice
+    values: [20, 50, 100]
+  loss_scale_ema_decay:
+    type: choice
+    values: [0.9, 0.95, 0.99]

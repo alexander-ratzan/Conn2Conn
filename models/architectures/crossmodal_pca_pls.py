@@ -379,12 +379,17 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
         random_init: If True, use random initialization instead of PCA/PLS. Default False.
         dropout: Dropout probability (0 = no dropout). Default 0.0.
         l1_l2_tuple: Tuple of (l1_reg, l2_reg) weights. Default (0.0, 0.001).
+        mid_bias: Add a learnable bias to the latent map (z @ W_mid + b). Default False.
+        zscore_pca_scores: Z-score source PCA scores (train stats) before W_mid and un-z-score
+            the target scores after it; predict_target_latents still returns PCA-space target
+            scores. Default False.
         **kwargs: Ignored (lr, epochs and other trainer keys belong to the Lightning module).
     """
     def __init__(self, base, n_components_pca_source=256, n_components_pca_target=256, 
                  n_components_pls=64, device=None,
                  learn_encoder=False, learn_mid=True, learn_decoder=False,
-                 random_init=False, dropout=0.3, l1_l2_tuple=(0.0, 0.001), **kwargs):
+                 random_init=False, dropout=0.3, l1_l2_tuple=(0.0, 0.001),
+                 mid_bias=False, zscore_pca_scores=False, **kwargs):
         super().__init__()
         # If all learn_* flags are False, nothing will be trainable and Lightning/Adam
         # will error out when calling backward. Instead of silently failing, flip all
@@ -407,6 +412,7 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
         self.n_components_pca_target = n_components_pca_target
         self.random_init = random_init
         self.dropout_p = dropout
+        self.zscore_pca_scores = bool(zscore_pca_scores)
         
         self.l1_reg, self.l2_reg = l1_l2_tuple
         self.l1_l2_tuple = l1_l2_tuple
@@ -463,17 +469,6 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
             "latent_loss_weights",
             torch.tensor(latent_weights, dtype=torch.float32, device=device),
         )
-        self.register_buffer(
-            "target_latent_encoder",
-            torch.tensor(target_loadings[:, :k_tgt], dtype=torch.float32, device=device),
-        )
-        latent_variance = np.var(target_scores[:, :k_tgt], axis=0, dtype=np.float32)
-        latent_variance = np.maximum(latent_variance, 1.0e-8)
-        latent_weights = latent_variance / float(np.mean(latent_variance))
-        self.register_buffer(
-            "latent_loss_weights",
-            torch.tensor(latent_weights, dtype=torch.float32, device=device),
-        )
         for modality in self.source_modalities:
             modality_data = data["sources"][modality]
             source_mean = modality_data["mean"]
@@ -500,8 +495,17 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
         X_pls = np.concatenate(source_pls_parts, axis=1)
         Y_pls = target_scores[:, :k_tgt]
 
+        if self.zscore_pca_scores:
+            # Train-split score statistics; std floored as in LatentAttnMasked.
+            self.register_buffer("source_score_mean", torch.tensor(X_pls.mean(axis=0, dtype=np.float32), device=device))
+            self.register_buffer("source_score_std", torch.tensor(np.maximum(X_pls.std(axis=0, dtype=np.float32), 1.0e-8), device=device))
+            self.register_buffer("target_score_mean", torch.tensor(Y_pls.mean(axis=0, dtype=np.float32), device=device))
+            self.register_buffer("target_score_std", torch.tensor(np.maximum(Y_pls.std(axis=0, dtype=np.float32), 1.0e-8), device=device))
+
+        # A randomly initialized, learnable W_mid does not use the PLS fit.
+        need_pls = not (random_init and learn_mid)
         # Validate that requested n_components_pls is mathematically valid for PLS.
-        if n_components_pls > min(fused_source_dim, k_tgt):
+        if need_pls and n_components_pls > min(fused_source_dim, k_tgt):
             raise ValueError(
                 f"CrossModal_PCA_PLS_learnable: n_components_pls={n_components_pls} "
                 f"is larger than min(fused_source_dim={fused_source_dim}, "
@@ -509,8 +513,11 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
                 f"the PCA dimensions."
             )
 
-        pls = PLSRegression(n_components=n_components_pls)
-        pls.fit(X_pls, Y_pls)
+        W_mid_data = None
+        pls = None
+        if need_pls:
+            pls = PLSRegression(n_components=n_components_pls)
+            pls.fit(X_pls, Y_pls)
 
         # sklearn PLSRegression.coef_ has shape (n_targets, n_features) and is used as
         #   y ≈ X @ coef_.T + intercept
@@ -518,16 +525,26 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
         # y shape (n_samples, n_targets=k_tgt).
         # We want a mid-layer weight that maps fused source latent (fused_source_dim)
         # to target latent (k_tgt) via z @ W_mid, so W_mid must be (fused_source_dim, k_tgt).
-        coef = pls.coef_
-        if coef.shape != (k_tgt, fused_source_dim):
-            raise ValueError(
-                "CrossModal_PCA_PLS_learnable: Unexpected PLS coef_ shape "
-                f"{coef.shape}; expected ({k_tgt}, {fused_source_dim}) per "
-                "sklearn.PLSRegression documentation."
-            )
-        W_mid_data = coef.T  # (fused_source_dim, k_tgt)
+        if pls is not None:
+            coef = pls.coef_
+            if coef.shape != (k_tgt, fused_source_dim):
+                raise ValueError(
+                    "CrossModal_PCA_PLS_learnable: Unexpected PLS coef_ shape "
+                    f"{coef.shape}; expected ({k_tgt}, {fused_source_dim}) per "
+                    "sklearn.PLSRegression documentation."
+                )
+            W_mid_data = coef.T  # (fused_source_dim, k_tgt)
 
         self.W_mid = init_weight((fused_source_dim, k_tgt), W_mid_data, learn_mid)
+        self.mid_bias = None
+        if mid_bias:
+            # nn.Linear-style bias init for a random map; PLS intercept otherwise.
+            if random_init or pls is None:
+                bound = 1.0 / np.sqrt(fused_source_dim)
+                b = torch.empty(k_tgt, device=device).uniform_(-bound, bound)
+            else:
+                b = torch.tensor(pls.predict(np.zeros((1, fused_source_dim))).reshape(-1), dtype=torch.float32, device=device)
+            self.mid_bias = nn.Parameter(b, requires_grad=learn_mid)
         self.W_dec = init_weight((k_tgt, d_target), target_loadings[:, :k_tgt].T, learn_decoder)
         
         # Log initialization
@@ -559,9 +576,15 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
             x_mod = source_inputs[modality].to(device).to(torch.float32)
             z_parts.append(torch.matmul(x_mod - self.source_means[modality], self.source_encoders[modality]))
         z = torch.cat(z_parts, dim=1)
+        if self.zscore_pca_scores:
+            z = (z - self.source_score_mean) / self.source_score_std
         z = self.dropout(z)
         z = torch.matmul(z, self.W_mid)
+        if self.mid_bias is not None:
+            z = z + self.mid_bias
         z = self.dropout(z)
+        if self.zscore_pca_scores:
+            z = z * self.target_score_std + self.target_score_mean
         return z
 
     def forward(self, x):
@@ -570,10 +593,55 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
 
     def get_reg_loss(self):
         """Compute L1/L2 regularization on learnable weights using global helper."""
-        return compute_reg_loss(list(self.source_encoders.values()) + [self.W_mid, self.W_dec], self.l1_l2_tuple)
+        params = list(self.source_encoders.values()) + [self.W_mid, self.W_dec]
+        if self.mid_bias is not None:
+            params.append(self.mid_bias)
+        return compute_reg_loss(params, self.l1_l2_tuple)
     
     def get_num_params(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+
+class CrossModal_linear_backbone(CrossModal_PCA_PLS_learnable):
+    """
+    Linear latent backbone: frozen source PCA encoder -> learned affine k x k map ->
+    frozen target PCA decoder,
+
+        c_s = (x - mu_s) V_s[:, :k],   c_t = c_s W + b,   y_hat = c_t V_t[:, :k]^T + mu_t
+
+    with optional z-scoring of the PCA scores around the map. Formerly
+    LatentAttnMasked(residual_mode="none"). The CrossModal_PCA_PLS_learnable flags that
+    define this model are pinned; only the latent size, z-scoring and L1/L2 are free.
+    """
+
+    PINNED = {
+        "learn_encoder": False,
+        "learn_mid": True,
+        "learn_decoder": False,
+        "random_init": True,
+        "dropout": 0.0,
+        "mid_bias": True,
+    }
+
+    def __init__(self, base, n_components_pca_source=128, zscore_pca_scores=False,
+                 l1_l2_tuple=(0.0, 1.0e-6), device=None, **kwargs):
+        pinned = sorted(set(kwargs) & (set(self.PINNED) | {"n_components_pca_target", "n_components_pls"}))
+        if pinned:
+            raise ValueError(f"CrossModal_linear_backbone pins {pinned}; remove them from the config.")
+        if isinstance(n_components_pca_source, dict):
+            raise ValueError("CrossModal_linear_backbone is single-source; n_components_pca_source must be an int.")
+        k = int(n_components_pca_source)
+        super().__init__(
+            base,
+            n_components_pca_source=k,
+            n_components_pca_target=k,
+            n_components_pls=1,  # unused: W_mid is randomly initialized and learned
+            device=device,
+            l1_l2_tuple=l1_l2_tuple,
+            zscore_pca_scores=zscore_pca_scores,
+            **self.PINNED,
+        )
+
 
 class CrossModal_PCA_PLS_CovProjector(nn.Module):
     """

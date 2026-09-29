@@ -342,7 +342,7 @@ To move an `ema` result to `none`, don't hand-tune separate ranges. Convert with
   - The Tune trainable adds `train_loss_raw_*` and `val_loss_{raw,weighted,ref}_*` to `tune_metrics`. Ray only warns on a missing metric (checked in ray 2.54.1), so nothing can break a trial.
   - CPU check: a 2-epoch Lightning fit with `mse + 0.5·neidist` logs every generated name.
 
-#### M7 — Fold the linear backbone into the PCA/PLS family as `CrossModal_linear_backbone`
+#### M7 — Fold the linear backbone into the PCA/PLS family as `CrossModal_linear_backbone`  ✅ done (real-data check in the verification array)
 - **M7a — Equivalence map.**
   - Target: `LatentAttnMasked(residual_mode="none")` ≡ `CrossModal_PCA_PLS_learnable(learn_encoder=False, learn_decoder=False, random_init=True, dropout=0, n_components_pca_source=n_components_pca_target=k)`, plus the flags added here.
   - Known gaps to close with flags on `_learnable`:
@@ -390,8 +390,22 @@ To move an `ema` result to `none`, don't hand-tune separate ranges. Convert with
   - Existing `_learnable` YAMLs build identical models (parameter shapes, `requires_grad`, one-batch output with fixed seed).
   - `LatentAttnMasked` builds and runs a forward pass for each remaining `residual_mode`.
   - The notebook import check passes.
+- **Result:**
+  - `CrossModal_PCA_PLS_learnable` gains `mid_bias` and `zscore_pca_scores`; defaults reproduce the old model exactly. The PLS fit is skipped when `W_mid` is random and learned (its result was unused). The duplicated `target_latent_encoder` / `latent_loss_weights` buffer registration is removed.
+  - `CrossModal_linear_backbone` (thin subclass) pins the backbone flags, ties the target latent size to the source, and rejects pinned keys. It is registered in `build_model`, with `models/configs/CrossModal_linear_backbone.yml` as in M7b.
+  - `LatentAttnMasked`: `residual_mode: none` raises with a pointer to the new model. Its dead branches (`predict_target_latents`, `inspect_attention_state`, the reg guards) are removed; `none` is dropped from the YAML search.
+  - Notebooks migrated (JSON-valid, code parses, not executed): `linear_backbone_overview` (stale outputs cleared; the Conditional Gaussian comparison helper now takes `base` explicitly and plots `W_mid.T`), `test_loss_linear_model`, `latent_masked_test` cell 3 (`Sim` default → `attention_only`; its run already used it), and `linear_backbone_geodesic_metrics`. The last keeps its recorded outputs plus a record note, since the notebook is the experiment record. `experiments_index.md` updated.
+  - Cross-tree checks on a synthetic base (`kraken_env`, CPU):
+    - **M7a** `LatentAttnMasked(none)` → `CrossModal_linear_backbone` with copied weights: edge outputs **bit-identical** at k = 16, 32 and with z-scoring; only `W_mid` and `mid_bias` trainable.
+    - Existing `_learnable` configs: identical state, outputs, reg and trainable sets (3 configs).
+    - **M5** reg equality for `LatentAttnMasked` (pls/linear residual), `MaskedMLPPretrainer`, `MaskedLatentPretrainer`.
+    - Remaining residual modes run a forward pass.
+  - **Documented difference:** with `zscore_pca_scores: true`, `predict_target_latents` now returns PCA-space target latents; `LatentAttnMasked` returned z-space latents. Edge outputs are unchanged; latent losses and latent diagnostics under z-scoring are measured in PCA space.
+- **Notebook issues noticed, left for the user:**
+  - `latent_masked_test` cell 6 reads `residual_linear.weight`, which is absent in the `attention_only` mode its run uses.
+  - Cell 4 sets `"l2_reg"` twice (0.25, then 1e-7); this predates M5.
 
-#### M8 — Wire composite into every in-scope YAML
+#### M8 — Wire composite into every in-scope YAML  ✅ code done · real-data dev runs in the verification array
 - **Changes:** for each model in 8.1:
   - `trainer.loss_type: composite` and `loss_normalize: auto`.
   - `loss_terms`: `mse: 1.0` plus the candidate terms `varmatch`, `correye` and `neidist` at weight 0. For `NodalMLP`: `mse` only, with no weight search (8.5 D4).
@@ -402,6 +416,25 @@ To move an `ema` result to `none`, don't hand-tune separate ranges. Convert with
 - **Accept:**
   - Every in-scope YAML resolves to the MSE-only default: `loss_signature: "mse"`, and the loss equals `F.mse_loss` exactly.
   - No `loss_type: mse` remains in YAMLs, launchers or notebook sources (saved cell outputs excluded).
+- **Result (code):**
+  - `loss.py`: `composite` is the only edge-space loss type. `loss_type` defaults to `composite`, `loss_terms` defaults to `["mse"]`, `loss_normalize` defaults to `auto`. `MSELoss` is deleted; `loss_type: mse` raises with a pointer to composite.
+  - 21 YAMLs:
+    - `_learnable` (3), `CovProjector` (8), `Chen2024GCN`, `NodalGNN`: `[mse 1, varmatch 0, correye 0, neidist 0]`, `auto`, with the 8.2 weight / warmup / decay search added.
+    - `NodalMLP` (7): `[mse]` only, no weight search (D4).
+    - `LatentAttnMasked`: default moved to MSE-only (D1); weights searched; `loss_type` choices `mse` → `composite`.
+  - **Sarwar2020MLP and CrossModalVAE keep their own objectives under `none`, with no identity-term candidates.** Adding `correye`/`neidist` would switch them to `ema` and change what their paper weight / β mean.
+  - Notebooks: 21 live `"loss_type": "mse"` overrides in 13 notebooks → `"composite"`, which resolves to plain MSE.
+  - Checks (`kraken_env`):
+    - all 20 migrated YAMLs resolve to `loss_signature: "mse"` and are **bit-exact, gradients included**, against the old MSE loss built from the old YAMLs;
+    - `loss_type: mse` is rejected; an empty trainer config gives plain MSE;
+    - 40 Optuna samples on each of `_learnable`, `CrossModal_linear_backbone`, `LatentAttnMasked` and `Chen2024GCN` resolve correctly, and no `loss_*` key reaches a model constructor;
+    - config↔constructor check: 0 failures.
+- **Verification array:** `scripts/sbatch/checks/verify_modeling_track_array.sh` with `verify_modeling_track.py`, one task per index:
+  - task 0, `dev_runs` (M8): a 2-epoch dev run per model family; checks the signature, per-term logging, `val_loss == Σ weighted terms + reg`, and finite test metrics;
+  - task 1, `cross_tree` (M7a + M5 on real data, old code via `git archive` of `f74cc0e` / `5286526`);
+  - task 2, `tune` (M6: 2-trial Tune, W&B offline).
+
+  Reports go to `results/logs/verify_modeling_track_<task>.json`. `Chen2024GCN`/`NodalGNN` are skipped until `torch_geometric` is reinstalled.
   - One short dev run per model family, via SLURM, logs `*_loss_raw_mse` with train/val curves matching the previous `mse` runs at the same seed. Differences are limited to GPU nondeterminism.
 
 #### M9 — Launchers and the weight-sweep experiment
@@ -477,5 +510,7 @@ Still open: none. The M7a result is reported, but it doesn't need a decision unl
 | 2026-09-23 | M5 code done: `l1_reg`/`l2_reg` for every learned model; found `torch_geometric` missing from `kraken_env`. |
 | 2026-09-23 | M6 code done: per-term composite losses reported to Tune. |
 | 2026-09-23 | M5b: fixed sampled `l1_reg`/`l2_reg` being discarded in `_learnable`/`CovProjector`/`Sarwar` sweeps; YAML tuples → `l1_reg`/`l2_reg`; unsupported search types now raise. |
+| 2026-09-23 | M7 done: `CrossModal_linear_backbone`; `LatentAttnMasked` `none` mode removed; bit-identical equivalence on a synthetic base. |
+| 2026-09-23 | M8 code done: composite is the only edge-space loss (bit-exact MSE default); verification array added. |
 
 Last updated at: 2026-09-23 EDT

@@ -126,13 +126,12 @@ class LatentAttnMasked(nn.Module):
     Joint SC/FC latent attention model with masked FC reconstruction.
 
     The model predicts target PCA coefficients through:
-    1. A latent-space backbone (`attention_only`, `none`, `pls_residual`, `linear_residual`).
+    1. A latent-space backbone (`attention_only`, `pls_residual`, `linear_residual`).
     2. An optional masked FC attention branch that predicts a residual correction.
     3. Fixed decoding back to full target edge space through the target PCA basis.
 
     `residual_mode` semantics:
     - `attention_only`: zero backbone, active attention branch
-    - `none`: linear backbone only, no attention branch
     - `pls_residual`: PLS backbone plus attention residual
     - `linear_residual`: learned linear backbone plus attention residual
     """
@@ -271,10 +270,15 @@ class LatentAttnMasked(nn.Module):
                 f"Unknown attention_activation='{self.attention_activation}'. "
                 "Choose from {'softmax', 'identity'}."
             )
-        if self.residual_mode not in {"attention_only", "none", "pls_residual", "linear_residual"}:
+        if self.residual_mode == "none":
+            raise ValueError(
+                "residual_mode='none' was removed: the linear backbone without attention is now "
+                "the CrossModal_linear_backbone model."
+            )
+        if self.residual_mode not in {"attention_only", "pls_residual", "linear_residual"}:
             raise ValueError(
                 f"Unknown residual_mode='{self.residual_mode}'. "
-                "Choose from {'attention_only', 'none', 'pls_residual', 'linear_residual'}."
+                "Choose from {'attention_only', 'pls_residual', 'linear_residual'}."
             )
         if not (0.0 <= self.sc_token_dropout_p < 1.0):
             raise ValueError(f"sc_token_dropout must be in [0, 1), got {self.sc_token_dropout_p}.")
@@ -403,7 +407,7 @@ class LatentAttnMasked(nn.Module):
 
         need_pls_fit = (self.residual_mode == "pls_residual") or (self.token_embedding_type == "pls_encoded")
         self.backbone_linear = None
-        if self.residual_mode in {"none", "linear_residual"}:
+        if self.residual_mode == "linear_residual":
             self.backbone_linear = nn.Linear(self.n_components_pca, self.n_components_pca, bias=True)
         self.residual_linear = self.backbone_linear
         if need_pls_fit:
@@ -445,7 +449,8 @@ class LatentAttnMasked(nn.Module):
                 [pca_hidden_dim],
                 self.token_embedding_dim,
             )
-        self.use_attention_residual = self.residual_mode in {"attention_only", "pls_residual", "linear_residual"}
+        # Every remaining residual_mode uses the attention branch (kept for callers that inspect it).
+        self.use_attention_residual = True
 
         token_dim = 1 + self.token_embedding_dim
         self.token_dim = token_dim
@@ -506,7 +511,7 @@ class LatentAttnMasked(nn.Module):
                 self.readout_hidden_dims,
             )
         self.sc_token_dropout = nn.Dropout(self.sc_token_dropout_p) if self.sc_token_dropout_p > 0 else nn.Identity()
-        self.residual_gain = None if not self.use_attention_residual else nn.Parameter(
+        self.residual_gain = nn.Parameter(
             torch.tensor([self.residual_gain_init], dtype=torch.float32, device=device)
         )
 
@@ -784,25 +789,6 @@ class LatentAttnMasked(nn.Module):
         c_target_true = None if y is None else self.encode_target_latents(y)
         c_target_base = self._compute_residual_base(c_source)
 
-        if not self.use_attention_residual:
-            fc_mask = torch.ones(c_source.shape[0], self.n_components_pca, dtype=torch.bool, device=c_source.device)
-            c_target_delta = torch.zeros_like(c_target_base)
-            c_target_hat = c_target_base
-            self.last_attention = None
-            self.last_latent_pred = c_target_hat.detach()
-            self.last_fc_mask = fc_mask.detach()
-            self.last_residual_base = c_target_base.detach()
-            self.last_latent_delta = c_target_delta.detach()
-
-            outputs = [c_target_hat]
-            if return_attention:
-                outputs.append(None)
-            if return_mask:
-                outputs.append(fc_mask)
-            if len(outputs) == 1:
-                return outputs[0]
-            return tuple(outputs)
-
         if force_all_masked is None:
             force_all_masked = (y is None)
 
@@ -846,23 +832,6 @@ class LatentAttnMasked(nn.Module):
         c_source = self.encode_source_latents(x)
         c_target_true = None if y is None else self.encode_target_latents(y)
         c_target_base = self._compute_residual_base(c_source)
-
-        if not self.use_attention_residual:
-            fc_mask = torch.ones(c_source.shape[0], self.n_components_pca, dtype=torch.bool, device=c_source.device)
-            tokens, fc_mask = self._build_joint_tokens(c_source, c_target_true=None if force_all_masked or y is None else c_target_true, fc_mask=fc_mask)
-            c_target_delta = torch.zeros_like(c_target_base)
-            c_target_hat = c_target_base
-            return {
-                "c_source": c_source,
-                "c_target_true": c_target_true,
-                "c_target_base": c_target_base,
-                "c_target_delta": c_target_delta,
-                "tokens_pre": tokens,
-                "tokens_post": tokens,
-                "attention": None,
-                "fc_mask": fc_mask,
-                "c_target_hat": c_target_hat,
-            }
 
         if force_all_masked is None:
             force_all_masked = (y is None)
@@ -929,15 +898,15 @@ class LatentAttnMasked(nn.Module):
         if self.sc_barcode_encoder is not None:
             params.extend([p for p in self.sc_barcode_encoder.parameters() if p.requires_grad])
             params.extend([p for p in self.fc_barcode_encoder.parameters() if p.requires_grad])
-        if self.use_attention_residual and self.raw_attention is not None:
+        if self.raw_attention is not None:
             params.extend([self.raw_attention.W_Q.weight, self.raw_attention.W_K.weight])
             if self.raw_attention.W_V is not None:
                 params.append(self.raw_attention.W_V.weight)
-        if self.use_attention_residual and self.transformer_blocks is not None:
+        if self.transformer_blocks is not None:
             for block in self.transformer_blocks:
                 params.extend([p for p in block.parameters() if p.requires_grad])
             params.extend([p for p in self.transformer_output_norm.parameters() if p.requires_grad])
-        if self.use_attention_residual and self.readout_head is not None:
+        if self.readout_head is not None:
             params.extend([p for p in self.readout_head.parameters() if p.requires_grad])
         if self.residual_linear is not None:
             params.extend([p for p in self.residual_linear.parameters() if p.requires_grad])

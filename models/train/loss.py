@@ -27,16 +27,6 @@ def get_target_train_mean(base):
 # =============================================================================
 # Loss Functions
 # =============================================================================
-class MSELoss(nn.Module):
-    """Standard MSE loss."""    
-    def __init__(self):
-        super().__init__()
-        self.name = "mse"
-    
-    def forward(self, y_pred, y_true, **kwargs):
-        return F.mse_loss(y_pred, y_true)
-
-
 def compute_var_match_loss(y_pred, y_true, axis=0, relative_to_true=True):
     """
     Match prediction variance to target variance.
@@ -278,14 +268,14 @@ class CompositeLoss(nn.Module):
         return torch.stack(weighted_terms).sum()
 
 
-EDGE_LOSS_TYPES = ("mse", "composite")
+EDGE_LOSS_TYPES = ("composite",)
 LATENT_LOSS_TYPES = ("latent_mse", "latent_weighted_mse")
 
 # Every trainer-config key that shapes the training loss, with its default.
 LOSS_CONFIG_DEFAULTS = {
-    "loss_type": "mse",
-    "loss_terms": None,
-    "loss_normalize": "ema",
+    "loss_type": "composite",
+    "loss_terms": None,   # composite default: ["mse"] (plain MSE)
+    "loss_normalize": "auto",
     "loss_scale_ema_decay": 0.95,
     "loss_scale_warmup_steps": 20,
 }
@@ -368,6 +358,11 @@ def resolve_loss_config(trainer_cfg=None):
     cfg["loss_scale_warmup_steps"] = int(cfg["loss_scale_warmup_steps"])
 
     loss_type = cfg["loss_type"]
+    if loss_type == "mse":
+        raise ValueError(
+            "loss_type 'mse' was retired: use loss_type 'composite' "
+            "(its default loss_terms ['mse'] is exactly plain MSE)."
+        )
     if loss_type not in EDGE_LOSS_TYPES + LATENT_LOSS_TYPES:
         raise ValueError(
             f"Unknown loss type: {loss_type}. Choose from {list(EDGE_LOSS_TYPES + LATENT_LOSS_TYPES)}"
@@ -377,6 +372,8 @@ def resolve_loss_config(trainer_cfg=None):
             f"Unknown loss_normalize='{cfg['loss_normalize']}'. Valid options: {list(LOSS_NORMALIZE_MODES)}"
         )
     if loss_type == "composite":
+        if cfg["loss_terms"] is None:
+            cfg["loss_terms"] = ["mse"]
         specs = CompositeLoss._parse_loss_terms(cfg["loss_terms"])
         if not specs:
             raise ValueError("loss_type='composite' requires a non-empty loss_terms list.")
@@ -417,9 +414,7 @@ def create_loss_fn(loss_cfg, base=None):
     """
     loss_cfg = resolve_loss_config(loss_cfg)
     loss_type = loss_cfg["loss_type"]
-    if loss_type == "mse":
-        return MSELoss()
-    elif loss_type == "composite":
+    if loss_type == "composite":
         specs = CompositeLoss._parse_loss_terms(loss_cfg["loss_terms"])
         needs_mean = any(spec["name"] == "demeaned_mse" for spec in specs)
         if needs_mean and base is None:

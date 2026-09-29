@@ -190,6 +190,7 @@ def _model_class(name):
         "CrossModal_PLS_SVD",
         "CrossModal_PCA_PLS",
         "CrossModal_PCA_PLS_learnable",
+        "CrossModal_linear_backbone",
         "CrossModal_PCA_PLS_CovProjector",
     }:
         from models.architectures import crossmodal_pca_pls
