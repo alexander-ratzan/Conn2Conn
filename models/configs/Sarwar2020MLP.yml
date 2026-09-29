@@ -16,9 +16,11 @@ default:
     device: null
   trainer:
     lr: 1.0e-5
-    loss_type: sarwar_mse_corr
-    loss_corr_target: 0.4
-    loss_corr_weight: 1.0e-3
+    loss_type: composite
+    loss_terms:   # Sarwar et al.: MSE + weight * |mean inter-subject corr(pred) - corr_target|
+      - {name: mse, weight: 1.0}
+      - {name: pairwise_corr, weight: 1.0e-3, kwargs: {corr_target: 0.4}}
+    loss_normalize: none
     max_epochs: 300
     batch_size: 32
     log_every: 5
@@ -51,11 +53,11 @@ search_space:
     type: loguniform
     lower: 1.0e-6
     upper: 5.0e-4
-  loss_corr_target:
+  loss_kwarg_pairwise_corr__corr_target:
     type: uniform
     lower: 0.3
     upper: 0.9
-  loss_corr_weight:
+  loss_weight_pairwise_corr:
     type: loguniform
     lower: 1.0e-6
     upper: 1.0e-3

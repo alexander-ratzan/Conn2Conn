@@ -32,8 +32,6 @@ default:
   trainer:
     lr: 1.0e-4
     loss_type: mse
-    loss_alpha: 0.5
-    loss_beta: 1.0
     max_epochs: 200
     batch_size: 64
     log_every: 5

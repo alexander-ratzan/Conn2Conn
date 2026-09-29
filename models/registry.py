@@ -7,9 +7,19 @@ import os
 from copy import deepcopy
 import yaml
 
-TRAINER_KEYS = {"lr", "loss_type", "loss_alpha", "loss_beta", "loss_corr_target", "loss_corr_weight", "loss_terms", "loss_normalize", "loss_scale_ema_decay", "loss_scale_warmup_steps", "max_epochs", "batch_size", "log_every", "lr_schedule", "cosine_t0", "cosine_t_mult", "cosine_eta_min_ratio", "tune_grace_period_ratio", "tune_reduction_factor"}
+TRAINER_KEYS = {"lr", "loss_type", "loss_terms", "loss_normalize", "loss_scale_ema_decay", "loss_scale_warmup_steps", "max_epochs", "batch_size", "log_every", "lr_schedule", "cosine_t0", "cosine_t_mult", "cosine_eta_min_ratio", "tune_grace_period_ratio", "tune_reduction_factor"}
 DATA_KEYS = {"parcellation", "hemi", "source", "target", "shuffle_seed", "HCP_dir", "sc_metric_type", "sc_apply_log1p", "volume_feature_type", "centroid_feature_type", "data_load_mode", "precompute_cache_root", "write_manual_cache", "expose_fc_sessions"}
 FLAT_METADATA_KEYS = {"cov_sources_str", "cov_dims", "cov_projectors_tag", "cov_fusion_tag"}
+# Flat trainer keys that override composite loss_terms weights / term kwargs (Tune-searchable).
+LOSS_WEIGHT_PREFIX = "loss_weight_"
+LOSS_KWARG_PREFIX = "loss_kwarg_"
+LOSS_OVERRIDE_PREFIXES = (LOSS_WEIGHT_PREFIX, LOSS_KWARG_PREFIX)
+
+
+def is_trainer_key(key: str) -> bool:
+    """True for keys that belong in the nested `trainer` section (incl. flat loss_weight_*/loss_kwarg_*)."""
+    return key in TRAINER_KEYS or str(key).startswith(LOSS_OVERRIDE_PREFIXES)
+
 
 _CONFIGS_DIR = os.path.join(os.path.dirname(__file__), "configs")
 

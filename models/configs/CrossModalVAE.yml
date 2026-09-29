@@ -14,9 +14,11 @@ default:
     device: null
   trainer:
     lr: 1.0e-4
-    loss_type: vae
-    loss_alpha: 0.5
-    loss_beta: 1.0
+    loss_type: composite
+    loss_terms:   # reconstruction MSE + beta * KLD
+      - {name: mse, weight: 1.0}
+      - {name: kld, weight: 1.0}
+    loss_normalize: none
     max_epochs: 100
     batch_size: 128
     log_every: 5
@@ -56,7 +58,7 @@ search_space:
     type: loguniform
     lower: 1.0e-5
     upper: 1.0e-2
-  loss_beta:
+  loss_weight_kld:
     type: uniform
     lower: 0.1
     upper: 2.0

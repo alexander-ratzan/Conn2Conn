@@ -43,6 +43,7 @@ from models.utils import predict_from_loader
 from models.train.trainer import train_model
 from models.eval.evaluator import Evaluator
 from models.train.lightning_module import CrossModalLightningModule
+from models.train.loss import resolve_loss_config
 from models.registry import (
     load_config,
     get_default_config,
@@ -50,6 +51,7 @@ from models.registry import (
     build_model,
     resolve_source_dependent_config,
     TRAINER_KEYS,
+    is_trainer_key,
     DATA_KEYS,
     FLAT_METADATA_KEYS,
 )
@@ -102,6 +104,8 @@ class TrialFamilyWandbLoggerCallback(WandbLoggerCallback):
             config["ray_tune_id"] = ray_tune_id
         if trial_id:
             config["ray_trial_id"] = trial_id
+        # Flat trial config uses the same loss key names as the nested trainer section.
+        config["loss_signature"] = resolve_loss_config(config)["loss_signature"]
 
         config = {
             key: value for key, value in config.items() if key not in self.excludes
@@ -127,10 +131,13 @@ class TrialFamilyWandbLoggerCallback(WandbLoggerCallback):
 
 def _flat_to_nested(flat: dict, model_name: str) -> dict:
     """Split flat config (e.g. from Tune) into nested {data, model, trainer}."""
-    trainer = {k: flat[k] for k in TRAINER_KEYS if k in flat}
+    trainer = {k: v for k, v in flat.items() if is_trainer_key(k)}
     data = {k: flat[k] for k in DATA_KEYS if k in flat}
-    _model_exclude = TRAINER_KEYS | FLAT_METADATA_KEYS | {"name"}
-    model = {"name": model_name, **{k: flat[k] for k in flat if k not in _model_exclude}}
+    _model_exclude = FLAT_METADATA_KEYS | {"name"}
+    model = {
+        "name": model_name,
+        **{k: v for k, v in flat.items() if k not in _model_exclude and not is_trainer_key(k)},
+    }
     for key in DATA_KEYS:
         model.pop(key, None)
     for key in list(model):
@@ -482,15 +489,7 @@ class Sim:
         model_cfg.pop("name")
         trainer_cfg = cfg.get("trainer", {})
         lr = trainer_cfg.get("lr", 1e-4)
-        loss_type = trainer_cfg.get("loss_type", "mse")
-        loss_alpha = trainer_cfg.get("loss_alpha", 0.5)
-        loss_beta = trainer_cfg.get("loss_beta", 1.0)
-        loss_corr_target = trainer_cfg.get("loss_corr_target", 0.4)
-        loss_corr_weight = trainer_cfg.get("loss_corr_weight", 1e-3)
-        loss_terms = trainer_cfg.get("loss_terms", None)
-        loss_normalize = trainer_cfg.get("loss_normalize", "ema")
-        loss_scale_ema_decay = trainer_cfg.get("loss_scale_ema_decay", 0.95)
-        loss_scale_warmup_steps = trainer_cfg.get("loss_scale_warmup_steps", 20)
+        loss_cfg = resolve_loss_config(trainer_cfg)
         max_epochs = trainer_cfg.get("max_epochs", 100)
         log_every = trainer_cfg.get("log_every", 5)
         lr_schedule = trainer_cfg.get("lr_schedule", "none")
@@ -527,15 +526,7 @@ class Sim:
                 base=run_base,
                 log_every=log_every,
                 lr=lr,
-                loss_type=loss_type,
-                loss_alpha=loss_alpha,
-                loss_beta=loss_beta,
-                loss_corr_target=loss_corr_target,
-                loss_corr_weight=loss_corr_weight,
-                loss_terms=loss_terms,
-                loss_normalize=loss_normalize,
-                loss_scale_ema_decay=loss_scale_ema_decay,
-                loss_scale_warmup_steps=loss_scale_warmup_steps,
+                loss_cfg=loss_cfg,
                 max_epochs=max_epochs,
                 lr_schedule=lr_schedule,
                 cosine_t0=cosine_t0,
@@ -554,15 +545,7 @@ class Sim:
                 model=model,
                 base=run_base,
                 lr=lr,
-                loss_type=loss_type,
-                loss_alpha=loss_alpha,
-                loss_beta=loss_beta,
-                loss_corr_target=loss_corr_target,
-                loss_corr_weight=loss_corr_weight,
-                loss_terms=loss_terms,
-                loss_normalize=loss_normalize,
-                loss_scale_ema_decay=loss_scale_ema_decay,
-                loss_scale_warmup_steps=loss_scale_warmup_steps,
+                loss_cfg=loss_cfg,
                 lr_schedule=lr_schedule,
                 cosine_t0=cosine_t0,
                 cosine_t_mult=cosine_t_mult,
@@ -995,15 +978,7 @@ class Sim:
                     model=model,
                     base=base,
                     lr=trainer_cfg.get("lr", 1e-4),
-                    loss_type=trainer_cfg.get("loss_type", "mse"),
-                    loss_alpha=trainer_cfg.get("loss_alpha", 0.5),
-                    loss_beta=trainer_cfg.get("loss_beta", 1.0),
-                    loss_corr_target=trainer_cfg.get("loss_corr_target", 0.4),
-                    loss_corr_weight=trainer_cfg.get("loss_corr_weight", 1e-3),
-                    loss_terms=trainer_cfg.get("loss_terms", None),
-                    loss_normalize=trainer_cfg.get("loss_normalize", "ema"),
-                    loss_scale_ema_decay=trainer_cfg.get("loss_scale_ema_decay", 0.95),
-                    loss_scale_warmup_steps=trainer_cfg.get("loss_scale_warmup_steps", 20),
+                    loss_cfg=resolve_loss_config(trainer_cfg),
                     lr_schedule=trainer_cfg.get("lr_schedule", "none"),
                     cosine_t0=trainer_cfg.get("cosine_t0", 50),
                     cosine_t_mult=trainer_cfg.get("cosine_t_mult", 2),

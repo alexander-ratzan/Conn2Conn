@@ -148,15 +148,7 @@ def train_model(
     base,
     log_every=5,
     lr=1e-4,
-    loss_type="mse",
-    loss_alpha=0.5,
-    loss_beta=1.0,
-    loss_corr_target=0.4,
-    loss_corr_weight=1e-3,
-    loss_terms=None,
-    loss_normalize="ema",
-    loss_scale_ema_decay=0.95,
-    loss_scale_warmup_steps=20,
+    loss_cfg=None,
     max_epochs=100,
     lr_schedule="none",
     cosine_t0=50,
@@ -176,15 +168,8 @@ def train_model(
         base: Dataset base object (e.g., HCP_Base) with target modality info.
         log_every: run full evaluate_model and log refined metrics every N epochs.
         lr: learning rate (passed to Lightning module).
-        loss_type: one of 'mse', 'weighted_mse', 'vae', 'sarwar_mse_corr'.
-        loss_alpha: weight for weighted_mse (passed to Lightning module).
-        loss_beta: KLD weight for VAE loss (passed to Lightning module).
-        loss_corr_target: target inter-subject correlation for sarwar_mse_corr.
-        loss_corr_weight: penalty strength for sarwar_mse_corr.
-        loss_terms: component loss specs used by composite.
-        loss_normalize: normalization mode for composite loss terms ('ema' or 'none').
-        loss_scale_ema_decay: EMA decay for composite loss-term scaling.
-        loss_scale_warmup_steps: number of training steps used to calibrate EMA loss scales.
+        loss_cfg: trainer-config loss keys (loss_type, loss_terms, loss_normalize, ...); see
+            models.train.loss.resolve_loss_config. None means plain MSE.
         max_epochs: number of epochs (Trainer max_epochs).
         logger: If True, use CSVLogger (writes to disk). If False, no logging to disk (dev mode).
         pl_logger: Optional Lightning logger (e.g. WandbLogger). If set, overrides logger/CSVLogger.
@@ -199,15 +184,7 @@ def train_model(
         model=model,
         base=base,
         lr=lr,
-        loss_type=loss_type,
-        loss_alpha=loss_alpha,
-        loss_beta=loss_beta,
-        loss_corr_target=loss_corr_target,
-        loss_corr_weight=loss_corr_weight,
-        loss_terms=loss_terms,
-        loss_normalize=loss_normalize,
-        loss_scale_ema_decay=loss_scale_ema_decay,
-        loss_scale_warmup_steps=loss_scale_warmup_steps,
+        loss_cfg=loss_cfg,
         lr_schedule=lr_schedule,
         cosine_t0=cosine_t0,
         cosine_t_mult=cosine_t_mult,

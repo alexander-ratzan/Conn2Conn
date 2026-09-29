@@ -2,11 +2,14 @@
 
 Contains loss factories, composite losses, and batch-level metric helpers.
 """
+import warnings
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from collections import OrderedDict
+
+from models.registry import LOSS_WEIGHT_PREFIX, LOSS_KWARG_PREFIX
 
 
 def get_target_train_mean(base):
@@ -32,88 +35,6 @@ class MSELoss(nn.Module):
     
     def forward(self, y_pred, y_true, **kwargs):
         return F.mse_loss(y_pred, y_true)
-
-
-class WeightedMSELoss(nn.Module):
-    """
-    Weighted combination of standard MSE and demeaned MSE.
-    
-    Loss = α * MSE(y_pred, y_true) + (1-α) * MSE(y_pred - μ, y_true - μ)
-    
-    Both terms are normalized by their initial scale (computed from first batch)
-    so they contribute equally when α=0.5.
-    
-    Args:
-        target_train_mean: (d,) numpy array or tensor, training set mean for target modality
-        alpha: weight for standard MSE (default 0.5). Higher = more weight on absolute accuracy.
-    """
-    
-    def __init__(self, target_train_mean, alpha=0.5):
-        super().__init__()
-        self.name = "weighted_mse"
-        self.alpha = alpha
-        if isinstance(target_train_mean, np.ndarray):
-            target_train_mean = torch.tensor(target_train_mean, dtype=torch.float32)
-        self.register_buffer('target_mean', target_train_mean)
-        
-        # Normalization factors (estimated from first batch, then frozen)
-        self.register_buffer('mse_scale', torch.tensor(1.0))
-        self.register_buffer('demeaned_scale', torch.tensor(1.0))
-        self._initialized = False
-    
-    def forward(self, y_pred, y_true, **kwargs):
-        # Compute both losses
-        mse_loss = F.mse_loss(y_pred, y_true)
-        
-        y_pred_demeaned = y_pred - self.target_mean
-        y_true_demeaned = y_true - self.target_mean
-        demeaned_loss = F.mse_loss(y_pred_demeaned, y_true_demeaned)
-        
-        # Initialize normalization scales from first batch
-        if not self._initialized and self.training:
-            with torch.no_grad(): # this dynamically standardizes to the first loss computation giving a rough estimate of the error magnitude of each
-                self.mse_scale = mse_loss.clone()
-                self.demeaned_scale = demeaned_loss.clone()
-                self._initialized = True
-        
-        # Normalize both losses to similar scale
-        mse_normalized = mse_loss / (self.mse_scale + 1e-8)
-        demeaned_normalized = demeaned_loss / (self.demeaned_scale + 1e-8)
-        
-        # Weighted combination
-        return self.alpha * mse_normalized + (1 - self.alpha) * demeaned_normalized
-
-
-class SarwarMSECorrLoss(nn.Module):
-    """
-    MSE plus inter-subject correlation matching penalty.
-
-    Loss = MSE(y_pred, y_true) + corr_weight * |mean_pair_corr(y_pred) - corr_target|
-    """
-    def __init__(self, corr_target=0.4, corr_weight=1e-3, eps=1e-8):
-        super().__init__()
-        self.name = "sarwar_mse_corr"
-        self.corr_target = float(corr_target)
-        self.corr_weight = float(corr_weight)
-        self.eps = float(eps)
-
-    def _mean_pairwise_corr(self, y_pred):
-        bsz = y_pred.shape[0]
-        if bsz < 2:
-            return y_pred.new_tensor(0.0)
-
-        centered = y_pred - y_pred.mean(dim=1, keepdim=True)
-        norms = torch.sqrt(torch.sum(centered * centered, dim=1, keepdim=True) + self.eps)
-        normalized = centered / norms
-        corr_mat = normalized @ normalized.t()
-        off_diag_sum = corr_mat.sum() - torch.diagonal(corr_mat).sum()
-        return off_diag_sum / (bsz * (bsz - 1))
-
-    def forward(self, y_pred, y_true, **kwargs):
-        mse = F.mse_loss(y_pred, y_true)
-        mean_corr = self._mean_pairwise_corr(y_pred)
-        corr_penalty = torch.abs(mean_corr - self.corr_target)
-        return mse + self.corr_weight * corr_penalty
 
 
 def compute_var_match_loss(y_pred, y_true, axis=0, relative_to_true=True):
@@ -177,6 +98,32 @@ def compute_neidist_loss(y_pred, y_true, margin=None):
     return dself - dother
 
 
+def compute_demeaned_mse_loss(y_pred, y_true, target_mean):
+    """MSE after subtracting the training-set target mean from both sides."""
+    return F.mse_loss(y_pred - target_mean, y_true - target_mean)
+
+
+def compute_pairwise_corr_loss(y_pred, corr_target=0.4, eps=1e-8):
+    """
+    Sarwar et al. inter-subject correlation penalty:
+    |mean off-diagonal correlation between predicted subjects - corr_target|.
+    """
+    bsz = y_pred.shape[0]
+    if bsz < 2:
+        return y_pred.new_tensor(0.0)
+    centered = y_pred - y_pred.mean(dim=1, keepdim=True)
+    norms = torch.sqrt(torch.sum(centered * centered, dim=1, keepdim=True) + eps)
+    normalized = centered / norms
+    corr_mat = normalized @ normalized.t()
+    off_diag_sum = corr_mat.sum() - torch.diagonal(corr_mat).sum()
+    return torch.abs(off_diag_sum / (bsz * (bsz - 1)) - float(corr_target))
+
+
+def compute_kld_loss(mu, logvar):
+    """KL divergence of the per-sample Gaussian latent to a standard normal (batch mean)."""
+    return -0.5 * torch.mean(torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1))
+
+
 class CompositeLoss(nn.Module):
     """
     Sum weighted edge-space loss terms with optional normalization.
@@ -185,12 +132,15 @@ class CompositeLoss(nn.Module):
     - ["mse", "neidist"]
     - "mse+neidist"
     - [{"name": "mse", "weight": 1.0}, {"name": "neidist", "weight": 0.25}]
+
+    Terms: mse, varmatch, correye, neidist (kwarg margin), demeaned_mse (needs target_mean),
+    pairwise_corr (kwarg corr_target; Sarwar et al.), kld (needs the model's mu/logvar).
     """
 
-    VALID_TERMS = ("mse", "varmatch", "correye", "neidist")
+    VALID_TERMS = ("mse", "varmatch", "correye", "neidist", "demeaned_mse", "pairwise_corr", "kld")
     VALID_NORMALIZE = ("ema", "none")
 
-    def __init__(self, loss_terms, normalize="ema", ema_decay=0.95, warmup_steps=100):
+    def __init__(self, loss_terms, normalize="ema", ema_decay=0.95, warmup_steps=100, target_mean=None):
         super().__init__()
         term_specs = self._parse_loss_terms(loss_terms)
         if not term_specs:
@@ -211,6 +161,14 @@ class CompositeLoss(nn.Module):
             deduped.setdefault(spec["name"], spec)
 
         self.term_specs = list(deduped.values())
+        if target_mean is not None:
+            if isinstance(target_mean, np.ndarray):
+                target_mean = torch.tensor(target_mean, dtype=torch.float32)
+            self.register_buffer("target_mean", torch.as_tensor(target_mean, dtype=torch.float32))
+        else:
+            self.target_mean = None
+        if any(spec["name"] == "demeaned_mse" for spec in self.term_specs) and self.target_mean is None:
+            raise ValueError("Composite term 'demeaned_mse' requires target_mean (pass base to create_loss_fn).")
         self.loss_terms = [spec["name"] for spec in self.term_specs]
         self.term_weights = OrderedDict((spec["name"], float(spec["weight"])) for spec in self.term_specs)
         self.normalize = normalize
@@ -246,7 +204,7 @@ class CompositeLoss(nn.Module):
                     parsed.append({"name": name, "weight": 1.0, "kwargs": {}})
         return parsed
 
-    def _compute_raw_term(self, spec, y_pred, y_true):
+    def _compute_raw_term(self, spec, y_pred, y_true, mu=None, logvar=None):
         name = spec["name"]
         kwargs = spec.get("kwargs") or {}
         if name == "mse":
@@ -257,6 +215,14 @@ class CompositeLoss(nn.Module):
             return compute_correye_loss(y_pred, y_true)
         if name == "neidist":
             return compute_neidist_loss(y_pred, y_true, margin=kwargs.get("margin"))
+        if name == "demeaned_mse":
+            return compute_demeaned_mse_loss(y_pred, y_true, self.target_mean)
+        if name == "pairwise_corr":
+            return compute_pairwise_corr_loss(y_pred, corr_target=kwargs.get("corr_target", 0.4))
+        if name == "kld":
+            if mu is None or logvar is None:
+                raise ValueError("Composite term 'kld' requires the model to return (y_pred, mu, logvar).")
+            return compute_kld_loss(mu, logvar)
         raise ValueError(f"Unsupported composite loss term: {name}")
 
     def _maybe_update_scales(self, raw_terms):
@@ -267,7 +233,10 @@ class CompositeLoss(nn.Module):
         if self._loss_scale_updates.item() >= self.warmup_steps:
             return
         for idx, raw_val in enumerate(raw_terms):
-            raw_val = torch.clamp(raw_val.detach(), min=1e-8).to(self._loss_scales.device)
+            # Scale by magnitude: signed terms (neidist = d_self - d_other) go negative once
+            # predictions are identifiable, and clamping the signed value would pin the scale
+            # at the floor and inflate the term by ~1e8.
+            raw_val = torch.clamp(raw_val.detach().abs(), min=1e-8).to(self._loss_scales.device)
             if not bool(self._loss_scale_initialized[idx].item()):
                 self._loss_scales[idx] = raw_val
                 self._loss_scale_initialized[idx] = True
@@ -282,8 +251,8 @@ class CompositeLoss(nn.Module):
             for idx, name in enumerate(self.loss_terms)
         )
 
-    def forward(self, y_pred, y_true, **kwargs):
-        raw_terms = [self._compute_raw_term(spec, y_pred, y_true) for spec in self.term_specs]
+    def forward(self, y_pred, y_true, mu=None, logvar=None, **kwargs):
+        raw_terms = [self._compute_raw_term(spec, y_pred, y_true, mu=mu, logvar=logvar) for spec in self.term_specs]
         self._maybe_update_scales(raw_terms)
         eps = 1e-8
         norm_terms = []
@@ -309,77 +278,160 @@ class CompositeLoss(nn.Module):
         return torch.stack(weighted_terms).sum()
 
 
-class VAELoss(nn.Module):
+EDGE_LOSS_TYPES = ("mse", "composite")
+LATENT_LOSS_TYPES = ("latent_mse", "latent_weighted_mse")
+
+# Every trainer-config key that shapes the training loss, with its default.
+LOSS_CONFIG_DEFAULTS = {
+    "loss_type": "mse",
+    "loss_terms": None,
+    "loss_normalize": "ema",
+    "loss_scale_ema_decay": 0.95,
+    "loss_scale_warmup_steps": 20,
+}
+
+
+def loss_signature(loss_cfg):
     """
-    VAE loss: reconstruction (MSE) + beta * KLD to standard Gaussian prior.
-    KLD = -0.5 * mean(sum(1 + logvar - mu^2 - exp(logvar), dim=1)).
-    
+    Short string describing what a resolved loss config optimizes, e.g. "mse" or
+    "mse+0.5*neidist". Used to group runs by objective in W&B.
+    """
+    loss_type = loss_cfg["loss_type"]
+    if loss_type == "composite":
+        deduped = OrderedDict()
+        for spec in CompositeLoss._parse_loss_terms(loss_cfg["loss_terms"]):
+            deduped.setdefault(spec["name"], spec)
+        parts = []
+        for name, spec in deduped.items():
+            weight = float(spec["weight"])
+            parts.append(name if weight == 1.0 else f"{weight:g}*{name}")
+        return "+".join(parts)
+    return loss_type
+
+
+LOSS_NORMALIZE_MODES = ("auto",) + CompositeLoss.VALID_NORMALIZE
+
+
+def _apply_loss_term_overrides(specs, trainer_cfg):
+    """
+    Apply flat `loss_weight_<term>` / `loss_kwarg_<term>__<name>` keys to parsed composite
+    specs. These are the Tune-searchable form of loss_terms weights and term kwargs.
+    Returns (specs, changed).
+    """
+    by_name = OrderedDict()
+    for spec in specs:
+        by_name.setdefault(spec["name"], spec)
+    changed = False
+    for key in sorted(trainer_cfg):
+        value = trainer_cfg[key]
+        if key.startswith(LOSS_WEIGHT_PREFIX):
+            term = key[len(LOSS_WEIGHT_PREFIX):]
+            if term not in by_name:
+                raise ValueError(
+                    f"{key} sets a weight for '{term}', which is not in loss_terms {list(by_name)}."
+                )
+            if term == "mse":
+                warnings.warn(
+                    f"{key} is set; the mse weight is the anchor (1.0) and is not meant to be searched.",
+                    stacklevel=3,
+                )
+            by_name[term] = {**by_name[term], "weight": float(value)}
+            changed = True
+        elif key.startswith(LOSS_KWARG_PREFIX):
+            term, sep, kwarg = key[len(LOSS_KWARG_PREFIX):].partition("__")
+            if not sep or not kwarg:
+                raise ValueError(f"{key} must look like {LOSS_KWARG_PREFIX}<term>__<kwarg>.")
+            if term not in by_name:
+                raise ValueError(
+                    f"{key} sets a kwarg for '{term}', which is not in loss_terms {list(by_name)}."
+                )
+            by_name[term] = {**by_name[term], "kwargs": {**by_name[term]["kwargs"], kwarg: value}}
+            changed = True
+    return list(by_name.values()), changed
+
+
+def resolve_loss_config(trainer_cfg=None):
+    """
+    Collect and validate the loss keys of a trainer config.
+
+    Missing keys take LOSS_CONFIG_DEFAULTS; unrelated trainer keys are ignored, so a full
+    trainer section (nested) or a flat Tune config can be passed directly. For composite
+    losses, flat `loss_weight_<term>` / `loss_kwarg_<term>__<name>` keys override loss_terms,
+    a weight of 0 drops the term, and loss_normalize='auto' resolves to 'none' for a single
+    active term (exact plain loss) and 'ema' otherwise. Returns a new dict with every
+    LOSS_CONFIG_DEFAULTS key (normalize resolved) plus `loss_signature`. Idempotent.
+    """
+    trainer_cfg = trainer_cfg or {}
+    cfg = {key: trainer_cfg.get(key, default) for key, default in LOSS_CONFIG_DEFAULTS.items()}
+    cfg["loss_normalize"] = str(cfg["loss_normalize"] or "ema").strip().lower()
+    cfg["loss_scale_ema_decay"] = float(cfg["loss_scale_ema_decay"])
+    cfg["loss_scale_warmup_steps"] = int(cfg["loss_scale_warmup_steps"])
+
+    loss_type = cfg["loss_type"]
+    if loss_type not in EDGE_LOSS_TYPES + LATENT_LOSS_TYPES:
+        raise ValueError(
+            f"Unknown loss type: {loss_type}. Choose from {list(EDGE_LOSS_TYPES + LATENT_LOSS_TYPES)}"
+        )
+    if cfg["loss_normalize"] not in LOSS_NORMALIZE_MODES:
+        raise ValueError(
+            f"Unknown loss_normalize='{cfg['loss_normalize']}'. Valid options: {list(LOSS_NORMALIZE_MODES)}"
+        )
+    if loss_type == "composite":
+        specs = CompositeLoss._parse_loss_terms(cfg["loss_terms"])
+        if not specs:
+            raise ValueError("loss_type='composite' requires a non-empty loss_terms list.")
+        invalid = [spec["name"] for spec in specs if spec["name"] not in CompositeLoss.VALID_TERMS]
+        if invalid:
+            raise ValueError(
+                f"Unknown composite loss terms {invalid}. Valid options: {list(CompositeLoss.VALID_TERMS)}"
+            )
+        specs, changed = _apply_loss_term_overrides(specs, trainer_cfg)
+        active = [spec for spec in specs if float(spec["weight"]) != 0.0]
+        if not active:
+            raise ValueError("Every composite loss term has weight 0; at least one term must be active.")
+        if changed or len(active) < len(specs):
+            # Rewrite only when something changed, so logged loss_terms keep their original form.
+            cfg["loss_terms"] = [
+                {"name": s["name"], "weight": float(s["weight"]), **({"kwargs": s["kwargs"]} if s["kwargs"] else {})}
+                for s in active
+            ]
+        if cfg["loss_normalize"] == "auto":
+            cfg["loss_normalize"] = "none" if len(active) == 1 else "ema"
+    elif cfg["loss_normalize"] == "auto":
+        cfg["loss_normalize"] = "none"
+    cfg["loss_signature"] = loss_signature(cfg)
+    return cfg
+
+
+def create_loss_fn(loss_cfg, base=None):
+    """
+    Build the edge-space loss module for a resolved loss config (see resolve_loss_config).
+
     Args:
-        beta: weight for KLD term (default 1.0).
-    """
-    def __init__(self, beta=1.0):
-        super().__init__()
-        self.name = "vae"
-        self.beta = beta
-    
-    def forward(self, y_pred, y_true, mu=None, logvar=None, **kwargs):
-        recon = F.mse_loss(y_pred, y_true)
-        if mu is not None and logvar is not None:
-            # measures how far each sample’s Gaussian latent embedding deviates from a unit Gaussian
-            kld = -0.5 * torch.mean(torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1))
-            return recon + self.beta * kld
-        return recon
-
-
-def create_loss_fn(
-    loss_type,
-    base=None,
-    alpha=0.5,
-    beta=1.0,
-    corr_target=0.4,
-    corr_weight=1e-3,
-    loss_terms=None,
-    loss_normalize="ema",
-    loss_scale_ema_decay=0.95,
-    loss_scale_warmup_steps=20,
-):
-    """
-    Factory function to create loss functions.
-
-    Args:
-        loss_type: one of 'mse', 'weighted_mse', 'vae', 'sarwar_mse_corr', 'composite'
-        base: Dataset base object (required for weighted_mse)
-        alpha: weight for weighted_mse (default 0.5)
-        beta: weight for VAE KLD term (default 1.0)
-        corr_target: target mean inter-subject correlation for sarwar_mse_corr.
-        corr_weight: penalty strength for sarwar_mse_corr.
+        loss_cfg: resolved loss config dict.
+        base: Dataset base object (required for the demeaned_mse composite term).
 
     Returns:
-        Loss function module
+        Loss function module. Latent loss types have no edge-space module and raise here;
+        the Lightning module computes them from model latents instead.
     """
+    loss_cfg = resolve_loss_config(loss_cfg)
+    loss_type = loss_cfg["loss_type"]
     if loss_type == "mse":
         return MSELoss()
-    elif loss_type == "weighted_mse":
-        if base is None:
-            raise ValueError("base is required for weighted_mse loss")
-        target_mean = get_target_train_mean(base)
-        return WeightedMSELoss(target_mean, alpha=alpha)
-    elif loss_type == "vae":
-        return VAELoss(beta=beta)
-    elif loss_type == "sarwar_mse_corr":
-        return SarwarMSECorrLoss(corr_target=corr_target, corr_weight=corr_weight)
     elif loss_type == "composite":
+        specs = CompositeLoss._parse_loss_terms(loss_cfg["loss_terms"])
+        needs_mean = any(spec["name"] == "demeaned_mse" for spec in specs)
+        if needs_mean and base is None:
+            raise ValueError("base is required for the demeaned_mse composite term")
         return CompositeLoss(
-            loss_terms=loss_terms,
-            normalize=loss_normalize,
-            ema_decay=loss_scale_ema_decay,
-            warmup_steps=loss_scale_warmup_steps,
+            loss_terms=loss_cfg["loss_terms"],
+            normalize=loss_cfg["loss_normalize"],
+            ema_decay=loss_cfg["loss_scale_ema_decay"],
+            warmup_steps=loss_cfg["loss_scale_warmup_steps"],
+            target_mean=get_target_train_mean(base) if needs_mean else None,
         )
-    else:
-        raise ValueError(
-            f"Unknown loss type: {loss_type}. Choose from "
-            "'mse', 'weighted_mse', 'vae', 'sarwar_mse_corr', 'composite'"
-        )
+    raise ValueError(f"loss_type='{loss_type}' has no edge-space loss module.")
 
 
 def compute_latent_reconstruction_loss(c_pred, c_true, loss_type, weights=None, mask=None):

@@ -379,7 +379,7 @@ class CrossModal_PCA_PLS_learnable(nn.Module):
         random_init: If True, use random initialization instead of PCA/PLS. Default False.
         dropout: Dropout probability (0 = no dropout). Default 0.0.
         l1_l2_tuple: Tuple of (l1_reg, l2_reg) weights. Default (0.0, 0.001).
-        **kwargs: Ignored (lr, epochs, loss_fn, loss_alpha passed to Lightning module).
+        **kwargs: Ignored (lr, epochs and other trainer keys belong to the Lightning module).
     """
     def __init__(self, base, n_components_pca_source=256, n_components_pca_target=256, 
                  n_components_pls=64, device=None,
