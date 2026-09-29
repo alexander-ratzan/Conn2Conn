@@ -72,6 +72,9 @@ per-condition seed metrics: [`tables/row_seed_metrics.csv`](tables/row_seed_metr
 
 ## 6. Caveats
 
+- **v2:C!1 (regularization not applied):** the `PCA_PLS_learnable`, all four projector, and `Sarwar2020MLP` rows come
+  from sweeps that trained with the default regularization (L2 = 1e-4; none for Sarwar); their logged `l1_reg`/`l2_reg`
+  were not applied (v1:M5b). The projector-vs-baseline comparison is at equal fixed L2. Resolved by v2:C2 (re-tune).
 - Single input source (`SC`); covariate effects on `SC_r2t` / `SC+SC_r2t` are not tested here.
 - `NodalGNN` results come from direct `prod` runs with default configs (no tune sweep), so it is less tuned than the
   other learned models.

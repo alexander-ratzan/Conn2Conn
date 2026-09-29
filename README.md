@@ -14,13 +14,14 @@ Predicts one connectome modality from another on HCP-derived data (default `SC �
 | `CrossModal_PLS_SVD` | Closed-form | PLS via SVD decomposition |
 | `CrossModal_PCA_PLS` | Closed-form | PCA whitening + PLS regression |
 | `CrossModal_PCA_PLS_learnable` | Learned | PCA/PLS-initialized linear map, fine-tuned end-to-end |
+| `CrossModal_linear_backbone` | Learned | Frozen PCA encoder/decoder around one learned affine latent map; fast probe for loss/regularization studies |
 | `CrossModal_PCA_PLS_CovProjector` | Learned | PCA+PLS + residual correction conditioned on subject covariates |
 | `CrossModal_ConditionalGaussian` | Closed-form | Conditional Gaussian mapping in latent space, with optional covariates |
 | `CrossModalVAE` | Learned | Variational autoencoder cross-modal mapping |
-| `LatentAttnMasked` | Learned | Latent PCA backbone with optional masked FC attention residual |
+| `LatentAttnMasked` | Learned | Latent PCA backbone (zero / PLS / learned linear) plus a masked FC attention residual |
 | `MaskedLatentPretrainer` | Experimental | Self-supervised latent-token reconstruction pretrainer for `LatentAttnMasked` |
 | `MaskedMLPPretrainer` | Experimental | Masked latent reconstruction pretrainer with linear/MLP backbone variants |
-| `Sarwar2020MLP` | Learned | Fully non-linear MLP baseline with correlation-aware loss option |
+| `Sarwar2020MLP` | Learned | Fully non-linear MLP baseline trained with MSE + inter-subject correlation penalty |
 | `Chen2024GCN` | Learned | Edge-level GCN baseline (`SC` graph message passing, FC edge regression) |
 | `NodalGNN` | Learned | SC-conditioned GNN using subject-specific parcel node features (volume, centroid, `SC_r2t`) |
 | `NodalMLP` | Learned | Graph-free node/edge baseline over anatomical features and/or subject SC-row features |
@@ -167,12 +168,31 @@ python main.py --mode prod --model CrossModal_PCA_PLS_learnable \
 | `--model` | Model name (must match a YAML in `models/configs/`) |
 | `--source` | Input modality: `SC`, `SC_r2t`, or `SC+SC_r2t` |
 | `--target` | Output modality (default `FC`) |
-| `--shuffle_seed` | Train/val/test split seed (0–4 for multi-seed evaluation) |
+| `--shuffle_seed` | Train/val/test split seed (the multi-seed arrays use 0–9) |
 | `--data_load_mode` | `manual` raw loading or `precomputed` cached-array loading |
 | `--use_tune` | Enable Ray Tune HPO |
 | `--num_samples` | Number of Ray Tune trials |
 | `--report_best_after_tune` | Re-run and fully evaluate the best trial after tuning |
 | `--store_eval_md` | Save a markdown evaluation report when supported by the run/report path |
+
+### Loss and regularization (YAML `trainer` / `model` sections)
+
+Every learned edge-space model trains on a **composite loss**: MSE plus optional weighted terms (`varmatch`, `correye`,
+`neidist`, `demeaned_mse`, `pairwise_corr`, `kld`). A config with no loss keys is plain MSE. Term weights are
+searchable as flat keys; a weight of 0 drops the term:
+
+```yaml
+default:
+  model:   {l1_reg: 0.0, l2_reg: 1.0e-6}     # every learned model; Chen2024GCN supports l2_reg only
+  trainer:
+    loss_type: composite
+    loss_terms: [{name: mse, weight: 1.0}, {name: neidist, weight: 0.0}]
+    loss_normalize: auto                     # none for one active term, ema otherwise
+search_space:
+  loss_weight_neidist: {type: choice, values: [0.0, 0.25, 0.5, 1.0]}
+```
+
+Each run logs `loss_signature` (e.g. `mse+0.5*neidist`) to W&B. Details: `CONTEXT.md` → Config System Notes.
 
 ---
 
@@ -329,4 +349,4 @@ Conn2Conn/
 └── krakencoder/                     # Bundled KrakenEncoder codebase
 ```
 
-Last updated at: 2026-09-23 EDT
+Last updated at: 2026-09-29 EDT

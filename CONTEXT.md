@@ -12,6 +12,7 @@ For user-facing usage/setup, see `README.md`.
 - closed-form baselines (PCA/PLS family)
 - conditional Gaussian baseline
 - learned variants (learnable map, covariate-conditioned residual projector, VAE, Sarwar MLP, Chen GCN)
+- linear latent backbone probe (`CrossModal_linear_backbone`)
 - latent attention variant (`LatentAttnMasked`)
 - experimental masked-latent pretraining variants (`MaskedLatentPretrainer`, `MaskedMLPPretrainer`)
 - nodal-feature GNN baseline (`NodalGNN`)
@@ -114,10 +115,11 @@ Closed-form (`learned: false`):
 - `TestRetestPrecomputed` (test-retest oracle, loads session 1/2 cached connectomes; class in `models/architectures/test_retest_precomputed.py`)
 
 Learned (`learned: true`):
-- `CrossModal_PCA_PLS_learnable`
+- `CrossModal_PCA_PLS_learnable` (flags include `mid_bias` and `zscore_pca_scores`; defaults reproduce the original model)
+- `CrossModal_linear_backbone` (`models/architectures/crossmodal_pca_pls.py`) — thin `_learnable` subclass: frozen source PCA encoder → learned affine k×k latent map (`W_mid`, `mid_bias`) → frozen target PCA decoder. Pins the `_learnable` flags; free keys are `n_components_pca_source` (target tied to it), `zscore_pca_scores`, `l1_reg`/`l2_reg`. Formerly `LatentAttnMasked` with `residual_mode: none`. A fast, strong probe for loss/regularization studies.
 - `CrossModal_PCA_PLS_CovProjector`
 - `CrossModalVAE`
-- `LatentAttnMasked` (implemented in `models/architectures/latent_attention/latent_attn_masked.py`)
+- `LatentAttnMasked` (implemented in `models/architectures/latent_attention/latent_attn_masked.py`); `residual_mode` ∈ {`attention_only`, `pls_residual`, `linear_residual`}. `none` was removed and raises, pointing to `CrossModal_linear_backbone`.
 - `MaskedLatentPretrainer` (`models/architectures/latent_attention/masked_latent_pretrainer.py`) — **experimental, in development, not production**. SSL pretrainer for joint SC/FC PCA-latent reconstruction; transfers weights to `LatentAttnMasked` via `export_to_latent_attn_masked(downstream_model)`. Kept isolated: no cross-module changes in `lightning_module.py` / `trainer.py` / `main.py` should be made on its behalf. Dev harness: `scripts/notebooks/model_overviews/masked_attn_pretraining_overview.ipynb`.
 - `MaskedMLPPretrainer` (`models/architectures/latent_attention/masked_mlp_pretrainer.py`) — **experimental**. SSL pretrainer variant of the masked-latent path using linear, low-rank-linear, or nonlinear MLP encoders plus configurable SC/FC masking. Config surfaces include `MaskedMLPPretrainer.yml`, `MaskedMLPPretrainer_linear.yml`, `MaskedMLPPretrainer_nonlinear.yml`, and `MaskedMLPPretrainer_mask_grid.yml`; sbatch launchers live under `scripts/sbatch/MaskedMLPPretrainer/`.
 - `Sarwar2020MLP` (implemented in `models/architectures/sarwar2020_mlp.py`)
@@ -279,21 +281,37 @@ Suggested quick smoke workflow:
 ## Config System Notes (`models/registry.py`)
 
 - `FLAT_METADATA_KEYS` are logging/display keys and must not reach model constructors.
-- `l1_reg`/`l2_reg` are recombined into `l1_l2_tuple` in `build_model`.
+- Regularization keys: every learned model takes `l1_reg` / `l2_reg` (YAML and search). `build_model` maps them to `l1_l2_tuple`, and they override any `l1_l2_tuple` so a sampled value is never replaced by a default. Which parameters are penalized is model-owned (`get_reg_loss()`). Exception: `Chen2024GCN` keeps the paper's plain-norm penalty driven by `l2_reg` and rejects `l1_reg`.
+- `search_space_to_tune` supports `choice`, `grid`, `loguniform`, `uniform`, and raises on anything else (unsupported types used to be dropped silently).
+- Keys starting with `loss_weight_` / `loss_kwarg_` are trainer keys (`registry.is_trainer_key`) and never reach model constructors.
 - source-dependent PCA dims are normalized by `resolve_source_dependent_config`.
 - YAML `search_space` is converted to Ray Tune objects by `search_space_to_tune`.
 
-Trainer loss config currently supports standard atomic loss names plus `loss_type: composite`.
-Composite losses use structured `loss_terms`, for example:
+Training loss (`models/train/loss.py`): every edge-space model uses `loss_type: composite`. The only other types are the latent
+losses `latent_mse` / `latent_weighted_mse` (PCA-score reconstruction). `resolve_loss_config()` is the single entry point: it
+fills defaults, applies overrides, validates, and adds `loss_signature`. A config with no loss keys is plain MSE.
 
 ```yaml
 trainer:
   loss_type: composite
-  loss_terms:
-    - {name: mse, weight: 1.0}
-    - {name: neidist, weight: 0.25}
-  loss_normalize: ema
+  loss_terms:                       # default when omitted: [mse]
+    - {name: mse, weight: 1.0}      # anchor; not searched
+    - {name: neidist, weight: 0.0}  # weight 0 drops the term
+  loss_normalize: auto              # auto: none for one active term, ema otherwise; or ema / none
+search_space:
+  loss_weight_neidist: {type: choice, values: [0.0, 0.25, 0.5, 1.0]}   # flat, Optuna-safe
+  loss_kwarg_pairwise_corr__corr_target: {type: uniform, lower: 0.3, upper: 0.9}
 ```
+
+- Terms: `mse`, `varmatch`, `correye`, `neidist` (signed; kwarg `margin`), `demeaned_mse` (needs `base`),
+  `pairwise_corr` (Sarwar; kwarg `corr_target`), `kld` (needs the model's `mu`/`logvar`, raises otherwise).
+- `ema` estimates each term's scale from `|raw|` during `loss_scale_warmup_steps` training steps, then freezes it.
+  Scales are logged as `*_loss_ref_*`.
+- `loss_signature` (e.g. `mse+0.5*neidist`) is logged on prod, best-trial and Tune-trial runs; group W&B runs by it.
+- Per-term metrics: `{train,val}_loss_{raw,term,weighted,ref}_<term>` (Lightning). Tune trials receive
+  `train_loss_raw_*` and `val_loss_{raw,weighted,ref}_*`.
+- `Sarwar2020MLP` (`[mse, pairwise_corr]`) and `CrossModalVAE` (`[mse, kld]`) use `loss_normalize: none`, so the weight
+  *is* the paper weight / β. `weighted_mse(α)` is `[mse: α, demeaned_mse: 1−α]` under `ema` with warmup 1.
 
 Regularization remains model-owned through `model.get_reg_loss()` and is added separately by the Lightning module.
 
@@ -333,8 +351,11 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
   table (`tables/seed_records.csv`, or `tables/row_seed_metrics.csv` for row-based experiments). Rendering is deterministic, so re-running on unchanged data leaves tracked outputs
   byte-identical (only `manifest.json`'s `generated_at` changes). It refuses to run on a missing cache or one that
   does not cover the config.
-- **Specs.** Layout refactors are planned and tracked in `context_packages/repo_spec_docs/` (`spec_doc_v1.md`:
-  the `scripts/` build-out).
+- **Specs.** Refactors and experiment plans are tracked in `context_packages/repo_spec_docs/`: `spec_doc_v1.md`
+  (complete: the `scripts/` build-out and the composite-loss / regularization modeling track), `spec_doc_v2.md`
+  (active: experiments and carried-over items). Format and item IDs (`I` infrastructure, `M` modeling, `E` experiment,
+  `C` carryover, `C!` caveat, `D` decision) follow `spec_conventions.md`; each spec's status table is the place to read
+  its current state.
 
 ## HPC / Workflow Guardrails
 
@@ -361,7 +382,8 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
 3. Multi-source PCA settings may be scalar or dict; resolve before model build.
 4. Precomputed model path bypasses DataLoader-based prediction.
 5. Krakencoder config/class naming should be verified before relying on automated runs.
-6. `Chen2024GCN` requires `torch-geometric` in the runtime environment.
+6. `Chen2024GCN` requires `torch-geometric` in the runtime environment. As of 2026-09-23 it is **not installed** in the
+   `kraken_env` overlay (torch 2.9.0), so this model and `NodalGNN` fail at import until PyG is reinstalled (`:rw` mount).
 7. `NodalGNN` also requires `torch-geometric`.
 8. `NodalMLP` does not require `torch-geometric`, but configs with `use_sc_row=True` require `batch["sc_matrix"]`; this is wired through `Sim` and the train/eval wrappers.
 9. `precomputed` data_load_mode only works when cache files already exist at the resolved cache root.
@@ -370,6 +392,13 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
 12. `models/`, `data/` have no `__init__.py` (namespace packages) and `models/eval/__init__.py`, `models/train/__init__.py` re-export nothing: import from the defining module (e.g. `from models.eval.evaluator import Evaluator`), not the package.
 13. W&B project/entity and results paths are duplicated in `main.py` and `scripts/results_utils/records.py`; change both together.
 14. W&B public API: always fetch runs via `query_runs` (full data); a plain `api.runs(...)` on wandb 0.25 returns empty configs and every source/seed parse fails silently (runs are skipped with a warning).
+15. The regularization term is added unnormalized on top of the loss, so the effective reg strength depends on the loss
+    scale: an `ema`-normalized composite starts at about Σweights, a raw `none` loss at the raw MSE scale. Re-tune reg ranges
+    when switching normalization or weight schemes.
+16. `correye` / `neidist` compare subjects within a batch: their values and meaning depend on `batch_size` (0 for a batch
+    of 1). Keep `batch_size` fixed when comparing weights.
+17. Sweeps before 2026-09-23 of `CrossModal_PCA_PLS_learnable`, `CrossModal_PCA_PLS_CovProjector` and `Sarwar2020MLP`
+    ignored the sampled `l1_reg`/`l2_reg` (default tuple won; spec v1 M5b). Their logged reg values were not applied.
 
 ---
 
@@ -385,7 +414,8 @@ Add/modify loss behavior:
 1. add atomic terms or factories in `models/train/loss.py`
 2. route training behavior through `models/train/lightning_module.py`
 3. keep metric-only calculations in `models/eval/metrics.py` unless they are part of the differentiable training objective
-4. prefer `loss_type: composite` with structured `loss_terms` for weighted multi-term objectives
+4. new edge-space terms go in `CompositeLoss` (`VALID_TERMS` + `_compute_raw_term`); expose weights to Tune as `loss_weight_<term>`
+5. check equivalence and regressions with `resolve_loss_config` + `create_loss_fn` on random tensors before any GPU run
 
 For nodal models:
 1. `NodalGNN` node features come from `batch["node_features"]`, not from `cov`.
@@ -411,6 +441,15 @@ Debug missing results cell:
 3. verify model/source/seed is included in requested grid
 
 ## Recent Changes
+
+2026-09-23 — modeling track (spec v1 §8, M1–M8):
+- One loss path: `resolve_loss_config` → `create_loss_fn`; `composite` is the only edge-space loss type. `mse`,
+  `weighted_mse`, `sarwar_mse_corr` and `vae` were retired and folded into composite terms, bit-exact with the old losses.
+- Searchable `loss_weight_*` / `loss_kwarg_*`; `loss_normalize: auto`; `loss_signature` in W&B; per-term losses in Tune.
+- `CompositeLoss` EMA scales now track `|raw|` (a signed `neidist` used to inflate about 10⁸×).
+- `l1_reg` / `l2_reg` for every learned model; sampled reg values now take effect in sweeps (see gotcha 17).
+- `CrossModal_linear_backbone` added; `LatentAttnMasked` `residual_mode: none` removed. Four notebooks migrated.
+- Real-data verification array: `scripts/sbatch/checks/verify_modeling_track_array.sh` (reports in `results/logs/`).
 
 2026-09-23 — `scripts/` build-out (details: `context_packages/repo_spec_docs/spec_doc_v1.md`):
 - All non-library code now lives under `scripts/`: `results_utils/`, `notebooks/`, `experiments/`, `sbatch/`.
@@ -453,4 +492,4 @@ Earlier:
 - Model code now lives under `models/architectures/`, training code under `models/train/`, and evaluation/reporting code under `models/eval/`.
 - Backward-compatibility shims for old top-level model/train/eval files are intentionally removed.
 
-Last updated at: 2026-09-23 EDT
+Last updated at: 2026-09-29 EDT

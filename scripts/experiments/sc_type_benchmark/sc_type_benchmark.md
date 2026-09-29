@@ -66,6 +66,8 @@ Full table (incl. MSE and empty cells): [`tables/summary_table.md`](tables/summa
 
 ## 6. Coverage gaps and caveats
 
+- **v2:C!1 (regularization not applied):** the `CrossModal_PCA_PLS_learnable` rows come from sweeps that trained
+  with the default L2 = 1e-4; their logged `l1_reg`/`l2_reg` were not applied (v1:M5b). Resolved by v2:C2 (re-tune).
 - Missing cells (80 / 200): no `SC+SC_r2t` runs for `CrossModalPCA` / `PLS_SVD`; Krakencoder is SC-only; the FC
   oracle exists only for `CrossModalPCA` (by design).
 - 15 older best-trial runs have neither `source` nor `shuffle_seed` in their W&B config and are skipped at scrape

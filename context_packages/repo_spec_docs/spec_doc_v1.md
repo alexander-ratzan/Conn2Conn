@@ -1,8 +1,46 @@
-# Repo Spec v1 — `scripts/` Build-Out (Stage 1 Code Refactor)
+# Repo Spec v1 — `scripts/` Build-Out and Composite-Loss Modeling Track
 
-**Status:** Stage 1 complete (T1–T8 done); modeling track §8 ready for execution (M1–M11) · **Started:** 2026-09-23 · **Scope:** Conn2Conn repo layout, `scripts/` umbrella
-**Tracks:** stepwise to-dos, deliverables, and acceptance criteria for moving all non-library code
-(results tooling, notebooks, experiments, SLURM launchers) under a single `scripts/` folder.
+**Purpose:** reorganize all non-library code under `scripts/` (results tooling, notebooks, experiments, launchers), then
+move every learned edge-space model onto one composite loss path with unified L1/L2 regularization.
+**Status:** closed 2026-09-29 (frozen). Successor: [`spec_doc_v2.md`](spec_doc_v2.md), which holds the carried items and
+backlog. Format: [`spec_conventions.md`](spec_conventions.md). · **Started:** 2026-09-23
+**ID legend:** infrastructure items are `I1`–`I7` (groundwork, formerly `G1`–`G7`) and `I8`–`I15` (stage-1 steps,
+formerly `T1`–`T8`); `(was Tn)` is kept on those rows because commit messages cite the `T` numbers. `M<n>` are modeling
+items, `D<n>` decisions (see [`spec_conventions.md`](spec_conventions.md)).
+
+**Contents:** [Status](#status) · [1. Purpose](#1-purpose) · [2. Target layout](#2-target-layout) ·
+[3. Decisions and conventions](#3-decisions-and-conventions) · [4. Completed groundwork](#4-completed-groundwork) ·
+[5. Stepwise plan (I8–I15)](#5-stepwise-plan) · [6. Deferred](#6-deferred--out-of-scope-for-v1) ·
+[7. Open questions](#7-open-questions) · [8. Modeling track (M1–M11)](#8-modeling-track-m-steps) ·
+[9. Change log](#9-change-log)
+
+## Status
+
+| ID | Title | Status | Result |
+|---|---|---|---|
+| I1–I7 | Groundwork: results code tracked and split, `scripts/results_utils/`, notebook bootstrap | done | §4 table |
+| I8 (was T1) | Author this spec | done | `420ae4a` |
+| I9 (was T2) | Notebooks → `scripts/notebooks/` | done | `506e008` |
+| I10 (was T3) | Fix stale `models.*` imports (13 notebooks) | done | `64dbc62` |
+| I11 (was T4) | Launchers → `scripts/sbatch/` | done | `08a917c` |
+| I12 (was T5) | `scripts/experiments/` | done | `9ed9d7f` |
+| I13 (was T6) | Experiment ledger entry (later folded into experiment folders) | done | `fa88722` |
+| I14 (was T7) | `.gitignore` review | done | `4460cf3` |
+| I15 (was T8) | README / CONTEXT docs pass | done | `6514c8a` |
+| M1 | Stale loss configs in notebooks | done | `e094f3d` |
+| M1b | EMA scale for signed composite terms | done | `28777ac` |
+| M2 | Single loss-config path + `loss_signature` | done | `b7a8534` |
+| M3 | Searchable loss weights and term kwargs | done | `57dcab4` |
+| M4 | Legacy losses folded into composite terms | done | `5286526` |
+| M5 | Unified `l1_reg` / `l2_reg` | done | `701580e` |
+| M5b | Sampled L1/L2 discarded in sweeps (bug fix) | done | `f74cc0e`; impact carried as v2:C!1 |
+| M6 | Per-term losses in Tune trial runs | done | `9934e66` |
+| M7 | `CrossModal_linear_backbone` | done | `7205d4c`, `72a2ab6` |
+| M8 | Composite loss in every in-scope YAML | done | `a66d8e5` |
+| M9 | Launchers + weight-sweep experiment | superseded (by v2:E1) | — |
+| M10 | Interaction tests | superseded (by v2:E1) | — |
+| M11 | Docs | done | `46da8c6` |
+| D1–D5 | Modeling decisions | decided | §8.5 |
 
 ---
 
@@ -38,14 +76,14 @@ Conn2Conn/
 │   │   ├── local_results.py       #   results/local_results/ loaders + plots
 │   │   ├── runner.py              #   shared plumbing for config-driven experiment scripts (post-v1)
 │   │   └── optuna_importance.py   #   python -m scripts.results_utils.optuna_importance
-│   ├── notebooks/                 # interactive: EDA, model overviews/testing, results scraping   [T2]
+│   ├── notebooks/                 # interactive: EDA, model overviews/testing, results scraping   [I9]
 │   │   ├── EDA/
 │   │   ├── kraken/
 │   │   ├── model_overviews/
 │   │   ├── model_testing/
 │   │   └── results_scrape/        #   + nodal_decoder_importance.ipynb
-│   ├── experiments/<name>/        # self-contained side experiments: code, launchers, small outputs  [T5]
-│   └── sbatch/<Model>/            # core model tuning grids                                      [T4]
+│   ├── experiments/<name>/        # self-contained side experiments: code, launchers, small outputs  [I12]
+│   └── sbatch/<Model>/            # core model tuning grids                                      [I11]
 ├── results/                       # generated artifacts only (bulky experiment outputs → results/experiments/<name>/)
 └── context_packages/
     └── repo_spec_docs/            # this document
@@ -85,32 +123,32 @@ Known limitation: raises a bare `StopIteration` if the kernel cwd is outside the
 
 | # | Change | Commit |
 |---|---|---|
-| G1 | Removed stale `context_packages/main.py` and `hcp_dataset.py` copies (strict older subsets of live code; untracked) | — (untracked delete) |
-| G2 | Results scripts moved into tracked package; `.gitignore` fixed (old `results/` rule blocked all re-includes) | `487bb12` |
-| G3 | `results_scraper.py` (2.1k lines) split into `records` / `tables` / `plots`; function bodies verbatim; notebook + optuna imports fixed | `f5a4253` |
-| G4 | `test_structured_loss_model` local report tracked | `5c5304e` |
-| G5 | `context_packages/` reorganization committed (latent-attention docs → `modeling/`) | `9ef6565` |
-| G6 | Package moved to `scripts/results_utils/`; `results/__init__.py` removed | `e6ce354` |
-| G7 | Walk-up bootstrap in all 32 notebooks; cwd-relative and absolute repo paths anchored on `REPO_ROOT` | `5690551` |
+| I1 | Removed stale `context_packages/main.py` and `hcp_dataset.py` copies (strict older subsets of live code; untracked) | — (untracked delete) |
+| I2 | Results scripts moved into tracked package; `.gitignore` fixed (old `results/` rule blocked all re-includes) | `487bb12` |
+| I3 | `results_scraper.py` (2.1k lines) split into `records` / `tables` / `plots`; function bodies verbatim; notebook + optuna imports fixed | `f5a4253` |
+| I4 | `test_structured_loss_model` local report tracked | `5c5304e` |
+| I5 | `context_packages/` reorganization committed (latent-attention docs → `modeling/`) | `9ef6565` |
+| I6 | Package moved to `scripts/results_utils/`; `results/__init__.py` removed | `e6ce354` |
+| I7 | Walk-up bootstrap in all 32 notebooks; cwd-relative and absolute repo paths anchored on `REPO_ROOT` | `5690551` |
 
 ## 5. Stepwise plan
 
 Each step is one commit unless noted. Verify before committing; never run notebooks or compute on the login node.
 
-### T1 — Author this spec doc  ✅ done
+### I8 (was T1) — Author this spec doc  · status: done
 - **Deliverable:** `context_packages/repo_spec_docs/spec_doc_v1.md`.
 - **Accept:** reviewed; committed.
 
-### T2 — Move notebooks → `scripts/notebooks/`  ✅ done
+### I9 (was T2) — Move notebooks → `scripts/notebooks/`  · status: done
 - **Changes:**
   - `git mv notebooks scripts/notebooks`
   - `nodal_decoder_importance.ipynb` → `scripts/notebooks/results_scrape/`
   - delete all untracked `.ipynb_checkpoints/` dirs: under `notebooks/` and the stray repo-root `.ipynb_checkpoints/` (holds `main-checkpoint.py` + old notebook checkpoints)
-  - `quick_experiments/` moves along for now; emptied in T5
+  - `quick_experiments/` moves along for now; emptied in I12
 - **Accept:** git records pure renames; bootstrap resolves `REPO_ROOT` from the new depth; no `.ipynb_checkpoints/` at the repo root or under `scripts/notebooks/`; no remaining `notebooks/` references outside docs.
 - **Result:** `506e008`; 32 renames, ~400 MB of checkpoints removed.
 
-### T3 — Fix stale `models.*` imports (13 notebooks)  ✅ done
+### I10 (was T3) — Fix stale `models.*` imports (13 notebooks)  · status: done
 Notebooks still imported modules removed in the `models/` refactor. Mapping applied (verified per symbol against current definitions):
 
 | Old import | New location |
@@ -135,50 +173,51 @@ Affected: `kraken/kraken_eval`, `kraken/track_krakencoder_model`,
 - **Accept:** every `models.*` / `data.*` / `scripts.*` import in every notebook resolves to an existing module and symbol (static check + import-only run of each notebook's import cell in `kraken_env`, overlay mounted `:ro`).
 - **Result:** 108 import lines rewritten in 13 notebooks; static check and `kraken_env` import run pass for all 32 notebooks. Notebook bodies were not executed.
 
-### T4 — Move SLURM launchers → `scripts/sbatch/`  ✅ done
+### I11 (was T4) — Move SLURM launchers → `scripts/sbatch/`  · status: done
 - **Changes:** `git mv sbatch scripts/sbatch`; update the two PCA/PLS overview notebooks that build `REPO_ROOT / "sbatch/..."` paths.
 - **Safe because:** launchers use absolute `#SBATCH --output/--error` paths and `cd ${CONN2CONN_DIR}` before `python main.py`; SLURM copies scripts at submission, so queued jobs are unaffected.
 - **Accept:** no `sbatch/` path references outside docs; `bash -n` passes on every launcher; submission command becomes `sbatch scripts/sbatch/<Model>/<script>.sh`.
 - **Result:** 58 launchers renamed; all set an absolute `CONN2CONN_DIR` (nothing script-relative); 10 notebook paths updated and all resolve; `bash -n` clean.
 
-### T5 — Create `scripts/experiments/`  ✅ done
+### I12 (was T5) — Create `scripts/experiments/`  · status: done
 - **Changes:**
-  - `git mv scripts/notebooks/quick_experiments/linear_backbone_geodesic.ipynb scripts/experiments/linear_backbone_geodesic/` (after T3 fixes its imports); remove `scripts/notebooks/quick_experiments/`
+  - `git mv scripts/notebooks/quick_experiments/linear_backbone_geodesic.ipynb scripts/experiments/linear_backbone_geodesic/` (after I10 fixes its imports); remove `scripts/notebooks/quick_experiments/`
   - no READMEs: an experiment folder holds only its code, launchers, and small outputs
   - bulky outputs go to `results/experiments/<name>/` (already ignored by `results/*`)
 - **Accept:** `scripts/experiments/linear_backbone_geodesic/` exists; `quick_experiments/` gone; notebook bootstrap still resolves from the new depth.
 - **Result:** notebook renamed into `scripts/experiments/linear_backbone_geodesic/`; its `RESULTS_ROOT` (previously only created, never written) now points at `results/experiments/linear_backbone_geodesic/`.
 
-### T6 — Experiment ledger entry  ✅ done
+### I13 (was T6) — Experiment ledger entry  · status: done
 - **Changes:** add a ledger entry for `linear_backbone_geodesic` in `context_packages/experiment_ledger/`, following the existing ledger style: what it tested, where the code lives (`scripts/experiments/linear_backbone_geodesic/`), how to run, W&B tags / `ray_tune_id`s if any, status and outcome (filled from the notebook's contents; unknowns marked as such, not guessed).
 - **Accept:** every folder under `scripts/experiments/` is covered by a ledger entry.
 - **Result:** `context_packages/experiment_ledger/linear_backbone_geodesic.md` (question, recorded setup, how to run, recorded test-split results, observations, caveats).
 
-### T7 — `.gitignore` review  ✅ done
+### I14 (was T7) — `.gitignore` review  · status: done
 - **Changes:** confirm `results/*` covers `results/experiments/`; confirm all of `scripts/**` (code and small experiment outputs) is tracked; keep the two `local_results/` exceptions.
 - **Accept:** `git check-ignore -v` matrix over representative paths matches §1.
 - **Result:** no `.gitignore` change needed; an 18-path `git check-ignore --no-index` matrix matches §1 and nothing under `scripts/` is ignored. Global rules also keep `checkpoints/`, `lightning_logs/`, `wandb/` inside experiment folders out of git. **Gotcha:** the global `*_context/` rule would ignore an experiment folder named `*_context` — avoid that suffix under `scripts/`.
 
-### T8 — Documentation pass (end of session)  ✅ done
+### I15 (was T8) — Documentation pass (end of session)  · status: done
 - **Changes:** README.md and CONTEXT.md — repo layout, `scripts/results_utils` API (replacing `results/results_scraper.py` references), notebook paths, `sbatch scripts/sbatch/...` commands, `context_packages/` layout, notebook bootstrap convention; update `Last updated at` signatures. Check `Conn2ConnWorkspace/.cursor/rules.md` for stale paths.
 - **Accept:** no doc references to `results/results_scraper.py`, `results/scripts/`, top-level `notebooks/`, or top-level `sbatch/`.
 - **Result:** README.md and CONTEXT.md rewritten for the `scripts/` layout (results_utils API by module, notebook bootstrap + experiment/ledger conventions, `scripts/sbatch` commands, corrected `results/` folder roles, new gotchas #12–13); old paths remain only as history in CONTEXT Recent Changes; every backticked path resolves. Workspace `rules.md` and `/scratch/asr655/CLAUDE.md` had no stale paths.
 
 ## 6. Deferred / out of scope for v1
 
-- **Editable install** (`pyproject.toml` + `pip install -e .`) to remove per-notebook bootstraps; needs a one-time `:rw` overlay mount. Longer term, namespace under `conn2conn/` to avoid generic top-level names (`data`, `models`, `scripts`).
-- **Artifact cleanup:** `results/ray_results/` (118 GB), `results/ray_tmp/`, dangling `results/wandb/` symlinks, `results/logs/` retention policy.
-- **Launcher/config manifest layer** to replace copied per-variant sbatch scripts and YAMLs (CONTEXT.md gotcha #11).
-- **Shared constants** between `main.py` and `scripts/results_utils/records.py` (W&B project/entity, results paths are currently duplicated).
-- **Untracked reference code** in `context_packages/modeling/*_context/` (`.py`, `.csv` are ignored; only `.md` is tracked).
+Moved to the spec v2 backlog (§5 there) on 2026-09-29; listed here for the record:
+- **Editable install** (`pyproject.toml` + `pip install -e .`) and `conn2conn/` namespacing.
+- **Artifact cleanup:** `results/wandb/` was removed and `results/ray_tmp/` pruned during v1. `results/ray_results/` (118 GB) and a `results/logs/` retention policy remain.
+- **Launcher/config manifest layer** (CONTEXT gotcha #11).
+- **Shared constants** between `main.py` and `scripts/results_utils/records.py`.
+- **Untracked reference code** in `context_packages/modeling/*_context/`.
 
 ## 7. Open questions
 
-None open. Resolved 2026-09-23: delete all `.ipynb_checkpoints/` (T2); keep `scripts/notebooks/kraken/` as notebooks; no experiment READMEs, ledger is the record, plain slug naming (T5/T6).
+None open. Resolved 2026-09-23: delete all `.ipynb_checkpoints/` (I9); keep `scripts/notebooks/kraken/` as notebooks; no experiment READMEs, ledger is the record, plain slug naming (T5/T6).
 
 ## 8. Modeling track (M-steps)
 
-**Status:** ready for execution (M1–M11); decisions on the former open items are in 8.5 · **Drafted:** 2026-09-23
+**Status:** closed 2026-09-29. M1–M8 and M11 are done, and the real-data verification passed (8.7). M9–M10 are superseded by spec v2 E1. · **Drafted:** 2026-09-23
 **Goal:** every learned model that predicts FC edges trains through one composite loss path. Its term weights and L1/L2 strengths are searchable under the same keys for every model. The linear backbone is separated from `LatentAttnMasked`. Loss and regularization code that duplicates this path is removed.
 Same rules as §5: one commit per step unless noted; verify before committing; no training or long compute on the login node (checks that need a GPU or data go through SLURM); callers are updated, with no backward-compatibility shims.
 
@@ -234,12 +273,12 @@ To move an `ema` result to `none`, don't hand-tune separate ranges. Convert with
 
 ### 8.3 Stepwise plan
 
-#### M1 — Fix stale loss configs in notebooks  ✅ done
+#### M1 — Fix stale loss configs in notebooks  · status: done
 - **Changes:** `scripts/notebooks/model_testing/test_loss_linear_model.ipynb` cell 6: `"balanced_composite"` → `"composite"`. Check every notebook's `loss_type` literals against `create_loss_fn`.
 - **Accept:** a static check finds no loss type outside the accepted set.
 - **Result:** `e094f3d`. 4 live `balanced_composite` settings, in `test_loss_linear_model` and `linear_backbone_geodesic_metrics`, changed to `composite`, plus one markdown mention. `joint_edge_latent_mse_scaled` appears only in commented-out lines and was left alone.
 
-#### M1b — EMA scale for signed composite terms  ✅ done
+#### M1b — EMA scale for signed composite terms  · status: done
 - **Bug:** `neidist = d_self − d_other` goes negative once predictions are identifiable. `CompositeLoss._maybe_update_scales` clamped the *signed* value to `≥1e-8`, so a negative `neidist` during warmup pinned its scale at `1e-8`. The term was then inflated about 10⁸-fold, dominating the loss and its gradients. Reproduced: noise 0.1 on random data gave total = −7.96×10⁸.
 - **Fix:** the EMA scale tracks `|raw|` (floor `1e-8`). Normalized terms keep their sign and start at about ±1.
 - **Accept (met):**
@@ -249,7 +288,7 @@ To move an `ema` result to `none`, don't hand-tune separate ranges. Convert with
 - **Note:** scales freeze after warmup, so a term that grows much larger after warmup (e.g. `neidist` as predictions improve) can reach a normalized magnitude well above 1. This is inherent to frozen-scale normalization; M10 watches `*_loss_ref_*` against the raw terms.
 - **Impact on past runs:** any `ema` run whose `neidist` reached ≤ 0 during warmup was affected. That includes the `LatentAttnMasked` default composite. Which past runs were hit is not determined here.
 
-#### M2 — Single loss-config path + `loss_signature`  ✅ done
+#### M2 — Single loss-config path + `loss_signature`  · status: done
 - **Changes:**
   - Add `resolve_loss_config(trainer_cfg) -> dict` in `models/train/loss.py`. It collects the `loss_*` keys, applies the M3 flat overrides, resolves `loss_normalize: auto`, validates term names, and returns the resolved config plus `loss_signature`.
   - Replace the nine hand-threaded `loss_*` arguments in `main.py` (`_run_learned_single` ×2, the Tune trainable), `models/train/trainer.py::train_model` and `CrossModalLightningModule` with one `loss_cfg` dict, consumed by `create_loss_fn(**loss_cfg)`.
@@ -263,7 +302,7 @@ To move an `ema` result to `none`, don't hand-tune separate ranges. Convert with
   - Check in `kraken_env` (old code loaded from `HEAD`): 45 cases (every learned YAML default plus each `loss_type` search choice) give the same class, identical outputs over 31 train/eval steps, and identical hparams apart from the added `loss_signature`.
   - Invalid configs (`balanced_composite`, unknown term, composite without terms) now fail at config time. `main.py --help` and the imports pass.
 
-#### M3 — Searchable weights and term kwargs  ✅ done
+#### M3 — Searchable weights and term kwargs  · status: done
 - **Changes:**
   - `models/registry.py::_flat_to_nested` routes the `loss_weight_*` and `loss_kwarg_*` prefixes to `trainer` (`TRAINER_KEYS` is exact-match today).
   - `resolve_loss_config` applies the overrides from 8.2:
@@ -280,7 +319,7 @@ To move an `ema` result to `none`, don't hand-tune separate ranges. Convert with
   - `loss_normalize: auto` (`none` for one active term, `ema` otherwise) is implemented here. The default stays `ema` until M8 flips the YAML defaults.
   - Checks in `kraken_env`: 18 unit checks; 200 random Tune samples and 50 Optuna suggestions round-trip (routing, weights, drops, normalize); regression against `HEAD`: 45/45 configs identical.
 
-#### M4 — Fold legacy losses into composite terms  ✅ done
+#### M4 — Fold legacy losses into composite terms  · status: done
 - **Changes:**
   - Add three terms to `CompositeLoss`:
     - `demeaned_mse`: target train mean from `base`, which is already passed to `create_loss_fn`.
@@ -302,7 +341,7 @@ To move an `ema` result to `none`, don't hand-tune separate ranges. Convert with
   - **Pre-existing bug fixed in `test_VAE`:** cells 22/24/26 passed `loss_fn='vae', beta=…, lr=…, epochs=…` to the `CrossModalVAE` constructor, which swallows them via `**kwargs`. The following `train_model` calls passed nothing, so those runs trained with plain MSE, no KLD, and `lr=1e-4` (cell 26 intended 1e-3). `lr`, `max_epochs` and a `[mse, kld: β]` loss now go to `train_model`.
   - Checks in `kraken_env`, old classes from `HEAD`: **bit-exact (max |diff| 0), including gradients**, over 12 train steps plus eval, for Sarwar (4 points in the search range), VAE (4 β), and weighted MSE (3 α, with and without eval-before-train) as `[mse: α, demeaned_mse: 1−α]` under `ema` with warmup 1. The Sarwar/VAE YAML defaults and remapped search keys are bit-exact too. Retired types are rejected. The regression over the other 43 configs is identical.
 
-#### M5 — Unify L1/L2 regularization keys  ✅ code done · model-level check in the verification array (M8)
+#### M5 — Unify L1/L2 regularization keys  · status: done (real-data check passed, 8.7)
 - **Changes:**
   - Models on scalar `reg` switch to `l1_l2_tuple` via `compute_reg_loss(self._reg_params(), self.l1_l2_tuple)`, keeping their current parameter selection: `LatentAttnMasked`, `NodalGNN`, `NodalMLP`, `MaskedLatentPretrainer`, `MaskedMLPPretrainer`.
   - `Chen2024GCN`: `l2_reg` drives its existing plain-norm penalty; `l1_reg > 0` raises (8.2).
@@ -320,7 +359,7 @@ To move an `ema` result to `none`, don't hand-tune separate ranges. Convert with
   - Static check (`kraken_env`): for every learned YAML, default and search-space model keys (after `build_model`'s `l1_reg`/`l2_reg` → `l1_l2_tuple` mapping) are all accepted by the class constructor, with no keys silently swallowed by `**kwargs`.
 - **Environment finding:** `torch_geometric` is not installed in the current `kraken_env` overlay (torch 2.9.0), so `Chen2024GCN` / `NodalGNN` cannot import, and their launchers would fail. Their model-level checks are skipped until PyG is reinstalled; that needs a `:rw` overlay mount by the user.
 
-#### M5b — Sampled L1/L2 silently discarded in sweeps  ✅ done
+#### M5b — Sampled L1/L2 silently discarded in sweeps  · status: done
 - **Bug (predates this track):** `build_model` did `kwargs.setdefault("l1_l2_tuple", (l1_reg, l2_reg))`. A Tune trial merges the sampled `l1_reg`/`l2_reg` over a default that carries `l1_l2_tuple`, so the default tuple always won.
 - **Affected sweeps:** every sweep of `CrossModal_PCA_PLS_learnable` (all 3 source variants), `CrossModal_PCA_PLS_CovProjector` and `Sarwar2020MLP`.
   - All trials trained with the YAML default: L2 = 1e-4 for the PCA/PLS models, no regularization for Sarwar. W&B nonetheless logged the sampled `l1_reg`/`l2_reg`.
@@ -334,7 +373,7 @@ To move an `ema` result to `none`, don't hand-tune separate ranges. Convert with
 - **Accept (met):** the replay now delivers the sampled values for all three models. The config↔constructor check has 0 failures. Every search type in the YAMLs is supported (choice 254, loguniform 52, uniform 15, grid 2).
 - **Impact:** past tuned results for these models reflect the default regularization, not the searched values. Treat their logged `l1_reg`/`l2_reg` as not applied.
 
-#### M6 — Per-term losses in Tune trial runs  ✅ code done · live 2-trial check in the verification array (M8)
+#### M6 — Per-term losses in Tune trial runs  · status: done (live check passed, 8.7; W&B-config signature check carried to v2 C3)
 - **Changes:** Tune trial W&B runs currently receive only the 6 metrics in `tune_metrics` (`main.py`); the Tune trainer runs with `logger=False`. Add `train/val_loss_raw_*`, `val_loss_weighted_*` and `val_loss_ref_*` for the active terms, built from the resolved `loss_cfg`.
 - **Accept:** a short SLURM tune run (2 trials, few epochs) shows per-term curves on the trials' W&B runs.
 - **Result (code):**
@@ -342,7 +381,7 @@ To move an `ema` result to `none`, don't hand-tune separate ranges. Convert with
   - The Tune trainable adds `train_loss_raw_*` and `val_loss_{raw,weighted,ref}_*` to `tune_metrics`. Ray only warns on a missing metric (checked in ray 2.54.1), so nothing can break a trial.
   - CPU check: a 2-epoch Lightning fit with `mse + 0.5·neidist` logs every generated name.
 
-#### M7 — Fold the linear backbone into the PCA/PLS family as `CrossModal_linear_backbone`  ✅ done (real-data check in the verification array)
+#### M7 — Fold the linear backbone into the PCA/PLS family as `CrossModal_linear_backbone`  · status: done (real-data check passed, 8.7)
 - **M7a — Equivalence map.**
   - Target: `LatentAttnMasked(residual_mode="none")` ≡ `CrossModal_PCA_PLS_learnable(learn_encoder=False, learn_decoder=False, random_init=True, dropout=0, n_components_pca_source=n_components_pca_target=k)`, plus the flags added here.
   - Known gaps to close with flags on `_learnable`:
@@ -405,7 +444,7 @@ To move an `ema` result to `none`, don't hand-tune separate ranges. Convert with
   - `latent_masked_test` cell 6 reads `residual_linear.weight`, which is absent in the `attention_only` mode its run uses.
   - Cell 4 sets `"l2_reg"` twice (0.25, then 1e-7); this predates M5.
 
-#### M8 — Wire composite into every in-scope YAML  ✅ code done · real-data dev runs in the verification array
+#### M8 — Wire composite into every in-scope YAML  · status: done (real-data dev runs passed, 8.7)
 - **Changes:** for each model in 8.1:
   - `trainer.loss_type: composite` and `loss_normalize: auto`.
   - `loss_terms`: `mse: 1.0` plus the candidate terms `varmatch`, `correye` and `neidist` at weight 0. For `NodalMLP`: `mse` only, with no weight search (8.5 D4).
@@ -437,28 +476,15 @@ To move an `ema` result to `none`, don't hand-tune separate ranges. Convert with
   Reports go to `results/logs/verify_modeling_track_<task>.json`. `Chen2024GCN`/`NodalGNN` are skipped until `torch_geometric` is reinstalled.
   - One short dev run per model family, via SLURM, logs `*_loss_raw_mse` with train/val curves matching the previous `mse` runs at the same seed. Differences are limited to GPU nondeterminism.
 
-#### M9 — Launchers and the weight-sweep experiment
-- **Changes:**
-  - Launchers `tune_array_linear_backbone_loss_weights_seeds.sh` and `run_array_linear_backbone_loss_checks_seeds.sh` under `scripts/sbatch/CrossModal_linear_backbone/`, copied from the existing `_learnable` array template; the loss settings come from the YAML.
-  - `scripts/experiments/composite_loss_weights/` with `composite_loss_weights.md` (question, grid, how to run, W&B `ray_tune_id`s, outcome) and an entry in `scripts/experiments/experiments_index.md`.
-- **Accept:** `bash -n` passes; the experiment doc and index entry exist.
+#### M9 — Launchers and the weight-sweep experiment  · status: superseded (by v2:E1)
+Replaced on 2026-09-29 by v2 E1's staged design (MSE-only tune, then a fixed weight grid under fixed reference scales).
+The original plan is in git history (`46da8c6`).
 
-#### M10 — Interaction tests
-Run on `CrossModal_linear_backbone` (M7), source `SC`, selecting on `val_demeaned_r`. Resources follow the closest existing template, `scripts/sbatch/CrossModal_PCA_PLS_learnable/tune_array_pca_pls_learnable_SC_SCr2t_SCpSCr2t_seeds.sh`: 2 h, 64 GB, 1 GPU, Optuna, `MAX_CONCURRENT_TRIALS=1`, one array task per seed.
-- **Stage A — weight × reg sweep** (`tune_array_linear_backbone_loss_weights_seeds.sh`):
-  - `--array=0-2` (seeds 0–2), `--num_samples 32`.
-  - Optuna over `loss_weight_{neidist,correye,varmatch}`, `l2_reg`, `lr`, under `ema`.
-  - A full grid is too large (6×6×5 weights × reg ≈ 540 trials per seed); Optuna with 32 trials covers it.
-  - Budget: 3 jobs × ≤2 h ≈ **≤6 GPU-h**.
-- **Stage B — robustness of the Stage A winner** (`run_array_linear_backbone_loss_checks_seeds.sh`):
-  - Direct prod runs, no tune: seeds 0–2 × {`ema`, `none` via the `*_loss_ref_*` conversion} × `batch_size` {64, 128} = 12 tasks, `--array=0-11`, ~30 min each.
-  - Budget **≈6 GPU-h**.
-  - Also checks that `*_loss_ref_*` stays flat after warmup.
-- **Stage C — only if Stage A beats MSE-only on `val_demeaned_r` across seeds:** extend Stage A to seeds 0–9 (`--array=0-9`, ≈20 GPU-h) for the reported comparison, matching the 10-seed convention of the other arrays.
-- **Total before Stage C:** ≈12 GPU-h, smaller than one existing 30-task `_learnable` array.
-- **Accept:** each stage is submitted only after you approve it. Results, with W&B `ray_tune_id`s, are recorded in `composite_loss_weights.md`, along with a stated conclusion on whether `l2_reg` ranges must be set per normalize mode.
+#### M10 — Interaction tests  · status: superseded (by v2:E1)
+Replaced on 2026-09-29 by v2 E1's ~16-point weight grid; its batch-size and EMA checks moved to the v2 backlog.
+The original staged plan (A: weight × reg sweep, B: robustness, C: 10-seed extension) is in git history (`46da8c6`).
 
-#### M11 — Docs
+#### M11 — Docs  · status: done
 - **Changes:** `CONTEXT.md`:
   - Config System Notes: composite-only loss path, `loss_normalize: auto`, `loss_weight_*` / `loss_kwarg_*`, `loss_signature`, the `l1_reg`/`l2_reg` convention and the Chen exception.
   - Model Inventory: the separated linear backbone.
@@ -466,6 +492,10 @@ Run on `CrossModal_linear_backbone` (M7), source `SC`, selecting on `val_demeane
 
   Also `README.md` (models table, CLI/loss notes). Update `Last updated at` in both.
 - **Accept:** no doc references to `balanced_composite`, `weighted_mse` (non-latent), `sarwar_mse_corr`, `loss_type: vae`/`mse`, the scalar `reg` key, or `residual_mode: none`.
+- **Result:**
+  - `CONTEXT.md`: Mission and Model Inventory (`CrossModal_linear_backbone`, `LatentAttnMasked` modes); Config System Notes rewritten (reg keys and precedence, strict search types, composite-only loss block, terms, `auto`, signature, per-term metrics); gotchas 6 (PyG missing) and 15–17 (reg vs loss scale, batch-dependent terms, pre-M5b sweeps); loss recipe; Specs bullet (v1 closed, v2 active); Recent Changes entry.
+  - `README.md`: models table, a "Loss and regularization" section, and the `--shuffle_seed` range corrected to 0–9.
+  - Scan: remaining mentions of retired names are only in change-log / "formerly" context.
 
 ### 8.4 Order and dependencies
 
@@ -487,20 +517,38 @@ Still open: none. The M7a result is reported, but it doesn't need a decision unl
 
 ### 8.6 Deferred (modeling)
 
-- **Latent-space terms inside composite** (`latent_mse` / `latent_weighted_mse` as mixable terms for models exposing `encode_target_latents`). The `latent_*` loss types stay as they are for now.
-- **YAML variant duplication** (8 `CovProjector`, 7 `NodalMLP`) and copied launchers: the §6 manifest item.
+Moved to the spec v2 backlog (2026-09-29):
+- **Latent-space terms inside composite** (`latent_mse` / `latent_weighted_mse` as mixable terms).
+- **YAML variant duplication** (8 `CovProjector`, 7 `NodalMLP`) and copied launchers: part of the manifest item.
+
+### 8.7 Verification results (job 18383874, 2026-09-23)
+
+`scripts/sbatch/checks/verify_modeling_track_array.sh`; reports in `results/logs/verify_modeling_track_<task>.json`.
+
+| Task | Result | Notes |
+|---|---|---|
+| `dev_runs` (M8) | 11/11 | 9 model families trained 2 epochs on real data; `val_loss` = Σ weighted terms + reg (to ~1e-8); signatures as expected (`mse`, `mse+0.001*pairwise_corr`, `mse+kld`, latent types). `Chen2024GCN` / `NodalGNN` skipped (no PyG). `CrossModal_linear_backbone` reached test r 0.83 after 2 epochs. |
+| `cross_tree` (M7a + M5) | 7/7 | Backbone vs `LatentAttnMasked(none)` on real data: max \|Δy\| = 0.0 at k = 128, 256 and 128 + z-score. Old `reg` vs new `l2_reg`: identical state and reg loss for `NodalMLP`, `NodalMLP_spectral`, `LatentAttnMasked`, `MaskedMLPPretrainer`. |
+| `tune` (M6) | 5/6 | 2-trial tune exits 0; every per-term metric (`train_loss_raw_*`, `val_loss_{raw,weighted,ref}_*`) reported each epoch. **Failed:** no offline W&B config was found to confirm `loss_signature` in trial configs. Most likely the check looked in the wrong place, not a missing key; carried to v2 C3. |
+
+### 8.8 Carried to spec v2 (2026-09-29)
+
+Open work → v2 `C` items: C1 PyG missing from `kraken_env`; C2 re-run the M5b-affected sweeps; C3 confirm `loss_signature`
+in Tune-trial W&B configs; C4 `latent_masked_test` notebook issues. Caveats → v2 `C!` items: C!1 M5b (sampled L1/L2 not
+applied in past sweeps); C!2 M1b (`ema` runs whose `neidist` reached ≤ 0 during warmup); C!3 z-scored latents of
+`CrossModal_linear_backbone` are PCA-space (was C5). See spec v2.
 
 ## 9. Change log
 
 | Date | Change |
 |---|---|
-| 2026-09-23 | v1 drafted: groundwork G1–G7 recorded; plan T1–T8 defined. |
-| 2026-09-23 | Open questions resolved; T2, T5, T6 simplified (no experiment READMEs; ledger is the single record). |
-| 2026-09-23 | T2–T7 executed: `506e008`, `64dbc62`, `08a917c`, `9ed9d7f`, `fa88722`, T7 (no change). Remaining: T8 docs pass. |
-| 2026-09-23 | T8 docs pass done; artifact cleanup: `results/wandb/` removed, `results/ray_tmp/` sessions before 2026-04-01 pruned (131 April sessions kept for debugging). Stage 1 complete. |
+| 2026-09-23 | v1 drafted: groundwork I1–I7 recorded; plan I8–I15 defined. |
+| 2026-09-23 | Open questions resolved; I9, I12, I13 simplified (no experiment READMEs; ledger is the single record). |
+| 2026-09-23 | I9–I14 executed: `506e008`, `64dbc62`, `08a917c`, `9ed9d7f`, `fa88722`, I14 (no change). Remaining: I15 docs pass. |
+| 2026-09-23 | I15 docs pass done; artifact cleanup: `results/wandb/` removed, `results/ray_tmp/` sessions before 2026-04-01 pruned (131 April sessions kept for debugging). Stage 1 complete. |
 | 2026-09-23 | Post-v1: `scrape_covtype_results.ipynb` → `scripts/experiments/cov_projector_benchmark/` (both tables reproduced exactly); shared runner plumbing in `scripts/results_utils/runner.py`. |
 | 2026-09-23 | Post-v1: experiment runners write `tables/`, `figures/`, `manifest.json` into the experiment folder. Figures are PNG-only (300 dpi, per the figure-making skill) and tracked; per-figure CSVs dropped as redundant with `tables/seed_records.csv`. |
-| 2026-09-23 | Post-v1: `context_packages/experiment_ledger/` folded into experiment folders (`<slug>/<slug>.md`) + `scripts/experiments/experiments_index.md`; Adel summary → `scripts/experiments/adel_summer_2026/`; `linear_backbone_geodesic` documented by its notebook. T6's ledger file no longer exists. |
+| 2026-09-23 | Post-v1: `context_packages/experiment_ledger/` folded into experiment folders (`<slug>/<slug>.md`) + `scripts/experiments/experiments_index.md`; Adel summary → `scripts/experiments/adel_summer_2026/`; `linear_backbone_geodesic` documented by its notebook. I13's ledger file no longer exists. |
 | 2026-09-23 | Modeling track §8 (M1–M11): composite-only loss path with searchable `loss_weight_*`, legacy losses folded into composite terms, unified `l1_reg`/`l2_reg`, linear backbone folded into the PCA/PLS family; decisions D1–D5; latent terms deferred. |
 | 2026-09-23 | M1 done (`e094f3d`); M1b added and done: EMA scale uses `|raw|` so signed terms (`neidist`) no longer blow up. |
 | 2026-09-23 | M2 done: single `loss_cfg` path via `resolve_loss_config`; `loss_signature` logged to W&B. |
@@ -512,5 +560,8 @@ Still open: none. The M7a result is reported, but it doesn't need a decision unl
 | 2026-09-23 | M5b: fixed sampled `l1_reg`/`l2_reg` being discarded in `_learnable`/`CovProjector`/`Sarwar` sweeps; YAML tuples → `l1_reg`/`l2_reg`; unsupported search types now raise. |
 | 2026-09-23 | M7 done: `CrossModal_linear_backbone`; `LatentAttnMasked` `none` mode removed; bit-identical equivalence on a synthetic base. |
 | 2026-09-23 | M8 code done: composite is the only edge-space loss (bit-exact MSE default); verification array added. |
+| 2026-09-29 | Verification array results recorded (8.7). M11 docs done. M9–M10 superseded by spec v2 E1. §6 / 8.6 moved to the v2 backlog; carried items listed in 8.8. **v1 closed.** |
+| 2026-09-29 | Reformatted to [`spec_conventions.md`](spec_conventions.md): purpose, contents, status table, ID legend; superseded M9–M10 plans collapsed to pointers (full text in `46da8c6`). |
+| 2026-09-29 | Infrastructure IDs renamed to the `I` convention: `G1`–`G7` → `I1`–`I7`, `T1`–`T8` → `I8`–`I15` (old `T` IDs kept in headings and the status table). |
 
-Last updated at: 2026-09-23 EDT
+Last updated at: 2026-09-29 EDT
