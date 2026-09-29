@@ -11,20 +11,12 @@ __pycache__/
 # OS
 .DS_Store
 
-results/
-# Ignore everything in results
-results/**
-# Do not ignore python files in results
-!results/*.py
-
-
-# Re-allow traversal to the target folder (but don't track contents yet)
+# results: generated artifacts only (code lives in scripts/results_utils/)
+results/*
 !results/local_results/
+results/local_results/*
 !results/local_results/Krakencoder_precomputed/
-
-# Track ONLY the contents of that folder
-!results/local_results/Krakencoder_precomputed/**
-!results/local_results/test_structured_loss_model/**
+!results/local_results/test_structured_loss_model/
 
 wandb/
 checkpoints/
