@@ -2,7 +2,7 @@
 
 **Contributor:** ans9868 (Adel)
 **Period:** 2026-05-25 → 2026-06-26 (142 commits)
-**Where the work lives now:** branch [`adel-temp`](../../.git) — not on `main`
+**Where the work lives now:** branch [`adel-temp`](../../../.git) — not on `main`
 **Commit range:** `6ec3482` (first commit) .. `98b5821` (branch tip, includes 3 parked
 follow-on commits plus a consolidation commit pulling in infra scripts from the transient
 `adel-temp-torch` sync branch)

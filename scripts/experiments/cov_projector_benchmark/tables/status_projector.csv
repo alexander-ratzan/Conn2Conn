@@ -1,0 +1,4 @@
+cov_type,,demo,demo,demo,demo,demo,demo,demo,demo,demo,demo,fs_all,fs_all,fs_all,fs_all,fs_all,fs_all,fs_all,fs_all,fs_all,fs_all,fs_all_demo,fs_all_demo,fs_all_demo,fs_all_demo,fs_all_demo,fs_all_demo,fs_all_demo,fs_all_demo,fs_all_demo,fs_all_demo,fs_volumes,fs_volumes,fs_volumes,fs_volumes,fs_volumes,fs_volumes,fs_volumes,fs_volumes,fs_volumes,fs_volumes
+seed,,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9
+model,source,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+CrossModal_PCA_PLS_CovProjector,SC,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 72,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24,✓ 24

@@ -1,0 +1,67 @@
+# SC-type benchmark: how does the structural input type (SC, SC_r2t, SC+SC_r2t) affect SC->FC
+# prediction across models? CrossModalPCA with FC input is the oracle; with SC input, the null.
+#
+# Run:  python scripts/experiments/sc_type_benchmark/run.py            # from records.json
+#       python scripts/experiments/sc_type_benchmark/run.py --rescrape # refresh from W&B
+# Write-up: scripts/experiments/sc_type_benchmark/sc_type_benchmark.md
+
+# --- what to benchmark (the scrape grid) -------------------------------------------------
+models:
+  - CrossModalPCA
+  - CrossModal_PLS_SVD
+  - CrossModal_PCA_PLS
+  - CrossModal_PCA_PLS_learnable
+  - Krakencoder_precomputed
+sources: [SC, SC_r2t, SC+SC_r2t, FC]
+seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+# Duplicate runs within a (model, source, seed) cell: keep the best by this validation metric.
+selection:
+  metric: val_demeaned_r
+  mode: max
+
+# Models logged as direct `prod` runs instead of `best_trial_report` runs.
+direct_prod_models: []
+
+# Count tune trials per selected run (one extra W&B query per run; only used by the trial table).
+count_trials: true
+
+# --- summary table ------------------------------------------------------------------------
+table:
+  metrics: [pearson, demeaned_pearson, mse, avg_rank, top1_acc]
+  metric_labels:
+    pearson: corr
+    demeaned_pearson: demeaned_corr
+
+# --- figures --------------------------------------------------------------------------------
+# Default model list for figures (CrossModalPCA is drawn as oracle/null reference lines instead).
+plot_models:
+  - CrossModal_PLS_SVD
+  - CrossModal_PCA_PLS
+  - CrossModal_PCA_PLS_learnable
+  - Krakencoder_precomputed
+
+# Each entry: `type` from scripts.results_utils.FIGURE_TYPES; every other key is passed to that
+# plotting function as a keyword argument. Optional `name` overrides the output file stem.
+figures:
+  # SC input only, with and without oracle/null reference lines
+  - {type: source_bars, metric: pearson, sources: [SC], annotate_best: true}
+  - {type: source_bars, metric: pearson, sources: [SC], annotate_best: true, include_reference_lines: true}
+  - {type: source_bars, metric: demeaned_pearson, sources: [SC], annotate_best: true}
+  - {type: source_bars, metric: demeaned_pearson, sources: [SC], annotate_best: true, include_reference_lines: true}
+  - {type: source_bars, metric: avg_rank, sources: [SC], annotate_best: true}
+  - {type: source_bars, metric: avg_rank, sources: [SC], annotate_best: true, include_reference_lines: true}
+  # all structural sources overlaid as markers
+  - {type: source_bars, metric: pearson, sources: [SC, SC_r2t, SC+SC_r2t], annotate_best: true}
+  - {type: source_bars, metric: pearson, sources: [SC, SC_r2t, SC+SC_r2t], annotate_best: true, include_reference_lines: true}
+  - {type: source_bars, metric: demeaned_pearson, sources: [SC, SC_r2t, SC+SC_r2t], annotate_best: true}
+  - {type: source_bars, metric: demeaned_pearson, sources: [SC, SC_r2t, SC+SC_r2t], annotate_best: true, include_reference_lines: true}
+  - {type: source_bars, metric: avg_rank, sources: [SC, SC_r2t, SC+SC_r2t], annotate_best: true}
+  - {type: source_bars, metric: avg_rank, sources: [SC, SC_r2t, SC+SC_r2t], annotate_best: true, include_reference_lines: true}
+  # identifiability vs demeaned correlation, SC input
+  - {type: metric_scatter, source: SC, x_metric: avg_rank, y_metric: demeaned_pearson}
+
+# --- output -----------------------------------------------------------------------------------
+output_dir: .   # relative to this folder: writes tables/, figures/, manifest.json here
+formats: [png]   # add pdf/svg only when a vector copy is needed
+dpi: 300

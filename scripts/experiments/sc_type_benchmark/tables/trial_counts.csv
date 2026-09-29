@@ -1,0 +1,13 @@
+model,source,0,1,2,3,4,5,6,7,8,9
+CrossModalPCA,FC,6,6,6,6,6,6,6,6,6,6
+CrossModalPCA,SC,6,6,6,6,6,6,6,6,6,6
+CrossModalPCA,SC_r2t,6,6,6,6,6,6,6,6,6,6
+CrossModal_PCA_PLS,SC,24,16,16,16,16,16,16,16,16,16
+CrossModal_PCA_PLS,SC+SC_r2t,16,16,16,16,16,16,16,16,16,16
+CrossModal_PCA_PLS,SC_r2t,16,16,16,16,16,16,16,16,16,16
+CrossModal_PCA_PLS_learnable,SC,30,30,30,30,30,30,30,30,30,30
+CrossModal_PCA_PLS_learnable,SC+SC_r2t,24,30,30,30,30,30,30,30,30,30
+CrossModal_PCA_PLS_learnable,SC_r2t,30,30,30,30,30,30,30,30,30,30
+CrossModal_PLS_SVD,SC,12,12,12,12,12,12,12,12,12,12
+CrossModal_PLS_SVD,SC_r2t,12,12,12,12,12,12,12,12,12,12
+Krakencoder_precomputed,SC,0,0,0,0,0,0,0,0,0,0

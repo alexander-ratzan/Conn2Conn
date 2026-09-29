@@ -62,8 +62,11 @@ If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after 
   - SLURM launchers (tune arrays, parallel/sequential sweeps); submit with `sbatch scripts/sbatch/<ModelName>/<script>.sh`
 - `README.md`
   - user-level commands + workflow
-- `scripts/notebooks/results_scrape/*.ipynb`
-  - active experiment-table / plotting notebooks (+ `nodal_decoder_importance.ipynb`)
+- `scripts/experiments/sc_type_benchmark/`, `scripts/experiments/cov_projector_benchmark/`
+  - config-driven results benchmarks (`config.yml` + `run.py` + tracked `records.json`); templates for turning results
+    notebooks into scripts (model × source grid vs labelled condition rows)
+- `scripts/notebooks/results_scrape/nodal_decoder_importance.ipynb`
+  - remaining results notebook (Optuna hparam importance for NodalMLP decoder variants)
 - `scripts/notebooks/model_overviews/*.ipynb`
   - conceptual onboarding notebooks for PCA/PLS, conditional Gaussian, latent-attention, masked pretraining, and nodal baselines
 - `scripts/notebooks/model_testing/*.ipynb`
@@ -71,9 +74,9 @@ If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after 
 - `scripts/notebooks/{EDA,kraken}/*.ipynb`
   - data exploration; Krakencoder tracking/eval
 - `scripts/experiments/<name>/`
-  - self-contained side experiments (code + small outputs); documented only in `context_packages/experiment_ledger/`
+  - self-contained side experiments (code + small outputs + write-up `<slug>/<slug>.md`); index: `scripts/experiments/experiments_index.md`
 - `context_packages/`
-  - agent/human reference material: `experiment_ledger/`, `modeling/` (model design notes), `repo_spec_docs/` (refactor specs), `schematics/`, `T1/`
+  - agent/human reference material: `modeling/` (model design notes), `repo_spec_docs/` (refactor specs), `schematics/`, `T1/`
 - `data/data_viz.py`, `data/demeaned_viz.py`
   - reusable visualization helpers used by lightweight notebooks
 
@@ -218,7 +221,12 @@ Modules (one-way dependencies `plots → tables → records`):
 - `tables.py` — `build_status_table`, `build_metric_table`, `build_covtype_status_table`,
   `build_covtype_metric_table`, `build_sc_type_summary_table`, `build_cov_dl_seed_df`, `build_cov_dl_summary_table`
 - `plots.py` — `plot_source_metric_bars`, `plot_model_metric_scatter`, `plot_cov_dl_metric_bars`,
-  `plot_cov_dl_global_metric_panels`
+  `plot_cov_dl_global_metric_panels`; config-driven helpers `FIGURE_TYPES` (figure-type registry),
+  `render_figure(spec, records, **defaults)` (validates spec keys against the plotting function),
+  `figure_name`, `save_figure` (PNG at 300 dpi by default; other formats only on request)
+- `runner.py` — shared plumbing for config-driven `scripts/experiments/<slug>/run.py`: CLI (`arg_parser`),
+  `load_config`, the records-cache contract (`load_cached` exits if the cache is missing or does not cover the
+  config; `scrape_metadata`), `write_table`, `write_figures(cfg, out_dir, resolve)`, `write_manifest`
 - `local_results.py` — loaders/plots for notebook-written `results/local_results/`
 - `optuna_importance.py` — hparam importance from W&B tune trials (not re-exported; needs optuna):
   `python -m scripts.results_utils.optuna_importance --help`
@@ -230,6 +238,8 @@ Key behaviors:
 - fallback for legacy runs via local tune-trial config (`results/ray_checkpoints/{model}_tune_{id}/{trial}/final/config.json`)
 - resolves local best-trial artifact directories under `results/ray_results/{model}/{trial_id}/`
 - can mix best-trial and direct-prod fetch paths per model via `direct_prod_models`
+- fetches runs through `query_runs` (`lazy=False`): wandb ≥0.2x `Api.runs()` lazy-loads runs with an empty `config`
+- attributes each run to the model it was fetched for (`parse_run_record(model_name=...)`), not its first tag
 - includes experiment-specific helpers for SC-type and covariate/deep-model summary tables and plots
 - reads results from the W&B cloud only (`wandb.Api()`); local W&B run folders are never used
 
@@ -306,10 +316,23 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
   ```
   Write repo paths as `REPO_ROOT / "results/..."`, never cwd-relative or absolute `/scratch/...`. Raises a bare
   `StopIteration` if the kernel cwd is outside the repo.
-- **Experiments.** `scripts/experiments/<slug>/` holds an experiment's code, launchers, and small outputs (no
-  README); bulky outputs go to `results/experiments/<slug>/`. Each experiment is recorded in
-  `context_packages/experiment_ledger/` (question, setup, how to run, W&B ids, results, caveats). Avoid folder
-  names ending in `_context` (a global `.gitignore` rule ignores `*_context/`).
+- **Experiments.** `scripts/experiments/<slug>/` holds an experiment's code, config, launchers, small outputs, and
+  its write-up `<slug>.md` (question, setup, how to run, W&B ids, results, caveats; descriptive name, not
+  `README.md`). Skip the write-up when the experiment's notebook already documents it. Bulky outputs go to
+  `results/experiments/<slug>/`. `scripts/experiments/experiments_index.md` lists every experiment (status,
+  dates, question, documentation link). Avoid folder names ending in `_context` (a global `.gitignore` rule
+  ignores `*_context/`).
+- **Results experiments (config-driven).** Two templates: `scripts/experiments/sc_type_benchmark/` (a model × source
+  grid; record-level figure types `source_bars`, `metric_scatter`) and `scripts/experiments/cov_projector_benchmark/`
+  (labelled condition `rows` + ordered `row_groups` with label overrides; seed-DataFrame figure types
+  `cov_dl_bars`, `cov_dl_panels`). `config.yml` declares the scrape grid (or rows), tables, and a `figures:` list
+  (each entry = a `FIGURE_TYPES` key plus that plotting function's kwargs); `run.py` (thin, on top of
+  `scripts.results_utils.runner`) loads the tracked `records.json` snapshot (or `--rescrape` from W&B) and writes
+  `tables/`, `figures/` (PNG, 300 dpi), and `manifest.json` into the experiment folder itself (`output_dir`,
+  relative to the folder; default `.`), all tracked. Every plotted value is recomputable from the tracked seed-level
+  table (`tables/seed_records.csv`, or `tables/row_seed_metrics.csv` for row-based experiments). Rendering is deterministic, so re-running on unchanged data leaves tracked outputs
+  byte-identical (only `manifest.json`'s `generated_at` changes). It refuses to run on a missing cache or one that
+  does not cover the config.
 - **Specs.** Layout refactors are planned and tracked in `context_packages/repo_spec_docs/` (`spec_doc_v1.md`:
   the `scripts/` build-out).
 
@@ -325,7 +348,9 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
   - large notebooks
 - Use SLURM scripts for large jobs; avoid long compute on login nodes.
 - Kernel environment: `kraken_env` runs inside a Singularity overlay (see `/scratch/asr655/envs/README.md`);
-  mount the overlay `:ro` for import-only checks so running jobs are unaffected.
+  mount the overlay `:ro` for import-only checks so running jobs are unaffected. Use `source /ext3/env.sh`
+  (what the launchers use): wandb (and other packages) live in `~/.local`, which `activate_env.sh` hides via
+  `PYTHONNOUSERSITE=1`. Without the library, `import wandb` silently picks up the repo-root `wandb/` run folder.
 
 ---
 
@@ -344,6 +369,7 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
 11. Sbatch scripts and input-feature subset configs are still duplicated by experiment variant; a future manifest/launcher layer should move grids out of copied shell/YAML files.
 12. `models/`, `data/` have no `__init__.py` (namespace packages) and `models/eval/__init__.py`, `models/train/__init__.py` re-export nothing: import from the defining module (e.g. `from models.eval.evaluator import Evaluator`), not the package.
 13. W&B project/entity and results paths are duplicated in `main.py` and `scripts/results_utils/records.py`; change both together.
+14. W&B public API: always fetch runs via `query_runs` (full data); a plain `api.runs(...)` on wandb 0.25 returns empty configs and every source/seed parse fails silently (runs are skipped with a warning).
 
 ---
 
@@ -375,7 +401,9 @@ Update experiment reporting:
 Add a notebook or experiment:
 1. notebooks → `scripts/notebooks/<purpose>/`; side experiments → `scripts/experiments/<slug>/`
 2. start the first code cell with the standard bootstrap (see "Repo Layout Conventions"); anchor paths on `REPO_ROOT`
-3. for experiments, add an entry in `context_packages/experiment_ledger/`
+3. for experiments, write `<slug>/<slug>.md` (unless the notebook documents itself) and add a row to `scripts/experiments/experiments_index.md`
+4. for a results/benchmark experiment, copy `scripts/experiments/sc_type_benchmark/` (model × source grid) or
+   `scripts/experiments/cov_projector_benchmark/` (labelled condition rows) and edit its `config.yml`
 
 Debug missing results cell:
 1. confirm best-trial run exists in W&B with expected tags
@@ -390,12 +418,21 @@ Debug missing results cell:
   (`records` / `tables` / `plots` / `local_results` / `optuna_importance`); `results/` is artifacts-only.
 - Every notebook uses the walk-up `REPO_ROOT` bootstrap; stale `models.*` imports left over from the `models/`
   refactor were fixed in 13 notebooks (all 32 pass an import-only check in `kraken_env`).
-- `notebooks/quick_experiments/` was retired; its notebook is now `scripts/experiments/linear_backbone_geodesic/`
-  with a ledger entry in `context_packages/experiment_ledger/linear_backbone_geodesic.md`.
-- `context_packages/` reorganized: `modeling/` (design notes), `experiment_ledger/`, `repo_spec_docs/`,
-  `schematics/`, `T1/`; stale copies of `main.py` / `hcp_dataset.py` removed.
+- `notebooks/quick_experiments/` was retired; its notebook is now
+  `scripts/experiments/linear_backbone_geodesic/linear_backbone_geodesic_metrics.ipynb` (self-documenting).
+- `context_packages/` reorganized: `modeling/` (design notes), `repo_spec_docs/`, `schematics/`, `T1/`; stale copies
+  of `main.py` / `hcp_dataset.py` removed. The former `experiment_ledger/` was folded into the experiment folders:
+  write-ups now live at `scripts/experiments/<slug>/<slug>.md` (Adel's summer summary →
+  `scripts/experiments/adel_summer_2026/adel_summer_2026.md`), indexed by `scripts/experiments/experiments_index.md`.
 - Artifact cleanup: `.ipynb_checkpoints/` removed at repo root and under notebooks; dangling `results/wandb/`
   removed; `results/ray_tmp/` sessions before 2026-04-01 pruned.
+- `scrape_SCtype_results.ipynb` replaced by the config-driven `scripts/experiments/sc_type_benchmark/` (tracked
+  `records.json` snapshot; reproduces the notebook's table exactly); write-up `sc_type_benchmark/sc_type_benchmark.md`.
+- Scraper fixes: `query_runs` (wandb 0.25 lazy runs had empty configs), model attribution by fetch target,
+  hash-based fallback plot colors for models without an explicit color.
+- `scrape_covtype_results.ipynb` replaced by the config-driven `scripts/experiments/cov_projector_benchmark/`
+  (both notebook tables reproduced exactly); shared runner plumbing extracted to `scripts/results_utils/runner.py`;
+  `cov_dl_bars` / `cov_dl_panels` added to `FIGURE_TYPES`.
 
 Earlier:
 - Analysis/figure schematics and context images now live under `context_packages/schematics/`.
@@ -405,8 +442,8 @@ Earlier:
   - `scripts/notebooks/model_overviews/crossmodal_pca_pls_closed_form_overview.ipynb`
   - `scripts/notebooks/model_overviews/crossmodal_pca_pls_learnable_overview.ipynb`
 - Results-analysis workflow centers on:
-  - `scripts/notebooks/results_scrape/scrape_SCtype_results.ipynb`
-  - `scripts/notebooks/results_scrape/scrape_covtype_results.ipynb`
+  - `scripts/experiments/sc_type_benchmark/` (was `scrape_SCtype_results.ipynb`)
+  - `scripts/experiments/cov_projector_benchmark/` (was `scrape_covtype_results.ipynb`)
 - Lightweight visualization helpers were moved into:
   - `data/data_viz.py`
   - `data/demeaned_viz.py`

@@ -1,0 +1,63 @@
+{
+  "generated_at": "2026-09-23T15:50:29",
+  "git_commit": "dfdb71e",
+  "config": "scripts/experiments/cov_projector_benchmark/config.yml",
+  "records_cache": "scripts/experiments/cov_projector_benchmark/records.json",
+  "cache_metadata": {
+    "standard_models": [
+      "Chen2024GCN",
+      "CrossModal_PCA_PLS_learnable",
+      "Krakencoder_precomputed",
+      "NodalGNN",
+      "Sarwar2020MLP"
+    ],
+    "standard_sources": [
+      "SC"
+    ],
+    "projector_models": [
+      "CrossModal_PCA_PLS_CovProjector"
+    ],
+    "projector_sources": [
+      "SC"
+    ],
+    "cov_types": [
+      "demo",
+      "fs_all",
+      "fs_all_demo",
+      "fs_volumes"
+    ],
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "selection_metric": "val_demeaned_r",
+    "selection_mode": "max",
+    "direct_prod_models": [
+      "NodalGNN"
+    ],
+    "scraped_at": "2026-09-23T15:47:40",
+    "wandb": "alexander-ratzan-new-york-university/conn2conn"
+  },
+  "outputs": [
+    "tables/status_standard.csv",
+    "tables/status_projector.csv",
+    "tables/seed_records.csv",
+    "tables/row_seed_metrics.csv",
+    "tables/full_summary.csv",
+    "tables/full_summary.md",
+    "tables/projector_focus_summary.csv",
+    "tables/projector_focus_summary.md",
+    "figures/cov_dl_bars__pearson__projector_focus.png",
+    "figures/cov_dl_bars__demeaned_pearson__projector_focus.png",
+    "figures/cov_dl_bars__avg_rank__projector_focus.png",
+    "figures/cov_dl_panels__global.png"
+  ]
+}

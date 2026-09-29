@@ -1,0 +1,84 @@
+# Covariate-projector + deep-model benchmark (SC -> FC):
+#   1. which covariate feature sets help the PCA-PLS residual projector over the PCA_PLS_learnable baseline?
+#   2. how do the linear family, Krakencoder, and published deep models compare on SC input?
+#
+# Run:  python scripts/experiments/cov_projector_benchmark/run.py            # from records.json
+#       python scripts/experiments/cov_projector_benchmark/run.py --rescrape # refresh from W&B
+# Write-up: scripts/experiments/cov_projector_benchmark/cov_projector_benchmark.md
+
+seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+# Duplicate runs within a (model, source[, cov_type], seed) cell: keep the best by this validation metric.
+selection:
+  metric: val_demeaned_r
+  mode: max
+
+# Models logged as direct `prod` runs instead of `best_trial_report` runs.
+direct_prod_models: [NodalGNN]
+
+# Count tune trials per selected run (one extra W&B query per run; only used by the status tables).
+count_trials: true
+
+# --- conditions ---------------------------------------------------------------------------------
+# One entry per (model, source[, cov_type]) condition. Rows with `cov_type` are scraped per covariate
+# type; the rest are scraped as standard best-trial (or direct-prod) runs. Label keys control display:
+#   display_model / sc_source_label / cov_source_label -> summary tables;  plot_label -> figures.
+rows:
+  krakencoder:
+    {model: Krakencoder_precomputed, source: SC, display_model: Krakencoder, cov_source_label: "-", plot_label: Krakencoder}
+  pca_pls_learnable:
+    {model: CrossModal_PCA_PLS_learnable, source: SC, display_model: PCA_PLS_learnable, cov_source_label: "-", plot_label: PCA_PLS_learnable}
+  projector_demo:
+    {model: CrossModal_PCA_PLS_CovProjector, source: SC, cov_type: demo, display_model: PCA_PLS_projector, cov_source_label: demographics, plot_label: demographics}
+  projector_fs_volumes:
+    {model: CrossModal_PCA_PLS_CovProjector, source: SC, cov_type: fs_volumes, display_model: PCA_PLS_projector, cov_source_label: fs_volumes, plot_label: fs_volumes}
+  projector_fs_all:
+    {model: CrossModal_PCA_PLS_CovProjector, source: SC, cov_type: fs_all, display_model: PCA_PLS_projector, cov_source_label: fs_all, plot_label: fs_all}
+  projector_fs_all_demo:
+    {model: CrossModal_PCA_PLS_CovProjector, source: SC, cov_type: fs_all_demo, display_model: PCA_PLS_projector, cov_source_label: demographics+fs_all, plot_label: demographics+fs_all}
+  sarwar_mlp:
+    {model: Sarwar2020MLP, source: SC, display_model: "MLP (Sarwar, 2021)", cov_source_label: "-", plot_label: "MLP (Sarwar, 2021)"}
+  chen_gcn:
+    {model: Chen2024GCN, source: SC, display_model: "GNN (Chen, 2024)", cov_source_label: "-", plot_label: "GNN (Chen, 2024)"}
+  nodal_gnn:
+    {model: NodalGNN, source: SC, display_model: Nodal GNN, cov_source_label: "-", plot_label: Nodal GNN}
+
+# Ordered row lists referenced by tables and figures. An entry is a row key, or {row: key, ...label overrides}.
+row_groups:
+  full: [krakencoder, pca_pls_learnable, projector_demo, projector_fs_volumes, projector_fs_all,
+         projector_fs_all_demo, sarwar_mlp, chen_gcn, nodal_gnn]
+  projector_focus: [pca_pls_learnable, projector_demo, projector_fs_volumes, projector_fs_all, projector_fs_all_demo]
+  # global comparison against one projector variant (the best on demeaned correlation: demographics)
+  global: [krakencoder, pca_pls_learnable, {row: projector_demo, plot_label: PCA_PLS_projector},
+           sarwar_mlp, chen_gcn, nodal_gnn]
+
+# --- tables ----------------------------------------------------------------------------------------
+tables:
+  metrics: [pearson, demeaned_pearson, mse, avg_rank, top1_acc]
+  metric_labels:
+    pearson: corr
+    demeaned_pearson: demeaned_corr
+  summaries:
+    - {name: full_summary, rows: full}
+    - {name: projector_focus_summary, rows: projector_focus}
+
+# --- figures ---------------------------------------------------------------------------------------
+# Each entry: `type` from scripts.results_utils.FIGURE_TYPES, `rows` = a row group; every other key is
+# passed to that plotting function as a keyword argument. Optional `name` overrides the file stem.
+figures:
+  # projector feature sets vs the learnable baseline
+  - {type: cov_dl_bars, rows: projector_focus, metric: pearson, show_title: false, show_axis_labels: true}
+  - {type: cov_dl_bars, rows: projector_focus, metric: demeaned_pearson, show_title: false, show_axis_labels: true}
+  - {type: cov_dl_bars, rows: projector_focus, metric: avg_rank, show_title: false, show_axis_labels: true}
+  # all models against the selected projector variant
+  - type: cov_dl_panels
+    rows: global
+    metrics: [pearson, demeaned_pearson, avg_rank, top1_acc]
+    title: "Global comparison (projector = demo)"
+    show_title: false
+    show_axis_labels: true
+
+# --- output ----------------------------------------------------------------------------------------
+output_dir: .   # relative to this folder: writes tables/, figures/, manifest.json here
+formats: [png]   # add pdf/svg only when a vector copy is needed
+dpi: 300

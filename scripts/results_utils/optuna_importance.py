@@ -40,7 +40,7 @@ from optuna.distributions import (
     IntDistribution,
 )
 
-from .records import WANDB_ENTITY, WANDB_PROJECT, wandb_api
+from .records import WANDB_ENTITY, WANDB_PROJECT, query_runs, wandb_api
 from .records import REPO_ROOT as _REPO_ROOT
 
 REPO_ROOT = str(_REPO_ROOT)  # .../Conn2Conn
@@ -119,7 +119,8 @@ def fetch_tune_trial_runs(
     filters = {"$and": tag_filters}
     if since is not None:
         filters["$and"].append({"createdAt": {"$gt": since}})
-    runs = api.runs(
+    runs = query_runs(
+        api,
         f"{entity}/{project}",
         filters=filters,
         order="-created_at",

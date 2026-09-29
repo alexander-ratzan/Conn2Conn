@@ -36,6 +36,7 @@ Conn2Conn/
 │   │   ├── tables.py              #   status/metric/covtype/SC-type/cov_dl tables
 │   │   ├── plots.py               #   source bars, model scatter, cov_dl plots
 │   │   ├── local_results.py       #   results/local_results/ loaders + plots
+│   │   ├── runner.py              #   shared plumbing for config-driven experiment scripts (post-v1)
 │   │   └── optuna_importance.py   #   python -m scripts.results_utils.optuna_importance
 │   ├── notebooks/                 # interactive: EDA, model overviews/testing, results scraping   [T2]
 │   │   ├── EDA/
@@ -47,7 +48,6 @@ Conn2Conn/
 │   └── sbatch/<Model>/            # core model tuning grids                                      [T4]
 ├── results/                       # generated artifacts only (bulky experiment outputs → results/experiments/<name>/)
 └── context_packages/
-    ├── experiment_ledger/         # the record of every experiment (what, how to run, W&B ids, outcome)  [T6]
     └── repo_spec_docs/            # this document
 ```
 
@@ -57,13 +57,13 @@ Conn2Conn/
 |---|---|---|
 | Umbrella folder | `scripts/` | Tidy root; all non-library code in one place. |
 | Results tooling name | `scripts/results_utils/` | Avoids a `scripts/results` vs `results/` name clash; content is scrapers + tables + plots. |
-| Module granularity | 5 modules, stage-based (records → tables → plots) | Limit file bloat; one-way dependencies `plots → tables → records`. |
+| Module granularity | stage-based modules (records → tables → plots) + `local_results`, `optuna_importance`, and (post-v1) `runner` for shared experiment-script plumbing | Limit file bloat; one-way dependencies `runner → plots → tables → records`. |
 | Backward-compat shims | none | Repo convention: callers are updated instead. |
 | Notebook imports | walk-up bootstrap in each notebook's first cell (below) | Survives moves; no install step. Editable install deferred (§6). |
 | Notebook API surface | import from package level (`from scripts.results_utils import ...`) | Reshuffling files inside `results_utils/` never touches notebooks. |
 | `results/local_results/` reports | left as-is (Krakencoder, test_structured_loss_model tracked via `.gitignore` exceptions) | Revisit later. |
 | `scripts/notebooks/kraken/` | stays a notebook folder | Not converted to an experiment. |
-| Experiment documentation | ledger only (`context_packages/experiment_ledger/`); no READMEs in `scripts/experiments/` | One place to record experiments; keeps `experiments/` lightweight. |
+| Experiment documentation | write-up inside each experiment folder, named after it (`<slug>/<slug>.md`, not `README.md`), or the notebook itself when self-documenting; outer index `scripts/experiments/experiments_index.md` (changed 2026-09-23 from a separate `context_packages/experiment_ledger/`) | One place per experiment: code, config, results snapshot, and write-up move together. |
 | Experiment folder naming | plain descriptive slug, e.g. `linear_backbone_geodesic` | Keep it simple. |
 | Notebook checkpoints | `.ipynb_checkpoints/` deleted at the repo root and under notebooks; the ones inside vendored `krakencoder/` and artifact `results/` are left alone | Untracked editor clutter; already gitignored. |
 
@@ -184,5 +184,8 @@ None open. Resolved 2026-09-23: delete all `.ipynb_checkpoints/` (T2); keep `scr
 | 2026-09-23 | Open questions resolved; T2, T5, T6 simplified (no experiment READMEs; ledger is the single record). |
 | 2026-09-23 | T2–T7 executed: `506e008`, `64dbc62`, `08a917c`, `9ed9d7f`, `fa88722`, T7 (no change). Remaining: T8 docs pass. |
 | 2026-09-23 | T8 docs pass done; artifact cleanup: `results/wandb/` removed, `results/ray_tmp/` sessions before 2026-04-01 pruned (131 April sessions kept for debugging). Stage 1 complete. |
+| 2026-09-23 | Post-v1: `scrape_covtype_results.ipynb` → `scripts/experiments/cov_projector_benchmark/` (both tables reproduced exactly); shared runner plumbing in `scripts/results_utils/runner.py`. |
+| 2026-09-23 | Post-v1: experiment runners write `tables/`, `figures/`, `manifest.json` into the experiment folder. Figures are PNG-only (300 dpi, per the figure-making skill) and tracked; per-figure CSVs dropped as redundant with `tables/seed_records.csv`. |
+| 2026-09-23 | Post-v1: `context_packages/experiment_ledger/` folded into experiment folders (`<slug>/<slug>.md`) + `scripts/experiments/experiments_index.md`; Adel summary → `scripts/experiments/adel_summer_2026/`; `linear_backbone_geodesic` documented by its notebook. T6's ledger file no longer exists. |
 
 Last updated at: 2026-09-23 14:25 EDT

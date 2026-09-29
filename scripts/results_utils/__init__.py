@@ -5,6 +5,7 @@ Conn2Conn results utilities: scrape W&B / Ray runs, build tables, plot figures.
   tables         RunRecords → summary DataFrames
   plots          DataFrames → matplotlib figures
   local_results  notebook-written results/local_results/ artifacts
+  runner         shared plumbing for config-driven scripts/experiments/<slug>/run.py
 
 `optuna_importance` (hparam importance CLI) is not re-exported here so that
 importing the package does not require optuna:
@@ -31,6 +32,7 @@ from .records import (
     load_local_artifact_df,
     load_records_cache,
     parse_run_record,
+    query_runs,
     records_to_df,
     save_records_cache,
     wandb_api,
@@ -45,11 +47,16 @@ from .tables import (
     build_status_table,
 )
 from .plots import (
+    FIGURE_TYPES,
+    figure_name,
+    render_figure,
+    save_figure,
     plot_cov_dl_global_metric_panels,
     plot_cov_dl_metric_bars,
     plot_model_metric_scatter,
     plot_source_metric_bars,
 )
+from . import runner  # config-driven experiment plumbing: scripts.results_utils.runner
 from .local_results import (
     best_local_results,
     load_local_results,
@@ -72,6 +79,6 @@ def reload():
     import importlib
     import sys
 
-    for name in ("records", "tables", "plots", "local_results"):
+    for name in ("records", "tables", "plots", "runner", "local_results"):
         importlib.reload(sys.modules[f"{__name__}.{name}"])
     return importlib.reload(sys.modules[__name__])

@@ -868,3 +868,86 @@ def plot_cov_dl_global_metric_panels(
         fig.suptitle(title, fontsize=title_fontsize, y=0.98)
     plt.tight_layout(rect=(0.0, 0.0, 0.84 if show_legend else 1.0, 1.0))
     return fig, axes, plot_df
+
+
+# ---------------------------------------------------------------------------
+# Figure registry + export (config-driven experiment scripts)
+# ---------------------------------------------------------------------------
+
+# Figure types addressable from an experiment config's `figures:` list. Each entry's remaining
+# keys are passed straight through as keyword arguments. Record-level types take `records`;
+# cov_dl types take a row-spec seed DataFrame (`seed_df`, `row_specs`).
+FIGURE_TYPES = {
+    "source_bars": plot_source_metric_bars,
+    "metric_scatter": plot_model_metric_scatter,
+    "cov_dl_bars": plot_cov_dl_metric_bars,
+    "cov_dl_panels": plot_cov_dl_global_metric_panels,
+}
+
+
+def render_figure(spec: dict, records: Optional[list] = None, **defaults):
+    """
+    Draw one figure from a config entry like {"type": "source_bars", "metric": "pearson"}.
+
+    `records` and `defaults` (e.g. models, seeds, seed_df, row_specs) fill any argument the spec
+    leaves unset and that the plotting function accepts. Unknown spec keys raise, so config typos
+    fail loudly. Returns the plotting function's (fig, ax, plot_df).
+    """
+    import inspect
+
+    spec = dict(spec)
+    fig_type = spec.pop("type", None)
+    spec.pop("name", None)
+    if fig_type not in FIGURE_TYPES:
+        raise ValueError(f"Unknown figure type {fig_type!r}; choose from {sorted(FIGURE_TYPES)}")
+    fn = FIGURE_TYPES[fig_type]
+    params = inspect.signature(fn).parameters
+    unknown = sorted(set(spec) - set(params))
+    if unknown:
+        raise ValueError(f"{fig_type}: unknown argument(s) {unknown}; valid: {sorted(params)}")
+    available = dict(defaults)
+    if records is not None:
+        available["records"] = records
+    kwargs = {k: v for k, v in available.items() if k in params and k not in spec}
+    kwargs.update(spec)
+    return fn(**kwargs)
+
+
+def figure_name(spec: dict) -> str:
+    """Stable file stem for a figure spec: explicit `name`, else built from its settings."""
+    if spec.get("name"):
+        return str(spec["name"])
+    parts = [spec.get("type", "figure")]
+    if spec.get("type") == "metric_scatter":
+        parts += [spec.get("y_metric", "demeaned_pearson"), "vs", spec.get("x_metric", "avg_rank"),
+                  spec.get("source", "SC")]
+    elif spec.get("type", "").startswith("cov_dl"):
+        if spec.get("metric"):
+            parts.append(spec["metric"])
+        if spec.get("rows"):
+            parts.append(spec["rows"])
+    else:
+        parts.append(spec.get("metric", "demeaned_pearson"))
+        parts.append("-".join(spec.get("sources") or ["SC", "SC_r2t", "SC+SC_r2t"]))
+    if spec.get("include_reference_lines") or spec.get("include_reference_points"):
+        parts.append("refs")
+    return "__".join(str(p).replace("+", "p") for p in parts)
+
+
+def save_figure(fig, path_stem, formats=("png",), dpi: int = 300) -> list:
+    """Save `fig` as <path_stem>.<fmt> per format. PNG only by default; pass e.g. ("png", "pdf")
+    when a vector copy is needed (PDFs keep editable text and carry no creation timestamp)."""
+    import matplotlib.pyplot as plt
+    from pathlib import Path
+
+    path_stem = Path(path_stem)
+    path_stem.parent.mkdir(parents=True, exist_ok=True)
+    written = []
+    with plt.rc_context({"pdf.fonttype": 42, "svg.fonttype": "none"}):
+        for fmt in formats:
+            out = path_stem.with_suffix(f".{fmt}")
+            # No PDF creation timestamp, so re-rendering unchanged data gives identical files.
+            metadata = {"CreationDate": None} if fmt == "pdf" else None
+            fig.savefig(out, dpi=dpi, bbox_inches="tight", facecolor="white", metadata=metadata)
+            written.append(out)
+    return written

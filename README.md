@@ -219,15 +219,28 @@ All runs log to W&B project `conn2conn`. The W&B cloud is the source of truth; l
 Primary results API: `scripts/results_utils/` (active development surface).
 - `records.py` — fetches best-trial prod runs from W&B (optionally direct `prod` runs for models logged outside the best-trial report path, currently `NodalGNN`), resolves `(model, source, seed)` records including missing cells, caches records, and enriches them with local Ray artifact metrics (`metrics_final.json`)
 - `tables.py` — flat DataFrames, model-vs-source pivot tables, and covariate-projector / deep-model comparison tables
-- `plots.py` — grouped bar charts, model scatter plots, and covariate/deep-model panels
+- `plots.py` — grouped bar charts, model scatter plots, and covariate/deep-model panels, plus a figure-type registry used by config-driven experiment scripts
+- `runner.py` — shared plumbing (CLI, cache checks, table/figure writing, manifest) for the config-driven experiment scripts
 - `optuna_importance.py` — hyperparameter importance from W&B tune trials: `python -m scripts.results_utils.optuna_importance --help`
 
 Notebook surface (`scripts/notebooks/`):
-- `results_scrape/scrape_SCtype_results.ipynb`, `results_scrape/scrape_covtype_results.ipynb`, `results_scrape/nodal_decoder_importance.ipynb`
+- `results_scrape/nodal_decoder_importance.ipynb`
 - `kraken/track_krakencoder_model.ipynb`, `kraken/kraken_eval.ipynb`
 - model onboarding notebooks under `model_overviews/`, including PCA/PLS closed-form vs learnable overviews and latent-attention overviews
 - model smoke-test notebooks under `model_testing/`
 - exploratory data notebooks under `EDA/`
+
+Config-driven results benchmarks (replace the former `scrape_SCtype_results` / `scrape_covtype_results` notebooks):
+
+```bash
+# inside kraken_env via `source /ext3/env.sh`
+python scripts/experiments/sc_type_benchmark/run.py              # tables + figures from the tracked records.json
+python scripts/experiments/sc_type_benchmark/run.py --rescrape   # refresh records.json from W&B first
+python scripts/experiments/cov_projector_benchmark/run.py        # covariate projector vs baselines and deep models
+```
+
+Edit each experiment's `config.yml` to change models / conditions, seeds, the summary tables, or the list of figures. Outputs are written into the experiment folder and tracked in git: `tables/`, `figures/` (PNG,
+300 dpi), and `manifest.json`.
 
 ```python
 from scripts.results_utils import (
@@ -250,8 +263,9 @@ table = build_metric_table(records, metric="demeaned_pearson")
 ## Notebooks and Experiments
 
 - Notebooks live under `scripts/notebooks/<purpose>/`. Each one starts with a small bootstrap that finds the repo root by walking up to `main.py`, so notebooks work from any folder in the repo; write repo paths as `REPO_ROOT / "results/..."`.
-- Side experiments live under `scripts/experiments/<name>/` (code, launchers, small outputs). Bulky outputs go to `results/experiments/<name>/`.
-- Every experiment is documented in `context_packages/experiment_ledger/` — the question, setup, how to run it, W&B ids, results, and caveats.
+- Side experiments live under `scripts/experiments/<name>/` (code, launchers, and their tables/figures). Truly bulky outputs (checkpoints, large arrays) go to `results/experiments/<name>/`.
+- Results/benchmark experiments follow `scripts/experiments/sc_type_benchmark/` (model × source grid) or `scripts/experiments/cov_projector_benchmark/` (labelled condition rows): a `config.yml`, a `run.py`, and a small tracked `records.json` snapshot of the latest W&B scrape.
+- Each experiment is documented in its own folder by a write-up named after it (`<name>/<name>.md`: the question, setup, how to run it, W&B ids, results, and caveats), or by its notebook when that already describes it. `scripts/experiments/experiments_index.md` lists all experiments.
 
 ---
 
@@ -294,7 +308,8 @@ Conn2Conn/
 │   │   ├── model_overviews/
 │   │   ├── model_testing/
 │   │   └── results_scrape/
-│   ├── experiments/                 # Self-contained side experiments (one folder each)
+│   ├── experiments/                 # Self-contained side experiments (one folder each, write-up <name>.md)
+│   │   └── experiments_index.md     # One row per experiment
 │   └── sbatch/                      # Per-model SLURM scripts and seed arrays
 │       ├── Sarwar2020MLP/
 │       ├── Chen2024GCN/
@@ -307,7 +322,6 @@ Conn2Conn/
 │   ├── figures/                     # Notebook-generated figures
 │   └── logs/                        # SLURM stdout/stderr
 ├── context_packages/                # Reference material for humans and agents
-│   ├── experiment_ledger/           # One entry per experiment
 │   ├── modeling/                    # Model design notes
 │   ├── repo_spec_docs/              # Repo refactor specs
 │   ├── schematics/                  # Figure / model schematics

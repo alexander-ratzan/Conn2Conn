@@ -50,6 +50,7 @@ from __future__ import annotations
 import ast
 import json
 import re
+import zlib
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -116,8 +117,18 @@ def _display_model_label(model_name: str) -> str:
     return _DISPLAY_MODEL_LABELS.get(model_name, model_name)
 
 
+# Colors for models without an explicit entry above, picked by a stable hash of the
+# model name so a model keeps its color across runs and figures.
+_FALLBACK_PLOT_COLORS = [
+    "#E15759", "#76B7B2", "#EDC948", "#FF9DA7", "#9C755F", "#BAB0AC",
+    "#8CD17D", "#B6992D", "#499894", "#D37295", "#86BCB6", "#A0CBE8",
+]
+
+
 def _model_plot_color(model_name: str) -> str:
-    return _MODEL_PLOT_COLORS.get(model_name, "#4C78A8")
+    if model_name in _MODEL_PLOT_COLORS:
+        return _MODEL_PLOT_COLORS[model_name]
+    return _FALLBACK_PLOT_COLORS[zlib.crc32(model_name.encode()) % len(_FALLBACK_PLOT_COLORS)]
 
 
 _METRIC_OPT_DIRECTION = {
@@ -175,7 +186,28 @@ class RunRecord:
 
 def wandb_api():
     import wandb
+    if not hasattr(wandb, "Api"):
+        # With the library missing, the repo-root `wandb/` run folder is imported as a
+        # namespace package instead of failing with ImportError.
+        raise ImportError(
+            f"`import wandb` resolved to {list(getattr(wandb, '__path__', []))}, not the wandb "
+            "library. Use an environment where wandb is installed (e.g. `source /ext3/env.sh` "
+            "in kraken_env; `activate_env.sh` sets PYTHONNOUSERSITE=1, hiding ~/.local packages)."
+        )
     return wandb.Api()
+
+
+def query_runs(api, path: str, **kwargs):
+    """
+    `api.runs(...)` with full run data loaded.
+
+    Newer wandb (e.g. 0.25) defaults to `lazy=True`, which returns runs whose `config` is
+    empty, so every source/seed parse fails. Older versions have no `lazy` argument.
+    """
+    try:
+        return api.runs(path, lazy=False, **kwargs)
+    except TypeError:
+        return api.runs(path, **kwargs)
 
 
 def _source_from_config(cfg: dict) -> str:
@@ -403,7 +435,8 @@ def fetch_best_trial_runs(
     They are tagged with both 'best_trial_report' and model_name.
     """
     api = wandb_api()
-    runs = api.runs(
+    runs = query_runs(
+        api,
         f"{entity}/{project}",
         filters={"$and": [
             {"tags": "best_trial_report"},
@@ -427,7 +460,8 @@ def fetch_direct_prod_runs(
     is evaluated directly over seeds without the report_best_tune_trial path.
     """
     api = wandb_api()
-    runs = api.runs(
+    runs = query_runs(
+        api,
         f"{entity}/{project}",
         filters={"$and": [
             {"tags": "prod"},
@@ -474,6 +508,7 @@ def parse_run_record(
     project: str = WANDB_PROJECT,
     entity: str = WANDB_ENTITY,
     count_trials: bool = True,
+    model_name: Optional[str] = None,
 ) -> RunRecord:
     """
     Parse a single W&B best-trial run into a RunRecord.
@@ -492,6 +527,9 @@ def parse_run_record(
     count_trials : bool
         Issue an extra W&B API call to count how many tune trials ran.
         Set False for faster bulk parsing.
+    model_name : str | None
+        Model the run was fetched for. When omitted, it is inferred from the first
+        non-system tag.
     """
     cfg = dict(wandb_run.config)
     summary = dict(wandb_run.summary)
@@ -505,7 +543,9 @@ def parse_run_record(
     # Model name from tags (the tag that isn't a known system tag).
     _SYSTEM_TAGS = {"best_trial_report", "prod", "tune"}
     _SKIP_PREFIXES = ("ray_tune_id:", "source_trial:")
-    model_name_from_tag = next(
+    # Callers that fetched runs by model tag pass `model_name`; guessing from tag order
+    # misattributes runs carrying extra tags (e.g. a "Glasser" parcellation tag).
+    model_name_from_tag = model_name or next(
         (
             t for t in tags
             if t not in _SYSTEM_TAGS
@@ -649,7 +689,8 @@ def build_experiment_records(
                 selection_mode=selection_mode,
             )
             record = parse_run_record(
-                winner, project=project, entity=entity, count_trials=count_trials
+                winner, project=project, entity=entity, count_trials=count_trials,
+                model_name=model_name,
             )
             complete[key] = record
             if verbose:
@@ -741,7 +782,8 @@ def build_experiment_records_covtype(
                 selection_mode=selection_mode,
             )
             record = parse_run_record(
-                latest, project=project, entity=entity, count_trials=count_trials
+                latest, project=project, entity=entity, count_trials=count_trials,
+                model_name=model_name,
             )
             record.cov_type = key[2]
             complete[key] = record
