@@ -30,7 +30,7 @@ When a task arrives, start in this order:
 2. `models/configs/<model>.yml` for ground-truth defaults/search space.
 3. `models/registry.py` for config resolution and model construction.
 4. `models/architectures/` for architecture details.
-5. `results/results_scraper.py` for results aggregation logic.
+5. `scripts/results_utils/` for results aggregation logic (`records.py` → `tables.py` → `plots.py`).
 
 If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after `main.py`.
 
@@ -56,16 +56,24 @@ If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after 
   - training orchestration, Lightning wrapper, losses, composite losses, and training plots
 - `models/eval/`
   - evaluator, metrics, PCA analysis, FC distance utilities, visualization/markdown reporting
-- `results/results_scraper.py`
-  - W&B best-trial scraping + table builders
+- `scripts/results_utils/`
+  - W&B/Ray results scraping → tables → figures (see "Results Utilities" below)
+- `scripts/sbatch/<ModelName>/`
+  - SLURM launchers (tune arrays, parallel/sequential sweeps); submit with `sbatch scripts/sbatch/<ModelName>/<script>.sh`
 - `README.md`
   - user-level commands + workflow
-- `notebooks/results_scrape/*.ipynb`
-  - active experiment-table / plotting notebooks
-- `notebooks/model_overviews/*.ipynb`
+- `scripts/notebooks/results_scrape/*.ipynb`
+  - active experiment-table / plotting notebooks (+ `nodal_decoder_importance.ipynb`)
+- `scripts/notebooks/model_overviews/*.ipynb`
   - conceptual onboarding notebooks for PCA/PLS, conditional Gaussian, latent-attention, masked pretraining, and nodal baselines
-- `notebooks/model_testing/*.ipynb`
+- `scripts/notebooks/model_testing/*.ipynb`
   - per-model smoke-test / dev notebooks
+- `scripts/notebooks/{EDA,kraken}/*.ipynb`
+  - data exploration; Krakencoder tracking/eval
+- `scripts/experiments/<name>/`
+  - self-contained side experiments (code + small outputs); documented only in `context_packages/experiment_ledger/`
+- `context_packages/`
+  - agent/human reference material: `experiment_ledger/`, `modeling/` (model design notes), `repo_spec_docs/` (refactor specs), `schematics/`, `T1/`
 - `data/data_viz.py`, `data/demeaned_viz.py`
   - reusable visualization helpers used by lightweight notebooks
 
@@ -107,12 +115,12 @@ Learned (`learned: true`):
 - `CrossModal_PCA_PLS_CovProjector`
 - `CrossModalVAE`
 - `LatentAttnMasked` (implemented in `models/architectures/latent_attention/latent_attn_masked.py`)
-- `MaskedLatentPretrainer` (`models/architectures/latent_attention/masked_latent_pretrainer.py`) — **experimental, in development, not production**. SSL pretrainer for joint SC/FC PCA-latent reconstruction; transfers weights to `LatentAttnMasked` via `export_to_latent_attn_masked(downstream_model)`. Kept isolated: no cross-module changes in `lightning_module.py` / `trainer.py` / `main.py` should be made on its behalf. Dev harness: `notebooks/model_overviews/masked_attn_pretraining_overview.ipynb`.
-- `MaskedMLPPretrainer` (`models/architectures/latent_attention/masked_mlp_pretrainer.py`) — **experimental**. SSL pretrainer variant of the masked-latent path using linear, low-rank-linear, or nonlinear MLP encoders plus configurable SC/FC masking. Config surfaces include `MaskedMLPPretrainer.yml`, `MaskedMLPPretrainer_linear.yml`, `MaskedMLPPretrainer_nonlinear.yml`, and `MaskedMLPPretrainer_mask_grid.yml`; sbatch launchers live under `sbatch/MaskedMLPPretrainer/`.
+- `MaskedLatentPretrainer` (`models/architectures/latent_attention/masked_latent_pretrainer.py`) — **experimental, in development, not production**. SSL pretrainer for joint SC/FC PCA-latent reconstruction; transfers weights to `LatentAttnMasked` via `export_to_latent_attn_masked(downstream_model)`. Kept isolated: no cross-module changes in `lightning_module.py` / `trainer.py` / `main.py` should be made on its behalf. Dev harness: `scripts/notebooks/model_overviews/masked_attn_pretraining_overview.ipynb`.
+- `MaskedMLPPretrainer` (`models/architectures/latent_attention/masked_mlp_pretrainer.py`) — **experimental**. SSL pretrainer variant of the masked-latent path using linear, low-rank-linear, or nonlinear MLP encoders plus configurable SC/FC masking. Config surfaces include `MaskedMLPPretrainer.yml`, `MaskedMLPPretrainer_linear.yml`, `MaskedMLPPretrainer_nonlinear.yml`, and `MaskedMLPPretrainer_mask_grid.yml`; sbatch launchers live under `scripts/sbatch/MaskedMLPPretrainer/`.
 - `Sarwar2020MLP` (implemented in `models/architectures/sarwar2020_mlp.py`)
 - `Chen2024GCN` (implemented in `models/architectures/graph_based/chen2024_gnn.py`)
 - `NodalGNN` (implemented in `models/architectures/graph_based/nodal_gnn.py`)
-- `NodalMLP` (implemented in `models/architectures/graph_based/nodal_mlp.py`) — graph-free node/edge baseline. It can use anatomical parcel features (`volume`, `spatial`, `SC_r2t`), subject SC rows, or spectral SC eigenvectors; decoder variants include `mlp`, `dot`, `bilinear`, `diag_bilinear`, and `linear_beta`. Configs include `NodalMLP.yml`, `NodalMLP_spatial.yml`, `NodalMLP_all_features.yml`, `NodalMLP_dot.yml`, `NodalMLP_bilinear.yml`, `NodalMLP_linear_beta.yml`, and `NodalMLP_spectral.yml`; sbatch launchers live under `sbatch/NodalMLP/`.
+- `NodalMLP` (implemented in `models/architectures/graph_based/nodal_mlp.py`) — graph-free node/edge baseline. It can use anatomical parcel features (`volume`, `spatial`, `SC_r2t`), subject SC rows, or spectral SC eigenvectors; decoder variants include `mlp`, `dot`, `bilinear`, `diag_bilinear`, and `linear_beta`. Configs include `NodalMLP.yml`, `NodalMLP_spatial.yml`, `NodalMLP_all_features.yml`, `NodalMLP_dot.yml`, `NodalMLP_bilinear.yml`, `NodalMLP_linear_beta.yml`, and `NodalMLP_spectral.yml`; sbatch launchers live under `scripts/sbatch/NodalMLP/`.
 
 Closed-form / hybrid special cases present in configs:
 - `CrossModal_ConditionalGaussian` (implemented in `models/architectures/latent_attention/conditional_gaussian.py`)
@@ -196,27 +204,34 @@ Do not use W&B `group` as sweep identity. Use `ray_tune_id:{id}`.
 
 ---
 
-## Results Scraper (`results/results_scraper.py`)
+## Results Utilities (`scripts/results_utils/`)
 
-Status: active development; already functional for best-trial aggregation.
+Status: active development; functional for best-trial aggregation. Notebooks import from the package
+level (`from scripts.results_utils import ...`) so files inside the package can be reorganized freely.
 
-Primary API:
-- `fetch_best_trial_runs(model_name)`
-- `fetch_direct_prod_runs(model_name)`
-- `parse_run_record(run)`
-- `build_experiment_records(models, sources, seeds, ...)`
-- `records_to_df(records)`
-- `build_status_table(records)`
-- `build_metric_table(records, metric=...)`
-- `enrich_records_with_local(records)`
-- `load_local_artifact_df(records)`
+Modules (one-way dependencies `plots → tables → records`):
+- `records.py` — shared constants (`REPO_ROOT` derived from `__file__`, `RESULTS_ROOT`, `RAY_RESULTS_DIR`,
+  `RAY_CHECKPOINTS_DIR`, `LOCAL_RESULTS_DIR`, `WANDB_PROJECT`/`WANDB_ENTITY`), metric/model display vocabulary,
+  W&B fetchers (`wandb_api`, `fetch_best_trial_runs`, `fetch_direct_prod_runs`, `count_tune_trials_for_run`),
+  `RunRecord`, `parse_run_record`, `build_experiment_records(_covtype)`, `records_to_df`,
+  `save_records_cache` / `load_records_cache`, `enrich_records_with_local`, `load_local_artifact_df`
+- `tables.py` — `build_status_table`, `build_metric_table`, `build_covtype_status_table`,
+  `build_covtype_metric_table`, `build_sc_type_summary_table`, `build_cov_dl_seed_df`, `build_cov_dl_summary_table`
+- `plots.py` — `plot_source_metric_bars`, `plot_model_metric_scatter`, `plot_cov_dl_metric_bars`,
+  `plot_cov_dl_global_metric_panels`
+- `local_results.py` — loaders/plots for notebook-written `results/local_results/`
+- `optuna_importance.py` — hparam importance from W&B tune trials (not re-exported; needs optuna):
+  `python -m scripts.results_utils.optuna_importance --help`
+- `__init__.py` — re-exports the notebook-facing API; `reload()` reloads submodules in dependency order for
+  notebook iteration. `__all__` excludes submodule names so `import *` never clobbers a `records` variable.
 
 Key behaviors:
 - handles nested and flat W&B config formats
-- fallback for legacy runs via local checkpoint config
-- resolves local artifact directories under `results/ray_results/`
+- fallback for legacy runs via local tune-trial config (`results/ray_checkpoints/{model}_tune_{id}/{trial}/final/config.json`)
+- resolves local best-trial artifact directories under `results/ray_results/{model}/{trial_id}/`
 - can mix best-trial and direct-prod fetch paths per model via `direct_prod_models`
 - includes experiment-specific helpers for SC-type and covariate/deep-model summary tables and plots
+- reads results from the W&B cloud only (`wandb.Api()`); local W&B run folders are never used
 
 ### Testing Priorities For Scraper
 
@@ -274,15 +289,43 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
 
 ---
 
+## Repo Layout Conventions
+
+- **Library vs scripts vs artifacts.** Core library + entrypoint: `main.py`, `data/`, `models/`. Everything that
+  uses the library lives under `scripts/` (tracked). `results/` holds generated artifacts only and is gitignored,
+  except the two tracked reports `results/local_results/{Krakencoder_precomputed,test_structured_loss_model}/`.
+- **Notebook bootstrap.** Every notebook's first code cell resolves the repo root by walking up to `main.py`,
+  so notebooks keep working when moved within the repo:
+  ```python
+  import sys
+  from pathlib import Path
+
+  REPO_ROOT = next(p for p in [Path.cwd(), *Path.cwd().parents] if (p / "main.py").exists())
+  if str(REPO_ROOT) not in sys.path:
+      sys.path.insert(0, str(REPO_ROOT))
+  ```
+  Write repo paths as `REPO_ROOT / "results/..."`, never cwd-relative or absolute `/scratch/...`. Raises a bare
+  `StopIteration` if the kernel cwd is outside the repo.
+- **Experiments.** `scripts/experiments/<slug>/` holds an experiment's code, launchers, and small outputs (no
+  README); bulky outputs go to `results/experiments/<slug>/`. Each experiment is recorded in
+  `context_packages/experiment_ledger/` (question, setup, how to run, W&B ids, results, caveats). Avoid folder
+  names ending in `_context` (a global `.gitignore` rule ignores `*_context/`).
+- **Specs.** Layout refactors are planned and tracked in `context_packages/repo_spec_docs/` (`spec_doc_v1.md`:
+  the `scripts/` build-out).
+
 ## HPC / Workflow Guardrails
 
 - Prefer targeted reads over recursive scans.
 - Avoid heavy artifact trees unless task explicitly needs them:
-  - `results/ray_results/`
-  - `results/ray_checkpoints/`
-  - `wandb/`
+  - `results/ray_results/` (best-trial reports + checkpoints, ~118 GB)
+  - `results/ray_checkpoints/` (Ray Tune storage: every trial's params/progress/W&B local copy)
+  - `results/ray_tmp/` (per-job Ray session scratch + Ray system logs; sessions before 2026-04-01 pruned, rest kept for debugging)
+  - `results/logs/` (SLURM stdout/stderr; forwarded Ray worker output lands here)
+  - `wandb/` (local W&B run copies; the W&B cloud is the source of truth)
   - large notebooks
 - Use SLURM scripts for large jobs; avoid long compute on login nodes.
+- Kernel environment: `kraken_env` runs inside a Singularity overlay (see `/scratch/asr655/envs/README.md`);
+  mount the overlay `:ro` for import-only checks so running jobs are unaffected.
 
 ---
 
@@ -297,8 +340,10 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
 7. `NodalGNN` also requires `torch-geometric`.
 8. `NodalMLP` does not require `torch-geometric`, but configs with `use_sc_row=True` require `batch["sc_matrix"]`; this is wired through `Sim` and the train/eval wrappers.
 9. `precomputed` data_load_mode only works when cache files already exist at the resolved cache root.
-10. Active multi-seed SLURM launchers live under `sbatch/<ModelName>/`; older root-level wrappers should not be treated as canonical.
+10. Active multi-seed SLURM launchers live under `scripts/sbatch/<ModelName>/`. They hardcode an absolute `CONN2CONN_DIR` and absolute log paths, so they are location-independent.
 11. Sbatch scripts and input-feature subset configs are still duplicated by experiment variant; a future manifest/launcher layer should move grids out of copied shell/YAML files.
+12. `models/`, `data/` have no `__init__.py` (namespace packages) and `models/eval/__init__.py`, `models/train/__init__.py` re-export nothing: import from the defining module (e.g. `from models.eval.evaluator import Evaluator`), not the package.
+13. W&B project/entity and results paths are duplicated in `main.py` and `scripts/results_utils/records.py`; change both together.
 
 ---
 
@@ -323,9 +368,14 @@ For nodal models:
 4. anatomical ablations are controlled in config via `use_volume`, `use_spatial`, and `use_r2t`; SC-row/spectral ablations use `use_sc_row`, `encoder_type`, `decoder_type`, and `sc_row_norm`.
 
 Update experiment reporting:
-1. patch `results/results_scraper.py`
+1. patch `scripts/results_utils/` (fetch/parse → `records.py`, tables → `tables.py`, figures → `plots.py`); re-export new public names in `__init__.py`
 2. run smoke table builds (`records_to_df`, `build_status_table`, `build_metric_table`)
 3. verify local enrichment still merges correctly
+
+Add a notebook or experiment:
+1. notebooks → `scripts/notebooks/<purpose>/`; side experiments → `scripts/experiments/<slug>/`
+2. start the first code cell with the standard bootstrap (see "Repo Layout Conventions"); anchor paths on `REPO_ROOT`
+3. for experiments, add an entry in `context_packages/experiment_ledger/`
 
 Debug missing results cell:
 1. confirm best-trial run exists in W&B with expected tags
@@ -333,26 +383,37 @@ Debug missing results cell:
 3. verify model/source/seed is included in requested grid
 
 ## Recent Changes
-- Analysis/figure schematics and context images now live under `context_packages/schematics/` (for example `SC_results.png`, `cov_dl_results.PNG`, `matrix_gif.jpg`, and `demeaned_plot/`).
-- Notebook organization now uses purpose folders:
-  - `notebooks/EDA/`
-  - `notebooks/model_overviews/`
-  - `notebooks/model_testing/`
-  - `notebooks/quick_experiments/`
-  - `notebooks/results_scrape/`
-- PCA/PLS onboarding notebooks now split closed-form models from learnable/covariate-projector models:
-  - `notebooks/model_overviews/crossmodal_pca_pls_closed_form_overview.ipynb`
-  - `notebooks/model_overviews/crossmodal_pca_pls_learnable_overview.ipynb`
-- Results-analysis workflow now centers on:
-  - `notebooks/results_scrape/scrape_SCtype_results.ipynb`
-  - `notebooks/results_scrape/scrape_covtype_results.ipynb`
+
+2026-09-23 — `scripts/` build-out (details: `context_packages/repo_spec_docs/spec_doc_v1.md`):
+- All non-library code now lives under `scripts/`: `results_utils/`, `notebooks/`, `experiments/`, `sbatch/`.
+- `results/results_scraper.py` (untracked, 2.1k lines) became the tracked package `scripts/results_utils/`
+  (`records` / `tables` / `plots` / `local_results` / `optuna_importance`); `results/` is artifacts-only.
+- Every notebook uses the walk-up `REPO_ROOT` bootstrap; stale `models.*` imports left over from the `models/`
+  refactor were fixed in 13 notebooks (all 32 pass an import-only check in `kraken_env`).
+- `notebooks/quick_experiments/` was retired; its notebook is now `scripts/experiments/linear_backbone_geodesic/`
+  with a ledger entry in `context_packages/experiment_ledger/linear_backbone_geodesic.md`.
+- `context_packages/` reorganized: `modeling/` (design notes), `experiment_ledger/`, `repo_spec_docs/`,
+  `schematics/`, `T1/`; stale copies of `main.py` / `hcp_dataset.py` removed.
+- Artifact cleanup: `.ipynb_checkpoints/` removed at repo root and under notebooks; dangling `results/wandb/`
+  removed; `results/ray_tmp/` sessions before 2026-04-01 pruned.
+
+Earlier:
+- Analysis/figure schematics and context images now live under `context_packages/schematics/`.
+- Notebook organization uses purpose folders under `scripts/notebooks/`: `EDA/`, `kraken/`, `model_overviews/`,
+  `model_testing/`, `results_scrape/`.
+- PCA/PLS onboarding notebooks split closed-form models from learnable/covariate-projector models:
+  - `scripts/notebooks/model_overviews/crossmodal_pca_pls_closed_form_overview.ipynb`
+  - `scripts/notebooks/model_overviews/crossmodal_pca_pls_learnable_overview.ipynb`
+- Results-analysis workflow centers on:
+  - `scripts/notebooks/results_scrape/scrape_SCtype_results.ipynb`
+  - `scripts/notebooks/results_scrape/scrape_covtype_results.ipynb`
 - Lightweight visualization helpers were moved into:
   - `data/data_viz.py`
   - `data/demeaned_viz.py`
-- `notebooks/kraken/track_krakencoder_model.ipynb` can log W&B runs and optionally save local markdown reports under `results/local_results/Krakencoder_precomputed/`.
+- `scripts/notebooks/kraken/track_krakencoder_model.ipynb` can log W&B runs and optionally save local markdown reports under `results/local_results/Krakencoder_precomputed/`.
 - `NodalMLP` now has explicit decoder/encoder variant configs and launchers, including dot, bilinear, linear-beta, and spectral/connectome-harmonic probes.
 - `MaskedMLPPretrainer` now has separate linear, nonlinear, and mask-grid config/launcher surfaces.
 - Model code now lives under `models/architectures/`, training code under `models/train/`, and evaluation/reporting code under `models/eval/`.
 - Backward-compatibility shims for old top-level model/train/eval files are intentionally removed.
 
-Last updated at: 2026-05-20 EDT
+Last updated at: 2026-09-23 EDT

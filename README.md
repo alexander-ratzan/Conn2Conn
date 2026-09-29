@@ -178,31 +178,24 @@ python main.py --mode prod --model CrossModal_PCA_PLS_learnable \
 
 ## Batch Jobs (SLURM)
 
-Active multi-seed array scripts live under per-model folders in `sbatch/`:
+Active multi-seed array scripts live under per-model folders in `scripts/sbatch/`:
 
 ```bash
-sbatch sbatch/Sarwar2020MLP/tune_array_sarwar2020_SC_seeds.sh
-sbatch sbatch/Sarwar2020MLP/tune_array_sarwar2020_SCr2t_seeds.sh
-sbatch sbatch/Chen2024GCN/tune_array_chen2024gcn_SC_seeds.sh
-sbatch sbatch/NodalGNN/tune_array_nodalgnn_SC_seeds.sh
-sbatch sbatch/NodalGNN/run_array_nodalgnn_SC_default_seeds.sh
-sbatch sbatch/NodalMLP/tune_array_nodalmlp_seeds.sh
-sbatch sbatch/NodalMLP/tune_array_nodalmlp_spectral_seeds.sh
+sbatch scripts/sbatch/Sarwar2020MLP/tune_array_sarwar2020_SC_seeds.sh
+sbatch scripts/sbatch/Sarwar2020MLP/tune_array_sarwar2020_SCr2t_seeds.sh
+sbatch scripts/sbatch/Chen2024GCN/tune_array_chen2024gcn_SC_seeds.sh
+sbatch scripts/sbatch/NodalGNN/tune_array_nodalgnn_SC_seeds.sh
+sbatch scripts/sbatch/NodalGNN/run_array_nodalgnn_SC_default_seeds.sh
+sbatch scripts/sbatch/NodalMLP/tune_array_nodalmlp_seeds.sh
+sbatch scripts/sbatch/NodalMLP/tune_array_nodalmlp_spectral_seeds.sh
 ```
 
-Current model folders include:
-- `sbatch/Sarwar2020MLP/`
-- `sbatch/Chen2024GCN/`
-- `sbatch/CrossModalPCA/`
-- `sbatch/CrossModal_PCA_PLS/`
-- `sbatch/CrossModal_PCA_PLS_learnable/`
-- `sbatch/CrossModal_PCA_PLS_CovProjector/`
-- `sbatch/CrossModal_ConditionalGaussian/`
-- `sbatch/CrossModal_PLS_SVD/`
-- `sbatch/MaskedLatentPretrainer/`
-- `sbatch/MaskedMLPPretrainer/`
-- `sbatch/NodalGNN/`
-- `sbatch/NodalMLP/`
+Launchers use an absolute repo path and absolute log paths (`results/logs/`), so they can be submitted from any directory.
+
+Current model folders under `scripts/sbatch/`:
+`Chen2024GCN/`, `CrossModal_ConditionalGaussian/`, `CrossModalPCA/`, `CrossModal_PCA_PLS/`,
+`CrossModal_PCA_PLS_CovProjector/`, `CrossModal_PCA_PLS_learnable/`, `CrossModal_PLS_SVD/`,
+`MaskedLatentPretrainer/`, `MaskedMLPPretrainer/`, `NodalGNN/`, `NodalMLP/`, `Sarwar2020MLP/`.
 
 ---
 
@@ -221,27 +214,23 @@ Current model folders include:
 
 ## Results
 
-All runs log to W&B project `conn2conn`.
+All runs log to W&B project `conn2conn`. The W&B cloud is the source of truth; local `wandb/` run folders are upload staging copies.
 
-Primary results API: `results/results_scraper.py` (active development surface).
-- fetches best-trial prod runs from W&B
-- optionally fetches direct `prod` runs for models that are logged outside the best-trial report path (currently used for `NodalGNN`)
-- resolves `(model, source, seed)` records (including missing cells)
-- builds flat DataFrames and model-vs-source pivot tables
-- builds covariate-projector / deep-model comparison tables and plotting DataFrames
-- can enrich records with local Ray artifact metrics (`metrics_final.json`)
+Primary results API: `scripts/results_utils/` (active development surface).
+- `records.py` — fetches best-trial prod runs from W&B (optionally direct `prod` runs for models logged outside the best-trial report path, currently `NodalGNN`), resolves `(model, source, seed)` records including missing cells, caches records, and enriches them with local Ray artifact metrics (`metrics_final.json`)
+- `tables.py` — flat DataFrames, model-vs-source pivot tables, and covariate-projector / deep-model comparison tables
+- `plots.py` — grouped bar charts, model scatter plots, and covariate/deep-model panels
+- `optuna_importance.py` — hyperparameter importance from W&B tune trials: `python -m scripts.results_utils.optuna_importance --help`
 
-Notebook surface:
-- `notebooks/results_scrape/scrape_SCtype_results.ipynb`
-- `notebooks/results_scrape/scrape_covtype_results.ipynb`
-- `notebooks/kraken/track_krakencoder_model.ipynb`
-- `notebooks/kraken/kraken_eval.ipynb`
-- model onboarding notebooks under `notebooks/model_overviews/`, including PCA/PLS closed-form vs learnable overviews and latent-attention overviews
-- model smoke-test notebooks under `notebooks/model_testing/`
-- exploratory data notebooks under `notebooks/EDA/`
+Notebook surface (`scripts/notebooks/`):
+- `results_scrape/scrape_SCtype_results.ipynb`, `results_scrape/scrape_covtype_results.ipynb`, `results_scrape/nodal_decoder_importance.ipynb`
+- `kraken/track_krakencoder_model.ipynb`, `kraken/kraken_eval.ipynb`
+- model onboarding notebooks under `model_overviews/`, including PCA/PLS closed-form vs learnable overviews and latent-attention overviews
+- model smoke-test notebooks under `model_testing/`
+- exploratory data notebooks under `EDA/`
 
 ```python
-from results.results_scraper import (
+from scripts.results_utils import (
     build_experiment_records,
     records_to_df,
     build_metric_table,
@@ -255,6 +244,14 @@ records = build_experiment_records(
 df = records_to_df(records)
 table = build_metric_table(records, metric="demeaned_pearson")
 ```
+
+---
+
+## Notebooks and Experiments
+
+- Notebooks live under `scripts/notebooks/<purpose>/`. Each one starts with a small bootstrap that finds the repo root by walking up to `main.py`, so notebooks work from any folder in the repo; write repo paths as `REPO_ROOT / "results/..."`.
+- Side experiments live under `scripts/experiments/<name>/` (code, launchers, small outputs). Bulky outputs go to `results/experiments/<name>/`.
+- Every experiment is documented in `context_packages/experiment_ledger/` — the question, setup, how to run it, W&B ids, results, and caveats.
 
 ---
 
@@ -284,25 +281,38 @@ Conn2Conn/
 │   ├── configs/                     # Per-model YAML (default + search_space)
 │   ├── train/                       # Training loop, Lightning wrapper, composite losses, training plots
 │   └── eval/                        # Evaluator, metrics, FC distance, PCA analysis, reports, plots
-├── results/
-│   ├── results_scraper.py           # W&B results scraper
-│   ├── ray_results/                 # Ray Tune trial artifacts
-│   ├── ray_checkpoints/             # Best-trial checkpoints
+├── scripts/                         # Everything that uses the library (tracked)
+│   ├── results_utils/               # W&B/Ray scraping → tables → figures
+│   │   ├── records.py               # Paths, W&B constants, fetch/parse → RunRecord, cache, local enrichment
+│   │   ├── tables.py                # Status / metric / covtype / SC-type / cov_dl tables
+│   │   ├── plots.py                 # Source bars, model scatter, cov_dl plots
+│   │   ├── local_results.py         # results/local_results/ loaders + plots
+│   │   └── optuna_importance.py     # Hparam importance CLI
+│   ├── notebooks/                   # Interactive notebooks
+│   │   ├── EDA/
+│   │   ├── kraken/
+│   │   ├── model_overviews/
+│   │   ├── model_testing/
+│   │   └── results_scrape/
+│   ├── experiments/                 # Self-contained side experiments (one folder each)
+│   └── sbatch/                      # Per-model SLURM scripts and seed arrays
+│       ├── Sarwar2020MLP/
+│       ├── Chen2024GCN/
+│       └── ...
+├── results/                         # Generated artifacts only (gitignored)
+│   ├── ray_results/                 # Best-trial reports: checkpoint, test_results.md, plots, metrics_final.json
+│   ├── ray_checkpoints/             # Ray Tune storage: per-trial params, progress, W&B local copies
+│   ├── ray_tmp/                     # Per-job Ray session scratch + Ray system logs
 │   ├── local_results/               # Notebook / local evaluation artifacts and markdown reports
+│   ├── figures/                     # Notebook-generated figures
 │   └── logs/                        # SLURM stdout/stderr
-├── sbatch/                          # Per-model SLURM scripts and seed arrays
-│   ├── Sarwar2020MLP/
-│   ├── Chen2024GCN/
-│   └── ...
-├── notebooks/                       # Exploratory, onboarding, and evaluation notebooks
-│   ├── EDA/
-│   ├── model_overviews/
-│   ├── model_testing/
-│   ├── quick_experiments/
-│   ├── results_scrape/
-│   ├── kraken/
-│   └── nodal_decoder_importance.ipynb
+├── context_packages/                # Reference material for humans and agents
+│   ├── experiment_ledger/           # One entry per experiment
+│   ├── modeling/                    # Model design notes
+│   ├── repo_spec_docs/              # Repo refactor specs
+│   ├── schematics/                  # Figure / model schematics
+│   └── T1/                          # Example T1 parcellation files
 └── krakencoder/                     # Bundled KrakenEncoder codebase
 ```
 
-Last updated at: 2026-05-20 EDT
+Last updated at: 2026-09-23 EDT
