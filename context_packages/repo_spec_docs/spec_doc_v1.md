@@ -19,27 +19,27 @@ items, `D<n>` decisions (see [`spec_conventions.md`](spec_conventions.md)).
 | ID | Title | Status | Result |
 |---|---|---|---|
 | I1–I7 | Groundwork: results code tracked and split, `scripts/results_utils/`, notebook bootstrap | done | §4 table |
-| I8 (was T1) | Author this spec | done | `420ae4a` |
-| I9 (was T2) | Notebooks → `scripts/notebooks/` | done | `506e008` |
-| I10 (was T3) | Fix stale `models.*` imports (13 notebooks) | done | `64dbc62` |
-| I11 (was T4) | Launchers → `scripts/sbatch/` | done | `08a917c` |
-| I12 (was T5) | `scripts/experiments/` | done | `9ed9d7f` |
-| I13 (was T6) | Experiment ledger entry (later folded into experiment folders) | done | `fa88722` |
-| I14 (was T7) | `.gitignore` review | done | `4460cf3` |
-| I15 (was T8) | README / CONTEXT docs pass | done | `6514c8a` |
-| M1 | Stale loss configs in notebooks | done | `e094f3d` |
-| M1b | EMA scale for signed composite terms | done | `28777ac` |
-| M2 | Single loss-config path + `loss_signature` | done | `b7a8534` |
-| M3 | Searchable loss weights and term kwargs | done | `57dcab4` |
-| M4 | Legacy losses folded into composite terms | done | `5286526` |
-| M5 | Unified `l1_reg` / `l2_reg` | done | `701580e` |
-| M5b | Sampled L1/L2 discarded in sweeps (bug fix) | done | `f74cc0e`; impact carried as v2:C!1 |
-| M6 | Per-term losses in Tune trial runs | done | `9934e66` |
-| M7 | `CrossModal_linear_backbone` | done | `7205d4c`, `72a2ab6` |
-| M8 | Composite loss in every in-scope YAML | done | `a66d8e5` |
+| I8 (was T1) | Author this spec | done | `ad27ff5` |
+| I9 (was T2) | Notebooks → `scripts/notebooks/` | done | `ad27ff5` |
+| I10 (was T3) | Fix stale `models.*` imports (13 notebooks) | done | `ad27ff5` |
+| I11 (was T4) | Launchers → `scripts/sbatch/` | done | `ad27ff5` |
+| I12 (was T5) | `scripts/experiments/` | done | `ad27ff5` |
+| I13 (was T6) | Experiment ledger entry (later folded into experiment folders) | done | `ad27ff5` |
+| I14 (was T7) | `.gitignore` review | done | `ad27ff5` |
+| I15 (was T8) | README / CONTEXT docs pass | done | `ad27ff5` |
+| M1 | Stale loss configs in notebooks | done | `1a4d3c1` |
+| M1b | EMA scale for signed composite terms | done | `1a4d3c1` |
+| M2 | Single loss-config path + `loss_signature` | done | `1a4d3c1` |
+| M3 | Searchable loss weights and term kwargs | done | `1a4d3c1` |
+| M4 | Legacy losses folded into composite terms | done | `1a4d3c1` |
+| M5 | Unified `l1_reg` / `l2_reg` | done | `aea04b6` |
+| M5b | Sampled L1/L2 discarded in sweeps (bug fix) | done | `aea04b6`; impact carried as v2:C!1 |
+| M6 | Per-term losses in Tune trial runs | done | `aea04b6` |
+| M7 | `CrossModal_linear_backbone` | done | `1a4d3c1`, `9391914` |
+| M8 | Composite loss in every in-scope YAML | done | `9391914` |
 | M9 | Launchers + weight-sweep experiment | superseded (by v2:E1) | — |
 | M10 | Interaction tests | superseded (by v2:E1) | — |
-| M11 | Docs | done | `46da8c6` |
+| M11 | Docs | done | `9b363d0` |
 | D1–D5 | Modeling decisions | decided | §8.5 |
 
 ---
@@ -124,12 +124,12 @@ Known limitation: raises a bare `StopIteration` if the kernel cwd is outside the
 | # | Change | Commit |
 |---|---|---|
 | I1 | Removed stale `context_packages/main.py` and `hcp_dataset.py` copies (strict older subsets of live code; untracked) | — (untracked delete) |
-| I2 | Results scripts moved into tracked package; `.gitignore` fixed (old `results/` rule blocked all re-includes) | `487bb12` |
-| I3 | `results_scraper.py` (2.1k lines) split into `records` / `tables` / `plots`; function bodies verbatim; notebook + optuna imports fixed | `f5a4253` |
-| I4 | `test_structured_loss_model` local report tracked | `5c5304e` |
-| I5 | `context_packages/` reorganization committed (latent-attention docs → `modeling/`) | `9ef6565` |
-| I6 | Package moved to `scripts/results_utils/`; `results/__init__.py` removed | `e6ce354` |
-| I7 | Walk-up bootstrap in all 32 notebooks; cwd-relative and absolute repo paths anchored on `REPO_ROOT` | `5690551` |
+| I2 | Results scripts moved into tracked package; `.gitignore` fixed (old `results/` rule blocked all re-includes) | `045e4e9` |
+| I3 | `results_scraper.py` (2.1k lines) split into `records` / `tables` / `plots`; function bodies verbatim; notebook + optuna imports fixed | `045e4e9` |
+| I4 | `test_structured_loss_model` local report tracked | `045e4e9` |
+| I5 | `context_packages/` reorganization committed (latent-attention docs → `modeling/`) | `ad27ff5` |
+| I6 | Package moved to `scripts/results_utils/`; `results/__init__.py` removed | `045e4e9` |
+| I7 | Walk-up bootstrap in all 32 notebooks; cwd-relative and absolute repo paths anchored on `REPO_ROOT` | `ad27ff5` |
 
 ## 5. Stepwise plan
 
@@ -146,7 +146,7 @@ Each step is one commit unless noted. Verify before committing; never run notebo
   - delete all untracked `.ipynb_checkpoints/` dirs: under `notebooks/` and the stray repo-root `.ipynb_checkpoints/` (holds `main-checkpoint.py` + old notebook checkpoints)
   - `quick_experiments/` moves along for now; emptied in I12
 - **Accept:** git records pure renames; bootstrap resolves `REPO_ROOT` from the new depth; no `.ipynb_checkpoints/` at the repo root or under `scripts/notebooks/`; no remaining `notebooks/` references outside docs.
-- **Result:** `506e008`; 32 renames, ~400 MB of checkpoints removed.
+- **Result:** `ad27ff5`; 32 renames, ~400 MB of checkpoints removed.
 
 ### I10 (was T3) — Fix stale `models.*` imports (13 notebooks)  · status: done
 Notebooks still imported modules removed in the `models/` refactor. Mapping applied (verified per symbol against current definitions):
@@ -276,7 +276,7 @@ To move an `ema` result to `none`, don't hand-tune separate ranges. Convert with
 #### M1 — Fix stale loss configs in notebooks  · status: done
 - **Changes:** `scripts/notebooks/model_testing/test_loss_linear_model.ipynb` cell 6: `"balanced_composite"` → `"composite"`. Check every notebook's `loss_type` literals against `create_loss_fn`.
 - **Accept:** a static check finds no loss type outside the accepted set.
-- **Result:** `e094f3d`. 4 live `balanced_composite` settings, in `test_loss_linear_model` and `linear_backbone_geodesic_metrics`, changed to `composite`, plus one markdown mention. `joint_edge_latent_mse_scaled` appears only in commented-out lines and was left alone.
+- **Result:** `1a4d3c1`. 4 live `balanced_composite` settings, in `test_loss_linear_model` and `linear_backbone_geodesic_metrics`, changed to `composite`, plus one markdown mention. `joint_edge_latent_mse_scaled` appears only in commented-out lines and was left alone.
 
 #### M1b — EMA scale for signed composite terms  · status: done
 - **Bug:** `neidist = d_self − d_other` goes negative once predictions are identifiable. `CompositeLoss._maybe_update_scales` clamped the *signed* value to `≥1e-8`, so a negative `neidist` during warmup pinned its scale at `1e-8`. The term was then inflated about 10⁸-fold, dominating the loss and its gradients. Reproduced: noise 0.1 on random data gave total = −7.96×10⁸.
@@ -470,7 +470,7 @@ To move an `ema` result to `none`, don't hand-tune separate ranges. Convert with
     - config↔constructor check: 0 failures.
 - **Verification array:** `scripts/sbatch/checks/verify_modeling_track_array.sh` with `verify_modeling_track.py`, one task per index:
   - task 0, `dev_runs` (M8): a 2-epoch dev run per model family; checks the signature, per-term logging, `val_loss == Σ weighted terms + reg`, and finite test metrics;
-  - task 1, `cross_tree` (M7a + M5 on real data, old code via `git archive` of `f74cc0e` / `5286526`);
+  - task 1, `cross_tree` (M7a + M5 on real data, old code via `git archive` of `aea04b6` / `1a4d3c1`);
   - task 2, `tune` (M6: 2-trial Tune, W&B offline).
 
   Reports go to `results/logs/verify_modeling_track_<task>.json`. `Chen2024GCN`/`NodalGNN` are skipped until `torch_geometric` is reinstalled.
@@ -478,11 +478,11 @@ To move an `ema` result to `none`, don't hand-tune separate ranges. Convert with
 
 #### M9 — Launchers and the weight-sweep experiment  · status: superseded (by v2:E1)
 Replaced on 2026-09-29 by v2 E1's staged design (MSE-only tune, then a fixed weight grid under fixed reference scales).
-The original plan is in git history (`46da8c6`).
+The original plan is in the pre-regroup history (branch `archive/pre-squash-2026-09-29`, commit `46da8c6`).
 
 #### M10 — Interaction tests  · status: superseded (by v2:E1)
 Replaced on 2026-09-29 by v2 E1's ~16-point weight grid; its batch-size and EMA checks moved to the v2 backlog.
-The original staged plan (A: weight × reg sweep, B: robustness, C: 10-seed extension) is in git history (`46da8c6`).
+The original staged plan (A: weight × reg sweep, B: robustness, C: 10-seed extension) is in the pre-regroup history (branch `archive/pre-squash-2026-09-29`, commit `46da8c6`).
 
 #### M11 — Docs  · status: done
 - **Changes:** `CONTEXT.md`:
@@ -544,13 +544,13 @@ applied in past sweeps); C!2 M1b (`ema` runs whose `neidist` reached ≤ 0 durin
 |---|---|
 | 2026-09-23 | v1 drafted: groundwork I1–I7 recorded; plan I8–I15 defined. |
 | 2026-09-23 | Open questions resolved; I9, I12, I13 simplified (no experiment READMEs; ledger is the single record). |
-| 2026-09-23 | I9–I14 executed: `506e008`, `64dbc62`, `08a917c`, `9ed9d7f`, `fa88722`, I14 (no change). Remaining: I15 docs pass. |
+| 2026-09-23 | I9–I14 executed: `ad27ff5`, `ad27ff5`, `ad27ff5`, `ad27ff5`, `ad27ff5`, I14 (no change). Remaining: I15 docs pass. |
 | 2026-09-23 | I15 docs pass done; artifact cleanup: `results/wandb/` removed, `results/ray_tmp/` sessions before 2026-04-01 pruned (131 April sessions kept for debugging). Stage 1 complete. |
 | 2026-09-23 | Post-v1: `scrape_covtype_results.ipynb` → `scripts/experiments/cov_projector_benchmark/` (both tables reproduced exactly); shared runner plumbing in `scripts/results_utils/runner.py`. |
 | 2026-09-23 | Post-v1: experiment runners write `tables/`, `figures/`, `manifest.json` into the experiment folder. Figures are PNG-only (300 dpi, per the figure-making skill) and tracked; per-figure CSVs dropped as redundant with `tables/seed_records.csv`. |
 | 2026-09-23 | Post-v1: `context_packages/experiment_ledger/` folded into experiment folders (`<slug>/<slug>.md`) + `scripts/experiments/experiments_index.md`; Adel summary → `scripts/experiments/adel_summer_2026/`; `linear_backbone_geodesic` documented by its notebook. I13's ledger file no longer exists. |
 | 2026-09-23 | Modeling track §8 (M1–M11): composite-only loss path with searchable `loss_weight_*`, legacy losses folded into composite terms, unified `l1_reg`/`l2_reg`, linear backbone folded into the PCA/PLS family; decisions D1–D5; latent terms deferred. |
-| 2026-09-23 | M1 done (`e094f3d`); M1b added and done: EMA scale uses `|raw|` so signed terms (`neidist`) no longer blow up. |
+| 2026-09-23 | M1 done (`1a4d3c1`); M1b added and done: EMA scale uses `|raw|` so signed terms (`neidist`) no longer blow up. |
 | 2026-09-23 | M2 done: single `loss_cfg` path via `resolve_loss_config`; `loss_signature` logged to W&B. |
 | 2026-09-23 | Linear backbone named `CrossModal_linear_backbone` (thin `_learnable` subclass); its YAML and search space added to M7b. |
 | 2026-09-23 | M3 done: searchable `loss_weight_*` / `loss_kwarg_*`; `loss_normalize: auto`. |
@@ -561,7 +561,7 @@ applied in past sweeps); C!2 M1b (`ema` runs whose `neidist` reached ≤ 0 durin
 | 2026-09-23 | M7 done: `CrossModal_linear_backbone`; `LatentAttnMasked` `none` mode removed; bit-identical equivalence on a synthetic base. |
 | 2026-09-23 | M8 code done: composite is the only edge-space loss (bit-exact MSE default); verification array added. |
 | 2026-09-29 | Verification array results recorded (8.7). M11 docs done. M9–M10 superseded by spec v2 E1. §6 / 8.6 moved to the v2 backlog; carried items listed in 8.8. **v1 closed.** |
-| 2026-09-29 | Reformatted to [`spec_conventions.md`](spec_conventions.md): purpose, contents, status table, ID legend; superseded M9–M10 plans collapsed to pointers (full text in `46da8c6`). |
+| 2026-09-29 | Reformatted to [`spec_conventions.md`](spec_conventions.md): purpose, contents, status table, ID legend; superseded M9–M10 plans collapsed to pointers (full text on branch `archive/pre-squash-2026-09-29`, commit `46da8c6`). |
 | 2026-09-29 | Infrastructure IDs renamed to the `I` convention: `G1`–`G7` → `I1`–`I7`, `T1`–`T8` → `I8`–`I15` (old `T` IDs kept in headings and the status table). |
 
 Last updated at: 2026-09-29 EDT

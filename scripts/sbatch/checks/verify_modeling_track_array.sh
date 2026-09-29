@@ -33,8 +33,8 @@ TASK=${TASKS[$SLURM_ARRAY_TASK_ID]}
 # Old code for cross-tree comparisons: pre-M7 (still has residual_mode none) and pre-M5 (scalar reg).
 OLD_TREES="${SLURM_TMPDIR:-/tmp/${USER}_verify_$SLURM_JOB_ID}/old_trees"
 mkdir -p "${OLD_TREES}/pre_m7" "${OLD_TREES}/pre_m5"
-git -C "${CONN2CONN_DIR}" archive f74cc0e models | tar -x -C "${OLD_TREES}/pre_m7"
-git -C "${CONN2CONN_DIR}" archive 5286526 models | tar -x -C "${OLD_TREES}/pre_m5"
+git -C "${CONN2CONN_DIR}" archive aea04b6 models | tar -x -C "${OLD_TREES}/pre_m7"
+git -C "${CONN2CONN_DIR}" archive 1a4d3c1 models | tar -x -C "${OLD_TREES}/pre_m5"
 
 echo "Starting job ${SLURM_JOB_ID} (task ${SLURM_ARRAY_TASK_ID} = ${TASK}) on $(hostname) at $(date)"
 
