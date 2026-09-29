@@ -302,7 +302,7 @@ To move an `ema` result to `none`, don't hand-tune separate ranges. Convert with
   - **Pre-existing bug fixed in `test_VAE`:** cells 22/24/26 passed `loss_fn='vae', beta=…, lr=…, epochs=…` to the `CrossModalVAE` constructor, which swallows them via `**kwargs`. The following `train_model` calls passed nothing, so those runs trained with plain MSE, no KLD, and `lr=1e-4` (cell 26 intended 1e-3). `lr`, `max_epochs` and a `[mse, kld: β]` loss now go to `train_model`.
   - Checks in `kraken_env`, old classes from `HEAD`: **bit-exact (max |diff| 0), including gradients**, over 12 train steps plus eval, for Sarwar (4 points in the search range), VAE (4 β), and weighted MSE (3 α, with and without eval-before-train) as `[mse: α, demeaned_mse: 1−α]` under `ema` with warmup 1. The Sarwar/VAE YAML defaults and remapped search keys are bit-exact too. Retired types are rejected. The regression over the other 43 configs is identical.
 
-#### M5 — Unify L1/L2 regularization keys
+#### M5 — Unify L1/L2 regularization keys  ✅ code done · model-level check in the verification array (M8)
 - **Changes:**
   - Models on scalar `reg` switch to `l1_l2_tuple` via `compute_reg_loss(self._reg_params(), self.l1_l2_tuple)`, keeping their current parameter selection: `LatentAttnMasked`, `NodalGNN`, `NodalMLP`, `MaskedLatentPretrainer`, `MaskedMLPPretrainer`.
   - `Chen2024GCN`: `l2_reg` drives its existing plain-norm penalty; `l1_reg > 0` raises (8.2).
@@ -311,10 +311,36 @@ To move an `ema` result to `none`, don't hand-tune separate ranges. Convert with
   - With `l2_reg` equal to the old `reg` and `l1_reg: 0`, each migrated model's `get_reg_loss()` matches the old value on the same weights (a one-batch check, CPU where possible, SLURM otherwise).
   - No scalar `reg` keys remain in `models/configs/`.
   - The scraper is unaffected (it reads neither key).
+- **Result (code):**
+  - `LatentAttnMasked`, `NodalGNN`, `NodalMLP`, `MaskedLatentPretrainer` and `MaskedMLPPretrainer` take `l1_l2_tuple` (default `(0, 1e-4)`, same as the old `reg` default). They pass it straight to `compute_reg_loss`; parameter selection is unchanged.
+  - `Chen2024GCN` keeps its plain-norm penalty driven by `l2_reg` and raises on `l1_reg > 0`.
+  - 15 YAMLs: `reg: X` → `l1_reg: 0.0` + `l2_reg: X`; search `reg` → `l2_reg` with the same ranges. No `l1_reg` search added (D3).
+  - 40 notebook config keys in 14 notebooks: `"reg"` → `"l2_reg"`.
+  - `cov_projector_benchmark/records.json` keeps `reg`: it is recorded W&B history.
+  - Static check (`kraken_env`): for every learned YAML, default and search-space model keys (after `build_model`'s `l1_reg`/`l2_reg` → `l1_l2_tuple` mapping) are all accepted by the class constructor, with no keys silently swallowed by `**kwargs`.
+- **Environment finding:** `torch_geometric` is not installed in the current `kraken_env` overlay (torch 2.9.0), so `Chen2024GCN` / `NodalGNN` cannot import, and their launchers would fail. Their model-level checks are skipped until PyG is reinstalled; that needs a `:rw` overlay mount by the user.
 
-#### M6 — Per-term losses in Tune trial runs
+#### M5b — Sampled L1/L2 silently discarded in sweeps  ✅ done
+- **Bug (predates this track):** `build_model` did `kwargs.setdefault("l1_l2_tuple", (l1_reg, l2_reg))`. A Tune trial merges the sampled `l1_reg`/`l2_reg` over a default that carries `l1_l2_tuple`, so the default tuple always won.
+- **Affected sweeps:** every sweep of `CrossModal_PCA_PLS_learnable` (all 3 source variants), `CrossModal_PCA_PLS_CovProjector` and `Sarwar2020MLP`.
+  - All trials trained with the YAML default: L2 = 1e-4 for the PCA/PLS models, no regularization for Sarwar. W&B nonetheless logged the sampled `l1_reg`/`l2_reg`.
+  - Reproduced by replaying the Tune flow (`default_flat` + sample → `_flat_to_nested` → `build_model`) with a stub model.
+  - Separately, `CrossModalVAE.yml` and `CrossModal_PCA_PLS_CovProjector_SC+SC_r2t.yml` declared their L1/L2 search as an `l1_l2_tuple` of type `quniform`. `search_space_to_tune` silently dropped unsupported types, so those models never searched L1/L2 either.
+- **Fix:**
+  - `build_model`: explicit `l1_reg`/`l2_reg` override `l1_l2_tuple`.
+  - 13 YAML defaults: `l1_l2_tuple: [a, b]` → `l1_reg: a` / `l2_reg: b`. The two `quniform` entries became the grid they describe (0–1e-3, step 1e-4) as `l1_reg`/`l2_reg` choices.
+  - `search_space_to_tune` now raises on unsupported types.
+  - `test_proj_model` cell 9 override converted as well; left as it was, the YAML defaults would now override it.
+- **Accept (met):** the replay now delivers the sampled values for all three models. The config↔constructor check has 0 failures. Every search type in the YAMLs is supported (choice 254, loguniform 52, uniform 15, grid 2).
+- **Impact:** past tuned results for these models reflect the default regularization, not the searched values. Treat their logged `l1_reg`/`l2_reg` as not applied.
+
+#### M6 — Per-term losses in Tune trial runs  ✅ code done · live 2-trial check in the verification array (M8)
 - **Changes:** Tune trial W&B runs currently receive only the 6 metrics in `tune_metrics` (`main.py`); the Tune trainer runs with `logger=False`. Add `train/val_loss_raw_*`, `val_loss_weighted_*` and `val_loss_ref_*` for the active terms, built from the resolved `loss_cfg`.
 - **Accept:** a short SLURM tune run (2 trials, few epochs) shows per-term curves on the trials' W&B runs.
+- **Result (code):**
+  - `structured_loss_metric_names(loss_cfg, phases, kinds)` in `lightning_module.py` sits next to the logging it mirrors, and returns names only for active composite terms.
+  - The Tune trainable adds `train_loss_raw_*` and `val_loss_{raw,weighted,ref}_*` to `tune_metrics`. Ray only warns on a missing metric (checked in ray 2.54.1), so nothing can break a trial.
+  - CPU check: a 2-epoch Lightning fit with `mse + 0.5·neidist` logs every generated name.
 
 #### M7 — Fold the linear backbone into the PCA/PLS family as `CrossModal_linear_backbone`
 - **M7a — Equivalence map.**
@@ -410,7 +436,7 @@ Run on `CrossModal_linear_backbone` (M7), source `SC`, selecting on `val_demeane
 
 ### 8.4 Order and dependencies
 
-M1 → M1b → M2 → M3 → M4 → M5 → M6 run in order; each is small and needs no data or GPU except the M6 check.
+M1 → M1b → M2 → M3 → M4 → M5 → M5b → M6 run in order; each is small and needs no data or GPU except the M6 check.
 M7 can run any time after M2.
 M8 needs M3–M5 and M7b. M9 needs M7b. M10 needs M8–M9 and approval for each stage. M11 comes last.
 
@@ -448,5 +474,8 @@ Still open: none. The M7a result is reported, but it doesn't need a decision unl
 | 2026-09-23 | Linear backbone named `CrossModal_linear_backbone` (thin `_learnable` subclass); its YAML and search space added to M7b. |
 | 2026-09-23 | M3 done: searchable `loss_weight_*` / `loss_kwarg_*`; `loss_normalize: auto`. |
 | 2026-09-23 | M4 done: legacy losses folded into composite terms (bit-exact); `test_VAE` KLD/lr bug fixed. |
+| 2026-09-23 | M5 code done: `l1_reg`/`l2_reg` for every learned model; found `torch_geometric` missing from `kraken_env`. |
+| 2026-09-23 | M6 code done: per-term composite losses reported to Tune. |
+| 2026-09-23 | M5b: fixed sampled `l1_reg`/`l2_reg` being discarded in `_learnable`/`CovProjector`/`Sarwar` sweeps; YAML tuples → `l1_reg`/`l2_reg`; unsupported search types now raise. |
 
 Last updated at: 2026-09-23 EDT

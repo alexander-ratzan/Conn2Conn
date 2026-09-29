@@ -12,7 +12,8 @@ default:
     activation_mode: alternating
     leaky_relu_slope: 0.2
     output_tanh: true
-    l1_l2_tuple: [0.0, 0.0]
+    l1_reg: 0.0
+    l2_reg: 0.0
     device: null
   trainer:
     lr: 1.0e-5

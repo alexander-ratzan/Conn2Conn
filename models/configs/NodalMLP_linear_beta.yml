@@ -16,7 +16,8 @@ default:
     encoder_type: pca
     embedding_dim: 64
     dropout: 0.2
-    reg: 1.0e-5
+    l1_reg: 0.0
+    l2_reg: 1.0e-5
     decoder_symmetry: symmetric
     sc_row_norm: brain_scale
     use_volume: false
@@ -45,7 +46,7 @@ search_space:
   dropout:
     type: choice
     values: [0.2, 0.35, 0.5]
-  reg:
+  l2_reg:
     type: loguniform
     lower: 1.0e-7
     upper: 1.0e-3

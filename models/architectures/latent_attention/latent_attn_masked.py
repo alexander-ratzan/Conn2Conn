@@ -201,7 +201,7 @@ class LatentAttnMasked(nn.Module):
         zscore_pca_scores=False,
         attention_dropout=0.0,
         sc_token_dropout=0.0,
-        reg=1.0e-4,
+        l1_l2_tuple=(0.0, 1.0e-4),
         normalize_barcodes=True,
         mask_ratio=0.5,
         min_masked_components=1,
@@ -241,7 +241,7 @@ class LatentAttnMasked(nn.Module):
         self.zscore_pca_scores = bool(zscore_pca_scores)
         self.attention_dropout_p = float(attention_dropout)
         self.sc_token_dropout_p = float(sc_token_dropout)
-        self.reg = float(reg)
+        self.l1_l2_tuple = (float(l1_l2_tuple[0]), float(l1_l2_tuple[1]))
         self.normalize_barcodes = bool(normalize_barcodes)
         self.mask_ratio = float(mask_ratio)
         self.min_masked_components = int(min_masked_components)
@@ -921,7 +921,7 @@ class LatentAttnMasked(nn.Module):
         )
 
     def get_reg_loss(self):
-        if self.reg <= 0:
+        if self.l1_l2_tuple[0] <= 0 and self.l1_l2_tuple[1] <= 0:
             return 0.0
         params = []
         if self.sc_component_embedding is not None:
@@ -941,4 +941,4 @@ class LatentAttnMasked(nn.Module):
             params.extend([p for p in self.readout_head.parameters() if p.requires_grad])
         if self.residual_linear is not None:
             params.extend([p for p in self.residual_linear.parameters() if p.requires_grad])
-        return compute_reg_loss(params, l1_l2_tuple=(0.0, self.reg))
+        return compute_reg_loss(params, l1_l2_tuple=self.l1_l2_tuple)

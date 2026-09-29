@@ -28,6 +28,22 @@ from models.architectures.utils import get_model_input
 COMPOSITE_LOSS_TYPES = {"composite"}
 
 
+STRUCTURED_LOSS_KINDS = ("raw", "term", "weighted", "ref")
+
+
+def structured_loss_metric_names(loss_cfg, phases=("train", "val"), kinds=STRUCTURED_LOSS_KINDS):
+    """
+    Names of the per-term composite loss metrics this module logs for a loss config,
+    e.g. "val_loss_raw_neidist". Empty for non-composite loss types.
+    """
+    loss_cfg = resolve_loss_config(loss_cfg)
+    if loss_cfg["loss_type"] not in COMPOSITE_LOSS_TYPES:
+        return []
+    names = [spec["name"] for spec in CompositeLoss._parse_loss_terms(loss_cfg["loss_terms"])]
+    names = list(dict.fromkeys(names))
+    return [f"{phase}_loss_{kind}_{name}" for phase in phases for kind in kinds for name in names]
+
+
 def _display_loss_terms(loss_terms):
     if loss_terms is None:
         return []
@@ -179,6 +195,7 @@ class CrossModalLightningModule(pl.LightningModule):
     def _log_structured_loss_terms(self, phase):
         if not isinstance(self.loss_fn, CompositeLoss):
             return
+        # Metric names must match structured_loss_metric_names().
         for name, value in self.loss_fn.last_raw_terms.items():
             self.log(f"{phase}_loss_raw_{name}", value, on_step=False, on_epoch=True)
         for name, value in self.loss_fn.last_norm_terms.items():

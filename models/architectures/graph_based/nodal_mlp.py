@@ -38,7 +38,7 @@ class NodalMLP(nn.Module):
         embedding_dim: int = 64,
         decoder_dims=(256, 128),
         dropout: float = 0.2,
-        reg: float = 1e-4,
+        l1_l2_tuple=(0.0, 1.0e-4),
         decoder_symmetry: str = "symmetric",
         decoder_type: str = "mlp",
         sc_row_norm: str = "brain_scale",
@@ -99,7 +99,7 @@ class NodalMLP(nn.Module):
         if decoder_type == "mlp" and len(self.decoder_dims) == 0:
             raise ValueError("decoder_dims must be a non-empty list of layer widths when decoder_type='mlp'.")
         self.dropout = float(dropout)
-        self.reg = float(reg)
+        self.l1_l2_tuple = (float(l1_l2_tuple[0]), float(l1_l2_tuple[1]))
         self.decoder_symmetry = decoder_symmetry
         self.sc_row_norm = sc_row_norm
 
@@ -429,13 +429,13 @@ class NodalMLP(nn.Module):
         return out.view(b, e)
 
     def get_reg_loss(self):
-        if self.reg <= 0:
+        if self.l1_l2_tuple[0] <= 0 and self.l1_l2_tuple[1] <= 0:
             return 0.0
         # True squared-L2 (ridge). Regularize all *weight* content — including the
         # decoder heads' learned vectors/scalars (`edge_w` for diag_bilinear,
         # `edge_scale` for dot, `edge_W` for bilinear, encoder/decoder Linear weights).
         # Exclude biases and BatchNorm/PReLU affine params via module-type and name.
-        # This keeps decoder-family comparisons fair at fixed `reg`: every head has
+        # This keeps decoder-family comparisons fair at fixed `l2_reg`: every head has
         # its content under penalty, not just heads that happen to use 2-D matrices.
         no_reg_ids = set()
         for module in self.modules():
@@ -451,7 +451,7 @@ class NodalMLP(nn.Module):
             if name.endswith(".bias") or name == "edge_bias":
                 continue
             params.append(p)
-        return compute_reg_loss(params, l1_l2_tuple=(0.0, self.reg))
+        return compute_reg_loss(params, l1_l2_tuple=self.l1_l2_tuple)
 
     def get_num_params(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)

@@ -136,6 +136,12 @@ def search_space_to_tune(search_space: dict):
             out[key] = tune.loguniform(float(spec["lower"]), float(spec["upper"]))
         elif t == "uniform":
             out[key] = tune.uniform(float(spec["lower"]), float(spec["upper"]))
+        else:
+            # Fail loudly: an unsupported type used to drop the key from the search silently.
+            raise ValueError(
+                f"Unsupported search_space type {t!r} for '{key}'. "
+                "Use one of: choice, grid, loguniform, uniform."
+            )
     return out
 
 
@@ -206,9 +212,12 @@ def build_model(base, model_name: str = None, model_kwargs: dict = None):
         if k in kwargs and isinstance(kwargs[k], list):
             kwargs[k] = tuple(kwargs[k])
     if "l1_reg" in kwargs or "l2_reg" in kwargs:
-        l1 = float(kwargs.pop("l1_reg", 0.0))
-        l2 = float(kwargs.pop("l2_reg", 0.0))
-        kwargs.setdefault("l1_l2_tuple", (l1, l2))
+        # l1_reg / l2_reg are the YAML and search-space keys; they override any l1_l2_tuple so a
+        # sampled value is never silently replaced by a default tuple (see spec M5b).
+        base_l1, base_l2 = kwargs.get("l1_l2_tuple", (0.0, 0.0))
+        l1 = float(kwargs.pop("l1_reg", base_l1))
+        l2 = float(kwargs.pop("l2_reg", base_l2))
+        kwargs["l1_l2_tuple"] = (l1, l2)
     if kwargs.get("device") is None:
         kwargs["device"] = None
     if name in ("Krakencoder_precomputed", "TestRetestPrecomputed"):

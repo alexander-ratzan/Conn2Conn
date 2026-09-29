@@ -42,7 +42,7 @@ from data.dataset_utils import DEFAULT_CONN2CONN_CACHE_ROOT
 from models.utils import predict_from_loader
 from models.train.trainer import train_model
 from models.eval.evaluator import Evaluator
-from models.train.lightning_module import CrossModalLightningModule
+from models.train.lightning_module import CrossModalLightningModule, structured_loss_metric_names
 from models.train.loss import resolve_loss_config
 from models.registry import (
     load_config,
@@ -974,11 +974,12 @@ class Sim:
                 trainer_cfg = config.get("trainer", {})
                 epochs = trainer_cfg.get("max_epochs", max_epochs or 100)
                 model = build_model(base, model_name, model_cfg)
+                trial_loss_cfg = resolve_loss_config(trainer_cfg)
                 pl_module = CrossModalLightningModule(
                     model=model,
                     base=base,
                     lr=trainer_cfg.get("lr", 1e-4),
-                    loss_cfg=resolve_loss_config(trainer_cfg),
+                    loss_cfg=trial_loss_cfg,
                     lr_schedule=trainer_cfg.get("lr_schedule", "none"),
                     cosine_t0=trainer_cfg.get("cosine_t0", 50),
                     cosine_t_mult=trainer_cfg.get("cosine_t_mult", 2),
@@ -992,6 +993,12 @@ class Sim:
                     "val_demeaned_r": "val_demeaned_r",
                     "val_pearson_r": "val_pearson_r",
                 }
+                # Per-term composite losses, so Tune trial W&B runs carry the term breakdown.
+                tune_metrics.update({
+                    name: name
+                    for name in structured_loss_metric_names(trial_loss_cfg, phases=("train",), kinds=("raw",))
+                    + structured_loss_metric_names(trial_loss_cfg, phases=("val",), kinds=("raw", "weighted", "ref"))
+                })
                 
                 callbacks = [TuneReportCallback(metrics=tune_metrics, on="validation_end"),
                             TuneReportCheckpointCallback(metrics=tune_metrics, filename="checkpoint",on="fit_end")] # train_end, fit_end

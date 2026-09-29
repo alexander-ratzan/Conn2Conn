@@ -13,7 +13,8 @@ default:
     embedding_dim: 64
     decoder_dims: [512, 256, 128]
     dropout: 0.1
-    reg: 1.0e-5
+    l1_reg: 0.0
+    l2_reg: 1.0e-5
     decoder_symmetry: concat
     sc_row_norm: none
     use_volume: false
@@ -50,7 +51,7 @@ search_space:
   dropout:
     type: choice
     values: [0.05, 0.1, 0.2]
-  reg:
+  l2_reg:
     type: loguniform
     lower: 1.0e-6
     upper: 1.0e-4

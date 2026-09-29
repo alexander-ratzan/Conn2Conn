@@ -10,7 +10,8 @@ default:
     conv_dim: 64
     dnn_dim: 32
     node_feature_type: identity
-    reg: 1.0e-4
+    l1_reg: 0.0
+    l2_reg: 1.0e-4
     add_self_loops: true
     device: null
   trainer:
@@ -33,7 +34,7 @@ search_space:
   node_feature_type:
     type: choice
     values: [identity]
-  reg:
+  l2_reg:
     type: loguniform
     lower: 1.0e-5
     upper: 1.0e-3

@@ -28,7 +28,7 @@ class NodalGNN(nn.Module):
         decoder_dim: int = 64,
         dropout: float = 0.35,
         edge_dropout: float = 0.10,
-        reg: float = 1e-4,
+        l1_l2_tuple=(0.0, 1.0e-4),
         use_volume: bool = True,
         use_spatial: bool = True,
         use_r2t: bool = True,
@@ -52,7 +52,7 @@ class NodalGNN(nn.Module):
         self.decoder_dim = int(decoder_dim)
         self.dropout = float(dropout)
         self.edge_dropout = float(edge_dropout)
-        self.reg = float(reg)
+        self.l1_l2_tuple = (float(l1_l2_tuple[0]), float(l1_l2_tuple[1]))
         self.add_self_loops = bool(add_self_loops)
 
         self.use_volume = bool(use_volume)
@@ -212,11 +212,11 @@ class NodalGNN(nn.Module):
         return y_hat
 
     def get_reg_loss(self):
-        if self.reg <= 0:
+        if self.l1_l2_tuple[0] <= 0 and self.l1_l2_tuple[1] <= 0:
             return 0.0
         # True squared-L2 (ridge) on weight matrices; biases excluded via ndim > 1.
         params = [p for p in self.parameters() if p.requires_grad and p.ndim > 1]
-        return compute_reg_loss(params, l1_l2_tuple=(0.0, self.reg))
+        return compute_reg_loss(params, l1_l2_tuple=self.l1_l2_tuple)
 
     def get_num_params(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)

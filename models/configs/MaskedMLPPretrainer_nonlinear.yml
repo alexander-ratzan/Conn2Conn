@@ -19,7 +19,8 @@ default:
     readout_type: mlp
     readout_hidden_dim: 128
     zscore_pca_scores: true
-    reg: 1.0e-4
+    l1_reg: 0.0
+    l2_reg: 1.0e-4
     sc_mask_ratio: 0.2
     fc_mask_ratio: 0.5
     min_masked_components_per_modality: 1
@@ -53,7 +54,7 @@ search_space:
   readout_hidden_dim:
     type: choice
     values: [64, 128, 256]
-  reg:
+  l2_reg:
     type: loguniform
     lower: 1.0e-6
     upper: 1.0e-3

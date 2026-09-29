@@ -15,7 +15,8 @@ default:
     learn_mid: true
     learn_decoder: false
     random_init: false
-    l1_l2_tuple: [0.0, 0.0001]
+    l1_reg: 0.0
+    l2_reg: 0.0001
     dropout: 0.2
     cov_sources: [fs_all, fs_volumes, age, sex, race_eth]
     cov_projectors:
@@ -60,11 +61,12 @@ search_space:
     type: uniform
     lower: 0.0
     upper: 0.4
-  l1_l2_tuple:
-    type: quniform
-    lower: [0.0, 0.0]
-    upper: [0.001, 0.001]
-    q: [0.0001, 0.0001]
+  l1_reg:   # was an l1_l2_tuple quniform entry that search_space_to_tune silently dropped
+    type: choice
+    values: [0.0, 1.0e-4, 2.0e-4, 3.0e-4, 4.0e-4, 5.0e-4, 6.0e-4, 7.0e-4, 8.0e-4, 9.0e-4, 1.0e-3]
+  l2_reg:
+    type: choice
+    values: [0.0, 1.0e-4, 2.0e-4, 3.0e-4, 4.0e-4, 5.0e-4, 6.0e-4, 7.0e-4, 8.0e-4, 9.0e-4, 1.0e-3]
   lr:
     type: loguniform
     lower: 1.0e-5

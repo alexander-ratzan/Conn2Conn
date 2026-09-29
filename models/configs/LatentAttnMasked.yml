@@ -23,7 +23,8 @@ default:
     zscore_pca_scores: false
     attention_dropout: 0.0
     sc_token_dropout: 0.0
-    reg: 1.0e-4
+    l1_reg: 0.0
+    l2_reg: 1.0e-4
     mask_ratio: 0.5
     min_masked_components: 1
     train_use_visible_fc_context: true
@@ -95,7 +96,7 @@ search_space:
   sc_token_dropout:
     type: choice
     values: [0.0, 0.05, 0.1, 0.2]
-  reg:
+  l2_reg:
     type: loguniform
     lower: 1.0e-6
     upper: 1.0e-3

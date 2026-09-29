@@ -24,7 +24,8 @@ default:
     embedding_dim: 16
     decoder_type: diag_bilinear
     dropout: 0.2
-    reg: 1.0e-5
+    l1_reg: 0.0
+    l2_reg: 1.0e-5
     sc_row_norm: brain_scale
     use_volume: false
     use_spatial: false
@@ -52,7 +53,7 @@ search_space:
   dropout:
     type: choice
     values: [0.2, 0.35, 0.5]
-  reg:
+  l2_reg:
     type: loguniform
     lower: 1.0e-7
     upper: 1.0e-3

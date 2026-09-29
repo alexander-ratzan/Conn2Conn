@@ -27,7 +27,7 @@ class Chen2024GCN(nn.Module):
         conv_dim: int = 256,
         dnn_dim: int = 64,
         node_feature_type: str = "identity",
-        reg: float = 1e-4,
+        l1_l2_tuple=(0.0, 1.0e-4),
         add_self_loops: bool = True,
         device=None,
         **kwargs,
@@ -47,7 +47,12 @@ class Chen2024GCN(nn.Module):
         self.conv_dim = int(conv_dim)
         self.dnn_dim = int(dnn_dim)
         self.node_feature_type = str(node_feature_type)
-        self.reg = float(reg)
+        self.l1_l2_tuple = (float(l1_l2_tuple[0]), float(l1_l2_tuple[1]))
+        if self.l1_l2_tuple[0] > 0:
+            raise ValueError(
+                "Chen2024GCN supports only l2_reg (the paper's plain-norm penalty on the edge MLP); "
+                f"got l1_reg={self.l1_l2_tuple[0]}."
+            )
         self.add_self_loops = bool(add_self_loops)
 
         source_ut_dim = int(base.sc_upper_triangles.shape[1])
@@ -137,11 +142,12 @@ class Chen2024GCN(nn.Module):
         return y_hat
 
     def get_reg_loss(self):
-        if self.reg <= 0:
+        l2_reg = self.l1_l2_tuple[1]
+        if l2_reg <= 0:
             return 0.0
         # Match the context implementation: L2 regularize MLP linear weights.
         l2 = torch.norm(self.edge_mlp[0].weight, p=2) + torch.norm(self.edge_mlp[2].weight, p=2)
-        return self.reg * l2
+        return l2_reg * l2
 
     def get_num_params(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)

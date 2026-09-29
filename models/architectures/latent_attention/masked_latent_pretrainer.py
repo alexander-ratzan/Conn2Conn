@@ -48,7 +48,7 @@ class MaskedLatentPretrainer(nn.Module):
         attention_activation="softmax",
         zscore_pca_scores=True,
         attention_dropout=0.0,
-        reg=1.0e-4,
+        l1_l2_tuple=(0.0, 1.0e-4),
         sc_mask_ratio=0.5,
         fc_mask_ratio=0.5,
         min_masked_components_per_modality=1,
@@ -78,7 +78,7 @@ class MaskedLatentPretrainer(nn.Module):
         self.attention_activation = str(attention_activation)
         self.zscore_pca_scores = bool(zscore_pca_scores)
         self.attention_dropout_p = float(attention_dropout)
-        self.reg = float(reg)
+        self.l1_l2_tuple = (float(l1_l2_tuple[0]), float(l1_l2_tuple[1]))
         self.sc_mask_ratio = float(sc_mask_ratio)
         self.fc_mask_ratio = float(fc_mask_ratio)
         self.min_masked_components = int(min_masked_components_per_modality)
@@ -555,7 +555,7 @@ class MaskedLatentPretrainer(nn.Module):
         return sc_err, fc_err
 
     def get_reg_loss(self):
-        if self.reg <= 0:
+        if self.l1_l2_tuple[0] <= 0 and self.l1_l2_tuple[1] <= 0:
             return 0.0
         params = [self.sc_component_embedding.weight, self.fc_component_embedding.weight]
         if self.raw_attention is not None:
@@ -570,7 +570,7 @@ class MaskedLatentPretrainer(nn.Module):
         params.extend([p for p in self.fc_readout_head.parameters() if p.requires_grad])
         if self.cov_projector is not None:
             params.extend([p for p in self.cov_projector.parameters() if p.requires_grad])
-        return compute_reg_loss(params, l1_l2_tuple=(0.0, self.reg))
+        return compute_reg_loss(params, l1_l2_tuple=self.l1_l2_tuple)
 
     def export_to_latent_attn_masked(self, downstream_model):
         """

@@ -16,7 +16,8 @@ default:
     learn_mid: false
     learn_decoder: false
     random_init: false
-    l1_l2_tuple: [0.0, 0.0001]
+    l1_reg: 0.0
+    l2_reg: 0.0001
     dropout: 0.1
     cov_sources: [fs_volumes]
     cov_projectors:
