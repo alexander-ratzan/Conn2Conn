@@ -739,6 +739,12 @@ class Sim:
             if "RAY_worker_register_timeout_seconds" not in os.environ:
                 os.environ["RAY_worker_register_timeout_seconds"] = "120"
             ray_init_kwargs = {"ignore_reinit_error": True}
+            # Size Ray to the SLURM allocation. Ray otherwise counts every core on the node and pre-starts that many
+            # workers (up to 128 seen); on some nodes they fail to register within the timeout and the driver hangs
+            # in ray.cluster_resources() (E1 Stage 1, 2026-09-30).
+            slurm_cpus = os.environ.get("SLURM_CPUS_PER_TASK") or os.environ.get("SLURM_CPUS_ON_NODE")
+            if slurm_cpus and slurm_cpus.split("(")[0].isdigit():
+                ray_init_kwargs["num_cpus"] = int(slurm_cpus.split("(")[0])
             if os.environ.get("RAY_INCLUDE_DASHBOARD", "").strip() != "1":
                 ray_init_kwargs["include_dashboard"] = False
             ray_tmpdir = os.environ.get("RAY_TMPDIR")
