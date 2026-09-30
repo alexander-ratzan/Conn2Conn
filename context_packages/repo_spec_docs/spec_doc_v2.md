@@ -79,6 +79,10 @@ the table below lists only what is specific to v2.
   something mounted it writable that day); the other agent idle.
 - **C6.1 Snapshot:** `pip freeze` of the launcher stack (overlay + `~/.local`) saved as the reference "job version";
   `~/.local` file list + checksums; temporary backup `cp --sparse=always` of the overlay (deleted after C6.4).
+  Snapshot taken 2026-09-30 (backup not yet): `/scratch/asr655/envs/kraken_env/c6_snapshot_2026-09-30/` — launcher
+  freeze 153 = overlay 115 + user-site 38; `~/.local` md5s of 14,134 files; original `env.sh`. Pre-C6 baseline
+  `verify_modeling_track` dev_runs (`18871223`): 9/9 models pass (matching the 2026-09-23 report within GPU noise),
+  Chen2024GCN and NodalGNN skipped (no `torch_geometric`).
 - **C6.2 Consolidate into the overlay** (`singularity exec --fakeroot --overlay …:rw` with the launchers' image
   `cuda12.8.1-cudnn9.8.0-ubuntu24.04.2.sif`): install the exact `~/.local` versions (`--no-deps`, from the snapshot) and
   `torch_geometric==2.8.0.post1` into `/ext3/miniforge3` site-packages, existing overlay packages pinned by a constraints
@@ -155,11 +159,16 @@ E1. Closes out the never-run `scripts/notebooks/results_scrape/nodal_decoder_imp
     Accept: deterministic rendering from the snapshots; C3 re-confirmed from online trial configs (`loss_signature`).
     Done 2026-09-30: 19 best-trial records + 16 reference, 554 tune trials; cache-mode re-render byte-identical;
     all 60 logged `loss_signature`s are `mse` (the rest predate the field).
-  - **E0.6 — `reuse_actors` preflight** · in progress. `main.py` gains `--tune_reuse_actors {true,false}` (default true;
+  - **E0.6 — `reuse_actors` preflight** · done 2026-09-30. `main.py` gains `--tune_reuse_actors {true,false}` (default true;
     `4da4cd3`). `preflight/preflight_reuse_actors.sh`: a 12-trial NodalMLP bilinear tune (max_epochs 40), packed
     4 trials per GPU, with reuse on and off, W&B offline; logs trial errors, `HCP_Base` builds and one timed build,
     trial/job wall time, GPU utilization. Decision rule: keep reuse on if it runs packed without the reuse error;
     otherwise weigh the per-trial rebuild cost of reuse off before changing the default.
+    **Result (`18871767`):** reuse on — 12/12 trials, 4 `HCP_Base` builds (one per packed actor), no reuse error,
+    509 s, GPU 91–100% once training starts; reuse off — 12/12 trials, 12 builds, 833 s (+64%; different node, one
+    build 43 s vs 22 s), idle GPU between trial waves. **Keep `reuse_actors=True` with packing** (the earlier reuse
+    error was intermittent and did not recur packed). Four idle minutes at start-up (Ray start + per-actor builds) are
+    the remaining underutilization risk for very short tunes.
   - **E0.5 — NodalGNN pilot** · planned (after C6, C1, E0.6). Experiment-local MSE-only NodalGNN config (loss weights
     pinned at 0; `max_epochs` ≤ 750) and launcher; seed 0 × 12 trials, packed per E0.6. **Gate:** extend to seeds 1–3
     only if the seed-0 best val demeaned r ≥ 0.045 (the null's seed-0 val 0.025 + 0.02 — val is only comparable
@@ -283,5 +292,6 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E1 follow-ups:
 | 2026-09-29 | E0 added (planned): NodalMLP probe-decoder close-out as the last architecture check before E1; moved from a proposed v1 section, since v1 is closed. |
 | 2026-09-29 | E0.1 done (59/59 launchers pass `bash -n` and `sbatch --test-only`; `main.py` loads in the launcher image). E0.2 submitted; bilinear stalled on a Ray actor-reuse error and was resubmitted. C6 (environment divergence, `~/.local` leak) and D1 (one job environment) added; C1 now installs through C6; E0.5 (graph-model expansion) planned. |
 | 2026-09-30 | E0 renamed `nodal_models_benchmark` with NodalGNN folded in; results marked preliminary (probes at the null, far below the linear family). E0.2 done (spectral complete; bilinear seed 0 not re-run). E0.6 `reuse_actors` preflight added; E0.5 is now a gated NodalGNN pilot. D2 (tuning budget) added. |
+| 2026-09-30 | E0.3 done (byte-identical re-render, C3 re-confirmed; importance on within-seed-centred scores). E0.6 done: keep `reuse_actors=True` with packing. C6.1 snapshot and pre-C6 baseline recorded. |
 
 Last updated at: 2026-09-29 EDT
