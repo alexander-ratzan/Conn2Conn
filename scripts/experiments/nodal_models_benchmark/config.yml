@@ -1,7 +1,8 @@
 # Nodal models benchmark (spec v2 E0): how much of SC -> FC can per-region (nodal) models recover?
 #   - NodalMLP with simple "probe" edge decoders (dot, bilinear, linear_beta, spectral encoder)
 #   - NodalGNN (added after the environment fix, spec v2 E0.5)
-# compared against the null, the linear family, and existing graph-model runs. MSE-only loss throughout.
+# compared against the null, the linear family, and existing graph-model runs. MSE-only loss throughout: run.py
+# refuses to render if any learned run or importance trial trained on another loss.
 #
 # Run:  python scripts/experiments/nodal_models_benchmark/run.py            # from records.json + trials.json
 #       python scripts/experiments/nodal_models_benchmark/run.py --rescrape # refresh both from W&B
@@ -33,11 +34,14 @@ variants:
   # NodalMLP with the default MLP decoder on SC rows (NodalMLP.yml, pre-schema runs): the flexible-decoder control
   - {name: mlp_sc_rows, model: NodalMLP, config: models/configs/NodalMLP.yml, created_before: "2026-04-27",
      match: {use_sc_row: true, use_volume: false}, require_missing: [decoder_type], importance: false}
+  # Linear reference, scraped here rather than taken from the sc_type snapshot: that snapshot keeps the best run
+  # per seed across loss types (demeaned_mse wins on 3 of 4 seeds); this benchmark is MSE-only.
+  - {name: pca_pls_learnable, model: CrossModal_PCA_PLS_learnable, config: models/configs/CrossModal_PCA_PLS_learnable.yml,
+     match: {source: SC, loss_type: mse}, importance: false}
 
 # --- references, from the tracked benchmark snapshots (no scrape) ------------------------------
 references:
   - {name: null_pca, snapshot: scripts/experiments/sc_type_benchmark/records.json, model: CrossModalPCA, source: SC}
-  - {name: pca_pls_learnable, snapshot: scripts/experiments/sc_type_benchmark/records.json, model: CrossModal_PCA_PLS_learnable, source: SC}
   - {name: chen_gcn, snapshot: scripts/experiments/cov_projector_benchmark/records.json, model: Chen2024GCN, source: SC}
   - {name: nodal_gnn_default, snapshot: scripts/experiments/cov_projector_benchmark/records.json, model: NodalGNN, source: SC}
 
@@ -45,7 +49,7 @@ references:
 # One entry per condition. Variant rows are matched by `variant`; reference rows by model (cov_type none).
 rows:
   null_pca:          {model: CrossModalPCA, source: SC, display_model: "Null (CrossModalPCA SC)", cov_source_label: "-", plot_label: "null"}
-  pca_pls_learnable: {model: CrossModal_PCA_PLS_learnable, source: SC, display_model: PCA_PLS_learnable, cov_source_label: "-", plot_label: PCA_PLS_learnable}
+  pca_pls_learnable: {model: CrossModal_PCA_PLS_learnable, source: SC, cov_type: pca_pls_learnable, display_model: PCA_PLS_learnable, cov_source_label: "-", plot_label: PCA_PLS_learnable}
   chen_gcn:          {model: Chen2024GCN, source: SC, display_model: "GNN (Chen, 2024)", cov_source_label: "-", plot_label: "GNN (Chen)"}
   nodal_gnn_default: {model: NodalGNN, source: SC, display_model: "NodalGNN (untuned default)", cov_source_label: "-", plot_label: "NodalGNN (default)"}
   mlp_sc_rows:       {model: NodalMLP, source: SC, cov_type: mlp_sc_rows, display_model: NodalMLP, cov_source_label: "MLP decoder", plot_label: "NodalMLP mlp"}

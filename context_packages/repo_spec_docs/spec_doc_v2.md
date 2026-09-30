@@ -150,7 +150,7 @@ E1. Closes out the never-run `scripts/notebooks/results_scrape/nodal_decoder_imp
   `NodalMLP.yml` runs). Tuning budget follows D2.
 - **Preliminary results (2026-09-30, test split, seeds 0–3; write-up `nodal_models_benchmark.md`):** every nodal model
   is at the null. Probes: demeaned r 0.011–0.018, avg rank 0.50–0.54; NodalMLP MLP decoder / NodalGNN default / Chen
-  0.016–0.023; null 0.013 / 0.518; `PCA_PLS_learnable` 0.075 / 0.665 on the same seeds. Probes cannot be ranked at
+  0.016–0.023; null 0.013 / 0.518; MSE-only `PCA_PLS_learnable` 0.078 / 0.686 on the same seeds (all rows verified MSE-only per run; `run.py` enforces it). Probes cannot be ranked at
   n = 3–4 (bilinear seed 0 not re-run). Tune-trial val scores are set mainly by the split (trials on one seed often
   tie), so importance is computed on within-seed-centred scores — near-uniform, no hyperparameter moves the probes off
   the null.
@@ -306,5 +306,6 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E1 follow-ups:
 | 2026-09-30 | E0 renamed `nodal_models_benchmark` with NodalGNN folded in; results marked preliminary (probes at the null, far below the linear family). E0.2 done (spectral complete; bilinear seed 0 not re-run). E0.6 `reuse_actors` preflight added; E0.5 is now a gated NodalGNN pilot. D2 (tuning budget) added. |
 | 2026-09-30 | E0.3 done (byte-identical re-render, C3 re-confirmed; importance on within-seed-centred scores). E0.6 done: keep `reuse_actors=True` with packing. C6.1 snapshot and pre-C6 baseline recorded. |
 | 2026-09-30 | C6 done: root cause was a non-writable overlay (root-owned skeleton dirs; `--fakeroot` unusable without subuid), fixed by an offline ownership change; `~/.local` packages + PyG consolidated into the overlay; `env.sh` closes the leak. C1 closed. Backup archived. E0.5 NodalGNN pilot submitted (`18887602`). |
+| 2026-09-30 | E0 MSE-only enforced: GNN and NodalMLP runs were already `mse`; the linear reference is now scraped MSE-only (the sc_type snapshot's winners were `demeaned_mse` on 3 of 4 seeds); `run.py` rejects non-MSE runs. |
 
 Last updated at: 2026-09-29 EDT

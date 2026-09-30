@@ -5,7 +5,8 @@
       "bilinear",
       "linear_beta",
       "spectral",
-      "mlp_sc_rows"
+      "mlp_sc_rows",
+      "pca_pls_learnable"
     ],
     "seeds": [
       0,
@@ -68,9 +69,18 @@
         "require_missing": [
           "decoder_type"
         ]
+      },
+      "pca_pls_learnable": {
+        "config": "models/configs/CrossModal_PCA_PLS_learnable.yml",
+        "importance": false,
+        "match": {
+          "source": "SC",
+          "loss_type": "mse"
+        },
+        "model": "CrossModal_PCA_PLS_learnable"
       }
     },
-    "scraped_at": "2026-09-30T09:45:18",
+    "scraped_at": "2026-09-30T14:58:52",
     "wandb": "alexander-ratzan-new-york-university/conn2conn"
   },
   "records": [
@@ -1526,6 +1536,315 @@
         "top1_acc": 0.015384615384615384
       },
       "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/NodalMLP/b634883c"
+    },
+    {
+      "model_name": "CrossModal_PCA_PLS_learnable",
+      "source": "SC",
+      "seed": 0,
+      "cov_type": "pca_pls_learnable",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "7g2fobgv",
+      "wandb_run_name": "d9f02_best",
+      "wandb_group": "CrossModal_PCA_PLS_learnable_tune_d9f02",
+      "wandb_created_at": "2026-03-11T19:44:27Z",
+      "ray_tune_id": "1773257037",
+      "ray_trial_id": "d9f02_00009",
+      "config": {
+        "lr": 0.00012030041320194791,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 0
+        },
+        "model": {
+          "name": "CrossModal_PCA_PLS_learnable",
+          "device": null,
+          "dropout": 0.21206535023149328,
+          "learn_mid": true,
+          "l1_l2_tuple": [
+            0,
+            0.0001
+          ],
+          "learn_means": false,
+          "random_init": false,
+          "learn_decoder": false,
+          "learn_encoder": false,
+          "n_components_pls": 8,
+          "n_components_pca_source": 128,
+          "n_components_pca_target": 256
+        },
+        "trainer": {
+          "lr": 0.00012030041320194791,
+          "log_every": 5,
+          "loss_beta": 1,
+          "loss_type": "mse",
+          "batch_size": 64,
+          "loss_alpha": 0.5,
+          "max_epochs": 51
+        },
+        "loss_beta": 1,
+        "loss_type": "mse",
+        "loss_alpha": 0.5,
+        "ray_tune_id": "1773257037",
+        "ray_trial_id": "d9f02_00009"
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.11724817007780076,
+        "val_mse": 0.014093764126300812,
+        "val_pearson_r": 0.8361179232597351,
+        "train_demeaned_r": 0.2353931665420532,
+        "train_mse": 0.012880139984190464,
+        "train_pearson_r": 0.842711865901947
+      },
+      "test_metrics": {
+        "avg_rank": 0.6944904667981591,
+        "demeaned_pearson": 0.08964452559166583,
+        "mse": 0.013232766650617124,
+        "pearson": 0.8404048085212708,
+        "r2": -0.0037233103066682816,
+        "top1_acc": 0.010256410256410256
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/CrossModal_PCA_PLS_learnable/d9f02_00009"
+    },
+    {
+      "model_name": "CrossModal_PCA_PLS_learnable",
+      "source": "SC",
+      "seed": 1,
+      "cov_type": "pca_pls_learnable",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "7tab4lj0",
+      "wandb_run_name": "3fec3eb2_best",
+      "wandb_group": "CrossModal_PCA_PLS_learnable_tune_3fec3eb2",
+      "wandb_created_at": "2026-03-13T22:43:17Z",
+      "ray_tune_id": "1773438286",
+      "ray_trial_id": "3fec3eb2",
+      "config": {
+        "lr": 1.2666019681352751e-05,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 1
+        },
+        "model": {
+          "name": "CrossModal_PCA_PLS_learnable",
+          "device": null,
+          "l1_reg": 1e-05,
+          "l2_reg": 1.0725277096143802e-06,
+          "dropout": 0.0674892493629724,
+          "cov_dims": {
+            "age": 1,
+            "sex": 2,
+            "fs_all": 199,
+            "race_eth": 7,
+            "fs_volumes": 16
+          },
+          "learn_mid": true,
+          "l1_l2_tuple": [
+            0,
+            0.0001
+          ],
+          "random_init": false,
+          "learn_decoder": false,
+          "learn_encoder": true,
+          "cov_sources_str": "fs_all",
+          "n_components_pls": 4,
+          "n_components_pca_source": 512,
+          "n_components_pca_target": 512
+        },
+        "trainer": {
+          "lr": 1.2666019681352751e-05,
+          "log_every": 5,
+          "loss_type": "mse",
+          "batch_size": 64,
+          "max_epochs": 151
+        },
+        "loss_beta": 1,
+        "loss_type": "mse",
+        "loss_alpha": 0.5,
+        "ray_tune_id": "1773438286",
+        "ray_trial_id": "3fec3eb2"
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.09832555055618286,
+        "val_mse": 0.013281440362334251,
+        "val_pearson_r": 0.8372833728790283,
+        "train_demeaned_r": 0.3094645142555237,
+        "train_mse": 0.01234047207981348,
+        "train_pearson_r": 0.8506015539169312
+      },
+      "test_metrics": {
+        "avg_rank": 0.5206048652202497,
+        "demeaned_pearson": 0.016857397267501024,
+        "mse": 0.014151055365800858,
+        "pearson": 0.8263487219810486,
+        "r2": -0.025896750390529633,
+        "top1_acc": 0.015384615384615384
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/CrossModal_PCA_PLS_learnable/3fec3eb2"
+    },
+    {
+      "model_name": "CrossModal_PCA_PLS_learnable",
+      "source": "SC",
+      "seed": 2,
+      "cov_type": "pca_pls_learnable",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "mebvt4jn",
+      "wandb_run_name": "e72e4688_best",
+      "wandb_group": "CrossModal_PCA_PLS_learnable_tune_e72e4688",
+      "wandb_created_at": "2026-03-16T17:56:06Z",
+      "ray_tune_id": "1773680929",
+      "ray_trial_id": "e72e4688",
+      "config": {
+        "lr": 0.00023872556386045056,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 2
+        },
+        "model": {
+          "name": "CrossModal_PCA_PLS_learnable",
+          "device": null,
+          "l1_reg": 0.0001,
+          "l2_reg": 7.04013714066756e-05,
+          "dropout": 0.13879466274550728,
+          "cov_dims": {
+            "age": 1,
+            "sex": 2,
+            "fs_all": 199,
+            "race_eth": 6,
+            "fs_volumes": 16
+          },
+          "learn_mid": true,
+          "l1_l2_tuple": [
+            0,
+            0.0001
+          ],
+          "random_init": true,
+          "learn_decoder": false,
+          "learn_encoder": false,
+          "cov_sources_str": "fs_all",
+          "n_components_pls": 64,
+          "n_components_pca_source": 128,
+          "n_components_pca_target": 256
+        },
+        "trainer": {
+          "lr": 0.00023872556386045056,
+          "log_every": 5,
+          "loss_type": "mse",
+          "batch_size": 64,
+          "max_epochs": 200
+        },
+        "loss_beta": 1,
+        "loss_type": "mse",
+        "loss_alpha": 0.5,
+        "ray_tune_id": "1773680929",
+        "ray_trial_id": "e72e4688"
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.10194028913974762,
+        "val_mse": 0.012448694556951525,
+        "val_pearson_r": 0.8479965329170227,
+        "train_demeaned_r": 0.33289262652397156,
+        "train_mse": 0.012904159724712372,
+        "train_pearson_r": 0.8452926874160767
+      },
+      "test_metrics": {
+        "avg_rank": 0.7808547008547009,
+        "demeaned_pearson": 0.10334488188137404,
+        "mse": 0.01361661311239004,
+        "pearson": 0.8369523882865906,
+        "r2": 0.0017724453937262297,
+        "top1_acc": 0.035897435897435895
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/CrossModal_PCA_PLS_learnable/e72e4688"
+    },
+    {
+      "model_name": "CrossModal_PCA_PLS_learnable",
+      "source": "SC",
+      "seed": 3,
+      "cov_type": "pca_pls_learnable",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "kw1yaenp",
+      "wandb_run_name": "7005199b_best",
+      "wandb_group": "CrossModal_PCA_PLS_learnable_tune_7005199b",
+      "wandb_created_at": "2026-03-16T17:55:12Z",
+      "ray_tune_id": "1773681068",
+      "ray_trial_id": "7005199b",
+      "config": {
+        "lr": 0.00020686055018027423,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 3
+        },
+        "model": {
+          "name": "CrossModal_PCA_PLS_learnable",
+          "device": null,
+          "l1_reg": 0.001,
+          "l2_reg": 5.879127414691142e-06,
+          "dropout": 0.25049620423029884,
+          "cov_dims": {
+            "age": 1,
+            "sex": 2,
+            "fs_all": 199,
+            "race_eth": 7,
+            "fs_volumes": 16
+          },
+          "learn_mid": true,
+          "l1_l2_tuple": [
+            0,
+            0.0001
+          ],
+          "random_init": true,
+          "learn_decoder": false,
+          "learn_encoder": false,
+          "cov_sources_str": "fs_all",
+          "n_components_pls": 64,
+          "n_components_pca_source": 256,
+          "n_components_pca_target": 128
+        },
+        "trainer": {
+          "lr": 0.00020686055018027423,
+          "log_every": 5,
+          "loss_type": "mse",
+          "batch_size": 64,
+          "max_epochs": 151
+        },
+        "loss_beta": 1,
+        "loss_type": "mse",
+        "loss_alpha": 0.5,
+        "ray_tune_id": "1773681068",
+        "ray_trial_id": "7005199b"
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.10106602311134338,
+        "val_mse": 0.013978135772049429,
+        "val_pearson_r": 0.8342006802558899,
+        "train_demeaned_r": 0.3335367441177368,
+        "train_mse": 0.012834833934903145,
+        "train_pearson_r": 0.8462750315666199
+      },
+      "test_metrics": {
+        "avg_rank": 0.7473767258382643,
+        "demeaned_pearson": 0.09997826325477552,
+        "mse": 0.013381922617554665,
+        "pearson": 0.8341832756996155,
+        "r2": -0.0022036167792975903,
+        "top1_acc": 0.06153846153846154
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/CrossModal_PCA_PLS_learnable/7005199b"
     }
   ]
 }

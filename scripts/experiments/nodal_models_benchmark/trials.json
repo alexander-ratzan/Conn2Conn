@@ -5,7 +5,8 @@
    "bilinear",
    "linear_beta",
    "spectral",
-   "mlp_sc_rows"
+   "mlp_sc_rows",
+   "pca_pls_learnable"
   ],
   "seeds": [
    0,
@@ -68,9 +69,18 @@
     "require_missing": [
      "decoder_type"
     ]
+   },
+   "pca_pls_learnable": {
+    "config": "models/configs/CrossModal_PCA_PLS_learnable.yml",
+    "importance": false,
+    "match": {
+     "source": "SC",
+     "loss_type": "mse"
+    },
+    "model": "CrossModal_PCA_PLS_learnable"
    }
   },
-  "scraped_at": "2026-09-30T09:45:18",
+  "scraped_at": "2026-09-30T14:58:52",
   "wandb": "alexander-ratzan-new-york-university/conn2conn"
  },
  "trials": [
@@ -82,6 +92,7 @@
    "run_name": "_tune_trainable_dd7ce387",
    "created": "2026-09-29T22:01:22Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -101,6 +112,7 @@
    "run_name": "_tune_trainable_97b8e11f",
    "created": "2026-09-29T21:53:00Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -120,6 +132,7 @@
    "run_name": "_tune_trainable_8487995f",
    "created": "2026-09-29T21:51:13Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -139,6 +152,7 @@
    "run_name": "_tune_trainable_971016a2",
    "created": "2026-09-29T21:42:52Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -158,6 +172,7 @@
    "run_name": "_tune_trainable_1bcdf6d2",
    "created": "2026-09-29T21:34:30Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -177,6 +192,7 @@
    "run_name": "_tune_trainable_63c7bc6d",
    "created": "2026-09-29T21:29:27Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -196,6 +212,7 @@
    "run_name": "_tune_trainable_9b88973c",
    "created": "2026-09-29T21:27:15Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -215,6 +232,7 @@
    "run_name": "_tune_trainable_4ff4cba9",
    "created": "2026-09-29T21:26:32Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -234,6 +252,7 @@
    "run_name": "_tune_trainable_9411cf51",
    "created": "2026-09-29T21:21:28Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -253,6 +272,7 @@
    "run_name": "_tune_trainable_85090462",
    "created": "2026-09-29T21:13:06Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -272,6 +292,7 @@
    "run_name": "_tune_trainable_0df4e486",
    "created": "2026-09-29T21:12:06Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -291,6 +312,7 @@
    "run_name": "_tune_trainable_708490c1",
    "created": "2026-09-29T21:03:43Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -310,6 +332,7 @@
    "run_name": "_tune_trainable_f784ee3b",
    "created": "2026-09-29T20:55:24Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -329,6 +352,7 @@
    "run_name": "_tune_trainable_bb06e08f",
    "created": "2026-09-29T20:46:50Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -348,6 +372,7 @@
    "run_name": "_tune_trainable_8a29c4a3",
    "created": "2026-09-29T20:45:05Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -367,6 +392,7 @@
    "run_name": "_tune_trainable_c974d7fc",
    "created": "2026-09-29T20:42:22Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "dot",
@@ -386,6 +412,7 @@
    "run_name": "_tune_trainable_4450c5e3",
    "created": "2026-09-29T20:39:32Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -405,6 +432,7 @@
    "run_name": "_tune_trainable_8a01e611",
    "created": "2026-09-29T20:37:45Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -424,6 +452,7 @@
    "run_name": "_tune_trainable_4649b0b3",
    "created": "2026-09-29T20:36:17Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -443,6 +472,7 @@
    "run_name": "_tune_trainable_b634883c",
    "created": "2026-09-29T20:30:10Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -462,6 +492,7 @@
    "run_name": "_tune_trainable_68201cae",
    "created": "2026-09-29T20:28:26Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "diag_bilinear",
@@ -481,6 +512,7 @@
    "run_name": "_tune_trainable_487a6409",
    "created": "2026-09-29T20:26:19Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -500,6 +532,7 @@
    "run_name": "_tune_trainable_2c97d74f",
    "created": "2026-09-29T20:20:25Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -519,6 +552,7 @@
    "run_name": "_tune_trainable_aa9aaf3a",
    "created": "2026-09-29T20:19:01Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.35,
@@ -538,6 +572,7 @@
    "run_name": "_tune_trainable_c529d36c",
    "created": "2026-09-29T20:18:38Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -557,6 +592,7 @@
    "run_name": "_tune_trainable_184e2aaa",
    "created": "2026-09-29T20:17:16Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -576,6 +612,7 @@
    "run_name": "_tune_trainable_af7a9888",
    "created": "2026-09-29T20:15:42Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.5,
@@ -595,6 +632,7 @@
    "run_name": "_tune_trainable_5c6c5709",
    "created": "2026-09-29T20:14:40Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.5,
@@ -614,6 +652,7 @@
    "run_name": "_tune_trainable_30f7ecd9",
    "created": "2026-09-29T20:13:35Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -633,6 +672,7 @@
    "run_name": "_tune_trainable_53780bcd",
    "created": "2026-09-29T20:12:53Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -652,6 +692,7 @@
    "run_name": "_tune_trainable_54716593",
    "created": "2026-09-29T20:10:43Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -671,6 +712,7 @@
    "run_name": "_tune_trainable_927fe3cd",
    "created": "2026-09-29T20:05:31Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -690,6 +732,7 @@
    "run_name": "_tune_trainable_536f8545",
    "created": "2026-09-29T20:02:57Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -709,6 +752,7 @@
    "run_name": "_tune_trainable_692fc54b",
    "created": "2026-09-29T19:55:13Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -728,6 +772,7 @@
    "run_name": "_tune_trainable_8c7d7c49",
    "created": "2026-09-29T19:50:24Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -747,6 +792,7 @@
    "run_name": "_tune_trainable_b9da8830",
    "created": "2026-09-29T19:49:32Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "dot",
@@ -766,6 +812,7 @@
    "run_name": "_tune_trainable_dd4c19d0",
    "created": "2026-09-29T19:49:26Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -785,6 +832,7 @@
    "run_name": "_tune_trainable_80e7489f",
    "created": "2026-09-29T19:47:51Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.5,
@@ -804,6 +852,7 @@
    "run_name": "_tune_trainable_a21ddfbd",
    "created": "2026-09-29T19:46:39Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "diag_bilinear",
@@ -823,6 +872,7 @@
    "run_name": "_tune_trainable_ac5952ab",
    "created": "2026-09-29T19:43:15Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.5,
@@ -842,6 +892,7 @@
    "run_name": "_tune_trainable_b7ef2927",
    "created": "2026-09-29T19:42:07Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -861,6 +912,7 @@
    "run_name": "_tune_trainable_ef5b9f3b",
    "created": "2026-09-29T19:40:53Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "dot",
@@ -880,6 +932,7 @@
    "run_name": "_tune_trainable_d3d97be1",
    "created": "2026-09-29T19:40:04Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "dot",
@@ -899,6 +952,7 @@
    "run_name": "_tune_trainable_0cee0bed",
    "created": "2026-09-29T19:38:49Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.35,
@@ -918,6 +972,7 @@
    "run_name": "_tune_trainable_6c88b6e1",
    "created": "2026-09-29T19:35:14Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -937,6 +992,7 @@
    "run_name": "_tune_trainable_bc239b02",
    "created": "2026-09-29T19:27:12Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -956,6 +1012,7 @@
    "run_name": "_tune_trainable_1d61a790",
    "created": "2026-09-29T19:25:31Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -975,6 +1032,7 @@
    "run_name": "_tune_trainable_0330a4b6",
    "created": "2026-09-29T19:17:51Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -994,6 +1052,7 @@
    "run_name": "_tune_trainable_92ac2bc8",
    "created": "2026-09-29T19:17:04Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "dot",
@@ -1013,6 +1072,7 @@
    "run_name": "_tune_trainable_b30e9143",
    "created": "2026-09-29T19:14:57Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "dot",
@@ -1032,6 +1092,7 @@
    "run_name": "_tune_trainable_256a9266",
    "created": "2026-09-29T19:13:25Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "diag_bilinear",
@@ -1051,6 +1112,7 @@
    "run_name": "_tune_trainable_cf8bb8f7",
    "created": "2026-09-29T19:10:31Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "dot",
@@ -1070,6 +1132,7 @@
    "run_name": "_tune_trainable_393e5bee",
    "created": "2026-09-29T19:08:26Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -1089,6 +1152,7 @@
    "run_name": "_tune_trainable_17cd02cb",
    "created": "2026-09-29T19:06:54Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "diag_bilinear",
@@ -1108,6 +1172,7 @@
    "run_name": "_tune_trainable_f0d4b5ab",
    "created": "2026-09-29T19:05:50Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "diag_bilinear",
@@ -1127,6 +1192,7 @@
    "run_name": "_tune_trainable_25e84a8d",
    "created": "2026-09-29T19:04:15Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "dot",
@@ -1146,6 +1212,7 @@
    "run_name": "_tune_trainable_a2ae5f53",
    "created": "2026-09-29T19:03:01Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "diag_bilinear",
@@ -1165,6 +1232,7 @@
    "run_name": "_tune_trainable_cea71e2c",
    "created": "2026-09-29T19:01:11Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -1184,6 +1252,7 @@
    "run_name": "_tune_trainable_422cbebb",
    "created": "2026-09-29T18:55:58Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.35,
@@ -1203,6 +1272,7 @@
    "run_name": "_tune_trainable_17715a3e",
    "created": "2026-09-29T18:55:44Z",
    "loss_signature": "mse",
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "dot",
@@ -1222,6 +1292,7 @@
    "run_name": "_tune_trainable_928599dd",
    "created": "2026-04-28T02:04:00Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -1241,6 +1312,7 @@
    "run_name": "_tune_trainable_8ea98537",
    "created": "2026-04-28T01:59:06Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -1260,6 +1332,7 @@
    "run_name": "_tune_trainable_f8ad8046",
    "created": "2026-04-28T01:36:59Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -1279,6 +1352,7 @@
    "run_name": "_tune_trainable_4af41f8a",
    "created": "2026-04-28T01:34:22Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.5,
@@ -1298,6 +1372,7 @@
    "run_name": "_tune_trainable_8558e631",
    "created": "2026-04-28T01:33:44Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.35,
@@ -1317,6 +1392,7 @@
    "run_name": "_tune_trainable_530506db",
    "created": "2026-04-28T01:32:33Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -1336,6 +1412,7 @@
    "run_name": "_tune_trainable_0bca7f08",
    "created": "2026-04-28T01:32:27Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -1355,6 +1432,7 @@
    "run_name": "_tune_trainable_59b8e7a1",
    "created": "2026-04-28T01:31:00Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -1374,6 +1452,7 @@
    "run_name": "_tune_trainable_43f80a48",
    "created": "2026-04-28T01:30:36Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.35,
@@ -1393,6 +1472,7 @@
    "run_name": "_tune_trainable_aeed8a64",
    "created": "2026-04-28T01:29:43Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -1413,6 +1493,7 @@
    "run_name": "_tune_trainable_da49fa78",
    "created": "2026-04-28T01:28:05Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "symmetric",
@@ -1433,6 +1514,7 @@
    "run_name": "_tune_trainable_2b2dc137",
    "created": "2026-04-28T01:27:18Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -1452,6 +1534,7 @@
    "run_name": "_tune_trainable_7bd850bb",
    "created": "2026-04-28T01:26:39Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "concat",
@@ -1472,6 +1555,7 @@
    "run_name": "_tune_trainable_360c0221",
    "created": "2026-04-28T01:26:05Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_symmetry": "symmetric",
@@ -1492,6 +1576,7 @@
    "run_name": "_tune_trainable_7836909c",
    "created": "2026-04-28T01:25:42Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.35,
@@ -1511,6 +1596,7 @@
    "run_name": "_tune_trainable_c1628549",
    "created": "2026-04-28T01:23:17Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "asymmetric",
@@ -1531,6 +1617,7 @@
    "run_name": "_tune_trainable_2d861478",
    "created": "2026-04-28T01:22:40Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -1550,6 +1637,7 @@
    "run_name": "_tune_trainable_71adf4c1",
    "created": "2026-04-28T01:18:02Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -1569,6 +1657,7 @@
    "run_name": "_tune_trainable_cb4260d5",
    "created": "2026-04-28T01:17:04Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -1588,6 +1677,7 @@
    "run_name": "_tune_trainable_7cc53a64",
    "created": "2026-04-28T01:15:26Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -1608,6 +1698,7 @@
    "run_name": "_tune_trainable_645997b9",
    "created": "2026-04-28T01:12:06Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -1627,6 +1718,7 @@
    "run_name": "_tune_trainable_4dad88fa",
    "created": "2026-04-28T01:11:12Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -1646,6 +1738,7 @@
    "run_name": "_tune_trainable_a1b8cb48",
    "created": "2026-04-28T01:11:09Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -1665,6 +1758,7 @@
    "run_name": "_tune_trainable_68d8fa65",
    "created": "2026-04-28T01:10:10Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -1684,6 +1778,7 @@
    "run_name": "_tune_trainable_ca69f343",
    "created": "2026-04-28T01:09:12Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -1703,6 +1798,7 @@
    "run_name": "_tune_trainable_10ddd047",
    "created": "2026-04-28T01:04:00Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.2,
@@ -1722,6 +1818,7 @@
    "run_name": "_tune_trainable_48e6b9b3",
    "created": "2026-04-28T01:02:46Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -1742,6 +1839,7 @@
    "run_name": "_tune_trainable_859863ad",
    "created": "2026-04-28T01:01:44Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -1761,6 +1859,7 @@
    "run_name": "_tune_trainable_1de7dfa5",
    "created": "2026-04-28T01:00:20Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "diag_bilinear",
@@ -1780,6 +1879,7 @@
    "run_name": "_tune_trainable_b4698417",
    "created": "2026-04-28T01:00:17Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -1799,6 +1899,7 @@
    "run_name": "_tune_trainable_55576c4d",
    "created": "2026-04-28T00:57:00Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "diag_bilinear",
@@ -1818,6 +1919,7 @@
    "run_name": "_tune_trainable_89d76f22",
    "created": "2026-04-28T00:53:35Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "diag_bilinear",
@@ -1837,6 +1939,7 @@
    "run_name": "_tune_trainable_a3ddb9a1",
    "created": "2026-04-28T00:52:47Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "diag_bilinear",
@@ -1856,6 +1959,7 @@
    "run_name": "_tune_trainable_261af73f",
    "created": "2026-04-28T00:52:23Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "diag_bilinear",
@@ -1875,6 +1979,7 @@
    "run_name": "_tune_trainable_77dcf071",
    "created": "2026-04-28T00:52:06Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "diag_bilinear",
@@ -1894,6 +1999,7 @@
    "run_name": "_tune_trainable_305d3e0f",
    "created": "2026-04-28T00:50:19Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -1914,6 +2020,7 @@
    "run_name": "_tune_trainable_6c768cf3",
    "created": "2026-04-28T00:50:05Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "symmetric",
@@ -1934,6 +2041,7 @@
    "run_name": "_tune_trainable_5ed98838",
    "created": "2026-04-28T00:48:43Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "diag_bilinear",
@@ -1953,6 +2061,7 @@
    "run_name": "_tune_trainable_8a213357",
    "created": "2026-04-28T00:48:20Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "diag_bilinear",
@@ -1972,6 +2081,7 @@
    "run_name": "_tune_trainable_be4733f2",
    "created": "2026-04-28T00:48:07Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "diag_bilinear",
@@ -1991,6 +2101,7 @@
    "run_name": "_tune_trainable_2f1dfa28",
    "created": "2026-04-28T00:47:07Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -2010,6 +2121,7 @@
    "run_name": "_tune_trainable_dd4e9e2f",
    "created": "2026-04-28T00:46:38Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "symmetric",
@@ -2030,6 +2142,7 @@
    "run_name": "_tune_trainable_4eddd0d2",
    "created": "2026-04-28T00:46:07Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_symmetry": "concat",
@@ -2050,6 +2163,7 @@
    "run_name": "_tune_trainable_dd4541d4",
    "created": "2026-04-28T00:45:44Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -2069,6 +2183,7 @@
    "run_name": "_tune_trainable_83328b2b",
    "created": "2026-04-28T00:43:35Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "diag_bilinear",
@@ -2088,6 +2203,7 @@
    "run_name": "_tune_trainable_9800a902",
    "created": "2026-04-28T00:43:27Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "symmetric",
@@ -2108,6 +2224,7 @@
    "run_name": "_tune_trainable_c50a7883",
    "created": "2026-04-28T00:42:40Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -2128,6 +2245,7 @@
    "run_name": "_tune_trainable_e097c3d4",
    "created": "2026-04-28T00:42:26Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "diag_bilinear",
@@ -2147,6 +2265,7 @@
    "run_name": "_tune_trainable_2a13c447",
    "created": "2026-04-28T00:42:01Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -2167,6 +2286,7 @@
    "run_name": "_tune_trainable_6357b753",
    "created": "2026-04-28T00:41:43Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -2186,6 +2306,7 @@
    "run_name": "_tune_trainable_5cdc4996",
    "created": "2026-04-28T00:40:41Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "asymmetric",
@@ -2206,6 +2327,7 @@
    "run_name": "_tune_trainable_c0d48c55",
    "created": "2026-04-28T00:40:37Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.2,
@@ -2225,6 +2347,7 @@
    "run_name": "_tune_trainable_86b2ba04",
    "created": "2026-04-28T00:40:27Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -2244,6 +2367,7 @@
    "run_name": "_tune_trainable_550aa322",
    "created": "2026-04-28T00:40:12Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -2263,6 +2387,7 @@
    "run_name": "_tune_trainable_5bda1d63",
    "created": "2026-04-28T00:39:47Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "diag_bilinear",
@@ -2282,6 +2407,7 @@
    "run_name": "_tune_trainable_cf1eb661",
    "created": "2026-04-28T00:38:27Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.35,
@@ -2301,6 +2427,7 @@
    "run_name": "_tune_trainable_eeffef83",
    "created": "2026-04-28T00:38:15Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "diag_bilinear",
@@ -2320,6 +2447,7 @@
    "run_name": "_tune_trainable_2ed53a08",
    "created": "2026-04-28T00:37:39Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.2,
@@ -2339,6 +2467,7 @@
    "run_name": "_tune_trainable_75473f86",
    "created": "2026-04-28T00:36:44Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.2,
@@ -2358,6 +2487,7 @@
    "run_name": "_tune_trainable_9f642b81",
    "created": "2026-04-28T00:35:57Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "diag_bilinear",
@@ -2377,6 +2507,7 @@
    "run_name": "_tune_trainable_e2058ba9",
    "created": "2026-04-28T00:35:32Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.35,
@@ -2396,6 +2527,7 @@
    "run_name": "_tune_trainable_89785e53",
    "created": "2026-04-28T00:35:28Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -2415,6 +2547,7 @@
    "run_name": "_tune_trainable_e96f8051",
    "created": "2026-04-28T00:35:17Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -2434,6 +2567,7 @@
    "run_name": "_tune_trainable_b9bcc998",
    "created": "2026-04-28T00:35:01Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -2454,6 +2588,7 @@
    "run_name": "_tune_trainable_e1a675d3",
    "created": "2026-04-28T00:34:25Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "diag_bilinear",
@@ -2473,6 +2608,7 @@
    "run_name": "_tune_trainable_062b2248",
    "created": "2026-04-28T00:34:11Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -2492,6 +2628,7 @@
    "run_name": "_tune_trainable_f1cf2c81",
    "created": "2026-04-28T00:34:07Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -2511,6 +2648,7 @@
    "run_name": "_tune_trainable_b7f3a7a7",
    "created": "2026-04-28T00:34:00Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -2530,6 +2668,7 @@
    "run_name": "_tune_trainable_c218d64d",
    "created": "2026-04-28T00:33:11Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "diag_bilinear",
@@ -2549,6 +2688,7 @@
    "run_name": "_tune_trainable_8f02d4f5",
    "created": "2026-04-28T00:33:02Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "diag_bilinear",
@@ -2568,6 +2708,7 @@
    "run_name": "_tune_trainable_1c8ae705",
    "created": "2026-04-28T00:32:21Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -2587,6 +2728,7 @@
    "run_name": "_tune_trainable_1561cd0c",
    "created": "2026-04-28T00:31:34Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "diag_bilinear",
@@ -2606,6 +2748,7 @@
    "run_name": "_tune_trainable_809fe1e1",
    "created": "2026-04-28T00:31:21Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -2625,6 +2768,7 @@
    "run_name": "_tune_trainable_4d2914da",
    "created": "2026-04-28T00:31:14Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "diag_bilinear",
@@ -2644,6 +2788,7 @@
    "run_name": "_tune_trainable_6f7dd430",
    "created": "2026-04-28T00:30:19Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -2663,6 +2808,7 @@
    "run_name": "_tune_trainable_d448d589",
    "created": "2026-04-28T00:29:25Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -2682,6 +2828,7 @@
    "run_name": "_tune_trainable_581fa3cf",
    "created": "2026-04-28T00:28:51Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "diag_bilinear",
@@ -2701,6 +2848,7 @@
    "run_name": "_tune_trainable_d9fe2e4e",
    "created": "2026-04-28T00:28:44Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -2720,6 +2868,7 @@
    "run_name": "_tune_trainable_f996a960",
    "created": "2026-04-28T00:28:24Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "asymmetric",
@@ -2740,6 +2889,7 @@
    "run_name": "_tune_trainable_c6dae11f",
    "created": "2026-04-28T00:27:14Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -2759,6 +2909,7 @@
    "run_name": "_tune_trainable_45e89991",
    "created": "2026-04-28T00:27:02Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -2779,6 +2930,7 @@
    "run_name": "_tune_trainable_a2be1aeb",
    "created": "2026-04-28T00:26:41Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -2798,6 +2950,7 @@
    "run_name": "_tune_trainable_66d5cde5",
    "created": "2026-04-28T00:25:35Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -2818,6 +2971,7 @@
    "run_name": "_tune_trainable_b86fdf6f",
    "created": "2026-04-28T00:24:24Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "diag_bilinear",
@@ -2837,6 +2991,7 @@
    "run_name": "_tune_trainable_7d4a4cb9",
    "created": "2026-04-28T00:24:07Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -2856,6 +3011,7 @@
    "run_name": "_tune_trainable_2f48d5f4",
    "created": "2026-04-28T00:23:58Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "concat",
@@ -2876,6 +3032,7 @@
    "run_name": "_tune_trainable_bc1fb2f4",
    "created": "2026-04-28T00:23:07Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "diag_bilinear",
@@ -2895,6 +3052,7 @@
    "run_name": "_tune_trainable_12039a1d",
    "created": "2026-04-28T00:22:35Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.2,
@@ -2914,6 +3072,7 @@
    "run_name": "_tune_trainable_e95931b9",
    "created": "2026-04-28T00:22:11Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_symmetry": "asymmetric",
@@ -2934,6 +3093,7 @@
    "run_name": "_tune_trainable_50160e92",
    "created": "2026-04-28T00:21:56Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "diag_bilinear",
@@ -2953,6 +3113,7 @@
    "run_name": "_tune_trainable_b065982b",
    "created": "2026-04-28T00:21:41Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "diag_bilinear",
@@ -2972,6 +3133,7 @@
    "run_name": "_tune_trainable_f9c5b06e",
    "created": "2026-04-28T00:21:26Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -2991,6 +3153,7 @@
    "run_name": "_tune_trainable_9b3cef94",
    "created": "2026-04-28T00:21:08Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "asymmetric",
@@ -3011,6 +3174,7 @@
    "run_name": "_tune_trainable_1bf4ffce",
    "created": "2026-04-28T00:20:27Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "asymmetric",
@@ -3031,6 +3195,7 @@
    "run_name": "_tune_trainable_8666ae20",
    "created": "2026-04-28T00:19:31Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "asymmetric",
@@ -3051,6 +3216,7 @@
    "run_name": "_tune_trainable_5825e403",
    "created": "2026-04-28T00:19:08Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -3070,6 +3236,7 @@
    "run_name": "_tune_trainable_3ed14dd6",
    "created": "2026-04-28T00:18:45Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "asymmetric",
@@ -3090,6 +3257,7 @@
    "run_name": "_tune_trainable_7395258e",
    "created": "2026-04-28T00:18:19Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.2,
@@ -3109,6 +3277,7 @@
    "run_name": "_tune_trainable_f012f2bc",
    "created": "2026-04-28T00:17:13Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -3128,6 +3297,7 @@
    "run_name": "_tune_trainable_b3b711bb",
    "created": "2026-04-28T00:15:57Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "asymmetric",
@@ -3148,6 +3318,7 @@
    "run_name": "_tune_trainable_1d443090",
    "created": "2026-04-28T00:15:55Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "diag_bilinear",
@@ -3167,6 +3338,7 @@
    "run_name": "_tune_trainable_7499c4e1",
    "created": "2026-04-28T00:14:18Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -3187,6 +3359,7 @@
    "run_name": "_tune_trainable_78dc0525",
    "created": "2026-04-28T00:13:25Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -3206,6 +3379,7 @@
    "run_name": "_tune_trainable_d0c1dc1e",
    "created": "2026-04-28T00:13:01Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -3225,6 +3399,7 @@
    "run_name": "_tune_trainable_b695f456",
    "created": "2026-04-28T00:11:30Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "asymmetric",
@@ -3245,6 +3420,7 @@
    "run_name": "_tune_trainable_01b79883",
    "created": "2026-04-28T00:11:28Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "diag_bilinear",
@@ -3264,6 +3440,7 @@
    "run_name": "_tune_trainable_6cbbbe5e",
    "created": "2026-04-28T00:10:12Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "symmetric",
@@ -3284,6 +3461,7 @@
    "run_name": "_tune_trainable_25d3b09d",
    "created": "2026-04-28T00:10:09Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -3303,6 +3481,7 @@
    "run_name": "_tune_trainable_ff6a833a",
    "created": "2026-04-28T00:09:46Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "diag_bilinear",
@@ -3322,6 +3501,7 @@
    "run_name": "_tune_trainable_ed598ba5",
    "created": "2026-04-28T00:09:45Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "diag_bilinear",
@@ -3341,6 +3521,7 @@
    "run_name": "_tune_trainable_b69a725b",
    "created": "2026-04-28T00:09:21Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -3361,6 +3542,7 @@
    "run_name": "_tune_trainable_2a881230",
    "created": "2026-04-28T00:08:58Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "asymmetric",
@@ -3381,6 +3563,7 @@
    "run_name": "_tune_trainable_652aaf62",
    "created": "2026-04-28T00:08:15Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "concat",
@@ -3401,6 +3584,7 @@
    "run_name": "_tune_trainable_855797ba",
    "created": "2026-04-28T00:08:05Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -3420,6 +3604,7 @@
    "run_name": "_tune_trainable_8e05e6b0",
    "created": "2026-04-28T00:07:49Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -3440,6 +3625,7 @@
    "run_name": "_tune_trainable_c16a7227",
    "created": "2026-04-28T00:07:46Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -3459,6 +3645,7 @@
    "run_name": "_tune_trainable_5ea40349",
    "created": "2026-04-28T00:07:06Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.35,
@@ -3478,6 +3665,7 @@
    "run_name": "_tune_trainable_c83519ba",
    "created": "2026-04-28T00:06:39Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "symmetric",
@@ -3498,6 +3686,7 @@
    "run_name": "_tune_trainable_168c8eb0",
    "created": "2026-04-28T00:06:22Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "asymmetric",
@@ -3518,6 +3707,7 @@
    "run_name": "_tune_trainable_326f4669",
    "created": "2026-04-28T00:05:57Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_symmetry": "asymmetric",
@@ -3538,6 +3728,7 @@
    "run_name": "_tune_trainable_b4a2342b",
    "created": "2026-04-28T00:05:24Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -3557,6 +3748,7 @@
    "run_name": "_tune_trainable_507581fe",
    "created": "2026-04-28T00:05:24Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -3576,6 +3768,7 @@
    "run_name": "_tune_trainable_2757ce8b",
    "created": "2026-04-28T00:04:50Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -3595,6 +3788,7 @@
    "run_name": "_tune_trainable_6c6f8e5d",
    "created": "2026-04-28T00:04:20Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "symmetric",
@@ -3615,6 +3809,7 @@
    "run_name": "_tune_trainable_4a09fa0c",
    "created": "2026-04-28T00:04:20Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "diag_bilinear",
@@ -3634,6 +3829,7 @@
    "run_name": "_tune_trainable_8f938b11",
    "created": "2026-04-28T00:04:18Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -3653,6 +3849,7 @@
    "run_name": "_tune_trainable_3900a5aa",
    "created": "2026-04-28T00:04:15Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -3672,6 +3869,7 @@
    "run_name": "_tune_trainable_aadf45e2",
    "created": "2026-04-28T00:03:38Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -3691,6 +3889,7 @@
    "run_name": "_tune_trainable_0c55b17e",
    "created": "2026-04-28T00:03:33Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -3710,6 +3909,7 @@
    "run_name": "_tune_trainable_495fdef8",
    "created": "2026-04-28T00:03:18Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "concat",
@@ -3730,6 +3930,7 @@
    "run_name": "_tune_trainable_7b093065",
    "created": "2026-04-28T00:03:08Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -3749,6 +3950,7 @@
    "run_name": "_tune_trainable_f530d46a",
    "created": "2026-04-28T00:02:41Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -3768,6 +3970,7 @@
    "run_name": "_tune_trainable_3954306f",
    "created": "2026-04-28T00:02:14Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.5,
@@ -3787,6 +3990,7 @@
    "run_name": "_tune_trainable_aac6a4ce",
    "created": "2026-04-28T00:02:12Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -3806,6 +4010,7 @@
    "run_name": "_tune_trainable_0936b54c",
    "created": "2026-04-28T00:01:59Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "dot",
@@ -3825,6 +4030,7 @@
    "run_name": "_tune_trainable_82c0e15b",
    "created": "2026-04-28T00:01:55Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "diag_bilinear",
@@ -3844,6 +4050,7 @@
    "run_name": "_tune_trainable_1a10b509",
    "created": "2026-04-28T00:01:19Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "dot",
@@ -3863,6 +4070,7 @@
    "run_name": "_tune_trainable_cdd1a076",
    "created": "2026-04-28T00:00:43Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -3882,6 +4090,7 @@
    "run_name": "_tune_trainable_5fc415c4",
    "created": "2026-04-28T00:00:20Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "dot",
@@ -3901,6 +4110,7 @@
    "run_name": "_tune_trainable_f5c23589",
    "created": "2026-04-28T00:00:02Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.35,
@@ -3920,6 +4130,7 @@
    "run_name": "_tune_trainable_ddb13be4",
    "created": "2026-04-27T23:59:47Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "diag_bilinear",
@@ -3939,6 +4150,7 @@
    "run_name": "_tune_trainable_253cbd2d",
    "created": "2026-04-27T23:59:32Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -3958,6 +4170,7 @@
    "run_name": "_tune_trainable_904c5cc3",
    "created": "2026-04-27T23:58:00Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "dot",
@@ -3977,6 +4190,7 @@
    "run_name": "_tune_trainable_26ef6035",
    "created": "2026-04-27T23:57:59Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.5,
@@ -3996,6 +4210,7 @@
    "run_name": "_tune_trainable_d4e61407",
    "created": "2026-04-27T23:57:37Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.5,
@@ -4015,6 +4230,7 @@
    "run_name": "_tune_trainable_ef01dba6",
    "created": "2026-04-27T23:57:34Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.35,
@@ -4034,6 +4250,7 @@
    "run_name": "_tune_trainable_0e404462",
    "created": "2026-04-27T23:57:19Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "symmetric",
@@ -4054,6 +4271,7 @@
    "run_name": "_tune_trainable_c72461e2",
    "created": "2026-04-27T23:57:02Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "diag_bilinear",
@@ -4073,6 +4291,7 @@
    "run_name": "_tune_trainable_236acc14",
    "created": "2026-04-27T23:56:58Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "concat",
@@ -4093,6 +4312,7 @@
    "run_name": "_tune_trainable_b766e2db",
    "created": "2026-04-27T23:56:56Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "diag_bilinear",
@@ -4112,6 +4332,7 @@
    "run_name": "_tune_trainable_6301542f",
    "created": "2026-04-27T23:56:44Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -4132,6 +4353,7 @@
    "run_name": "_tune_trainable_0b1a15e5",
    "created": "2026-04-27T23:56:00Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "concat",
@@ -4152,6 +4374,7 @@
    "run_name": "_tune_trainable_fa4afab2",
    "created": "2026-04-27T23:55:57Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -4171,6 +4394,7 @@
    "run_name": "_tune_trainable_cb68d9f3",
    "created": "2026-04-27T23:55:45Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -4191,6 +4415,7 @@
    "run_name": "_tune_trainable_33b69b8e",
    "created": "2026-04-27T23:55:37Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -4210,6 +4435,7 @@
    "run_name": "_tune_trainable_13b0485a",
    "created": "2026-04-27T23:55:35Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -4229,6 +4455,7 @@
    "run_name": "_tune_trainable_6932dc29",
    "created": "2026-04-27T23:55:11Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -4248,6 +4475,7 @@
    "run_name": "_tune_trainable_8bec3104",
    "created": "2026-04-27T23:54:48Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -4268,6 +4496,7 @@
    "run_name": "_tune_trainable_ac994076",
    "created": "2026-04-27T23:54:45Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "diag_bilinear",
@@ -4287,6 +4516,7 @@
    "run_name": "_tune_trainable_a24e8b19",
    "created": "2026-04-27T23:54:25Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -4306,6 +4536,7 @@
    "run_name": "_tune_trainable_def9d319",
    "created": "2026-04-27T23:54:18Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "concat",
@@ -4326,6 +4557,7 @@
    "run_name": "_tune_trainable_4dc088ac",
    "created": "2026-04-27T23:54:11Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "diag_bilinear",
@@ -4345,6 +4577,7 @@
    "run_name": "_tune_trainable_58713f85",
    "created": "2026-04-27T23:53:38Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "symmetric",
@@ -4365,6 +4598,7 @@
    "run_name": "_tune_trainable_7a5df8a8",
    "created": "2026-04-27T23:53:27Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.5,
@@ -4384,6 +4618,7 @@
    "run_name": "_tune_trainable_08ec642c",
    "created": "2026-04-27T23:53:20Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "concat",
@@ -4404,6 +4639,7 @@
    "run_name": "_tune_trainable_98192a9a",
    "created": "2026-04-27T23:53:06Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -4423,6 +4659,7 @@
    "run_name": "_tune_trainable_56030443",
    "created": "2026-04-27T23:53:05Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "asymmetric",
@@ -4443,6 +4680,7 @@
    "run_name": "_tune_trainable_8ea94107",
    "created": "2026-04-27T23:53:01Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -4462,6 +4700,7 @@
    "run_name": "_tune_trainable_091d207e",
    "created": "2026-04-27T23:52:52Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -4481,6 +4720,7 @@
    "run_name": "_tune_trainable_bf51eba2",
    "created": "2026-04-27T23:51:57Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_symmetry": "symmetric",
@@ -4501,6 +4741,7 @@
    "run_name": "_tune_trainable_dff60cec",
    "created": "2026-04-27T23:51:25Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -4520,6 +4761,7 @@
    "run_name": "_tune_trainable_a087eeaa",
    "created": "2026-04-27T23:51:20Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -4539,6 +4781,7 @@
    "run_name": "_tune_trainable_4a5f2abe",
    "created": "2026-04-27T23:51:15Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "diag_bilinear",
@@ -4558,6 +4801,7 @@
    "run_name": "_tune_trainable_8a2a4254",
    "created": "2026-04-27T23:51:06Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -4577,6 +4821,7 @@
    "run_name": "_tune_trainable_9eb04858",
    "created": "2026-04-27T23:51:05Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.2,
@@ -4596,6 +4841,7 @@
    "run_name": "_tune_trainable_dc5f00e5",
    "created": "2026-04-27T23:50:46Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -4615,6 +4861,7 @@
    "run_name": "_tune_trainable_076ffaf9",
    "created": "2026-04-27T23:50:33Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "asymmetric",
@@ -4635,6 +4882,7 @@
    "run_name": "_tune_trainable_f62cf8af",
    "created": "2026-04-27T23:50:06Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -4654,6 +4902,7 @@
    "run_name": "_tune_trainable_e65bc703",
    "created": "2026-04-27T23:49:45Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_symmetry": "asymmetric",
@@ -4674,6 +4923,7 @@
    "run_name": "_tune_trainable_fe8157ec",
    "created": "2026-04-27T23:49:35Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -4693,6 +4943,7 @@
    "run_name": "_tune_trainable_073599c8",
    "created": "2026-04-27T23:49:14Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -4712,6 +4963,7 @@
    "run_name": "_tune_trainable_bc1b9fbe",
    "created": "2026-04-27T23:49:11Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "asymmetric",
@@ -4732,6 +4984,7 @@
    "run_name": "_tune_trainable_b4b3d030",
    "created": "2026-04-27T23:49:08Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.35,
@@ -4751,6 +5004,7 @@
    "run_name": "_tune_trainable_8b7db2b6",
    "created": "2026-04-27T23:48:54Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "concat",
@@ -4771,6 +5025,7 @@
    "run_name": "_tune_trainable_fe0b2a69",
    "created": "2026-04-27T23:48:20Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.2,
@@ -4790,6 +5045,7 @@
    "run_name": "_tune_trainable_889a64a9",
    "created": "2026-04-27T23:48:01Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "symmetric",
@@ -4810,6 +5066,7 @@
    "run_name": "_tune_trainable_21718ab2",
    "created": "2026-04-27T23:48:01Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -4829,6 +5086,7 @@
    "run_name": "_tune_trainable_995902c1",
    "created": "2026-04-27T23:47:59Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "asymmetric",
@@ -4849,6 +5107,7 @@
    "run_name": "_tune_trainable_df55fd8f",
    "created": "2026-04-27T23:47:47Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.2,
@@ -4868,6 +5127,7 @@
    "run_name": "_tune_trainable_b939a080",
    "created": "2026-04-27T23:47:43Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -4887,6 +5147,7 @@
    "run_name": "_tune_trainable_aad07d4c",
    "created": "2026-04-27T23:47:41Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.35,
@@ -4906,6 +5167,7 @@
    "run_name": "_tune_trainable_4129eda8",
    "created": "2026-04-27T23:47:05Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.5,
@@ -4925,6 +5187,7 @@
    "run_name": "_tune_trainable_935e2b2d",
    "created": "2026-04-27T23:46:53Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "symmetric",
@@ -4945,6 +5208,7 @@
    "run_name": "_tune_trainable_5384468f",
    "created": "2026-04-27T23:46:53Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -4964,6 +5228,7 @@
    "run_name": "_tune_trainable_82d3e6e3",
    "created": "2026-04-27T23:46:30Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.5,
@@ -4983,6 +5248,7 @@
    "run_name": "_tune_trainable_d23da814",
    "created": "2026-04-27T23:46:18Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "concat",
@@ -5003,6 +5269,7 @@
    "run_name": "_tune_trainable_e03b82ed",
    "created": "2026-04-27T23:45:44Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -5022,6 +5289,7 @@
    "run_name": "_tune_trainable_0de0137a",
    "created": "2026-04-27T23:45:44Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "symmetric",
@@ -5042,6 +5310,7 @@
    "run_name": "_tune_trainable_4fde40f8",
    "created": "2026-04-27T23:45:24Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "asymmetric",
@@ -5062,6 +5331,7 @@
    "run_name": "_tune_trainable_17369f87",
    "created": "2026-04-27T23:45:20Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "concat",
@@ -5082,6 +5352,7 @@
    "run_name": "_tune_trainable_b6be1677",
    "created": "2026-04-27T23:45:04Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -5101,6 +5372,7 @@
    "run_name": "_tune_trainable_2f8fa37f",
    "created": "2026-04-27T23:45:03Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.2,
@@ -5120,6 +5392,7 @@
    "run_name": "_tune_trainable_72d85390",
    "created": "2026-04-27T23:45:01Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -5139,6 +5412,7 @@
    "run_name": "_tune_trainable_d4e93973",
    "created": "2026-04-27T23:44:36Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "symmetric",
@@ -5159,6 +5433,7 @@
    "run_name": "_tune_trainable_f952bddd",
    "created": "2026-04-27T23:44:09Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -5178,6 +5453,7 @@
    "run_name": "_tune_trainable_7901ff44",
    "created": "2026-04-27T23:44:05Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -5197,6 +5473,7 @@
    "run_name": "_tune_trainable_78a013b9",
    "created": "2026-04-27T23:43:56Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "diag_bilinear",
@@ -5216,6 +5493,7 @@
    "run_name": "_tune_trainable_9441ac78",
    "created": "2026-04-27T23:43:52Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.35,
@@ -5235,6 +5513,7 @@
    "run_name": "_tune_trainable_4dde1158",
    "created": "2026-04-27T23:43:34Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -5254,6 +5533,7 @@
    "run_name": "_tune_trainable_bf74b796",
    "created": "2026-04-27T23:43:28Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "symmetric",
@@ -5274,6 +5554,7 @@
    "run_name": "_tune_trainable_c71c5309",
    "created": "2026-04-27T23:43:01Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "diag_bilinear",
@@ -5293,6 +5574,7 @@
    "run_name": "_tune_trainable_546a4382",
    "created": "2026-04-27T23:42:47Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -5312,6 +5594,7 @@
    "run_name": "_tune_trainable_e9266443",
    "created": "2026-04-27T23:42:39Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "concat",
@@ -5332,6 +5615,7 @@
    "run_name": "_tune_trainable_f58cd245",
    "created": "2026-04-27T23:42:09Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -5351,6 +5635,7 @@
    "run_name": "_tune_trainable_5274d381",
    "created": "2026-04-27T23:41:57Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -5371,6 +5656,7 @@
    "run_name": "_tune_trainable_da166c81",
    "created": "2026-04-27T23:41:54Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -5390,6 +5676,7 @@
    "run_name": "_tune_trainable_474042b1",
    "created": "2026-04-27T23:41:33Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "concat",
@@ -5410,6 +5697,7 @@
    "run_name": "_tune_trainable_a66f2540",
    "created": "2026-04-27T23:41:31Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.5,
@@ -5429,6 +5717,7 @@
    "run_name": "_tune_trainable_27e3eb1e",
    "created": "2026-04-27T23:41:09Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.2,
@@ -5448,6 +5737,7 @@
    "run_name": "_tune_trainable_05129f23",
    "created": "2026-04-27T23:40:51Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "diag_bilinear",
@@ -5467,6 +5757,7 @@
    "run_name": "_tune_trainable_53a650ee",
    "created": "2026-04-27T23:40:38Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "symmetric",
@@ -5487,6 +5778,7 @@
    "run_name": "_tune_trainable_da010ab0",
    "created": "2026-04-27T23:40:17Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -5506,6 +5798,7 @@
    "run_name": "_tune_trainable_87023441",
    "created": "2026-04-27T23:40:01Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -5525,6 +5818,7 @@
    "run_name": "_tune_trainable_d99dd407",
    "created": "2026-04-27T23:39:59Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -5544,6 +5838,7 @@
    "run_name": "_tune_trainable_9261f7fb",
    "created": "2026-04-27T23:39:38Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -5563,6 +5858,7 @@
    "run_name": "_tune_trainable_aafdbb72",
    "created": "2026-04-27T23:39:25Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "diag_bilinear",
@@ -5582,6 +5878,7 @@
    "run_name": "_tune_trainable_9416c721",
    "created": "2026-04-27T23:39:00Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -5601,6 +5898,7 @@
    "run_name": "_tune_trainable_822ba04b",
    "created": "2026-04-27T23:38:52Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -5620,6 +5918,7 @@
    "run_name": "_tune_trainable_f27984c0",
    "created": "2026-04-27T23:38:20Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "concat",
@@ -5640,6 +5939,7 @@
    "run_name": "_tune_trainable_a638cb56",
    "created": "2026-04-27T23:38:05Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "asymmetric",
@@ -5660,6 +5960,7 @@
    "run_name": "_tune_trainable_5cb13d6b",
    "created": "2026-04-27T23:37:32Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_symmetry": "concat",
@@ -5680,6 +5981,7 @@
    "run_name": "_tune_trainable_561c260e",
    "created": "2026-04-27T23:37:08Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -5699,6 +6001,7 @@
    "run_name": "_tune_trainable_46a4eada",
    "created": "2026-04-27T23:36:50Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -5718,6 +6021,7 @@
    "run_name": "_tune_trainable_98bf68ca",
    "created": "2026-04-27T23:36:39Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "concat",
@@ -5738,6 +6042,7 @@
    "run_name": "_tune_trainable_c9a9b9f6",
    "created": "2026-04-27T23:36:07Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -5757,6 +6062,7 @@
    "run_name": "_tune_trainable_febf8284",
    "created": "2026-04-27T23:35:31Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -5776,6 +6082,7 @@
    "run_name": "_tune_trainable_bae4c485",
    "created": "2026-04-27T23:35:11Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -5795,6 +6102,7 @@
    "run_name": "_tune_trainable_108a48df",
    "created": "2026-04-27T23:34:46Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -5814,6 +6122,7 @@
    "run_name": "_tune_trainable_86bbf8c0",
    "created": "2026-04-27T23:34:17Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -5833,6 +6142,7 @@
    "run_name": "_tune_trainable_a6931f39",
    "created": "2026-04-27T23:34:07Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -5852,6 +6162,7 @@
    "run_name": "_tune_trainable_7e417a0b",
    "created": "2026-04-27T23:34:07Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -5872,6 +6183,7 @@
    "run_name": "_tune_trainable_4cf065fd",
    "created": "2026-04-27T23:33:57Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "concat",
@@ -5892,6 +6204,7 @@
    "run_name": "_tune_trainable_b0f2e6e6",
    "created": "2026-04-27T23:33:56Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -5911,6 +6224,7 @@
    "run_name": "_tune_trainable_33d8c574",
    "created": "2026-04-27T23:33:33Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_symmetry": "symmetric",
@@ -5931,6 +6245,7 @@
    "run_name": "_tune_trainable_9c1ad31f",
    "created": "2026-04-27T23:33:29Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -5950,6 +6265,7 @@
    "run_name": "_tune_trainable_a1459683",
    "created": "2026-04-27T23:33:24Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "diag_bilinear",
@@ -5969,6 +6285,7 @@
    "run_name": "_tune_trainable_588232ea",
    "created": "2026-04-27T23:33:21Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -5988,6 +6305,7 @@
    "run_name": "_tune_trainable_02613592",
    "created": "2026-04-27T23:32:31Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "diag_bilinear",
@@ -6007,6 +6325,7 @@
    "run_name": "_tune_trainable_d3ca9224",
    "created": "2026-04-27T23:32:08Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -6026,6 +6345,7 @@
    "run_name": "_tune_trainable_c2d6f5d3",
    "created": "2026-04-27T23:31:25Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -6045,6 +6365,7 @@
    "run_name": "_tune_trainable_545eda89",
    "created": "2026-04-27T23:31:22Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "symmetric",
@@ -6065,6 +6386,7 @@
    "run_name": "_tune_trainable_5183c9ca",
    "created": "2026-04-27T23:31:18Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_symmetry": "asymmetric",
@@ -6085,6 +6407,7 @@
    "run_name": "_tune_trainable_a3baabc0",
    "created": "2026-04-27T23:31:01Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "diag_bilinear",
@@ -6104,6 +6427,7 @@
    "run_name": "_tune_trainable_4613e729",
    "created": "2026-04-27T23:30:44Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "diag_bilinear",
@@ -6123,6 +6447,7 @@
    "run_name": "_tune_trainable_999642bb",
    "created": "2026-04-27T23:30:03Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "concat",
@@ -6143,6 +6468,7 @@
    "run_name": "_tune_trainable_42fbfe09",
    "created": "2026-04-27T23:29:30Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -6162,6 +6488,7 @@
    "run_name": "_tune_trainable_303db176",
    "created": "2026-04-27T23:29:25Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "symmetric",
@@ -6182,6 +6509,7 @@
    "run_name": "_tune_trainable_d1b8fda0",
    "created": "2026-04-27T23:29:07Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -6201,6 +6529,7 @@
    "run_name": "_tune_trainable_99430105",
    "created": "2026-04-27T23:28:46Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -6220,6 +6549,7 @@
    "run_name": "_tune_trainable_0f1ca56b",
    "created": "2026-04-27T23:27:40Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "dot",
@@ -6239,6 +6569,7 @@
    "run_name": "_tune_trainable_ab9bc69e",
    "created": "2026-04-27T23:26:55Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "dot",
@@ -6258,6 +6589,7 @@
    "run_name": "_tune_trainable_3e2e0c7a",
    "created": "2026-04-27T23:26:39Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -6277,6 +6609,7 @@
    "run_name": "_tune_trainable_e011afd1",
    "created": "2026-04-27T23:26:31Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -6296,6 +6629,7 @@
    "run_name": "_tune_trainable_5a157906",
    "created": "2026-04-27T23:26:25Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "dot",
@@ -6315,6 +6649,7 @@
    "run_name": "_tune_trainable_58ee582e",
    "created": "2026-04-27T23:26:19Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -6335,6 +6670,7 @@
    "run_name": "_tune_trainable_84bb0f22",
    "created": "2026-04-27T23:26:16Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "concat",
@@ -6355,6 +6691,7 @@
    "run_name": "_tune_trainable_ae3d4052",
    "created": "2026-04-27T23:26:06Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -6374,6 +6711,7 @@
    "run_name": "_tune_trainable_8681e16d",
    "created": "2026-04-27T23:25:47Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.35,
@@ -6393,6 +6731,7 @@
    "run_name": "_tune_trainable_17009034",
    "created": "2026-04-27T23:24:49Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "concat",
@@ -6413,6 +6752,7 @@
    "run_name": "_tune_trainable_1ee323e3",
    "created": "2026-04-27T23:24:16Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -6432,6 +6772,7 @@
    "run_name": "_tune_trainable_01662799",
    "created": "2026-04-27T23:23:49Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -6451,6 +6792,7 @@
    "run_name": "_tune_trainable_8ca2da48",
    "created": "2026-04-27T23:23:42Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "dot",
@@ -6470,6 +6812,7 @@
    "run_name": "_tune_trainable_4832679c",
    "created": "2026-04-27T23:23:35Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "concat",
@@ -6490,6 +6833,7 @@
    "run_name": "_tune_trainable_8d9d4096",
    "created": "2026-04-27T23:22:50Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "dot",
@@ -6509,6 +6853,7 @@
    "run_name": "_tune_trainable_9679c615",
    "created": "2026-04-27T23:22:32Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -6528,6 +6873,7 @@
    "run_name": "_tune_trainable_7f5a6f51",
    "created": "2026-04-27T23:21:42Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "symmetric",
@@ -6548,6 +6894,7 @@
    "run_name": "_tune_trainable_9999b5a3",
    "created": "2026-04-27T23:21:38Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "asymmetric",
@@ -6568,6 +6915,7 @@
    "run_name": "_tune_trainable_b4b143a6",
    "created": "2026-04-27T23:21:31Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -6588,6 +6936,7 @@
    "run_name": "_tune_trainable_c96c222c",
    "created": "2026-04-27T23:20:55Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "concat",
@@ -6608,6 +6957,7 @@
    "run_name": "_tune_trainable_5ce65f00",
    "created": "2026-04-27T23:20:25Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.2,
@@ -6627,6 +6977,7 @@
    "run_name": "_tune_trainable_0fda9c29",
    "created": "2026-04-27T23:20:03Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -6646,6 +6997,7 @@
    "run_name": "_tune_trainable_859e25c7",
    "created": "2026-04-27T23:19:58Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "concat",
@@ -6666,6 +7018,7 @@
    "run_name": "_tune_trainable_dc86767d",
    "created": "2026-04-27T23:19:44Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -6685,6 +7038,7 @@
    "run_name": "_tune_trainable_fdc6768b",
    "created": "2026-04-27T23:19:26Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -6704,6 +7058,7 @@
    "run_name": "_tune_trainable_29817d03",
    "created": "2026-04-27T23:19:25Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "diag_bilinear",
@@ -6723,6 +7078,7 @@
    "run_name": "_tune_trainable_7103b761",
    "created": "2026-04-27T23:19:03Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -6742,6 +7098,7 @@
    "run_name": "_tune_trainable_cfa61965",
    "created": "2026-04-27T23:18:48Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.35,
@@ -6761,6 +7118,7 @@
    "run_name": "_tune_trainable_c953f6ce",
    "created": "2026-04-27T23:18:31Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -6780,6 +7138,7 @@
    "run_name": "_tune_trainable_ac0f56cc",
    "created": "2026-04-27T23:17:44Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "diag_bilinear",
@@ -6799,6 +7158,7 @@
    "run_name": "_tune_trainable_f8e61fe9",
    "created": "2026-04-27T23:17:42Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.5,
@@ -6818,6 +7178,7 @@
    "run_name": "_tune_trainable_7605cfe8",
    "created": "2026-04-27T23:17:37Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_symmetry": "symmetric",
@@ -6838,6 +7199,7 @@
    "run_name": "_tune_trainable_ebb64e25",
    "created": "2026-04-27T23:17:33Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "concat",
@@ -6858,6 +7220,7 @@
    "run_name": "_tune_trainable_b177199f",
    "created": "2026-04-27T23:17:17Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.35,
@@ -6877,6 +7240,7 @@
    "run_name": "_tune_trainable_51f95adc",
    "created": "2026-04-27T23:17:09Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.5,
@@ -6896,6 +7260,7 @@
    "run_name": "_tune_trainable_05ef288c",
    "created": "2026-04-27T23:16:32Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "concat",
@@ -6916,6 +7281,7 @@
    "run_name": "_tune_trainable_3ff7e92c",
    "created": "2026-04-27T23:16:13Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.35,
@@ -6935,6 +7301,7 @@
    "run_name": "_tune_trainable_1f8a6f45",
    "created": "2026-04-27T23:16:12Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -6954,6 +7321,7 @@
    "run_name": "_tune_trainable_64435099",
    "created": "2026-04-27T23:16:08Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.35,
@@ -6973,6 +7341,7 @@
    "run_name": "_tune_trainable_5609bfd3",
    "created": "2026-04-27T23:15:51Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.5,
@@ -6992,6 +7361,7 @@
    "run_name": "_tune_trainable_752986bf",
    "created": "2026-04-27T23:15:46Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.5,
@@ -7011,6 +7381,7 @@
    "run_name": "_tune_trainable_7b9f16ff",
    "created": "2026-04-27T23:15:16Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.35,
@@ -7030,6 +7401,7 @@
    "run_name": "_tune_trainable_03789b1b",
    "created": "2026-04-27T23:15:01Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "asymmetric",
@@ -7050,6 +7422,7 @@
    "run_name": "_tune_trainable_ead665fb",
    "created": "2026-04-27T23:13:47Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "dot",
@@ -7069,6 +7442,7 @@
    "run_name": "_tune_trainable_4f1aed73",
    "created": "2026-04-27T23:13:45Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "asymmetric",
@@ -7089,6 +7463,7 @@
    "run_name": "_tune_trainable_b258a2af",
    "created": "2026-04-27T23:13:38Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -7108,6 +7483,7 @@
    "run_name": "_tune_trainable_650ea882",
    "created": "2026-04-27T23:13:36Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "diag_bilinear",
@@ -7127,6 +7503,7 @@
    "run_name": "_tune_trainable_9f31ae88",
    "created": "2026-04-27T23:13:06Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -7146,6 +7523,7 @@
    "run_name": "_tune_trainable_1a14855f",
    "created": "2026-04-27T23:13:02Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.5,
@@ -7165,6 +7543,7 @@
    "run_name": "_tune_trainable_3185635e",
    "created": "2026-04-27T23:12:37Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_symmetry": "asymmetric",
@@ -7185,6 +7564,7 @@
    "run_name": "_tune_trainable_58df57d9",
    "created": "2026-04-27T23:12:32Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "diag_bilinear",
@@ -7204,6 +7584,7 @@
    "run_name": "_tune_trainable_fd61a5a9",
    "created": "2026-04-27T23:12:10Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.35,
@@ -7223,6 +7604,7 @@
    "run_name": "_tune_trainable_72318760",
    "created": "2026-04-27T23:12:05Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_symmetry": "symmetric",
@@ -7243,6 +7625,7 @@
    "run_name": "_tune_trainable_5f486792",
    "created": "2026-04-27T23:12:01Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "diag_bilinear",
@@ -7262,6 +7645,7 @@
    "run_name": "_tune_trainable_b59cf8e6",
    "created": "2026-04-27T23:11:46Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.2,
@@ -7281,6 +7665,7 @@
    "run_name": "_tune_trainable_e3a7d204",
    "created": "2026-04-27T23:11:20Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.35,
@@ -7300,6 +7685,7 @@
    "run_name": "_tune_trainable_74b5bb88",
    "created": "2026-04-27T23:11:18Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.35,
@@ -7319,6 +7705,7 @@
    "run_name": "_tune_trainable_1d2a7817",
    "created": "2026-04-27T23:11:14Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "dot",
@@ -7338,6 +7725,7 @@
    "run_name": "_tune_trainable_eb3ce26a",
    "created": "2026-04-27T23:10:52Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.5,
@@ -7357,6 +7745,7 @@
    "run_name": "_tune_trainable_e3790965",
    "created": "2026-04-27T23:10:49Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -7377,6 +7766,7 @@
    "run_name": "_tune_trainable_7c66abdf",
    "created": "2026-04-27T23:10:29Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "diag_bilinear",
@@ -7396,6 +7786,7 @@
    "run_name": "_tune_trainable_1229cd10",
    "created": "2026-04-27T23:10:20Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.2,
@@ -7415,6 +7806,7 @@
    "run_name": "_tune_trainable_b52c472c",
    "created": "2026-04-27T23:10:15Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.5,
@@ -7434,6 +7826,7 @@
    "run_name": "_tune_trainable_5529f94f",
    "created": "2026-04-27T23:08:57Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -7454,6 +7847,7 @@
    "run_name": "_tune_trainable_dbe33711",
    "created": "2026-04-27T23:08:49Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.2,
@@ -7473,6 +7867,7 @@
    "run_name": "_tune_trainable_4a827dad",
    "created": "2026-04-27T23:08:48Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -7492,6 +7887,7 @@
    "run_name": "_tune_trainable_6910165a",
    "created": "2026-04-27T23:08:45Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "diag_bilinear",
@@ -7511,6 +7907,7 @@
    "run_name": "_tune_trainable_c718df6a",
    "created": "2026-04-27T23:08:40Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "diag_bilinear",
@@ -7530,6 +7927,7 @@
    "run_name": "_tune_trainable_86480735",
    "created": "2026-04-27T23:08:12Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.2,
@@ -7549,6 +7947,7 @@
    "run_name": "_tune_trainable_c5ca939b",
    "created": "2026-04-27T23:08:10Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.35,
@@ -7568,6 +7967,7 @@
    "run_name": "_tune_trainable_e869e987",
    "created": "2026-04-27T23:07:51Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -7587,6 +7987,7 @@
    "run_name": "_tune_trainable_4e77f3e2",
    "created": "2026-04-27T23:07:48Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.2,
@@ -7606,6 +8007,7 @@
    "run_name": "_tune_trainable_ccae1883",
    "created": "2026-04-27T23:07:42Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.35,
@@ -7625,6 +8027,7 @@
    "run_name": "_tune_trainable_d89d7e05",
    "created": "2026-04-27T23:07:39Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "dot",
@@ -7644,6 +8047,7 @@
    "run_name": "_tune_trainable_4b3e4bfa",
    "created": "2026-04-27T23:07:29Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -7663,6 +8067,7 @@
    "run_name": "_tune_trainable_ca7d63aa",
    "created": "2026-04-27T23:07:27Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "asymmetric",
@@ -7683,6 +8088,7 @@
    "run_name": "_tune_trainable_b8c2e49a",
    "created": "2026-04-27T23:07:26Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -7702,6 +8108,7 @@
    "run_name": "_tune_trainable_9c3f0355",
    "created": "2026-04-27T23:07:23Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "concat",
@@ -7722,6 +8129,7 @@
    "run_name": "_tune_trainable_68d03916",
    "created": "2026-04-27T23:07:20Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -7741,6 +8149,7 @@
    "run_name": "_tune_trainable_04791149",
    "created": "2026-04-27T23:07:14Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -7760,6 +8169,7 @@
    "run_name": "_tune_trainable_b830c228",
    "created": "2026-04-27T23:06:55Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -7779,6 +8189,7 @@
    "run_name": "_tune_trainable_a1d1a69d",
    "created": "2026-04-27T23:06:34Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -7798,6 +8209,7 @@
    "run_name": "_tune_trainable_2cd8c007",
    "created": "2026-04-27T23:06:22Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "asymmetric",
@@ -7818,6 +8230,7 @@
    "run_name": "_tune_trainable_85133814",
    "created": "2026-04-27T23:06:14Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -7837,6 +8250,7 @@
    "run_name": "_tune_trainable_ca47b876",
    "created": "2026-04-27T23:06:10Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "asymmetric",
@@ -7857,6 +8271,7 @@
    "run_name": "_tune_trainable_62d4343c",
    "created": "2026-04-27T23:05:56Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -7876,6 +8291,7 @@
    "run_name": "_tune_trainable_086f8830",
    "created": "2026-04-27T23:05:55Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -7895,6 +8311,7 @@
    "run_name": "_tune_trainable_253f51cc",
    "created": "2026-04-27T23:05:23Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "concat",
@@ -7915,6 +8332,7 @@
    "run_name": "_tune_trainable_60ca5ecf",
    "created": "2026-04-27T23:05:14Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "asymmetric",
@@ -7935,6 +8353,7 @@
    "run_name": "_tune_trainable_ae53cc32",
    "created": "2026-04-27T23:05:11Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "concat",
@@ -7955,6 +8374,7 @@
    "run_name": "_tune_trainable_4a5a3394",
    "created": "2026-04-27T23:04:56Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.35,
@@ -7974,6 +8394,7 @@
    "run_name": "_tune_trainable_ff8ca23e",
    "created": "2026-04-27T23:04:47Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "dot",
@@ -7993,6 +8414,7 @@
    "run_name": "_tune_trainable_374770cf",
    "created": "2026-04-27T23:04:41Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -8012,6 +8434,7 @@
    "run_name": "_tune_trainable_92e194be",
    "created": "2026-04-27T23:04:37Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "asymmetric",
@@ -8032,6 +8455,7 @@
    "run_name": "_tune_trainable_fd226673",
    "created": "2026-04-27T23:04:35Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "concat",
@@ -8052,6 +8476,7 @@
    "run_name": "_tune_trainable_a6dc31cf",
    "created": "2026-04-27T23:04:28Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "diag_bilinear",
@@ -8071,6 +8496,7 @@
    "run_name": "_tune_trainable_ee18b6b2",
    "created": "2026-04-27T23:04:22Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -8090,6 +8516,7 @@
    "run_name": "_tune_trainable_bb70386f",
    "created": "2026-04-27T23:03:44Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.5,
@@ -8109,6 +8536,7 @@
    "run_name": "_tune_trainable_299adc6c",
    "created": "2026-04-27T23:03:39Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -8128,6 +8556,7 @@
    "run_name": "_tune_trainable_01a2d9e1",
    "created": "2026-04-27T23:02:59Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -8147,6 +8576,7 @@
    "run_name": "_tune_trainable_f6ee1367",
    "created": "2026-04-27T23:02:30Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "asymmetric",
@@ -8167,6 +8597,7 @@
    "run_name": "_tune_trainable_7514f668",
    "created": "2026-04-27T23:02:10Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.35,
@@ -8186,6 +8617,7 @@
    "run_name": "_tune_trainable_7855fa25",
    "created": "2026-04-27T23:02:04Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "asymmetric",
@@ -8206,6 +8638,7 @@
    "run_name": "_tune_trainable_52816ce9",
    "created": "2026-04-27T23:02:04Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_type": "dot",
@@ -8225,6 +8658,7 @@
    "run_name": "_tune_trainable_b887fc0b",
    "created": "2026-04-27T23:01:23Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.5,
@@ -8244,6 +8678,7 @@
    "run_name": "_tune_trainable_05084b35",
    "created": "2026-04-27T23:01:07Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.35,
@@ -8263,6 +8698,7 @@
    "run_name": "_tune_trainable_87b03dc1",
    "created": "2026-04-27T23:00:34Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "diag_bilinear",
@@ -8282,6 +8718,7 @@
    "run_name": "_tune_trainable_61fd848c",
    "created": "2026-04-27T23:00:11Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_symmetry": "symmetric",
@@ -8302,6 +8739,7 @@
    "run_name": "_tune_trainable_6f2a8fa3",
    "created": "2026-04-27T23:00:07Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.35,
@@ -8321,6 +8759,7 @@
    "run_name": "_tune_trainable_64054119",
    "created": "2026-04-27T23:00:02Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -8340,6 +8779,7 @@
    "run_name": "_tune_trainable_a618d0b0",
    "created": "2026-04-27T22:59:48Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -8359,6 +8799,7 @@
    "run_name": "_tune_trainable_4a1fbe5b",
    "created": "2026-04-27T22:59:39Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.5,
@@ -8378,6 +8819,7 @@
    "run_name": "_tune_trainable_dc987493",
    "created": "2026-04-27T22:59:29Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.2,
@@ -8397,6 +8839,7 @@
    "run_name": "_tune_trainable_72d07039",
    "created": "2026-04-27T22:59:26Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -8416,6 +8859,7 @@
    "run_name": "_tune_trainable_214411bc",
    "created": "2026-04-27T22:59:25Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -8435,6 +8879,7 @@
    "run_name": "_tune_trainable_fc1938fa",
    "created": "2026-04-27T22:59:20Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "concat",
@@ -8455,6 +8900,7 @@
    "run_name": "_tune_trainable_b329d716",
    "created": "2026-04-27T22:59:13Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -8474,6 +8920,7 @@
    "run_name": "_tune_trainable_ae8d6846",
    "created": "2026-04-27T22:58:46Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -8493,6 +8940,7 @@
    "run_name": "_tune_trainable_63551825",
    "created": "2026-04-27T22:58:35Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "symmetric",
@@ -8513,6 +8961,7 @@
    "run_name": "_tune_trainable_1c07ce8b",
    "created": "2026-04-27T22:58:24Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.2,
@@ -8532,6 +8981,7 @@
    "run_name": "_tune_trainable_e04bbe4b",
    "created": "2026-04-27T22:58:19Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "diag_bilinear",
@@ -8551,6 +9001,7 @@
    "run_name": "_tune_trainable_3bc04780",
    "created": "2026-04-27T22:57:46Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "symmetric",
@@ -8571,6 +9022,7 @@
    "run_name": "_tune_trainable_18896836",
    "created": "2026-04-27T22:57:16Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -8590,6 +9042,7 @@
    "run_name": "_tune_trainable_cad55203",
    "created": "2026-04-27T22:57:10Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "concat",
@@ -8610,6 +9063,7 @@
    "run_name": "_tune_trainable_f9fd49b1",
    "created": "2026-04-27T22:56:34Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_type": "dot",
@@ -8629,6 +9083,7 @@
    "run_name": "_tune_trainable_0f8d5be9",
    "created": "2026-04-27T22:56:22Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "concat",
@@ -8649,6 +9104,7 @@
    "run_name": "_tune_trainable_9c1d69b2",
    "created": "2026-04-27T22:56:17Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_type": "dot",
@@ -8668,6 +9124,7 @@
    "run_name": "_tune_trainable_7dfbacb5",
    "created": "2026-04-27T22:55:57Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -8687,6 +9144,7 @@
    "run_name": "_tune_trainable_7a21bb82",
    "created": "2026-04-27T22:55:53Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -8706,6 +9164,7 @@
    "run_name": "_tune_trainable_3806d7bb",
    "created": "2026-04-27T22:55:39Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.35,
@@ -8725,6 +9184,7 @@
    "run_name": "_tune_trainable_2f7af490",
    "created": "2026-04-27T22:55:34Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.5,
@@ -8744,6 +9204,7 @@
    "run_name": "_tune_trainable_f7a86e3e",
    "created": "2026-04-27T22:55:19Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "symmetric",
@@ -8764,6 +9225,7 @@
    "run_name": "_tune_trainable_f558bbe3",
    "created": "2026-04-27T22:55:06Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_type": "dot",
@@ -8783,6 +9245,7 @@
    "run_name": "_tune_trainable_5df69326",
    "created": "2026-04-27T22:54:56Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_symmetry": "symmetric",
@@ -8803,6 +9266,7 @@
    "run_name": "_tune_trainable_b998e6dc",
    "created": "2026-04-27T22:54:52Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -8822,6 +9286,7 @@
    "run_name": "_tune_trainable_fcd2ec8d",
    "created": "2026-04-27T22:54:24Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -8841,6 +9306,7 @@
    "run_name": "_tune_trainable_8f4ccffd",
    "created": "2026-04-27T22:53:34Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_symmetry": "concat",
@@ -8861,6 +9327,7 @@
    "run_name": "_tune_trainable_c77c4953",
    "created": "2026-04-27T22:53:02Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.5,
@@ -8880,6 +9347,7 @@
    "run_name": "_tune_trainable_8cf5693b",
    "created": "2026-04-27T22:53:01Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -8900,6 +9368,7 @@
    "run_name": "_tune_trainable_377a9a3c",
    "created": "2026-04-27T22:52:30Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -8919,6 +9388,7 @@
    "run_name": "_tune_trainable_465b9719",
    "created": "2026-04-27T22:52:25Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -8938,6 +9408,7 @@
    "run_name": "_tune_trainable_4a6f47bd",
    "created": "2026-04-27T22:52:21Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -8957,6 +9428,7 @@
    "run_name": "_tune_trainable_ad708baf",
    "created": "2026-04-27T22:52:11Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_symmetry": "concat",
@@ -8977,6 +9449,7 @@
    "run_name": "_tune_trainable_3725a7e8",
    "created": "2026-04-27T22:52:03Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "asymmetric",
@@ -8997,6 +9470,7 @@
    "run_name": "_tune_trainable_20d974de",
    "created": "2026-04-27T22:51:25Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.2,
@@ -9016,6 +9490,7 @@
    "run_name": "_tune_trainable_c42a1d3b",
    "created": "2026-04-27T22:50:56Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -9035,6 +9510,7 @@
    "run_name": "_tune_trainable_5038213f",
    "created": "2026-04-27T22:50:32Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -9054,6 +9530,7 @@
    "run_name": "_tune_trainable_148082b7",
    "created": "2026-04-27T22:50:31Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.5,
@@ -9073,6 +9550,7 @@
    "run_name": "_tune_trainable_31bd92c6",
    "created": "2026-04-27T22:50:23Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_symmetry": "symmetric",
@@ -9093,6 +9571,7 @@
    "run_name": "_tune_trainable_99998c36",
    "created": "2026-04-27T22:50:22Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -9112,6 +9591,7 @@
    "run_name": "_tune_trainable_ba1de522",
    "created": "2026-04-27T22:50:02Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -9131,6 +9611,7 @@
    "run_name": "_tune_trainable_45823891",
    "created": "2026-04-27T22:49:29Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -9150,6 +9631,7 @@
    "run_name": "_tune_trainable_61806a87",
    "created": "2026-04-27T22:48:56Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "concat",
@@ -9170,6 +9652,7 @@
    "run_name": "_tune_trainable_677cc3ae",
    "created": "2026-04-27T22:48:33Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "symmetric",
@@ -9190,6 +9673,7 @@
    "run_name": "_tune_trainable_1b5577c6",
    "created": "2026-04-27T22:48:15Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.35,
@@ -9209,6 +9693,7 @@
    "run_name": "_tune_trainable_47574d8d",
    "created": "2026-04-27T22:48:01Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -9228,6 +9713,7 @@
    "run_name": "_tune_trainable_2ce2add8",
    "created": "2026-04-27T22:47:43Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "decoder_symmetry": "symmetric",
@@ -9248,6 +9734,7 @@
    "run_name": "_tune_trainable_5d65569f",
    "created": "2026-04-27T22:47:23Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "symmetric",
@@ -9268,6 +9755,7 @@
    "run_name": "_tune_trainable_ca19dd78",
    "created": "2026-04-27T22:47:17Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.5,
@@ -9287,6 +9775,7 @@
    "run_name": "_tune_trainable_d926213d",
    "created": "2026-04-27T22:47:15Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.2,
@@ -9306,6 +9795,7 @@
    "run_name": "_tune_trainable_ed0c76a2",
    "created": "2026-04-27T22:46:25Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "symmetric",
@@ -9326,6 +9816,7 @@
    "run_name": "_tune_trainable_e8d40592",
    "created": "2026-04-27T22:46:17Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.5,
@@ -9345,6 +9836,7 @@
    "run_name": "_tune_trainable_737a9c81",
    "created": "2026-04-27T22:46:00Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.5,
@@ -9364,6 +9856,7 @@
    "run_name": "_tune_trainable_0e4dbe3a",
    "created": "2026-04-27T22:46:00Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.35,
@@ -9383,6 +9876,7 @@
    "run_name": "_tune_trainable_59267757",
    "created": "2026-04-27T22:45:41Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -9402,6 +9896,7 @@
    "run_name": "_tune_trainable_ea8b258e",
    "created": "2026-04-27T22:45:15Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -9421,6 +9916,7 @@
    "run_name": "_tune_trainable_3e1684db",
    "created": "2026-04-27T22:45:14Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.35,
@@ -9440,6 +9936,7 @@
    "run_name": "_tune_trainable_862ef9c6",
    "created": "2026-04-27T22:45:08Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -9459,6 +9956,7 @@
    "run_name": "_tune_trainable_b88dc4ed",
    "created": "2026-04-27T22:44:45Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "symmetric",
@@ -9479,6 +9977,7 @@
    "run_name": "_tune_trainable_3952d3eb",
    "created": "2026-04-27T22:44:31Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.5,
@@ -9498,6 +9997,7 @@
    "run_name": "_tune_trainable_746c57d4",
    "created": "2026-04-27T22:44:10Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.5,
@@ -9517,6 +10017,7 @@
    "run_name": "_tune_trainable_e742c154",
    "created": "2026-04-27T22:43:20Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -9536,6 +10037,7 @@
    "run_name": "_tune_trainable_ffd387d6",
    "created": "2026-04-27T22:42:21Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.5,
@@ -9555,6 +10057,7 @@
    "run_name": "_tune_trainable_3f02c806",
    "created": "2026-04-27T22:41:55Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -9574,6 +10077,7 @@
    "run_name": "_tune_trainable_1d6989be",
    "created": "2026-04-27T22:41:53Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.35,
@@ -9593,6 +10097,7 @@
    "run_name": "_tune_trainable_1b478239",
    "created": "2026-04-27T22:41:52Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.2,
@@ -9612,6 +10117,7 @@
    "run_name": "_tune_trainable_019ca1c8",
    "created": "2026-04-27T22:41:25Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.2,
@@ -9631,6 +10137,7 @@
    "run_name": "_tune_trainable_db48a183",
    "created": "2026-04-27T22:41:21Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.2,
@@ -9650,6 +10157,7 @@
    "run_name": "_tune_trainable_9f6a4466",
    "created": "2026-04-27T22:40:40Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "decoder_symmetry": "symmetric",
@@ -9670,6 +10178,7 @@
    "run_name": "_tune_trainable_ece0f2ed",
    "created": "2026-04-27T22:40:30Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -9689,6 +10198,7 @@
    "run_name": "_tune_trainable_780e8d18",
    "created": "2026-04-27T22:40:24Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.35,
@@ -9708,6 +10218,7 @@
    "run_name": "_tune_trainable_0b026104",
    "created": "2026-04-27T22:40:22Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.2,
@@ -9727,6 +10238,7 @@
    "run_name": "_tune_trainable_7df9cf5d",
    "created": "2026-04-27T22:39:36Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "decoder_symmetry": "asymmetric",
@@ -9747,6 +10259,7 @@
    "run_name": "_tune_trainable_4b9a8f3a",
    "created": "2026-04-27T22:39:03Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "decoder_symmetry": "symmetric",
@@ -9767,6 +10280,7 @@
    "run_name": "_tune_trainable_2a65c4f1",
    "created": "2026-04-27T22:39:03Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -9786,6 +10300,7 @@
    "run_name": "_tune_trainable_96b7734d",
    "created": "2026-04-27T22:39:02Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.5,
@@ -9805,6 +10320,7 @@
    "run_name": "_tune_trainable_44053afc",
    "created": "2026-04-27T22:38:28Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -9824,6 +10340,7 @@
    "run_name": "_tune_trainable_708926fa",
    "created": "2026-04-27T22:38:27Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.5,
@@ -9843,6 +10360,7 @@
    "run_name": "_tune_trainable_6e65dafd",
    "created": "2026-04-27T22:37:29Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.5,
@@ -9862,6 +10380,7 @@
    "run_name": "_tune_trainable_155d346b",
    "created": "2026-04-27T22:37:05Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -9881,6 +10400,7 @@
    "run_name": "_tune_trainable_48f0aa8c",
    "created": "2026-04-27T22:37:02Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -9900,6 +10420,7 @@
    "run_name": "_tune_trainable_fb54033d",
    "created": "2026-04-27T22:36:35Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -9919,6 +10440,7 @@
    "run_name": "_tune_trainable_0b0ff14a",
    "created": "2026-04-27T22:36:32Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.5,
@@ -9938,6 +10460,7 @@
    "run_name": "_tune_trainable_86d103c3",
    "created": "2026-04-27T22:35:57Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.5,
@@ -9957,6 +10480,7 @@
    "run_name": "_tune_trainable_edd5b975",
    "created": "2026-04-27T22:35:41Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -9976,6 +10500,7 @@
    "run_name": "_tune_trainable_9ac1e49b",
    "created": "2026-04-27T22:35:26Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.35,
@@ -9995,6 +10520,7 @@
    "run_name": "_tune_trainable_69739910",
    "created": "2026-04-27T22:35:07Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.35,
@@ -10014,6 +10540,7 @@
    "run_name": "_tune_trainable_f76b910b",
    "created": "2026-04-27T22:34:20Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.5,
@@ -10033,6 +10560,7 @@
    "run_name": "_tune_trainable_7db406d1",
    "created": "2026-04-27T22:34:11Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.5,
@@ -10052,6 +10580,7 @@
    "run_name": "_tune_trainable_49289695",
    "created": "2026-04-27T22:34:08Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -10071,6 +10600,7 @@
    "run_name": "_tune_trainable_d0adc158",
    "created": "2026-04-27T22:33:30Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.35,
@@ -10090,6 +10620,7 @@
    "run_name": "_tune_trainable_dcb856e9",
    "created": "2026-04-27T22:32:46Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.2,
@@ -10109,6 +10640,7 @@
    "run_name": "_tune_trainable_e3c2827f",
    "created": "2026-04-27T22:31:45Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -10128,6 +10660,7 @@
    "run_name": "_tune_trainable_254b39df",
    "created": "2026-04-27T22:31:26Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.35,
@@ -10147,6 +10680,7 @@
    "run_name": "_tune_trainable_131b1a60",
    "created": "2026-04-27T22:30:02Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -10166,6 +10700,7 @@
    "run_name": "_tune_trainable_2035ccd7",
    "created": "2026-04-27T22:29:53Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.5,
@@ -10185,6 +10720,7 @@
    "run_name": "_tune_trainable_aaf28a86",
    "created": "2026-04-27T22:29:44Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.5,
@@ -10204,6 +10740,7 @@
    "run_name": "_tune_trainable_863d84ca",
    "created": "2026-04-27T22:27:41Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.35,
@@ -10223,6 +10760,7 @@
    "run_name": "_tune_trainable_ece525ef",
    "created": "2026-04-27T22:27:17Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -10242,6 +10780,7 @@
    "run_name": "_tune_trainable_fb048e68",
    "created": "2026-04-27T22:26:32Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -10261,6 +10800,7 @@
    "run_name": "_tune_trainable_982c9fa3",
    "created": "2026-04-27T22:26:03Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.35,
@@ -10280,6 +10820,7 @@
    "run_name": "_tune_trainable_341524ca",
    "created": "2026-04-27T22:25:49Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -10299,6 +10840,7 @@
    "run_name": "_tune_trainable_81f649a4",
    "created": "2026-04-27T22:25:12Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -10318,6 +10860,7 @@
    "run_name": "_tune_trainable_90067e3c",
    "created": "2026-04-27T22:25:06Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -10337,6 +10880,7 @@
    "run_name": "_tune_trainable_f2d82535",
    "created": "2026-04-27T22:25:03Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -10356,6 +10900,7 @@
    "run_name": "_tune_trainable_11e79b23",
    "created": "2026-04-27T22:24:35Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -10375,6 +10920,7 @@
    "run_name": "_tune_trainable_e82a0d51",
    "created": "2026-04-27T22:24:24Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.35,
@@ -10394,6 +10940,7 @@
    "run_name": "_tune_trainable_25fbd037",
    "created": "2026-04-27T22:24:01Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.5,
@@ -10413,6 +10960,7 @@
    "run_name": "_tune_trainable_18c99720",
    "created": "2026-04-27T22:23:37Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -10432,6 +10980,7 @@
    "run_name": "_tune_trainable_20943b72",
    "created": "2026-04-27T22:23:05Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.35,
@@ -10451,6 +11000,7 @@
    "run_name": "_tune_trainable_a6c1ea40",
    "created": "2026-04-27T22:20:51Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.35,
@@ -10470,6 +11020,7 @@
    "run_name": "_tune_trainable_6541596d",
    "created": "2026-04-27T22:20:48Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.35,
@@ -10489,6 +11040,7 @@
    "run_name": "_tune_trainable_9a6d51e8",
    "created": "2026-04-27T22:20:02Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -10508,6 +11060,7 @@
    "run_name": "_tune_trainable_afe53f77",
    "created": "2026-04-27T22:19:35Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.35,
@@ -10527,6 +11080,7 @@
    "run_name": "_tune_trainable_a2eb18f2",
    "created": "2026-04-27T22:19:06Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.5,
@@ -10546,6 +11100,7 @@
    "run_name": "_tune_trainable_40f0480f",
    "created": "2026-04-27T22:19:02Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.35,
@@ -10565,6 +11120,7 @@
    "run_name": "_tune_trainable_5d381cd2",
    "created": "2026-04-27T22:18:43Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.35,
@@ -10584,6 +11140,7 @@
    "run_name": "_tune_trainable_fd43f9e2",
    "created": "2026-04-27T22:18:11Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.2,
@@ -10603,6 +11160,7 @@
    "run_name": "_tune_trainable_6513190c",
    "created": "2026-04-27T22:17:32Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 32,
     "dropout": 0.2,
@@ -10622,6 +11180,7 @@
    "run_name": "_tune_trainable_3721dc6f",
    "created": "2026-04-27T22:17:07Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.2,
@@ -10641,6 +11200,7 @@
    "run_name": "_tune_trainable_d6a030af",
    "created": "2026-04-27T22:15:48Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.2,
@@ -10660,6 +11220,7 @@
    "run_name": "_tune_trainable_384b53e2",
    "created": "2026-04-27T22:15:34Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 8,
     "dropout": 0.5,
@@ -10679,6 +11240,7 @@
    "run_name": "_tune_trainable_46c15ef2",
    "created": "2026-04-27T22:15:02Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.35,
@@ -10698,6 +11260,7 @@
    "run_name": "_tune_trainable_772c82da",
    "created": "2026-04-27T22:14:23Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 16,
     "dropout": 0.35,
@@ -10717,6 +11280,7 @@
    "run_name": "_tune_trainable_5cb27007",
    "created": "2026-04-27T22:08:40Z",
    "loss_signature": null,
+   "loss_is_mse": true,
    "config": {
     "batch_size": 64,
     "dropout": 0.5,

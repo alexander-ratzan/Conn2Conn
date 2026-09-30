@@ -66,6 +66,22 @@ def _seed(cfg: dict):
     return int(v) if v is not None else None
 
 
+def loss_is_mse(cfg: dict):
+    """True if the run trained on plain MSE, False if any other loss or term, None if it has no training loss."""
+    lt = _get(cfg, "loss_type")
+    if lt is None:
+        return None
+    if any(float(v or 0) > 0 for k, v in cfg.items() if str(k).startswith("loss_weight_")):
+        return False
+    if lt == "mse":
+        return True
+    if lt == "composite":
+        terms = _get(cfg, "loss_terms") or []
+        active = {t.get("name") for t in terms if float(t.get("weight", 0) or 0) > 0}
+        return active == {"mse"}
+    return False
+
+
 def _allowed_values(variant: dict) -> dict:
     ycfg = yaml.safe_load((REPO_ROOT / variant["config"]).read_text())
     ss, default_model = ycfg.get("search_space", {}), ycfg["default"]["model"]
@@ -122,6 +138,7 @@ def scrape(cfg: dict, records_path: Path, trials_path: Path) -> tuple[list, list
                     trials.append({
                         "variant": v["name"], "seed": _seed(c), "value": s.get(metric), "run_id": r.id,
                         "run_name": r.name, "created": created, "loss_signature": c.get("loss_signature"),
+                        "loss_is_mse": loss_is_mse(c),
                         "config": {k: c[k] for k in sorted(keys) if k in c},
                     })
         print(f"Scraping W&B best-trial runs for {model}...", flush=True)
@@ -223,6 +240,14 @@ def main():
     best, trials = scrape(cfg, records_path, trials_path) if args.rescrape else load(cfg, records_path, trials_path)
     records = best + reference_records(cfg)
     print(f"Records: {len(best)} variant best-trials + {len(records) - len(best)} reference; {len(trials)} tune trials")
+    # MSE-only design: every learned run in the tables/figures and every importance trial must have trained on MSE.
+    bad = [f"{r.model_name}/{r.cov_type} seed {r.seed} ({r.wandb_run_id})" for r in records
+           if loss_is_mse(r.config or {}) is False]
+    bad += [f"trial {t['variant']} seed {t['seed']} ({t['run_id']})" for t in trials if t.get("loss_is_mse") is False]
+    if bad:
+        sys.exit("Non-MSE runs in an MSE-only benchmark:\n  " + "\n  ".join(bad))
+    n_none = sum(loss_is_mse(r.config or {}) is None for r in records)
+    print(f"Loss check: all learned runs MSE-only ({n_none} records without a training loss, e.g. closed-form)")
 
     out_dir = (args.out or HERE / cfg.get("output_dir", ".")).resolve()
     tables_dir = out_dir / "tables"

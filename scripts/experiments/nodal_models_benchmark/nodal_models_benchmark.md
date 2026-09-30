@@ -21,9 +21,10 @@
 
 | | |
 |---|---|
-| Task | `SC → FC`, Glasser, MSE-only loss (every logged `loss_signature` is `mse`; older trials predate the field) |
+| Task | `SC → FC`, Glasser, **MSE-only** loss. Checked per run from the W&B config (`loss_type`, `loss_terms`, searched `loss_weight_*`): every learned run in the tables and figures and all 554 importance trials trained on plain MSE; `run.py` refuses to render otherwise |
 | Variants (scraped) | NodalMLP `dot`, `bilinear`, `linear_beta`, `spectral` — tune trials whose config matches `models/configs/NodalMLP_<variant>.yml`; `mlp_sc_rows` — pre-schema `NodalMLP.yml` runs (`use_sc_row: true`, `use_volume: false`, no `decoder_type`) |
-| References (from snapshots) | null `CrossModalPCA` SC and `CrossModal_PCA_PLS_learnable` (`sc_type_benchmark`); `Chen2024GCN` and untuned `NodalGNN` (`cov_projector_benchmark`) |
+| Linear reference (scraped) | `CrossModal_PCA_PLS_learnable` SC, best MSE-only run per seed (the `sc_type_benchmark` snapshot picks across loss types, and `demeaned_mse` wins 3 of 4 seeds there) |
+| References (from snapshots) | null `CrossModalPCA` SC (closed-form, no training loss) from `sc_type_benchmark`; `Chen2024GCN` and untuned `NodalGNN` (both `loss_type: mse`) from `cov_projector_benchmark` |
 | Seeds | 0–3 (shared seeded splits); bilinear seed 0 has no best-trial run (its job was killed at 26/32 trials, not re-run) |
 | Tuning | Optuna + ASHA, 32 trials per variant × seed (spectral seed 3: 56; bilinear seed 0: 50 across two jobs) |
 | Run selection | duplicates within a cell → keep max `val_demeaned_r` (every cell had one candidate) |
@@ -44,7 +45,7 @@ A cache-mode run reproduces every table and figure byte for byte (checked 2026-0
 
 | Condition | n | corr | demeaned corr | mse | avg rank |
 |---|---|---|---|---|---|
-| `PCA_PLS_learnable` | 4 | 0.834 ± 0.005 | **0.075 ± 0.034** | 0.0136 | **0.665 ± 0.086** |
+| `PCA_PLS_learnable` (MSE) | 4 | 0.835 ± 0.005 | **0.078 ± 0.035** | 0.0136 | **0.686 ± 0.100** |
 | Null (`CrossModalPCA` SC) | 4 | 0.824 ± 0.002 | 0.013 ± 0.010 | 0.0144 | 0.518 ± 0.019 |
 | GNN (Chen, 2024) | 4 | 0.743 ± 0.024 | 0.018 ± 0.005 | 0.0201 | 0.564 ± 0.008 |
 | NodalGNN (untuned default) | 4 | 0.769 ± 0.005 | 0.016 ± 0.008 | 0.0184 | 0.554 ± 0.011 |
@@ -57,13 +58,13 @@ A cache-mode run reproduces every table and figure byte for byte (checked 2026-0
 Tables: [`tables/test_summary.md`](tables/test_summary.md), [`tables/trial_summary.md`](tables/trial_summary.md),
 [`tables/importance_wide.md`](tables/importance_wide.md); per-seed metrics:
 [`tables/row_seed_metrics.csv`](tables/row_seed_metrics.csv); figures in [`figures/`](figures/). The linear reference is
-0.075 here (seeds 0–3) vs 0.092 over the 10 seeds of `sc_type_benchmark`.
+0.078 here (MSE-only, seeds 0–3) vs 0.092 over the 10 seeds of `sc_type_benchmark` (any loss).
 
 ## 5. Findings (preliminary)
 
 1. **Every nodal model is at the null.** The four probes (demeaned corr 0.011–0.018, avg rank 0.50–0.54) and the
    nodal/graph references (0.016–0.023) sit within about one seed SD of the null (0.013) and far below `PCA_PLS_learnable`
-   (0.075). The probes cannot be ranked against each other at n = 3–4.
+   (0.078). The probes cannot be ranked against each other at n = 3–4.
 2. **Probe decoders are badly calibrated in scale.** Raw corr 0.16–0.44 and MSE 2–230× the null (bilinear 3.26 from a
    diverged seed), so they recover neither FC's shared structure nor its subject-specific part.
 3. **Validation scores are set by the split, not the hyperparameters.** Tune-trial scores fall into a few bands per
@@ -75,7 +76,7 @@ Tables: [`tables/test_summary.md`](tables/test_summary.md), [`tables/trial_summa
 4. **The tuning budget was not justified** (612 trials over 38 array tasks, ~47 GPU-hours, for null-level models).
    This motivated spec v2 D2: pilot first, pack small models, scale on evidence.
 5. **Gate for NodalGNN (E0.5):** validation scores are only comparable within a seed, so the seed-0 pilot must reach a
-   best val demeaned r ≥ 0.045 (the null's seed-0 val 0.025 + 0.02; `PCA_PLS_learnable` reaches 0.126) before
+   best val demeaned r ≥ 0.045 (the null's seed-0 val 0.025 + 0.02; MSE-only `PCA_PLS_learnable` reaches 0.117) before
    seeds 1–3 are run. The probes' seed-0 best trials reach −0.006 to 0.012.
 
 ## 6. Caveats

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-30T09:50:02",
-  "git_commit": "4da4cd3",
+  "generated_at": "2026-09-30T14:59:05",
+  "git_commit": "cf9ff75",
   "config": "scripts/experiments/nodal_models_benchmark/config.yml",
   "records_cache": "scripts/experiments/nodal_models_benchmark/records.json",
   "cache_metadata": {
@@ -9,7 +9,8 @@
       "bilinear",
       "linear_beta",
       "spectral",
-      "mlp_sc_rows"
+      "mlp_sc_rows",
+      "pca_pls_learnable"
     ],
     "seeds": [
       0,
@@ -72,9 +73,18 @@
         "require_missing": [
           "decoder_type"
         ]
+      },
+      "pca_pls_learnable": {
+        "config": "models/configs/CrossModal_PCA_PLS_learnable.yml",
+        "importance": false,
+        "match": {
+          "source": "SC",
+          "loss_type": "mse"
+        },
+        "model": "CrossModal_PCA_PLS_learnable"
       }
     },
-    "scraped_at": "2026-09-30T09:45:18",
+    "scraped_at": "2026-09-30T14:58:52",
     "wandb": "alexander-ratzan-new-york-university/conn2conn"
   },
   "outputs": [
