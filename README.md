@@ -8,8 +8,30 @@ Predicts one connectome modality from another on HCP-derived data (default `SC �
 
 ## Models
 
-| Model | Type | Description |
-|---|---|---|
+Grouped by **model type** (what the model is) and **learning type** (how it is fit). Direction support
+(`SC → FC` vs `FC → SC`) is audited in `context_packages/repo_spec_docs/spec_doc_v2.md` (E2).
+
+| Model | Model type | Learning type | Description |
+|---|---|---|---|
+| `CrossModalPCA` | Null / ceiling | Closed-form | Source PCs mapped index-for-index onto target PCs; no cross-modal fitting (≈ population-mean prediction) |
+| `TestRetestPrecomputed` | Null / ceiling | Precomputed (no fitting) | Test-retest oracle: the other session's FC as the prediction (north-star ceiling; `FC` target only) |
+| `CrossModal_PLS_SVD` | Linear decomposition | Closed-form | PLS via SVD decomposition |
+| `CrossModal_PCA_PLS` | Linear decomposition | Closed-form | PCA reduction + PLS regression in latent space |
+| `CrossModal_ConditionalGaussian` | Linear decomposition | Closed-form | Conditional mean of a joint Gaussian in PCA space (or ridge in edge space), optional covariates |
+| `CrossModal_PCA_PLS_learnable` | Linear decomposition | Supervised (gradient) | PCA/PLS-initialized linear map, fine-tuned end-to-end |
+| `CrossModal_linear_backbone` | Linear decomposition | Supervised (gradient) | Frozen PCA encoder/decoder around one learned affine latent map; fast probe for loss/regularization studies |
+| `CrossModal_PCA_PLS_CovProjector` | Linear decomposition | Supervised (gradient) | PCA+PLS + residual correction conditioned on subject covariates |
+| `LatentAttnMasked` | Latent / pretrained | Supervised (gradient) | Latent PCA backbone (zero / PLS / learned linear) plus a masked target-token attention residual |
+| `MaskedLatentPretrainer` | Latent / pretrained | Self-supervised (masked reconstruction) | Joint source+target latent-token reconstruction; predicts by masking every target token |
+| `MaskedMLPPretrainer` | Latent / pretrained | Self-supervised (masked reconstruction) | Same masked objective with linear / MLP backbone variants |
+| `NodalMLP` | Pairwise nodal | Supervised (gradient) | Per-region embeddings (anatomy and/or subject SC rows) → pairwise edge decoder (MLP or dot / bilinear / linear-β probes) |
+| `NodalGNN` | Pairwise nodal | Supervised (gradient) | Subject anatomy node features (volume, centroid, `SC_r2t`) → GCN over the SC graph → pairwise edge decoder |
+| `Chen2024GCN` | Deep-learning baseline | Supervised (gradient) | Chen et al. (2024): one-hot nodes → GCN over the SC graph → edge MLP on `[h_i ‖ h_j]` |
+| `Sarwar2020MLP` | Deep-learning baseline | Supervised (gradient) | Sarwar et al. (2021): edge-vector MLP trained with MSE + inter-subject correlation penalty |
+| `Krakencoder_precomputed` | Deep-learning baseline | Precomputed (trained externally) | Krakencoder predictions loaded per seed (class `KrakencoderPrecomputed`) |
+| `CrossModalVAE` | Experimental (in development) | Supervised (gradient) | Variational autoencoder cross-modal mapping |
+
+---|---|---|
 | `CrossModalPCA` | Closed-form | PCA projection from source to target space |
 | `CrossModal_PLS_SVD` | Closed-form | PLS via SVD decomposition |
 | `CrossModal_PCA_PLS` | Closed-form | PCA whitening + PLS regression |

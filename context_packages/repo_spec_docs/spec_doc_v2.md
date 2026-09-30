@@ -17,7 +17,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 |---|---|---|---|---|
 | E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | closed 2026-09-30 | — | agent:infra |
 | E1 | Composite-loss protocol v1: linear backbone (`composite_loss/linear_backbone`) + replicability instance `CrossModal_PCA_PLS_learnable` (`composite_loss/pca_pls_learnable`) | in progress (E1.1 merged; E1.2 Stage 1 submitted for both instances) | D3, D4 | agent:modeling |
-| E2 | Cross-model benchmark (`model_benchmark`, working name) | outline | C1, C2 | — |
+| E2 | Cross-model benchmark (`model_benchmark`, working name) | outline (E2.0 direction audit done) | C2 | — |
 | E3 | Composite-loss magnitude tuning for final models (follow-up to E1) | outline | E1 | — |
 | C1 | `torch_geometric` missing from `kraken_env` | done 2026-09-30 (via C6) | — | agent:infra |
 | C2 | Re-tune the M5b-affected sweeps | planned (within E2) | E2 | — |
@@ -334,16 +334,57 @@ constants `c_t` are recorded in the experiment `config.yml` and are identical ac
 ### E2 — Cross-model benchmark   (slug: `model_benchmark`, working name) · status: outline · owner: —
 
 - **Question:** on equal footing, how do all tunable models compare on test `demeaned_pearson`, `avg_rank` and the other
-  standard metrics?
+  standard metrics, in **both directions** (`SC → FC` and `FC → SC`)?
+- **Roster:** every registered model, grouped by model type (null / ceiling, linear decomposition, latent / pretrained,
+  pairwise nodal, deep-learning baseline, experimental) and learning type (closed-form, supervised, self-supervised,
+  precomputed); the classification lives in the README "Models" table. `CrossModalVAE` is experimental (in development).
 - **Design (outline):** standard CV-style tuning per model (Optuna over each model's YAML `search_space`, selection on
   `val_demeaned_r`, best-trial report), seeds 0–9. This is **not** the staged design of E1. Closed-form and precomputed
   baselines are included without tuning.
 - **Outputs:** per-metric bar charts across models; `demeaned_pearson` vs `avg_rank` scatter across models (the
   `sc_type_benchmark` style), through the runner pattern.
-- **Depends on:** C1 (PyG for `Chen2024GCN` / `NodalGNN`), C2 (re-tune the M5b-affected models; resolves C!1). E1 may inform whether
+- **Depends on:** C2 (re-tune the M5b-affected models; resolves C!1); C1 done 2026-09-30. E1 may inform whether
   benchmark models also get composite-weight search or stay MSE-only.
-- **Open decisions:** sources (`SC` only vs `SC`, `SC_r2t`, `SC+SC_r2t`); trial budget per model; loss policy (MSE-only
-  vs E1-informed); which `CovProjector` / `NodalMLP` variants count as separate entries.
+- **Open decisions:** sources beyond the two directions (`SC_r2t`, `SC+SC_r2t`); trial budget per model (D2); loss
+  policy (MSE-only vs E1-informed); which `CovProjector` / `NodalMLP` variants count as separate entries; further
+  requirements for modular cross-model comparisons (to be added).
+
+#### E2.0 — Direction audit (`SC → FC` vs `FC → SC`) · done 2026-09-30
+The shared pipeline is direction-agnostic: dataset `x` / `y`, loss, evaluator (has a `target == "SC"` branch) and the
+PCA helpers (`get_modality_data`) follow `--source` / `--target`; `HCP_Base(source="FC", target="SC")` builds.
+Exceptions are batch extras that are **always SC / anatomy regardless of direction**: `sc_matrix` (NodalMLP) and
+`node_features` (volume, centroid, `SC_r2t`; NodalMLP, NodalGNN). No `FC → SC` run exists on `main` yet (the only FC
+launchers are `CrossModalPCA` FC→FC), so "generic" means the code path, not a tested result. Target ranges: FC
+−0.81 … 0.96; SC (log1p) 0 … 3.59, 31 % zeros.
+
+| Model | SC → FC | FC → SC | Why / what is needed |
+|---|---|---|---|
+| Linear decomposition (6), `CrossModalPCA`, `CrossModalVAE` | ✓ | ✓ generic | built from `get_modality_data` source/target means, loadings, scores |
+| `LatentAttnMasked`, `MaskedLatentPretrainer`, `MaskedMLPPretrainer` | ✓ | ✓ generic | `sc_*` / `fc_*` names are legacy labels for the source / target roles |
+| `Sarwar2020MLP` | ✓ | ⚠ config | default `output_tanh: true` bounds outputs to [−1, 1] but SC reaches 3.59: set `output_tanh: false` for `FC → SC` |
+| `Krakencoder_precomputed` | ✓ | ⚠ loader | predictions exist (below); loader hard-codes the `FCcorr` output key and `fc_upper_triangles` targets — select both by `base.target` |
+| `TestRetestPrecomputed` | ✓ | ✗ | FC-only (no SC retest sessions in the dataset); see ceiling note below |
+| `NodalMLP` | ✓ | ✗ reverse variant | SC-row input is always the subject's SC — in `FC → SC` that is the target (leak) |
+| `NodalGNN` | ✓ | ✗ reverse variant | message passing uses the source edges as weights (negative FC breaks GCN degree normalization); `r2t` node features are SC-derived (leak) |
+| `Chen2024GCN` | ✓ | ✗ reverse variant | same negative-weight problem when the source graph is FC |
+
+**Reverse variants (`FC → SC`) for the graph / nodal models** (requirement, not built):
+- Message-passing graph from the source FC, **thresholded**: keep edges with FC > τ, weights = FC; τ is a model hparam
+  (e.g. `fc_graph_threshold`), default **0.5**, searchable. Applies to `Chen2024GCN` and `NodalGNN`.
+- No SC-derived node inputs: `NodalGNN` with `use_r2t: false` (volume / centroid only, or identity); `NodalMLP` reads
+  rows of the **source** matrix (FC rows) instead of `sc_matrix`, same thresholding option.
+- A guard in each model: refuse `target == "SC"` when any SC-derived input is enabled.
+
+**`FC → SC` ceiling:** none in the data (no SC retest). It is assumed to be very high; take a value from the
+literature (dMRI structural-connectome test-retest reliability, HCP-YA retest or comparable) and cite it as a reference
+line rather than a computed row.
+
+**Krakencoder `FC → SC` results (for memory):** `krakencoder/example_data/mydata_kraken_seed{seed}_source_{parc}.FC.mat`
+(seeds 0–9 present for Glasser and 4S456Parcels), key `predicted_alltypes["FCcorr_{parc}_hpf"]["SCifod2act_{parc}_volnorm"]`
+(every file holds all four input → output types; the SC-source files are `…_source_{parc}.SC.mat` with outer key
+`SCifod2act_{parc}_volnorm`). Checked 2026-09-30 (Glasser, seed 0): 957 subjects in `HCP_Base` order (per-subject r
+with our SC 0.915), already on our SC scale (same mean 0.0533; linear fit slope 1.006, intercept 0.000), test demeaned
+r ≈ 0.116. The `mydata_kraken_demeaned*` files are other variants, not the per-seed benchmark files.
 
 ### E3 — Composite-loss magnitude tuning for final models   (slug: tbd) · status: outline · owner: —
 
@@ -383,6 +424,7 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-09-30 | E0 MSE-only enforced: GNN and NodalMLP runs were already `mse`; the linear reference is now scraped MSE-only (the sc_type snapshot's winners were `demeaned_mse` on 3 of 4 seeds); `run.py` rejects non-MSE runs. |
 | 2026-09-30 | Status table synced (E0, C1, C6); E0 design records the MSE-only linear reference and the Chen vs NodalGNN difference, incl. NodalGNN's `r2t` input caveat; E0.5 files and 8 h budget. |
 | 2026-09-30 | **E0 closed.** NodalGNN pilot stopped by decision (seed-0 best val 0.011 < null); results, takeaways and the "learn on top of the mean" follow-up recorded (§5); notebook retired. |
+| 2026-09-30 | E2: both directions in scope; E2.0 direction audit recorded (generic vs needs config/loader vs reverse variants), reverse-variant requirement (FC graph threshold τ, default 0.5), `FC → SC` ceiling from literature, Krakencoder `FC → SC` file/key reference. README model table regrouped by model type × learning type. |
 | 2026-09-30 | E1 prereqs done: slug → `composite_loss/linear_backbone`; E1.1 (fixed scales + monitor-only terms) built and verified on local branch `e1-loss-scale-monitor`, merges when E0 closes; Stage 1 config and packed launcher added; E1.3/E1.4 runner design and dynamics figures specified; D3 (compute envelope, autonomous execution). |
 | 2026-09-30 | E1.1 merged (`75b7c11`) after E0 closed; regression 45/45 and E1.1 checks 23/23 on `main`; checks tracked as `scripts/sbatch/checks/loss_regression.py` and `composite_loss/checks/check_e1_loss.py`. |
 | 2026-09-30 | E1 becomes composite-loss protocol v1: shared versioned grid `composite_loss/grid.yml` (8-cell factorial at w = 0.5 + 8 dose points), batch 64 (D4), Stage 1 at 24 trials; replicability instance `composite_loss/pca_pls_learnable` added; E3 (magnitude tuning) outlined. |
