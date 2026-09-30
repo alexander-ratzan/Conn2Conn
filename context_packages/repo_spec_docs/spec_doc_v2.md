@@ -16,7 +16,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
 | E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | closed 2026-09-30 | — | agent:infra |
-| E1 | Composite-loss protocol v1: linear backbone (`composite_loss/linear_backbone`) + replicability instance `CrossModal_PCA_PLS_learnable` (`composite_loss/pca_pls_learnable`) | in progress (E1.1 merged; E1.2 Stage 1 submitted for both instances) | D3, D4 | agent:modeling |
+| E1 | Composite-loss protocol v1: linear backbone (`composite_loss/linear_backbone`) first; `CrossModal_PCA_PLS_learnable` (`composite_loss/pca_pls_learnable`) paused as the reproducibility target | in progress (linear Stage 1: seeds 0, 3 done, 1/2/4 running `18902227`; learnable Stage 1 paused at seeds 0–2) | D3, D4 | agent:modeling |
 | E2 | Cross-model benchmark (`model_benchmark`, working name) | outline (E2.0 direction audit done) | C2 | — |
 | E3 | Composite-loss magnitude tuning for final models (follow-up to E1) | outline | E1 | — |
 | C1 | `torch_geometric` missing from `kraken_env` | done 2026-09-30 (via C6) | — | agent:infra |
@@ -24,7 +24,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 | C3 | Confirm `loss_signature` in Tune-trial W&B configs | done | — | agent:infra |
 | C4 | `latent_masked_test` notebook fixes | planned | — | — |
 | C6 | Environment: two `kraken_env` stacks; jobs import from `~/.local` | done 2026-09-30 (C6.1–C6.4); C6.5 open; archive awaiting deletion | C6.5: user | agent:infra |
-| C7 | Merge the batch-size fix + `extra_callbacks` hook (branch `e1-callbacks-batchsize`) | planned (after E1 Stage 1 finishes) | E1 Stage 1 jobs done | agent:modeling |
+| C7 | Merge the batch-size fix + `extra_callbacks` hook + Ray CPU cap | done 2026-09-30 (`cfc1c32`) | — | agent:modeling |
 | C!1 | v1:M5b — sampled L1/L2 not applied in past sweeps | open | resolved by C2 | — |
 | C!2 | v1:M1b — `ema` runs with `neidist` ≤ 0 during warmup | open | — | — |
 | C!3 | `CrossModal_linear_backbone` z-scored latents are PCA-space | open | — | — |
@@ -430,5 +430,6 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-09-30 | E1 becomes composite-loss protocol v1: shared versioned grid `composite_loss/grid.yml` (8-cell factorial at w = 0.5 + 8 dose points), batch 64 (D4), Stage 1 at 24 trials; replicability instance `composite_loss/pca_pls_learnable` added; E3 (magnitude tuning) outlined. |
 | 2026-09-30 | E1 restructured: one experiment folder `scripts/experiments/composite_loss/` (protocol write-up, `grid.yml`, `checks/`, instances `linear_backbone/`, `pca_pls_learnable/`); Stage 1 resubmitted on the new paths: linear seeds 0–2 `18899811`, 3–4 `18899801`; learnable 0–4 `18899802`. The first linear submission (`18899142`, seeds 0–2) failed when the move ran before its search-space read (`FileNotFoundError`, ~11 GPU-min lost): jobs re-read the config after Ray start-up. |
 | 2026-09-30 | E1.3–E1.5 code ready (`loss_grid.py`, `protocol.py`, `report.py`, launchers, `check_protocol.py`). C!4 (single runs ignored the tuned batch size) found; fix + `extra_callbacks` on branch `e1-callbacks-batchsize` (C7, merges after Stage 1). Trial-index parsing fixed in the `multimodel_scfc` audit script. |
+| 2026-09-30 | C7 merged (`cfc1c32`, regression 45/45): batch-size fix (C!4), `extra_callbacks`, and **Ray sized to the SLURM CPU allocation** — five Stage 1 tasks had hung because Ray pre-started 128 workers (all node cores) that never registered; cancelled. E1 order: linear backbone first (seeds 1/2/4 resubmitted `18902227`), learnable paused at seeds 0–2 as the reproducibility target. |
 
 Last updated at: 2026-09-30 EDT
