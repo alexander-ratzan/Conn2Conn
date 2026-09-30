@@ -4,7 +4,9 @@
 # Write-up: scripts/experiments/composite_loss/pca_pls_learnable/pca_pls_learnable.md
 #
 # Stages: E1.2 Stage 1 MSE-only tune -> E1.3 consensus runs + reference scales -> E1.4 Stage 2 weight grid
-# -> E1.5 tables and figures. Fields marked `null` are filled by the stage that produces them.
+# -> E1.5 tables and figures (scripts/experiments/composite_loss/protocol.py). Generated values (Stage 1 tune ids,
+# consensus config, reference scales, checks) go to state.yml next to this file; fields below marked `null` are
+# documentation only.
 
 model: CrossModal_PCA_PLS_learnable
 source: SC
@@ -56,6 +58,14 @@ compute:
     - the E1.3 consensus MSE-only run misses its seed's Stage 1 best by more than 1 SE
     - any Stage 2 run is non-finite, or its loss_signature does not match its combination
     - a stage's GPU-h exceeds its budget
+
+# --- Stop conditions and runtime (read by protocol.py) ------------------------------------------------------
+stop:
+  stage1_min_best_val: 0.09      # any seed's Stage 1 best val_demeaned_r below this -> stop
+runtime:
+  parallel: 5                    # (combination, seed) runs sharing one GPU as separate processes
+  grid_tasks: 4                  # launch_grid.sh array size (80 runs -> 20 per task)
+  grad_cosine: {param: W_mid, every: 5}   # per-term gradient cosines on the latent map (needs extra_callbacks)
 
 # --- Outputs (E1.5) -----------------------------------------------------------------------------------------
 metrics: [demeaned_pearson, avg_rank, pearson, mse, top1_acc]   # test split; selection on val

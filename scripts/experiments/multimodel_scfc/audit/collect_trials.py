@@ -11,6 +11,7 @@ import argparse
 import glob
 import json
 import os
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -45,8 +46,8 @@ def collect(models, ckpt_root):
                     cfg = yaml.safe_load(open(cfg_path)) or {}
                     source, seed = _wandb_value(cfg, "data.source"), _wandb_value(cfg, "data.shuffle_seed")
                 name = os.path.basename(tdir)
-                parts = name.split("_")
-                idx = int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else None
+                m = re.match(r"_tune_trainable_[0-9a-f]+_(\d+)", name)  # <hash>_<trial index>_<params>
+                idx = int(m.group(1)) if m else None
                 rows.append({
                     "model": model, "sweep": sweep_id, "trial": name[:48], "trial_index": idx,
                     "source": source, "seed": seed, "n_epochs": len(results),

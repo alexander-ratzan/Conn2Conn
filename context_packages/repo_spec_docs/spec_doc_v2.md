@@ -24,9 +24,11 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 | C3 | Confirm `loss_signature` in Tune-trial W&B configs | done | — | agent:infra |
 | C4 | `latent_masked_test` notebook fixes | planned | — | — |
 | C6 | Environment: two `kraken_env` stacks; jobs import from `~/.local` | done 2026-09-30 (C6.1–C6.4); C6.5 open; archive awaiting deletion | C6.5: user | agent:infra |
+| C7 | Merge the batch-size fix + `extra_callbacks` hook (branch `e1-callbacks-batchsize`) | planned (after E1 Stage 1 finishes) | E1 Stage 1 jobs done | agent:modeling |
 | C!1 | v1:M5b — sampled L1/L2 not applied in past sweeps | open | resolved by C2 | — |
 | C!2 | v1:M1b — `ema` runs with `neidist` ≤ 0 during warmup | open | — | — |
 | C!3 | `CrossModal_linear_backbone` z-scored latents are PCA-space | open | — | — |
+| C!4 | Single runs trained at batch 128 regardless of the tuned `batch_size` | open | C7 (fix) + re-runs | — |
 | D1 | One job environment for all experiments and runs | decided | — | user |
 | D2 | Tuning budget: pilot first, pack small models, scale on evidence | decided | — | user |
 | D3 | E1 compute envelope and autonomous execution | decided | — | user |
@@ -66,6 +68,7 @@ the table below lists only what is specific to v2.
 | C3 | Confirm Tune-trial W&B configs carry `loss_signature` (v1 8.7 check failed) | — | **Done 2026-09-29.** The failure was a false negative: wandb 0.25 offline runs write no `files/config.yaml`; the config is inside `run-*.wandb`. Both trials of the 8.7 tune run (`results/ray_checkpoints/CrossModal_linear_backbone_tune_1790207949/*/wandb/offline-run-*/run-*.wandb`) contain `loss_signature` = `mse+0.25*correye+0.5*neidist`. The check in `scripts/sbatch/checks/verify_modeling_track.py` should read `run-*.wandb` (or an online run) instead. E1.2's online sweep can re-confirm at no cost. |
 | C4 | `scripts/notebooks/model_testing/latent_masked_test.ipynb`: cell 6 reads `residual_linear.weight` (absent in `attention_only`); cell 4 sets `l2_reg` twice | — | Fix when that notebook is next used. |
 | C6 | **Environment divergence** (found 2026-09-29). (1) Two stacks share the overlay: `source /ext3/env.sh` (all 59 launchers) gives torch 2.9.0+cu128 from the overlay **plus `~/.local`**; `source /scratch/asr655/envs/activate_env.sh kraken_env` gives torch 2.11.0+cu130 from `/scratch/asr655/envs/kraken_env/pylibs` (5.1 GB, installed 2026-04-08) and hides `~/.local`. Interactive sessions and jobs can therefore run different torch / Ray / Lightning. (2) Jobs import ray 2.54.1, lightning 2.6.1, wandb 0.25.1, optuna 4.8.0, torchmetrics, pyarrow from `~/.local` (38 packages, 520 MB, 14k files, installed 2026-04-08). Home is at 25.4k / 30k files; `~/.local` is the only large home dir not symlinked to `/scratch`. **Root cause (confirmed 2026-09-30):** the overlay could not be written on this cluster. The image's skeleton dirs (`/upper`, `/upper/ext3`, `/work`) were owned by uid 0 while its contents are user-owned, so a plain `:rw` mount fails; the user has no `/etc/subuid` entry, so `--fakeroot` falls back to a root-mapped namespace that cannot write either. pip then says site-packages "is not writeable" and silently installs into `~/.local`, which `/ext3/env.sh` leaves on every job's `sys.path`. | E0.5, E2, every run | C6.1–C6.4 done 2026-09-30; C6.5 (user); archive cleanup pending. See **C6 plan** below. |
+| C7 | Branch `e1-callbacks-batchsize` (`d4368d7`, worktree `../Conn2Conn_wt_e1b`): `Sim._build_runtime_data_context` rebuilds the loaders at the run's `trainer.batch_size` when it differs from `Sim`'s (fixes C!4); `train_model` / `_run_learned_single` gain `extra_callbacks` (E1.4 gradient cosines). Checked: loss regression 45/45 vs `main`; loaders rebuilt only on a batch mismatch; callbacks reach the Trainer. | E1.4 gradient cosines; C!4 | Merge once no queued or running job imports `main.py` / `models/` (E1 Stage 1 done); rerun `loss_regression.py`; delete worktree and branch. |
 
 ### Caveats (`C!`)
 
@@ -74,6 +77,7 @@ the table below lists only what is specific to v2.
 | C!1 | v1:M5b — every sweep before 2026-09-23 of `CrossModal_PCA_PLS_learnable`, `CrossModal_PCA_PLS_CovProjector` and `Sarwar2020MLP` trained with the YAML default regularization (L2 = 1e-4 for the PCA/PLS models, none for Sarwar); W&B logged the sampled `l1_reg`/`l2_reg`, which were not applied. Results are valid as default-regularization results. | `sc_type_benchmark` (`PCA_PLS_learnable` rows); `cov_projector_benchmark` (`PCA_PLS_learnable`, all projector rows, `Sarwar2020MLP`) | C2 |
 | C!2 | v1:M1b — any `ema` run whose `neidist` reached ≤ 0 during warmup had that term inflated ~10⁸-fold (includes the old `LatentAttnMasked` default composite). Which past runs were hit is not determined. | past `ema` composite runs, mainly `LatentAttnMasked` | re-run or audit if those results are reused |
 | C!3 | `CrossModal_linear_backbone(zscore_pca_scores=True)` returns PCA-space latents from `predict_target_latents` (`LatentAttnMasked` returned z-space). Edge outputs are unchanged. | latent losses and latent diagnostics under z-scoring | informational; stays open while z-scored latents are in use |
+| C!4 | `main()` builds `Sim` without a `batch_size` (so 128), and `_run_learned_single` reused those loaders unless covariate sources changed. Every `--report_best_after_tune` rerun and direct prod run therefore trained at **batch 128 whatever the config or best trial specified**; Tune trials themselves used the right batch size. Found 2026-09-30 by code reading. | best-trial test metrics of models tuned at batch ≠ 128: E0 `nodal_models_benchmark` (NodalMLP 8–64, NodalGNN 8), `sc_type_benchmark` / `cov_projector_benchmark` rows for `CrossModal_PCA_PLS_learnable` (64), the projector (64), `Sarwar2020MLP` (32), `Chen2024GCN` (4); E1 Stage 1 best-trial reports (not used for E1 results: E1.3/E1.4 build `Sim(batch_size=64)` explicitly) | C7 (fix), then re-runs within E2 / C2 |
 
 #### C6 plan — one job environment in the existing overlay (no replicate overlay)
 
@@ -274,14 +278,29 @@ constants `c_t` are recorded in the experiment `config.yml` and are identical ac
 - **Replicability instance:** same launcher pattern; Stage 1 searches `CrossModal_PCA_PLS_learnable`'s own 12 keys
   (MSE-only, `loss_type` fixed to `composite`).
 
-#### E1.3 — Consensus runs and reference scales
+#### E1.3–E1.5 implementation (2026-09-30)
+- **Shared code** `scripts/results_utils/loss_grid.py`: Stage 1 discovery (task logs → `ray_tune_id` per seed) and trial
+  collection, per-seed summary + stop check, consensus rule and 1-SE acceptance, reference-scale measurement (full
+  training batches of 64, eval mode, fixed order), grid-combination loss configs, `run_one` (one model × seed in its own
+  process; `Sim(batch_size=64)`; W&B tags), `TermGradCosine` callback, per-run outputs.
+- **CLI** `scripts/experiments/composite_loss/protocol.py {stage1,consensus,grid,report} --instance <name>`; exit
+  code 2 = a D3 stop condition. Generated values go to `<instance>/state.yml` (config.yml stays hand-written).
+  Launchers `launch_consensus.sh <instance>` (1 GPU, 5 seeds in parallel) and `launch_grid.sh <instance>` (4 array
+  tasks × 20 runs, 5 in parallel per GPU; packing per D2). Report: `report.py` (tables + 6 PNGs + interactive HTML).
+- **Stop behaviour:** a consensus miss stops the run (D3) rather than falling back to another config.
+- **Checks** `composite_loss/checks/check_protocol.py` (CPU, synthetic inputs): Stage 1 discovery ignores failed
+  attempts; consensus math; all 16 combinations resolve to the expected signature / scales / monitors; scale
+  measurement matches a manual computation; gradient cosines match a manual computation; report writes every output
+  and rebuilds byte-identically. Real-data training is first exercised by the E1.3 consensus step itself.
+
+#### E1.3 — Consensus runs and reference scales  · code ready
 - **Changes:** one runner script in the experiment folder trains the consensus config per seed through
   `Sim._run_learned_single` (monitors on), computes `s_t` for `mse`, `varmatch`, `correye`, `neidist` over training
   batches, writes `c_t` (mean and across-seed spread) into `config.yml`, and saves each run's epoch history.
 - **Accept:** `c_t` recorded with spread; `neidist`'s sign at the reference model noted (its scaled term is signed).
 - **Budget:** ≤ 1 GPU-h.
 
-#### E1.4 — Stage 2: weight grid
+#### E1.4 — Stage 2: weight grid  · code ready (gradient cosines need C7)
 - **Grid (protocol v1, `composite_loss/grid.yml`; 16 combinations; weights on the scaled terms, MSE = 1, never ablated):**
 
   | Block | Combinations | Count | Answers |
@@ -297,7 +316,7 @@ constants `c_t` are recorded in the experiment `config.yml` and are identical ac
   consensus metrics per seed.
 - **Budget:** ≤ 8 GPU-h.
 
-#### E1.5 — Analysis and figures
+#### E1.5 — Analysis and figures  · code ready
 - **Changes:** `run.py` following the runner pattern: `tables/seed_records.csv` (combination × seed),
   `tables/combo_summary.csv` (mean, SE), `tables/epoch_history.csv`. Figures:
   - Trade-off scatter: test `demeaned_pearson` vs `avg_rank`, one point per combination (mean ± SE), MSE-only
@@ -368,5 +387,6 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-09-30 | E1.1 merged (`75b7c11`) after E0 closed; regression 45/45 and E1.1 checks 23/23 on `main`; checks tracked as `scripts/sbatch/checks/loss_regression.py` and `composite_loss/checks/check_e1_loss.py`. |
 | 2026-09-30 | E1 becomes composite-loss protocol v1: shared versioned grid `composite_loss/grid.yml` (8-cell factorial at w = 0.5 + 8 dose points), batch 64 (D4), Stage 1 at 24 trials; replicability instance `composite_loss/pca_pls_learnable` added; E3 (magnitude tuning) outlined. |
 | 2026-09-30 | E1 restructured: one experiment folder `scripts/experiments/composite_loss/` (protocol write-up, `grid.yml`, `checks/`, instances `linear_backbone/`, `pca_pls_learnable/`); Stage 1 resubmitted on the new paths: linear seeds 0–2 `18899811`, 3–4 `18899801`; learnable 0–4 `18899802`. The first linear submission (`18899142`, seeds 0–2) failed when the move ran before its search-space read (`FileNotFoundError`, ~11 GPU-min lost): jobs re-read the config after Ray start-up. |
+| 2026-09-30 | E1.3–E1.5 code ready (`loss_grid.py`, `protocol.py`, `report.py`, launchers, `check_protocol.py`). C!4 (single runs ignored the tuned batch size) found; fix + `extra_callbacks` on branch `e1-callbacks-batchsize` (C7, merges after Stage 1). Trial-index parsing fixed in the `multimodel_scfc` audit script. |
 
 Last updated at: 2026-09-30 EDT
