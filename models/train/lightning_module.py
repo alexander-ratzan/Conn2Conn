@@ -41,7 +41,11 @@ def structured_loss_metric_names(loss_cfg, phases=("train", "val"), kinds=STRUCT
         return []
     names = [spec["name"] for spec in CompositeLoss._parse_loss_terms(loss_cfg["loss_terms"])]
     names = list(dict.fromkeys(names))
-    return [f"{phase}_loss_{kind}_{name}" for phase in phases for kind in kinds for name in names]
+    out = [f"{phase}_loss_{kind}_{name}" for phase in phases for kind in kinds for name in names]
+    # Monitor-only terms are logged as raw values only.
+    if "raw" in kinds:
+        out += [f"{phase}_loss_raw_{name}" for phase in phases for name in (loss_cfg["loss_monitor_terms"] or [])]
+    return out
 
 
 def _display_loss_terms(loss_terms):
@@ -88,6 +92,8 @@ class CrossModalLightningModule(pl.LightningModule):
             hparams_to_save["loss_normalize"] = loss_cfg["loss_normalize"]
             hparams_to_save["loss_scale_ema_decay"] = loss_cfg["loss_scale_ema_decay"]
             hparams_to_save["loss_scale_warmup_steps"] = loss_cfg["loss_scale_warmup_steps"]
+            if loss_cfg["loss_monitor_terms"]:
+                hparams_to_save["loss_monitor_terms"] = list(loss_cfg["loss_monitor_terms"])
         self.save_hyperparameters(hparams_to_save)
         self.model = model
         self.base = base
@@ -204,6 +210,8 @@ class CrossModalLightningModule(pl.LightningModule):
             self.log(f"{phase}_loss_weighted_{name}", value, on_step=False, on_epoch=True)
         for name, value in self.loss_fn.get_scale_dict().items():
             self.log(f"{phase}_loss_ref_{name}", value, on_step=False, on_epoch=True)
+        for name, value in self.loss_fn.last_monitor_terms.items():
+            self.log(f"{phase}_loss_raw_{name}", value, on_step=False, on_epoch=True)
 
     def _compute_reg_loss(self, device):
         if not hasattr(self.model, "get_reg_loss"):

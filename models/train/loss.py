@@ -125,12 +125,20 @@ class CompositeLoss(nn.Module):
 
     Terms: mse, varmatch, correye, neidist (kwarg margin), demeaned_mse (needs target_mean),
     pairwise_corr (kwarg corr_target; Sarwar et al.), kld (needs the model's mu/logvar).
+
+    Any term accepts kwarg `scale` (> 0, default 1): a fixed reference scale, so the term contributes
+    weight * raw / scale (spec v2 E1.1). Fixed scales replace EMA normalization; the two cannot be combined.
+    `monitor_terms` are computed each step under no_grad and logged only (last_monitor_terms); they never
+    enter the loss or its gradients.
     """
+
+    MONITOR_TERMS = ("mse", "varmatch", "correye", "neidist", "demeaned_mse", "pairwise_corr")
 
     VALID_TERMS = ("mse", "varmatch", "correye", "neidist", "demeaned_mse", "pairwise_corr", "kld")
     VALID_NORMALIZE = ("ema", "none")
 
-    def __init__(self, loss_terms, normalize="ema", ema_decay=0.95, warmup_steps=100, target_mean=None):
+    def __init__(self, loss_terms, normalize="ema", ema_decay=0.95, warmup_steps=100, target_mean=None,
+                 monitor_terms=None):
         super().__init__()
         term_specs = self._parse_loss_terms(loss_terms)
         if not term_specs:
@@ -151,13 +159,26 @@ class CompositeLoss(nn.Module):
             deduped.setdefault(spec["name"], spec)
 
         self.term_specs = list(deduped.values())
+        self.term_scales = []
+        for spec in self.term_specs:
+            scale = float(spec["kwargs"].get("scale", 1.0))
+            if not scale > 0:
+                raise ValueError(f"Composite term '{spec['name']}' has scale={scale}; scale must be > 0.")
+            self.term_scales.append(scale)
+        if normalize == "ema" and any(scale != 1.0 for scale in self.term_scales):
+            raise ValueError("Fixed term scales replace EMA normalization; use loss_normalize 'none' (or 'auto').")
+        active = {spec["name"] for spec in self.term_specs}
+        self.monitor_terms = [name for name in dict.fromkeys(monitor_terms or []) if name not in active]
+        bad = [name for name in self.monitor_terms if name not in self.MONITOR_TERMS]
+        if bad:
+            raise ValueError(f"Unsupported monitor terms {bad}. Valid options: {list(self.MONITOR_TERMS)}")
         if target_mean is not None:
             if isinstance(target_mean, np.ndarray):
                 target_mean = torch.tensor(target_mean, dtype=torch.float32)
             self.register_buffer("target_mean", torch.as_tensor(target_mean, dtype=torch.float32))
         else:
             self.target_mean = None
-        if any(spec["name"] == "demeaned_mse" for spec in self.term_specs) and self.target_mean is None:
+        if "demeaned_mse" in active | set(self.monitor_terms) and self.target_mean is None:
             raise ValueError("Composite term 'demeaned_mse' requires target_mean (pass base to create_loss_fn).")
         self.loss_terms = [spec["name"] for spec in self.term_specs]
         self.term_weights = OrderedDict((spec["name"], float(spec["weight"])) for spec in self.term_specs)
@@ -170,6 +191,7 @@ class CompositeLoss(nn.Module):
         self.last_raw_terms = OrderedDict()
         self.last_norm_terms = OrderedDict()
         self.last_weighted_terms = OrderedDict()
+        self.last_monitor_terms = OrderedDict()
 
     @staticmethod
     def _parse_loss_terms(loss_terms):
@@ -251,6 +273,8 @@ class CompositeLoss(nn.Module):
             if self.normalize == "ema":
                 ref = torch.clamp(self._loss_scales[idx].detach().to(raw_val.device), min=eps)
                 norm_val = raw_val / ref
+            elif self.term_scales[idx] != 1.0:
+                norm_val = raw_val / self.term_scales[idx]
             else:
                 norm_val = raw_val
             norm_terms.append(norm_val)
@@ -265,7 +289,14 @@ class CompositeLoss(nn.Module):
         self.last_weighted_terms = OrderedDict(
             (name, value.detach()) for name, value in zip(self.loss_terms, weighted_terms)
         )
-        return torch.stack(weighted_terms).sum()
+        total = torch.stack(weighted_terms).sum()
+        if self.monitor_terms:
+            with torch.no_grad():
+                self.last_monitor_terms = OrderedDict(
+                    (name, self._compute_raw_term({"name": name, "kwargs": {}}, y_pred.detach(), y_true).detach())
+                    for name in self.monitor_terms
+                )
+        return total
 
 
 EDGE_LOSS_TYPES = ("composite",)
@@ -278,6 +309,7 @@ LOSS_CONFIG_DEFAULTS = {
     "loss_normalize": "auto",
     "loss_scale_ema_decay": 0.95,
     "loss_scale_warmup_steps": 20,
+    "loss_monitor_terms": None,   # composite only: extra terms computed and logged, never optimized
 }
 
 
@@ -392,10 +424,27 @@ def resolve_loss_config(trainer_cfg=None):
                 {"name": s["name"], "weight": float(s["weight"]), **({"kwargs": s["kwargs"]} if s["kwargs"] else {})}
                 for s in active
             ]
+        scaled = [s["name"] for s in active if float((s.get("kwargs") or {}).get("scale", 1.0)) != 1.0]
+        if any(not float((s.get("kwargs") or {}).get("scale", 1.0)) > 0 for s in active):
+            raise ValueError("Composite term scales must be > 0.")
         if cfg["loss_normalize"] == "auto":
-            cfg["loss_normalize"] = "none" if len(active) == 1 else "ema"
-    elif cfg["loss_normalize"] == "auto":
-        cfg["loss_normalize"] = "none"
+            # Fixed reference scales are the normalization; otherwise ema balances multiple terms.
+            cfg["loss_normalize"] = "none" if (len(active) == 1 or scaled) else "ema"
+        elif cfg["loss_normalize"] == "ema" and scaled:
+            raise ValueError(f"Terms {scaled} have fixed scales; they replace EMA. Use loss_normalize 'none' or 'auto'.")
+        monitors = cfg["loss_monitor_terms"]
+        if isinstance(monitors, str):
+            monitors = [m.strip() for m in monitors.split("+") if m.strip()]
+        active_names = {s["name"] for s in active}
+        monitors = [m for m in dict.fromkeys(monitors or []) if m not in active_names]
+        bad = [m for m in monitors if m not in CompositeLoss.MONITOR_TERMS]
+        if bad:
+            raise ValueError(f"Unsupported loss_monitor_terms {bad}. Valid options: {list(CompositeLoss.MONITOR_TERMS)}")
+        cfg["loss_monitor_terms"] = monitors or None
+    else:
+        cfg["loss_monitor_terms"] = None
+        if cfg["loss_normalize"] == "auto":
+            cfg["loss_normalize"] = "none"
     cfg["loss_signature"] = loss_signature(cfg)
     return cfg
 
@@ -416,7 +465,7 @@ def create_loss_fn(loss_cfg, base=None):
     loss_type = loss_cfg["loss_type"]
     if loss_type == "composite":
         specs = CompositeLoss._parse_loss_terms(loss_cfg["loss_terms"])
-        needs_mean = any(spec["name"] == "demeaned_mse" for spec in specs)
+        needs_mean = any(spec["name"] == "demeaned_mse" for spec in specs) or "demeaned_mse" in (loss_cfg["loss_monitor_terms"] or [])
         if needs_mean and base is None:
             raise ValueError("base is required for the demeaned_mse composite term")
         return CompositeLoss(
@@ -425,6 +474,7 @@ def create_loss_fn(loss_cfg, base=None):
             ema_decay=loss_cfg["loss_scale_ema_decay"],
             warmup_steps=loss_cfg["loss_scale_warmup_steps"],
             target_mean=get_target_train_mean(base) if needs_mean else None,
+            monitor_terms=loss_cfg["loss_monitor_terms"],
         )
     raise ValueError(f"loss_type='{loss_type}' has no edge-space loss module.")
 
