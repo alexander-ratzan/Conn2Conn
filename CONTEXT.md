@@ -458,7 +458,8 @@ Debug missing results cell:
 - Every notebook uses the walk-up `REPO_ROOT` bootstrap; stale `models.*` imports left over from the `models/`
   refactor were fixed in 13 notebooks (all 32 pass an import-only check in `kraken_env`).
 - `notebooks/quick_experiments/` was retired; its notebook is now
-  `scripts/experiments/linear_backbone_geodesic/linear_backbone_geodesic_metrics.ipynb` (self-documenting).
+  `scripts/experiments/linear_backbone/geodesic/linear_backbone_geodesic_metrics.ipynb` (self-documenting; moved under
+  `linear_backbone/` on 2026-09-30, next to `linear_backbone/composite_loss/`).
 - `context_packages/` reorganized: `modeling/` (design notes), `repo_spec_docs/`, `schematics/`, `T1/`; stale copies
   of `main.py` / `hcp_dataset.py` removed. The former `experiment_ledger/` was folded into the experiment folders:
   write-ups now live at `scripts/experiments/<slug>/<slug>.md` (Adel's summer summary →
