@@ -1,0 +1,36 @@
+# Composite-loss grid protocol (spec v2 E1, D4). Shared by every model instance of the experiment
+# (scripts/experiments/<model>/composite_loss/config.yml -> grid_file). Never edit a released version: add a new one.
+#
+# Weights apply to the scaled terms (term_t / c_t, c_t = s_t / s_mse measured on each model's own Stage 1 MSE-only
+# solution), so "neidist: 0.5" means half the size of that model's MSE at a good MSE-only fit. MSE is the anchor
+# (weight 1) and is never ablated. loss_normalize: none (fixed reference scales, no EMA).
+
+version: v1
+batch_size: 64            # protocol batch size (D4); correye / neidist compare subjects within a batch
+terms: [varmatch, correye, neidist]
+
+combos:
+  # --- factorial ablation at w = 0.5: every on/off subset of the three terms (main effects + interactions) ---
+  - {id: mse_only,  block: factorial, varmatch: 0.0, correye: 0.0, neidist: 0.0}
+  - {id: vm_0.5,    block: factorial, varmatch: 0.5, correye: 0.0, neidist: 0.0}
+  - {id: ce_0.5,    block: factorial, varmatch: 0.0, correye: 0.5, neidist: 0.0}
+  - {id: nd_0.5,    block: factorial, varmatch: 0.0, correye: 0.0, neidist: 0.5}
+  - {id: vm_ce_0.5, block: factorial, varmatch: 0.5, correye: 0.5, neidist: 0.0}
+  - {id: vm_nd_0.5, block: factorial, varmatch: 0.5, correye: 0.0, neidist: 0.5}
+  - {id: ce_nd_0.5, block: factorial, varmatch: 0.0, correye: 0.5, neidist: 0.5}
+  - {id: all_0.5,   block: factorial, varmatch: 0.5, correye: 0.5, neidist: 0.5}
+  # --- dose response: each single term and all three at 0.1 and 1.0 (with the w = 0.5 cells above: 3 levels) ---
+  - {id: vm_0.1,    block: dose, varmatch: 0.1, correye: 0.0, neidist: 0.0}
+  - {id: vm_1.0,    block: dose, varmatch: 1.0, correye: 0.0, neidist: 0.0}
+  - {id: ce_0.1,    block: dose, varmatch: 0.0, correye: 0.1, neidist: 0.0}
+  - {id: ce_1.0,    block: dose, varmatch: 0.0, correye: 1.0, neidist: 0.0}
+  - {id: nd_0.1,    block: dose, varmatch: 0.0, correye: 0.0, neidist: 0.1}
+  - {id: nd_1.0,    block: dose, varmatch: 0.0, correye: 0.0, neidist: 1.0}
+  - {id: all_0.1,   block: dose, varmatch: 0.1, correye: 0.1, neidist: 0.1}
+  - {id: all_1.0,   block: dose, varmatch: 1.0, correye: 1.0, neidist: 1.0}
+
+# Output schema shared across models (so cross-model comparisons concatenate tables):
+#   seed_records.csv:  model, grid_version, combo_id, block, w_varmatch, w_correye, w_neidist, seed, <test metrics>, <val metrics>
+#   epoch_history.csv: model, grid_version, combo_id, seed, epoch, {train,val}_loss_raw_<term> (all four), weighted terms,
+#                      reg, val_demeaned_r, val_pearson_r
+# W&B tags per Stage 2 run: <model>, loss_grid:v1, combo:<id>, composite_loss:stage2

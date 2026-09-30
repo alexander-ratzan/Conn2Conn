@@ -16,8 +16,9 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
 | E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | closed 2026-09-30 | — | agent:infra |
-| E1 | Composite-loss dynamics and trade-off on the linear backbone (`linear_backbone/composite_loss`) | in progress (E1.1 merged; E1.2 next) | D3 | agent:modeling |
+| E1 | Composite-loss protocol v1: linear backbone (`linear_backbone/composite_loss`) + replicability instance `CrossModal_PCA_PLS_learnable` (`pca_pls_learnable/composite_loss`) | in progress (E1.1 merged; E1.2 Stage 1 submitted for both instances) | D3, D4 | agent:modeling |
 | E2 | Cross-model benchmark (`model_benchmark`, working name) | outline | C1, C2 | — |
+| E3 | Composite-loss magnitude tuning for final models (follow-up to E1) | outline | E1 | — |
 | C1 | `torch_geometric` missing from `kraken_env` | done 2026-09-30 (via C6) | — | agent:infra |
 | C2 | Re-tune the M5b-affected sweeps | planned (within E2) | E2 | — |
 | C3 | Confirm `loss_signature` in Tune-trial W&B configs | done | — | agent:infra |
@@ -29,6 +30,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 | D1 | One job environment for all experiments and runs | decided | — | user |
 | D2 | Tuning budget: pilot first, pack small models, scale on evidence | decided | — | user |
 | D3 | E1 compute envelope and autonomous execution | decided | — | user |
+| D4 | Composite-loss protocol batch size 64 | decided | — | user |
 
 ---
 
@@ -118,6 +120,7 @@ the table below lists only what is specific to v2.
 | D1 | **One job environment for all experiments and runs:** the launchers' stack (`/ext3/env.sh` in `kraken_env`), consolidated into the overlay with user site-packages disabled (C6). Notebooks and interactive sessions use the same stack. | Every recorded result came from the launcher stack; one stack makes interactive checks reproduce in jobs. |
 | D2 | **Tuning budget scales with evidence.** A model without established signal starts with a pilot (1–2 seeds × 8–12 trials); full sweeps (32 trials, more seeds) only if the pilot's best val beats the null by a stated margin. Small models are packed onto the GPU (fractional `TUNE_GPUS_PER_TRIAL`, several trials at once). | NodalMLP probes took 38 array tasks / 612 trials / ~47 GPU-h for test demeaned r ≈ the null; one-trial-per-GPU jobs are killed for underutilization. |
 | D3 | **E1 runs autonomously within a fixed envelope:** Stage 1 ≤ 4 GPU-h (packed), E1.3 ≤ 1 GPU-h, Stage 2 ≤ 8 GPU-h; defaults approved (seeds 0–4, the 16-point grid, test metrics with selection on val, gradient-cosine panel). The agent stops and reports on any stop condition in the E1 `config.yml` (weak Stage 1, consensus miss, non-finite or mismatched runs, budget overrun). | Lets E1 proceed without per-stage approval once E0 closes, with explicit exits. |
+| D4 | **The composite-loss protocol trains at `batch_size` 64 in both stages, for every model.** Models that cannot train at 64 skip the batch-dependent terms (`correye`, `neidist`) rather than change the batch. The envelope in D3 applies per instance. | `correye` / `neidist` compare subjects within a batch, so cross-model comparisons need one batch size; 64 fits the linear family and most learned models in the packed setup. |
 
 ## 4. Experiments
 
@@ -209,14 +212,24 @@ E1. Closes out the never-run `scripts/notebooks/results_scrape/nodal_decoder_imp
 
 ### E1 — Composite-loss dynamics and trade-off on the linear backbone   (slug: `linear_backbone/composite_loss`) · status: in progress · owner: agent:modeling
 
-Experiment home: `scripts/experiments/linear_backbone/composite_loss/` (`composite_loss.md`, `config.yml`, `stage1/`),
-next to `linear_backbone/geodesic/`. Budget and autonomy: D3.
+**Protocol and instances.** E1 defines a reusable protocol (v1) and runs it on two instances:
+- **Protocol:** the shared grid `scripts/experiments/composite_loss_grid.yml` (versioned; never edited after release),
+  batch 64 (D4), seeds 0–4, fixed reference scales measured per model, monitor-only terms in every run, one output
+  schema (`seed_records.csv`, `epoch_history.csv`) and W&B tags (`<model>`, `loss_grid:v1`, `combo:<id>`), so later
+  instances concatenate for cross-model comparison. Shared code (consensus selection, scale measurement, grid runner,
+  figures) lives in `scripts/results_utils/loss_grid.py`; each instance is a thin folder
+  `scripts/experiments/<model>/composite_loss/` (`config.yml`, `stage1/`, write-up).
+- **Instances:** `linear_backbone/composite_loss` (primary) and `pca_pls_learnable/composite_loss` (replicability:
+  does the landscape reproduce on a second linear-family model?). Degenerate models (E0: NodalMLP, NodalGNN) are not
+  instances. Budget and autonomy: D3, per instance.
+- **Scope:** each combination keeps its model's Stage 1 hyperparameters, so the grid maps the loss landscape rather
+  than retuning per loss mix; magnitude tuning for final models is E3.
 
 - **Question:** with MSE fixed at weight 1, how do `varmatch`, `correye` and `neidist` shape the training dynamics of a
   simple, strong linear probe, and how do they trade test `demeaned_pearson` against `avg_rank` across about 16 weight
   combinations? Which weightings are reasonable before the composite loss is extended to other models?
 - **Design:**
-  - Model `CrossModal_linear_backbone`, `SC → FC` (Glasser), `batch_size` fixed at 128 (identity terms are batch-dependent).
+  - Model `CrossModal_linear_backbone` (and the replicability instance), `SC → FC` (Glasser), `batch_size` 64 (D4).
   - Stage 1 learns the structure and regularization under MSE only. Stage 2 runs a fixed weight grid with the Stage 1
     hyperparameters held fixed, under **fixed reference scales (no EMA)**.
   - **All four terms are logged in every run**: inactive terms as monitor-only terms (E1.1), so dynamics are
@@ -225,7 +238,7 @@ next to `linear_backbone/geodesic/`. Budget and autonomy: D3.
 
 **Fixed reference scales (definition).** MSE stays raw (scale 1), so Stage 1's `l2_reg` stays calibrated against the loss.
 Every other term is rescaled to MSE's magnitude at the Stage 1 reference model:
-`term_t / c_t` with `c_t = s_t / s_mse`, where `s_t` is the mean `|raw_t|` over training batches (batch 128, eval mode) of
+`term_t / c_t` with `c_t = s_t / s_mse`, where `s_t` is the mean `|raw_t|` over training batches (batch 64, eval mode) of
 the Stage 1 model, averaged over seeds. A weight `w_t` then means "w × MSE's size at a good MSE-only solution". The
 constants `c_t` are recorded in the experiment `config.yml` and are identical across all Stage 2 runs.
 
@@ -247,14 +260,16 @@ constants `c_t` are recorded in the experiment `config.yml` and are identical ac
 #### E1.2 — Stage 1: MSE-only tune
 - **Changes (done):** `stage1/CrossModal_linear_backbone_mse.yml` (MSE-only search over `n_components_pca_source`,
   `zscore_pca_scores`, `l2_reg`, `l1_reg`, `lr`, `max_epochs`; monitors `varmatch`, `correye`, `neidist`) and
-  `stage1/tune_stage1_seeds.sh` (`--array=0-4`, 32 Optuna trials, packed 4 per GPU with actor reuse per E0.6,
+  `stage1/tune_stage1_seeds.sh` (`--array=0-4`, 24 Optuna trials, packed 4 per GPU with actor reuse per E0.6,
   `--report_best_after_tune`). Checked: config resolves to plain MSE with monitors; model keys match the constructor;
   search space round-trips; `bash -n` and `sbatch --test-only` pass.
 - **Selection rule:** take each seed's best trial; choose categorical keys by majority and `lr` / `l2_reg` by geometric
   median; then run that single consensus config on seeds 0–4 (E1.3). Accept it if its mean `val_demeaned_r` is within
   one standard error of the mean of the per-seed bests; otherwise use the per-seed best config with the highest mean.
 - **Accept:** `ray_tune_id`s and the consensus config recorded in `config.yml`; C3 re-confirmed on these trial runs.
-- **Budget:** ≤ 4 GPU-h (D3).
+- **Budget:** ≤ 4 GPU-h per instance (D3); about 1.7 GPU-h expected for the linear backbone.
+- **Replicability instance:** same launcher pattern; Stage 1 searches `CrossModal_PCA_PLS_learnable`'s own 12 keys
+  (MSE-only, `loss_type` fixed to `composite`).
 
 #### E1.3 — Consensus runs and reference scales
 - **Changes:** one runner script in the experiment folder trains the consensus config per seed through
@@ -264,17 +279,15 @@ constants `c_t` are recorded in the experiment `config.yml` and are identical ac
 - **Budget:** ≤ 1 GPU-h.
 
 #### E1.4 — Stage 2: weight grid
-- **Grid (16 combinations; weights on the scaled terms, MSE = 1; listed with ids in `config.yml`):**
+- **Grid (protocol v1, `composite_loss_grid.yml`; 16 combinations; weights on the scaled terms, MSE = 1, never ablated):**
 
-  | Group | Combinations | Count |
-  |---|---|---|
-  | baseline | MSE only | 1 |
-  | single term | `varmatch`, `correye`, `neidist` each at {0.1, 0.5, 1.0} | 9 |
-  | pairs | each pair at 0.5 / 0.5 | 3 |
-  | all three | all at {0.1, 0.5, 1.0} | 3 |
+  | Block | Combinations | Count | Answers |
+  |---|---|---|---|
+  | factorial ablation at w = 0.5 | every on/off subset of `varmatch`, `correye`, `neidist` (incl. MSE only and all three) | 8 | main effects and interactions; pairs are leave-one-out ablations of all three |
+  | dose response | each single term and all three at 0.1 and 1.0 | 8 | how effects scale with weight (3 levels with the w = 0.5 cells) |
 
 - **Changes:** a runner array in the experiment folder, one combination per task looping seeds 0–4, calling
-  `Sim._run_learned_single(wandb_tags=[composite_loss, composite_loss:stage2, combo:<id>])`. `main.py` needs no change.
+  `Sim._run_learned_single(wandb_tags=[<model>, loss_grid:v1, composite_loss:stage2, combo:<id>])`. `main.py` needs no change.
   Stage 1 consensus config, `loss_normalize: none`, the E1.3 scales, inactive terms as monitors. Each run's per-epoch
   history (raw / weighted / monitor terms, reg, val metrics) goes to `tables/epoch_history.csv`.
 - **Accept:** 80 runs complete; every run's `loss_signature` matches its combination; MSE-only reproduces the E1.3
@@ -309,6 +322,15 @@ constants `c_t` are recorded in the experiment `config.yml` and are identical ac
 - **Open decisions:** sources (`SC` only vs `SC`, `SC_r2t`, `SC+SC_r2t`); trial budget per model; loss policy (MSE-only
   vs E1-informed); which `CovProjector` / `NodalMLP` variants count as separate entries.
 
+### E3 — Composite-loss magnitude tuning for final models   (slug: tbd) · status: outline · owner: —
+
+- **Question:** for models where E1's landscape shows a useful direction, what term magnitudes should a final model
+  use? E1's grid is coarse (0.1 / 0.5 / 1.0) and holds each model's Stage 1 hyperparameters fixed.
+- **Design (outline):** a dense sweep along E1's promising directions, or Optuna over the scaled weights
+  (`loss_weight_*` with the E1 fixed scales), with `lr` / `l2_reg` re-tuned jointly; selection on `val_demeaned_r`.
+  Only models with established signal (E1 instances, not E0's degenerate models).
+- **Depends on:** E1 results.
+
 ## 5. Backlog (not scheduled)
 
 From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
@@ -340,5 +362,6 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-09-30 | **E0 closed.** NodalGNN pilot stopped by decision (seed-0 best val 0.011 < null); results, takeaways and the "learn on top of the mean" follow-up recorded (§5); notebook retired. |
 | 2026-09-30 | E1 prereqs done: slug → `linear_backbone/composite_loss`; E1.1 (fixed scales + monitor-only terms) built and verified on local branch `e1-loss-scale-monitor`, merges when E0 closes; Stage 1 config and packed launcher added; E1.3/E1.4 runner design and dynamics figures specified; D3 (compute envelope, autonomous execution). |
 | 2026-09-30 | E1.1 merged (`75b7c11`) after E0 closed; regression 45/45 and E1.1 checks 23/23 on `main`; checks tracked as `scripts/sbatch/checks/loss_regression.py` and `composite_loss/checks/check_e1_loss.py`. |
+| 2026-09-30 | E1 becomes composite-loss protocol v1: shared versioned grid `composite_loss_grid.yml` (8-cell factorial at w = 0.5 + 8 dose points), batch 64 (D4), Stage 1 at 24 trials; replicability instance `pca_pls_learnable/composite_loss` added; E3 (magnitude tuning) outlined. |
 
 Last updated at: 2026-09-30 EDT

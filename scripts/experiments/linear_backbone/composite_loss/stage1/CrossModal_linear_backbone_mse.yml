@@ -22,7 +22,7 @@ default:
     loss_normalize: auto            # one active term -> none: exactly plain MSE
     loss_monitor_terms: [varmatch, correye, neidist]
     max_epochs: 150
-    batch_size: 128                 # fixed: correye / neidist compare subjects within a batch
+    batch_size: 64                  # protocol batch size (D4): correye / neidist compare subjects within a batch
     log_every: 5
 
 search_space:
