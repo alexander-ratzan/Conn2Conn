@@ -182,28 +182,48 @@ def runs_to_frozen_trials(
     distributions: dict,
     metric_key: str = "val_demeaned_r",
     verbose: bool = True,
+    aliases: Optional[dict] = None,
 ) -> tuple:
-    """Convert W&B runs to `optuna.FrozenTrial`s.
+    """Convert W&B runs to `optuna.FrozenTrial`s (see `rows_to_frozen_trials`)."""
+    rows = []
+    for r in runs:
+        summary = _summary_dict(r)
+        rows.append({"config": dict(r.config), "value": summary.get(metric_key),
+                     "run_id": r.id, "run_name": r.name})
+    return rows_to_frozen_trials(rows, distributions, verbose=verbose, aliases=aliases)
 
-    A run is dropped if (a) the metric is missing/non-finite, or (b) any of the
+
+def rows_to_frozen_trials(
+    rows,
+    distributions: dict,
+    verbose: bool = True,
+    aliases: Optional[dict] = None,
+) -> tuple:
+    """Convert trial rows {config, value, run_id, run_name} to `optuna.FrozenTrial`s.
+
+    A row is dropped if (a) the value is missing/non-finite, or (b) any of the
     distribution keys is missing from its config, or (c) a categorical value
     is outside the declared choices, or (d) a numeric value is outside range.
+    `aliases` maps an old config key to its current name (e.g. {"reg": "l2_reg"}),
+    applied when the current key is absent.
 
     Returns (trials, diagnostics) where diagnostics is a dict with skip reasons
     keyed by '<reason>:<param>' so the caller can see which keys are at fault.
     """
     trials = []
     diagnostics = {
-        "n_total": len(runs),
+        "n_total": len(rows),
         "n_kept": 0,
         "no_metric": 0,
         "missing_param_by_key": {},
         "value_oob_by_key": {},
     }
-    for r in runs:
-        cfg = dict(r.config)
-        summary = _summary_dict(r)
-        val = summary.get(metric_key)
+    for row in rows:
+        cfg = dict(row["config"])
+        for old_key, new_key in (aliases or {}).items():
+            if new_key not in cfg and old_key in cfg:
+                cfg[new_key] = cfg[old_key]
+        val = row.get("value")
         if val is None or not isinstance(val, (int, float)) or not np.isfinite(val):
             diagnostics["no_metric"] += 1
             continue
@@ -242,8 +262,8 @@ def runs_to_frozen_trials(
             distributions=distributions,
             value=float(val),
         )
-        trial.user_attrs["wandb_run_id"] = r.id
-        trial.user_attrs["wandb_run_name"] = r.name
+        trial.user_attrs["wandb_run_id"] = row.get("run_id")
+        trial.user_attrs["wandb_run_name"] = row.get("run_name")
         trials.append(trial)
     diagnostics["n_kept"] = len(trials)
 
@@ -272,11 +292,12 @@ def study_from_trials(trials, direction: str = "maximize") -> optuna.Study:
     return study
 
 
-def get_importance(study: optuna.Study, evaluator: str = "fanova") -> dict:
+def get_importance(study: optuna.Study, evaluator: str = "fanova", seed: Optional[int] = None) -> dict:
+    """Parameter importances; pass `seed` for a reproducible fANOVA / MDI forest."""
     if evaluator == "fanova":
-        ev = optuna.importance.FanovaImportanceEvaluator()
+        ev = optuna.importance.FanovaImportanceEvaluator(seed=seed)
     elif evaluator == "mdi":
-        ev = optuna.importance.MeanDecreaseImpurityImportanceEvaluator()
+        ev = optuna.importance.MeanDecreaseImpurityImportanceEvaluator(seed=seed)
     else:
         raise ValueError(f"unknown evaluator {evaluator!r}; choose fanova|mdi")
     return optuna.importance.get_param_importances(study, evaluator=ev)

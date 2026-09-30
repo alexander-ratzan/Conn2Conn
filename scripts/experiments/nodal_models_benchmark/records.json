@@ -1,0 +1,1531 @@
+{
+  "metadata": {
+    "variants": [
+      "dot",
+      "bilinear",
+      "linear_beta",
+      "spectral",
+      "mlp_sc_rows"
+    ],
+    "seeds": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "selection_metric": "val_demeaned_r",
+    "selection_mode": "max",
+    "variant_filters": {
+      "dot": {
+        "config": "models/configs/NodalMLP_dot.yml",
+        "created_after": "2026-04-27",
+        "importance": true,
+        "model": "NodalMLP",
+        "options_from_config": [
+          "encoder_type",
+          "decoder_type"
+        ]
+      },
+      "bilinear": {
+        "config": "models/configs/NodalMLP_bilinear.yml",
+        "created_after": "2026-04-27",
+        "importance": true,
+        "model": "NodalMLP",
+        "options_from_config": [
+          "encoder_type",
+          "decoder_type"
+        ]
+      },
+      "linear_beta": {
+        "config": "models/configs/NodalMLP_linear_beta.yml",
+        "created_after": "2026-04-27",
+        "importance": true,
+        "model": "NodalMLP",
+        "options_from_config": [
+          "encoder_type",
+          "decoder_type"
+        ]
+      },
+      "spectral": {
+        "config": "models/configs/NodalMLP_spectral.yml",
+        "created_after": "2026-04-27",
+        "importance": true,
+        "model": "NodalMLP",
+        "options_from_config": [
+          "encoder_type",
+          "decoder_type"
+        ]
+      },
+      "mlp_sc_rows": {
+        "config": "models/configs/NodalMLP.yml",
+        "created_before": "2026-04-27",
+        "importance": false,
+        "match": {
+          "use_sc_row": true,
+          "use_volume": false
+        },
+        "model": "NodalMLP",
+        "require_missing": [
+          "decoder_type"
+        ]
+      }
+    },
+    "scraped_at": "2026-09-30T09:45:18",
+    "wandb": "alexander-ratzan-new-york-university/conn2conn"
+  },
+  "records": [
+    {
+      "model_name": "NodalMLP",
+      "source": "SC",
+      "seed": 1,
+      "cov_type": "bilinear",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "airxuzym",
+      "wandb_run_name": "86480735_best",
+      "wandb_group": "NodalMLP_tune_86480735",
+      "wandb_created_at": "2026-04-28T01:39:04Z",
+      "ray_tune_id": "1777328664",
+      "ray_trial_id": "86480735",
+      "config": {
+        "lr": 0.0011004982663760628,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 1,
+          "data_load_mode": "precomputed",
+          "write_manual_cache": false,
+          "precompute_cache_root": "/scratch/asr655/neuroinformatics/Conn2Conn_data"
+        },
+        "model": {
+          "reg": 0.0017409887337395797,
+          "name": "NodalMLP",
+          "device": null,
+          "dropout": 0.2,
+          "use_r2t": false,
+          "use_sc_row": true,
+          "use_volume": false,
+          "sc_row_norm": "brain_scale",
+          "use_spatial": false,
+          "decoder_type": "bilinear",
+          "encoder_type": "none",
+          "embedding_dim": 128,
+          "cov_sources_str": ""
+        },
+        "source": "SC",
+        "target": "FC",
+        "trainer": {
+          "lr": 0.0011004982663760628,
+          "log_every": 2,
+          "loss_type": "mse",
+          "batch_size": 8,
+          "max_epochs": 500,
+          "lr_schedule": "none",
+          "tune_reduction_factor": 3,
+          "tune_grace_period_ratio": 0.2
+        },
+        "loss_type": "mse",
+        "lr_schedule": "none",
+        "ray_tune_id": "1777328664",
+        "ray_trial_id": "86480735",
+        "shuffle_seed": 1
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.00233203312382102,
+        "val_mse": 9.284154891967772,
+        "val_pearson_r": 0.029902882874011993,
+        "train_demeaned_r": -0.0010401036124676466,
+        "train_mse": 33.47990417480469,
+        "train_pearson_r": 0.012536407448351383
+      },
+      "test_metrics": {
+        "avg_rank": 0.5025378040762656,
+        "demeaned_pearson": 0.0011901529505848885,
+        "mse": 9.707566261291504,
+        "pearson": 0.02608245611190796,
+        "r2": -796.173828125,
+        "top1_acc": 0.010256410256410256
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/NodalMLP/86480735"
+    },
+    {
+      "model_name": "NodalMLP",
+      "source": "SC",
+      "seed": 2,
+      "cov_type": "bilinear",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "qouww4jp",
+      "wandb_run_name": "dc86767d_best",
+      "wandb_group": "NodalMLP_tune_dc86767d",
+      "wandb_created_at": "2026-04-28T00:45:39Z",
+      "ray_tune_id": "1777328787",
+      "ray_trial_id": "dc86767d",
+      "config": {
+        "lr": 0.009504811030128455,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 2,
+          "data_load_mode": "precomputed",
+          "write_manual_cache": false,
+          "precompute_cache_root": "/scratch/asr655/neuroinformatics/Conn2Conn_data"
+        },
+        "model": {
+          "reg": 0.002900993593911125,
+          "name": "NodalMLP",
+          "device": null,
+          "dropout": 0.35,
+          "use_r2t": false,
+          "use_sc_row": true,
+          "use_volume": false,
+          "sc_row_norm": "none",
+          "use_spatial": false,
+          "decoder_type": "bilinear",
+          "encoder_type": "mlp",
+          "embedding_dim": 64,
+          "cov_sources_str": ""
+        },
+        "source": "SC",
+        "target": "FC",
+        "trainer": {
+          "lr": 0.009504811030128455,
+          "log_every": 2,
+          "loss_type": "mse",
+          "batch_size": 8,
+          "max_epochs": 500,
+          "lr_schedule": "none",
+          "tune_reduction_factor": 3,
+          "tune_grace_period_ratio": 0.2
+        },
+        "loss_type": "mse",
+        "lr_schedule": "none",
+        "ray_tune_id": "1777328787",
+        "ray_trial_id": "dc86767d",
+        "shuffle_seed": 2
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.025065237656235695,
+        "val_mse": 0.04294564202427864,
+        "val_pearson_r": 0.0038571441546082497,
+        "train_demeaned_r": 0.002049837727099657,
+        "train_mse": 0.04478312283754349,
+        "train_pearson_r": -0.0002548176853451878
+      },
+      "test_metrics": {
+        "avg_rank": 0.4860749506903352,
+        "demeaned_pearson": 0.004618937149643898,
+        "mse": 0.044787246733903885,
+        "pearson": 0.00347558013163507,
+        "r2": -2.3523261547088623,
+        "top1_acc": 0.010256410256410256
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/NodalMLP/dc86767d"
+    },
+    {
+      "model_name": "NodalMLP",
+      "source": "SC",
+      "seed": 3,
+      "cov_type": "bilinear",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "whp3h8er",
+      "wandb_run_name": "d0c1dc1e_best",
+      "wandb_group": "NodalMLP_tune_d0c1dc1e",
+      "wandb_created_at": "2026-04-28T00:44:15Z",
+      "ray_tune_id": "1777329406",
+      "ray_trial_id": "d0c1dc1e",
+      "config": {
+        "lr": 0.0007404970240610333,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 3,
+          "data_load_mode": "precomputed",
+          "write_manual_cache": false,
+          "precompute_cache_root": "/scratch/asr655/neuroinformatics/Conn2Conn_data"
+        },
+        "model": {
+          "reg": 6.862573216835226e-06,
+          "name": "NodalMLP",
+          "device": null,
+          "dropout": 0.2,
+          "use_r2t": false,
+          "use_sc_row": true,
+          "use_volume": false,
+          "sc_row_norm": "none",
+          "use_spatial": false,
+          "decoder_type": "bilinear",
+          "encoder_type": "pca",
+          "embedding_dim": 32,
+          "cov_sources_str": ""
+        },
+        "source": "SC",
+        "target": "FC",
+        "trainer": {
+          "lr": 0.0007404970240610333,
+          "log_every": 2,
+          "loss_type": "mse",
+          "batch_size": 16,
+          "max_epochs": 500,
+          "lr_schedule": "none",
+          "tune_reduction_factor": 3,
+          "tune_grace_period_ratio": 0.2
+        },
+        "loss_type": "mse",
+        "lr_schedule": "none",
+        "ray_tune_id": "1777329406",
+        "ray_trial_id": "d0c1dc1e",
+        "shuffle_seed": 3
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.016181213781237602,
+        "val_mse": 0.03507076948881149,
+        "val_pearson_r": 0.4741704165935517,
+        "train_demeaned_r": 0.0022202294785529375,
+        "train_mse": 0.035586122423410416,
+        "train_pearson_r": 0.4642224609851837
+      },
+      "test_metrics": {
+        "avg_rank": 0.518974358974359,
+        "demeaned_pearson": 0.03179095312952995,
+        "mse": 0.03430240973830223,
+        "pearson": 0.4647824764251709,
+        "r2": -1.5616376399993896,
+        "top1_acc": 0.010256410256410256
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/NodalMLP/d0c1dc1e"
+    },
+    {
+      "model_name": "NodalMLP",
+      "source": "SC",
+      "seed": 0,
+      "cov_type": "dot",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "4x4q090r",
+      "wandb_run_name": "7514f668_best",
+      "wandb_group": "NodalMLP_tune_7514f668",
+      "wandb_created_at": "2026-04-27T23:18:24Z",
+      "ray_tune_id": "1777327675",
+      "ray_trial_id": "7514f668",
+      "config": {
+        "lr": 0.0013160451449117506,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 0,
+          "data_load_mode": "precomputed",
+          "write_manual_cache": false,
+          "precompute_cache_root": "/scratch/asr655/neuroinformatics/Conn2Conn_data"
+        },
+        "model": {
+          "reg": 2.932092362434912e-06,
+          "name": "NodalMLP",
+          "device": null,
+          "dropout": 0.35,
+          "use_r2t": false,
+          "use_sc_row": true,
+          "use_volume": false,
+          "sc_row_norm": "brain_scale",
+          "use_spatial": false,
+          "decoder_type": "dot",
+          "encoder_type": "none",
+          "embedding_dim": 32,
+          "cov_sources_str": ""
+        },
+        "source": "SC",
+        "target": "FC",
+        "trainer": {
+          "lr": 0.0013160451449117506,
+          "log_every": 2,
+          "loss_type": "mse",
+          "batch_size": 64,
+          "max_epochs": 300,
+          "lr_schedule": "none",
+          "tune_reduction_factor": 3,
+          "tune_grace_period_ratio": 0.2
+        },
+        "loss_type": "mse",
+        "lr_schedule": "none",
+        "ray_tune_id": "1777327675",
+        "ray_trial_id": "7514f668",
+        "shuffle_seed": 0
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.0003765296714846045,
+        "val_mse": 0.5651428699493408,
+        "val_pearson_r": 0.2550952732563019,
+        "train_demeaned_r": 0.0012563918717205524,
+        "train_mse": 0.565017819404602,
+        "train_pearson_r": 0.2572925388813019
+      },
+      "test_metrics": {
+        "avg_rank": 0.5312820512820513,
+        "demeaned_pearson": -0.005561191122978926,
+        "mse": 0.5621700882911682,
+        "pearson": 0.25561729073524475,
+        "r2": -49.29426574707031,
+        "top1_acc": 0.010256410256410256
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/NodalMLP/7514f668"
+    },
+    {
+      "model_name": "NodalMLP",
+      "source": "SC",
+      "seed": 1,
+      "cov_type": "dot",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "wftk7xrl",
+      "wandb_run_name": "9c1ad31f_best",
+      "wandb_group": "NodalMLP_tune_9c1ad31f",
+      "wandb_created_at": "2026-04-28T00:05:21Z",
+      "ray_tune_id": "1777328058",
+      "ray_trial_id": "9c1ad31f",
+      "config": {
+        "lr": 0.00276374203702815,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 1,
+          "data_load_mode": "precomputed",
+          "write_manual_cache": false,
+          "precompute_cache_root": "/scratch/asr655/neuroinformatics/Conn2Conn_data"
+        },
+        "model": {
+          "reg": 3.083472599208632e-05,
+          "name": "NodalMLP",
+          "device": null,
+          "dropout": 0.35,
+          "use_r2t": false,
+          "use_sc_row": true,
+          "use_volume": false,
+          "sc_row_norm": "brain_scale",
+          "use_spatial": false,
+          "decoder_type": "dot",
+          "encoder_type": "none",
+          "embedding_dim": 128,
+          "cov_sources_str": ""
+        },
+        "source": "SC",
+        "target": "FC",
+        "trainer": {
+          "lr": 0.00276374203702815,
+          "log_every": 2,
+          "loss_type": "mse",
+          "batch_size": 8,
+          "max_epochs": 100,
+          "lr_schedule": "none",
+          "tune_reduction_factor": 3,
+          "tune_grace_period_ratio": 0.2
+        },
+        "loss_type": "mse",
+        "lr_schedule": "none",
+        "ray_tune_id": "1777328058",
+        "ray_trial_id": "9c1ad31f",
+        "shuffle_seed": 1
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.010142073966562748,
+        "val_mse": 0.7511101961135864,
+        "val_pearson_r": 0.25804412364959717,
+        "train_demeaned_r": 0.0011581911239773035,
+        "train_mse": 0.7563261389732361,
+        "train_pearson_r": 0.25685542821884155
+      },
+      "test_metrics": {
+        "avg_rank": 0.539250493096647,
+        "demeaned_pearson": 0.007889593951404095,
+        "mse": 0.7548311352729797,
+        "pearson": 0.2579399347305298,
+        "r2": -64.33201599121094,
+        "top1_acc": 0.005128205128205128
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/NodalMLP/9c1ad31f"
+    },
+    {
+      "model_name": "NodalMLP",
+      "source": "SC",
+      "seed": 2,
+      "cov_type": "dot",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "vs3wg7lt",
+      "wandb_run_name": "aaf28a86_best",
+      "wandb_group": "NodalMLP_tune_aaf28a86",
+      "wandb_created_at": "2026-04-27T23:21:08Z",
+      "ray_tune_id": "1777328107",
+      "ray_trial_id": "aaf28a86",
+      "config": {
+        "lr": 0.000835512547235569,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 2,
+          "data_load_mode": "precomputed",
+          "write_manual_cache": false,
+          "precompute_cache_root": "/scratch/asr655/neuroinformatics/Conn2Conn_data"
+        },
+        "model": {
+          "reg": 0.0002818463125169981,
+          "name": "NodalMLP",
+          "device": null,
+          "dropout": 0.5,
+          "use_r2t": false,
+          "use_sc_row": true,
+          "use_volume": false,
+          "sc_row_norm": "brain_scale",
+          "use_spatial": false,
+          "decoder_type": "dot",
+          "encoder_type": "mlp",
+          "embedding_dim": 32,
+          "cov_sources_str": ""
+        },
+        "source": "SC",
+        "target": "FC",
+        "trainer": {
+          "lr": 0.000835512547235569,
+          "log_every": 2,
+          "loss_type": "mse",
+          "batch_size": 16,
+          "max_epochs": 500,
+          "lr_schedule": "none",
+          "tune_reduction_factor": 3,
+          "tune_grace_period_ratio": 0.2
+        },
+        "loss_type": "mse",
+        "lr_schedule": "none",
+        "ray_tune_id": "1777328107",
+        "ray_trial_id": "aaf28a86",
+        "shuffle_seed": 2
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.02807633206248283,
+        "val_mse": 0.02543003298342228,
+        "val_pearson_r": 0.6587263345718384,
+        "train_demeaned_r": 0.006697860546410084,
+        "train_mse": 0.026459896937012672,
+        "train_pearson_r": 0.5860106945037842
+      },
+      "test_metrics": {
+        "avg_rank": 0.5479815910585142,
+        "demeaned_pearson": 0.011979442089796066,
+        "mse": 0.026689788326621056,
+        "pearson": 0.655555784702301,
+        "r2": -0.9371646046638488,
+        "top1_acc": 0.015384615384615384
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/NodalMLP/aaf28a86"
+    },
+    {
+      "model_name": "NodalMLP",
+      "source": "SC",
+      "seed": 3,
+      "cov_type": "dot",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "hhoaciag",
+      "wandb_run_name": "465b9719_best",
+      "wandb_group": "NodalMLP_tune_465b9719",
+      "wandb_created_at": "2026-04-27T23:20:01Z",
+      "ray_tune_id": "1777328293",
+      "ray_trial_id": "465b9719",
+      "config": {
+        "lr": 0.001832843791158928,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 3,
+          "data_load_mode": "precomputed",
+          "write_manual_cache": false,
+          "precompute_cache_root": "/scratch/asr655/neuroinformatics/Conn2Conn_data"
+        },
+        "model": {
+          "reg": 0.0009492801506917394,
+          "name": "NodalMLP",
+          "device": null,
+          "dropout": 0.2,
+          "use_r2t": false,
+          "use_sc_row": true,
+          "use_volume": false,
+          "sc_row_norm": "none",
+          "use_spatial": false,
+          "decoder_type": "dot",
+          "encoder_type": "linear",
+          "embedding_dim": 32,
+          "cov_sources_str": ""
+        },
+        "source": "SC",
+        "target": "FC",
+        "trainer": {
+          "lr": 0.001832843791158928,
+          "log_every": 2,
+          "loss_type": "mse",
+          "batch_size": 32,
+          "max_epochs": 500,
+          "lr_schedule": "none",
+          "tune_reduction_factor": 3,
+          "tune_grace_period_ratio": 0.2
+        },
+        "loss_type": "mse",
+        "lr_schedule": "none",
+        "ray_tune_id": "1777328293",
+        "ray_trial_id": "465b9719",
+        "shuffle_seed": 3
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.014698456041514874,
+        "val_mse": 0.03016519732773304,
+        "val_pearson_r": 0.5815548300743103,
+        "train_demeaned_r": 0.003980401437729597,
+        "train_mse": 0.030408086255192757,
+        "train_pearson_r": 0.5759693384170532
+      },
+      "test_metrics": {
+        "avg_rank": 0.5217882971729126,
+        "demeaned_pearson": 0.02932366169989109,
+        "mse": 0.02939929999411106,
+        "pearson": 0.5749899744987488,
+        "r2": -1.196219563484192,
+        "top1_acc": 0.005128205128205128
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/NodalMLP/465b9719"
+    },
+    {
+      "model_name": "NodalMLP",
+      "source": "SC",
+      "seed": 0,
+      "cov_type": "linear_beta",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "jjs29wfd",
+      "wandb_run_name": "48e6b9b3_best",
+      "wandb_group": "NodalMLP_tune_48e6b9b3",
+      "wandb_created_at": "2026-04-28T01:32:18Z",
+      "ray_tune_id": "1777329499",
+      "ray_trial_id": "48e6b9b3",
+      "config": {
+        "lr": 0.000713073236500402,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 0,
+          "data_load_mode": "precomputed",
+          "write_manual_cache": false,
+          "precompute_cache_root": "/scratch/asr655/neuroinformatics/Conn2Conn_data"
+        },
+        "model": {
+          "reg": 1.1437307274072993e-07,
+          "name": "NodalMLP",
+          "device": null,
+          "dropout": 0.35,
+          "use_r2t": false,
+          "use_sc_row": true,
+          "use_volume": false,
+          "sc_row_norm": "brain_scale",
+          "use_spatial": false,
+          "decoder_type": "linear_beta",
+          "encoder_type": "mlp",
+          "embedding_dim": 128,
+          "cov_sources_str": "",
+          "decoder_symmetry": "asymmetric"
+        },
+        "source": "SC",
+        "target": "FC",
+        "trainer": {
+          "lr": 0.000713073236500402,
+          "log_every": 2,
+          "loss_type": "mse",
+          "batch_size": 8,
+          "max_epochs": 500,
+          "lr_schedule": "none",
+          "tune_reduction_factor": 3,
+          "tune_grace_period_ratio": 0.2
+        },
+        "loss_type": "mse",
+        "lr_schedule": "none",
+        "ray_tune_id": "1777329499",
+        "ray_trial_id": "48e6b9b3",
+        "shuffle_seed": 0
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.006778869777917862,
+        "val_mse": 0.017457475885748863,
+        "val_pearson_r": 0.7902216911315918,
+        "train_demeaned_r": 0.04241328313946724,
+        "train_mse": 0.015878232195973396,
+        "train_pearson_r": 0.7792099118232727
+      },
+      "test_metrics": {
+        "avg_rank": 0.5640499671268902,
+        "demeaned_pearson": 0.01440501119941473,
+        "mse": 0.016436535865068436,
+        "pearson": 0.7965413331985474,
+        "r2": -0.2407073974609375,
+        "top1_acc": 0.010256410256410256
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/NodalMLP/48e6b9b3"
+    },
+    {
+      "model_name": "NodalMLP",
+      "source": "SC",
+      "seed": 1,
+      "cov_type": "linear_beta",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "8mtk0xzu",
+      "wandb_run_name": "0e404462_best",
+      "wandb_group": "NodalMLP_tune_0e404462",
+      "wandb_created_at": "2026-04-28T00:22:53Z",
+      "ray_tune_id": "1777329531",
+      "ray_trial_id": "0e404462",
+      "config": {
+        "lr": 0.0023511517052245356,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 1,
+          "data_load_mode": "precomputed",
+          "write_manual_cache": false,
+          "precompute_cache_root": "/scratch/asr655/neuroinformatics/Conn2Conn_data"
+        },
+        "model": {
+          "reg": 7.665790298177135e-07,
+          "name": "NodalMLP",
+          "device": null,
+          "dropout": 0.35,
+          "use_r2t": false,
+          "use_sc_row": true,
+          "use_volume": false,
+          "sc_row_norm": "brain_scale",
+          "use_spatial": false,
+          "decoder_type": "linear_beta",
+          "encoder_type": "none",
+          "embedding_dim": 32,
+          "cov_sources_str": "",
+          "decoder_symmetry": "symmetric"
+        },
+        "source": "SC",
+        "target": "FC",
+        "trainer": {
+          "lr": 0.0023511517052245356,
+          "log_every": 2,
+          "loss_type": "mse",
+          "batch_size": 16,
+          "max_epochs": 500,
+          "lr_schedule": "none",
+          "tune_reduction_factor": 3,
+          "tune_grace_period_ratio": 0.2
+        },
+        "loss_type": "mse",
+        "lr_schedule": "none",
+        "ray_tune_id": "1777329531",
+        "ray_trial_id": "0e404462",
+        "shuffle_seed": 1
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.006268611643463373,
+        "val_mse": 0.04293544217944145,
+        "val_pearson_r": 0.3381381332874298,
+        "train_demeaned_r": 0.004195489455014467,
+        "train_mse": 0.04249519482254982,
+        "train_pearson_r": 0.350785493850708
+      },
+      "test_metrics": {
+        "avg_rank": 0.5124523339907955,
+        "demeaned_pearson": 0.02002703584730625,
+        "mse": 0.042703595012426376,
+        "pearson": 0.3372865319252014,
+        "r2": -1.9559876918792725,
+        "top1_acc": 0.005128205128205128
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/NodalMLP/0e404462"
+    },
+    {
+      "model_name": "NodalMLP",
+      "source": "SC",
+      "seed": 2,
+      "cov_type": "linear_beta",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "w3b2a3fj",
+      "wandb_run_name": "9c3f0355_best",
+      "wandb_group": "NodalMLP_tune_9c3f0355",
+      "wandb_created_at": "2026-04-28T00:12:31Z",
+      "ray_tune_id": "1777329597",
+      "ray_trial_id": "9c3f0355",
+      "config": {
+        "lr": 0.0009352949114281364,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 2,
+          "data_load_mode": "precomputed",
+          "write_manual_cache": false,
+          "precompute_cache_root": "/scratch/asr655/neuroinformatics/Conn2Conn_data"
+        },
+        "model": {
+          "reg": 0.00019907241901496783,
+          "name": "NodalMLP",
+          "device": null,
+          "dropout": 0.5,
+          "use_r2t": false,
+          "use_sc_row": true,
+          "use_volume": false,
+          "sc_row_norm": "brain_scale",
+          "use_spatial": false,
+          "decoder_type": "linear_beta",
+          "encoder_type": "mlp",
+          "embedding_dim": 16,
+          "cov_sources_str": "",
+          "decoder_symmetry": "concat"
+        },
+        "source": "SC",
+        "target": "FC",
+        "trainer": {
+          "lr": 0.0009352949114281364,
+          "log_every": 2,
+          "loss_type": "mse",
+          "batch_size": 16,
+          "max_epochs": 500,
+          "lr_schedule": "none",
+          "tune_reduction_factor": 3,
+          "tune_grace_period_ratio": 0.2
+        },
+        "loss_type": "mse",
+        "lr_schedule": "none",
+        "ray_tune_id": "1777329597",
+        "ray_trial_id": "9c3f0355",
+        "shuffle_seed": 2
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.02709973976016045,
+        "val_mse": 0.040984123945236206,
+        "val_pearson_r": 0.2153661847114563,
+        "train_demeaned_r": 0.002348370151594281,
+        "train_mse": 0.04288241267204285,
+        "train_pearson_r": 0.2009950429201126
+      },
+      "test_metrics": {
+        "avg_rank": 0.527258382642998,
+        "demeaned_pearson": 0.004809033125638962,
+        "mse": 0.04285713657736778,
+        "pearson": 0.20868271589279175,
+        "r2": -2.207282543182373,
+        "top1_acc": 0.0
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/NodalMLP/9c3f0355"
+    },
+    {
+      "model_name": "NodalMLP",
+      "source": "SC",
+      "seed": 3,
+      "cov_type": "linear_beta",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "zh4g783p",
+      "wandb_run_name": "9999b5a3_best",
+      "wandb_group": "NodalMLP_tune_9999b5a3",
+      "wandb_created_at": "2026-04-28T00:52:08Z",
+      "ray_tune_id": "1777330445",
+      "ray_trial_id": "9999b5a3",
+      "config": {
+        "lr": 0.0026848023349741305,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 3,
+          "data_load_mode": "precomputed",
+          "write_manual_cache": false,
+          "precompute_cache_root": "/scratch/asr655/neuroinformatics/Conn2Conn_data"
+        },
+        "model": {
+          "reg": 6.236511912151697e-07,
+          "name": "NodalMLP",
+          "device": null,
+          "dropout": 0.35,
+          "use_r2t": false,
+          "use_sc_row": true,
+          "use_volume": false,
+          "sc_row_norm": "none",
+          "use_spatial": false,
+          "decoder_type": "linear_beta",
+          "encoder_type": "none",
+          "embedding_dim": 64,
+          "cov_sources_str": "",
+          "decoder_symmetry": "asymmetric"
+        },
+        "source": "SC",
+        "target": "FC",
+        "trainer": {
+          "lr": 0.0026848023349741305,
+          "log_every": 2,
+          "loss_type": "mse",
+          "batch_size": 32,
+          "max_epochs": 500,
+          "lr_schedule": "none",
+          "tune_reduction_factor": 3,
+          "tune_grace_period_ratio": 0.2
+        },
+        "loss_type": "mse",
+        "lr_schedule": "none",
+        "ray_tune_id": "1777330445",
+        "ray_trial_id": "9999b5a3",
+        "shuffle_seed": 3
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.00844540260732174,
+        "val_mse": 0.03787768259644509,
+        "val_pearson_r": 0.4015916585922241,
+        "train_demeaned_r": 0.002872035838663578,
+        "train_mse": 0.03800073266029358,
+        "train_pearson_r": 0.3997063338756562
+      },
+      "test_metrics": {
+        "avg_rank": 0.5308349769888232,
+        "demeaned_pearson": 0.03228822350502014,
+        "mse": 0.0366247221827507,
+        "pearson": 0.4003004729747772,
+        "r2": -1.7092400789260864,
+        "top1_acc": 0.0
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/NodalMLP/9999b5a3"
+    },
+    {
+      "model_name": "NodalMLP",
+      "source": "SC",
+      "seed": 0,
+      "cov_type": "mlp_sc_rows",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "7f7x2vmh",
+      "wandb_run_name": "be3b7e0d_best",
+      "wandb_group": "NodalMLP_tune_be3b7e0d",
+      "wandb_created_at": "2026-04-21T01:50:12Z",
+      "ray_tune_id": "1776729092",
+      "ray_trial_id": "be3b7e0d",
+      "config": {
+        "lr": 0.0003373450533039241,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 0,
+          "data_load_mode": "precomputed",
+          "write_manual_cache": false,
+          "precompute_cache_root": "/scratch/asr655/neuroinformatics/Conn2Conn_data"
+        },
+        "model": {
+          "reg": 9.644882111908232e-06,
+          "name": "NodalMLP",
+          "device": null,
+          "dropout": 0.05,
+          "use_r2t": false,
+          "hidden_dim": 256,
+          "use_sc_row": true,
+          "use_volume": false,
+          "decoder_dim": 32,
+          "sc_row_norm": "row_zscore",
+          "use_encoder": true,
+          "use_spatial": false,
+          "cov_sources_str": "",
+          "decoder_symmetry": "asymmetric"
+        },
+        "source": "SC",
+        "target": "FC",
+        "trainer": {
+          "lr": 0.0003373450533039241,
+          "log_every": 1,
+          "loss_type": "mse",
+          "batch_size": 32,
+          "max_epochs": 201
+        },
+        "loss_type": "mse",
+        "ray_tune_id": "1776729092",
+        "ray_trial_id": "be3b7e0d",
+        "shuffle_seed": 0
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.017973074689507484,
+        "val_mse": 0.016699060797691345,
+        "val_pearson_r": 0.7999342083930969,
+        "train_demeaned_r": 0.1269197314977646,
+        "train_mse": 0.014166033826768398,
+        "train_pearson_r": 0.81695157289505
+      },
+      "test_metrics": {
+        "avg_rank": 0.5828270874424721,
+        "demeaned_pearson": 0.0202056635171175,
+        "mse": 0.015721917152404785,
+        "pearson": 0.8061572909355164,
+        "r2": -0.17757999897003174,
+        "top1_acc": 0.010256410256410256
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/NodalMLP/be3b7e0d"
+    },
+    {
+      "model_name": "NodalMLP",
+      "source": "SC",
+      "seed": 1,
+      "cov_type": "mlp_sc_rows",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "y8e0awuh",
+      "wandb_run_name": "523ec965_best",
+      "wandb_group": "NodalMLP_tune_523ec965",
+      "wandb_created_at": "2026-04-21T01:40:23Z",
+      "ray_tune_id": "1776729099",
+      "ray_trial_id": "523ec965",
+      "config": {
+        "lr": 0.0004618988036643892,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 1,
+          "data_load_mode": "precomputed",
+          "write_manual_cache": false,
+          "precompute_cache_root": "/scratch/asr655/neuroinformatics/Conn2Conn_data"
+        },
+        "model": {
+          "reg": 0.0015948488124015504,
+          "name": "NodalMLP",
+          "device": null,
+          "dropout": 0.1,
+          "use_r2t": false,
+          "hidden_dim": 256,
+          "use_sc_row": true,
+          "use_volume": false,
+          "decoder_dim": 64,
+          "sc_row_norm": "col_zscore",
+          "use_encoder": true,
+          "use_spatial": false,
+          "cov_sources_str": "",
+          "decoder_symmetry": "asymmetric"
+        },
+        "source": "SC",
+        "target": "FC",
+        "trainer": {
+          "lr": 0.0004618988036643892,
+          "log_every": 1,
+          "loss_type": "mse",
+          "batch_size": 32,
+          "max_epochs": 401
+        },
+        "loss_type": "mse",
+        "ray_tune_id": "1776729099",
+        "ray_trial_id": "523ec965",
+        "shuffle_seed": 1
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.008575118146836758,
+        "val_mse": 0.0443522185087204,
+        "val_pearson_r": 2.266166559961036e-10,
+        "train_demeaned_r": 0.0035372457932680845,
+        "train_mse": 0.04488154500722885,
+        "train_pearson_r": 1.7437259884900413e-05
+      },
+      "test_metrics": {},
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/NodalMLP/523ec965"
+    },
+    {
+      "model_name": "NodalMLP",
+      "source": "SC",
+      "seed": 2,
+      "cov_type": "mlp_sc_rows",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "6zluet5l",
+      "wandb_run_name": "c2c0dd58_best",
+      "wandb_group": "NodalMLP_tune_c2c0dd58",
+      "wandb_created_at": "2026-04-23T21:14:42Z",
+      "ray_tune_id": "1776965708",
+      "ray_trial_id": "c2c0dd58",
+      "config": {
+        "lr": 0.0017466743081466722,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 2,
+          "data_load_mode": "precomputed",
+          "write_manual_cache": false,
+          "precompute_cache_root": "/scratch/asr655/neuroinformatics/Conn2Conn_data"
+        },
+        "model": {
+          "reg": 2.545842657343469e-05,
+          "name": "NodalMLP",
+          "device": null,
+          "dropout": 0.35,
+          "use_r2t": false,
+          "hidden_dim": 128,
+          "sc_pca_dim": 32,
+          "use_sc_pca": true,
+          "use_sc_row": true,
+          "use_volume": false,
+          "sc_row_norm": "none",
+          "use_encoder": false,
+          "use_spatial": false,
+          "decoder_dims": [
+            256,
+            128
+          ],
+          "cov_sources_str": "",
+          "decoder_symmetry": "symmetric"
+        },
+        "source": "SC",
+        "target": "FC",
+        "trainer": {
+          "lr": 0.0017466743081466722,
+          "cosine_t0": 50,
+          "log_every": 2,
+          "loss_type": "mse",
+          "batch_size": 32,
+          "max_epochs": 334,
+          "lr_schedule": "cosine_warm_restarts",
+          "cosine_t_mult": 1,
+          "cosine_eta_min_ratio": 0.1
+        },
+        "cosine_t0": 50,
+        "loss_type": "mse",
+        "lr_schedule": "cosine_warm_restarts",
+        "ray_tune_id": "1776965708",
+        "ray_trial_id": "c2c0dd58",
+        "shuffle_seed": 2,
+        "cosine_t_mult": 1,
+        "cosine_eta_min_ratio": 0.1
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.024211451411247253,
+        "val_mse": 0.021121006458997726,
+        "val_pearson_r": 0.7177484631538391,
+        "train_demeaned_r": 0.007076140493154526,
+        "train_mse": 0.02299981378018856,
+        "train_pearson_r": 0.6789915561676025
+      },
+      "test_metrics": {},
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/NodalMLP/c2c0dd58"
+    },
+    {
+      "model_name": "NodalMLP",
+      "source": "SC",
+      "seed": 3,
+      "cov_type": "mlp_sc_rows",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "oow4rjib",
+      "wandb_run_name": "ae4f6392_best",
+      "wandb_group": "NodalMLP_tune_ae4f6392",
+      "wandb_created_at": "2026-04-21T03:53:58Z",
+      "ray_tune_id": "1776738099",
+      "ray_trial_id": "ae4f6392",
+      "config": {
+        "lr": 0.0027364993106380256,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 3,
+          "data_load_mode": "precomputed",
+          "write_manual_cache": false,
+          "precompute_cache_root": "/scratch/asr655/neuroinformatics/Conn2Conn_data"
+        },
+        "model": {
+          "reg": 0.0002971043710311783,
+          "name": "NodalMLP",
+          "device": null,
+          "dropout": 0.1,
+          "use_r2t": false,
+          "hidden_dim": 48,
+          "use_sc_row": true,
+          "use_volume": false,
+          "decoder_dim": 96,
+          "sc_row_norm": "none",
+          "use_encoder": false,
+          "use_spatial": false,
+          "cov_sources_str": "",
+          "decoder_symmetry": "asymmetric"
+        },
+        "source": "SC",
+        "target": "FC",
+        "trainer": {
+          "lr": 0.0027364993106380256,
+          "log_every": 1,
+          "loss_type": "mse",
+          "batch_size": 16,
+          "max_epochs": 201
+        },
+        "loss_type": "mse",
+        "ray_tune_id": "1776738099",
+        "ray_trial_id": "ae4f6392",
+        "shuffle_seed": 3
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.004141693469136953,
+        "val_mse": 0.020751766860485077,
+        "val_pearson_r": 0.7410320043563843,
+        "train_demeaned_r": 0.01825227215886116,
+        "train_mse": 0.020043276250362396,
+        "train_pearson_r": 0.7324849367141724
+      },
+      "test_metrics": {
+        "avg_rank": 0.5416173570019724,
+        "demeaned_pearson": 0.025277167558670044,
+        "mse": 0.019850214943289757,
+        "pearson": 0.7401878833770752,
+        "r2": -0.4641372263431549,
+        "top1_acc": 0.010256410256410256
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/NodalMLP/ae4f6392"
+    },
+    {
+      "model_name": "NodalMLP",
+      "source": "SC",
+      "seed": 0,
+      "cov_type": "spectral",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "s8htiuhz",
+      "wandb_run_name": "b766e2db_best",
+      "wandb_group": "NodalMLP_tune_b766e2db",
+      "wandb_created_at": "2026-04-28T00:55:45Z",
+      "ray_tune_id": "1777330459",
+      "ray_trial_id": "b766e2db",
+      "config": {
+        "lr": 0.004985711526088021,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 0,
+          "data_load_mode": "precomputed",
+          "write_manual_cache": false,
+          "precompute_cache_root": "/scratch/asr655/neuroinformatics/Conn2Conn_data"
+        },
+        "model": {
+          "reg": 1.0256361838453877e-07,
+          "name": "NodalMLP",
+          "device": null,
+          "dropout": 0.35,
+          "use_r2t": false,
+          "use_sc_row": true,
+          "use_volume": false,
+          "sc_row_norm": "brain_scale",
+          "use_spatial": false,
+          "decoder_type": "diag_bilinear",
+          "encoder_type": "spectral",
+          "embedding_dim": 32,
+          "cov_sources_str": ""
+        },
+        "source": "SC",
+        "target": "FC",
+        "trainer": {
+          "lr": 0.004985711526088021,
+          "log_every": 2,
+          "loss_type": "mse",
+          "batch_size": 8,
+          "max_epochs": 500,
+          "lr_schedule": "none",
+          "tune_reduction_factor": 3,
+          "tune_grace_period_ratio": 0.2
+        },
+        "loss_type": "mse",
+        "lr_schedule": "none",
+        "ray_tune_id": "1777330459",
+        "ray_trial_id": "b766e2db",
+        "shuffle_seed": 0
+      },
+      "val_metrics": {
+        "val_demeaned_r": -0.014228219166398048,
+        "val_mse": 0.0415332168340683,
+        "val_pearson_r": 0.3114554286003113,
+        "train_demeaned_r": 0.003177679842337966,
+        "train_mse": 0.0401325486600399,
+        "train_pearson_r": 0.3142400085926056
+      },
+      "test_metrics": {
+        "avg_rank": 0.5172649572649572,
+        "demeaned_pearson": -0.006658000871539116,
+        "mse": 0.04016339033842087,
+        "pearson": 0.3131442070007324,
+        "r2": -2.0761566162109375,
+        "top1_acc": 0.005128205128205128
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/NodalMLP/b766e2db"
+    },
+    {
+      "model_name": "NodalMLP",
+      "source": "SC",
+      "seed": 1,
+      "cov_type": "spectral",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "6mhylyay",
+      "wandb_run_name": "46a4eada_best",
+      "wandb_group": "NodalMLP_tune_46a4eada",
+      "wandb_created_at": "2026-04-28T00:05:18Z",
+      "ray_tune_id": "1777330530",
+      "ray_trial_id": "46a4eada",
+      "config": {
+        "lr": 0.002910382355585493,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 1,
+          "data_load_mode": "precomputed",
+          "write_manual_cache": false,
+          "precompute_cache_root": "/scratch/asr655/neuroinformatics/Conn2Conn_data"
+        },
+        "model": {
+          "reg": 1.4336834889384218e-05,
+          "name": "NodalMLP",
+          "device": null,
+          "dropout": 0.5,
+          "use_r2t": false,
+          "use_sc_row": true,
+          "use_volume": false,
+          "sc_row_norm": "none",
+          "use_spatial": false,
+          "decoder_type": "dot",
+          "encoder_type": "spectral",
+          "embedding_dim": 32,
+          "cov_sources_str": ""
+        },
+        "source": "SC",
+        "target": "FC",
+        "trainer": {
+          "lr": 0.002910382355585493,
+          "log_every": 2,
+          "loss_type": "mse",
+          "batch_size": 64,
+          "max_epochs": 500,
+          "lr_schedule": "none",
+          "tune_reduction_factor": 3,
+          "tune_grace_period_ratio": 0.2
+        },
+        "loss_type": "mse",
+        "lr_schedule": "none",
+        "ray_tune_id": "1777330530",
+        "ray_trial_id": "46a4eada",
+        "shuffle_seed": 1
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.009854482486844065,
+        "val_mse": 0.0420072041451931,
+        "val_pearson_r": 0.23245026171207428,
+        "train_demeaned_r": 0.003663620911538601,
+        "train_mse": 0.042500875890254974,
+        "train_pearson_r": 0.22917184233665464
+      },
+      "test_metrics": {
+        "avg_rank": 0.5388823142669297,
+        "demeaned_pearson": 0.02225622534751892,
+        "mse": 0.041757237166166306,
+        "pearson": 0.22975771129131317,
+        "r2": -2.0675289630889893,
+        "top1_acc": 0.020512820512820513
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/NodalMLP/46a4eada"
+    },
+    {
+      "model_name": "NodalMLP",
+      "source": "SC",
+      "seed": 2,
+      "cov_type": "spectral",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "z73xw473",
+      "wandb_run_name": "da010ab0_best",
+      "wandb_group": "NodalMLP_tune_da010ab0",
+      "wandb_created_at": "2026-04-28T00:06:55Z",
+      "ray_tune_id": "1777330550",
+      "ray_trial_id": "da010ab0",
+      "config": {
+        "lr": 0.007213066995341669,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 2,
+          "data_load_mode": "precomputed",
+          "write_manual_cache": false,
+          "precompute_cache_root": "/scratch/asr655/neuroinformatics/Conn2Conn_data"
+        },
+        "model": {
+          "reg": 0.0007918508570216147,
+          "name": "NodalMLP",
+          "device": null,
+          "dropout": 0.2,
+          "use_r2t": false,
+          "use_sc_row": true,
+          "use_volume": false,
+          "sc_row_norm": "none",
+          "use_spatial": false,
+          "decoder_type": "dot",
+          "encoder_type": "spectral",
+          "embedding_dim": 8,
+          "cov_sources_str": ""
+        },
+        "source": "SC",
+        "target": "FC",
+        "trainer": {
+          "lr": 0.007213066995341669,
+          "log_every": 2,
+          "loss_type": "mse",
+          "batch_size": 64,
+          "max_epochs": 500,
+          "lr_schedule": "none",
+          "tune_reduction_factor": 3,
+          "tune_grace_period_ratio": 0.2
+        },
+        "loss_type": "mse",
+        "lr_schedule": "none",
+        "ray_tune_id": "1777330550",
+        "ray_trial_id": "da010ab0",
+        "shuffle_seed": 2
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.025002023205161095,
+        "val_mse": 0.04260675236582756,
+        "val_pearson_r": 0.24115052819252017,
+        "train_demeaned_r": 0.0020438302308321,
+        "train_mse": 0.04457700997591019,
+        "train_pearson_r": 0.24112997949123385
+      },
+      "test_metrics": {
+        "avg_rank": 0.527810650887574,
+        "demeaned_pearson": 0.004722381476312876,
+        "mse": 0.044438436627388,
+        "pearson": 0.24251101911067963,
+        "r2": -2.3266775608062744,
+        "top1_acc": 0.010256410256410256
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/NodalMLP/da010ab0"
+    },
+    {
+      "model_name": "NodalMLP",
+      "source": "SC",
+      "seed": 3,
+      "cov_type": "spectral",
+      "status": "complete",
+      "n_tune_trials": 0,
+      "wandb_run_id": "im2lrk7e",
+      "wandb_run_name": "b634883c_best",
+      "wandb_group": "NodalMLP_tune_b634883c",
+      "wandb_created_at": "2026-09-29T20:54:42Z",
+      "ray_tune_id": "1790708103",
+      "ray_trial_id": "b634883c",
+      "config": {
+        "lr": 0.0035868852026769895,
+        "data": {
+          "hemi": "both",
+          "source": "SC",
+          "target": "FC",
+          "parcellation": "Glasser",
+          "shuffle_seed": 3,
+          "data_load_mode": "precomputed",
+          "write_manual_cache": false,
+          "precompute_cache_root": "/scratch/asr655/neuroinformatics/Conn2Conn_data"
+        },
+        "model": {
+          "name": "NodalMLP",
+          "device": null,
+          "l1_reg": 0,
+          "l2_reg": 2.544945313602604e-07,
+          "dropout": 0.5,
+          "use_r2t": false,
+          "use_sc_row": true,
+          "use_volume": false,
+          "sc_row_norm": "none",
+          "use_spatial": false,
+          "decoder_type": "dot",
+          "encoder_type": "spectral",
+          "embedding_dim": 16,
+          "cov_sources_str": ""
+        },
+        "source": "SC",
+        "target": "FC",
+        "trainer": {
+          "lr": 0.0035868852026769895,
+          "log_every": 2,
+          "loss_type": "composite",
+          "batch_size": 8,
+          "loss_terms": [
+            {
+              "name": "mse",
+              "weight": 1
+            }
+          ],
+          "max_epochs": 500,
+          "lr_schedule": "none",
+          "loss_normalize": "auto",
+          "tune_reduction_factor": 3,
+          "tune_grace_period_ratio": 0.2
+        },
+        "loss_type": "composite",
+        "loss_terms": [
+          {
+            "name": "mse",
+            "weight": 1
+          }
+        ],
+        "lr_schedule": "none",
+        "ray_tune_id": "1790708103",
+        "ray_trial_id": "b634883c",
+        "shuffle_seed": 3,
+        "loss_normalize": "none",
+        "loss_signature": "mse",
+        "loss_scale_ema_decay": 0.95,
+        "loss_scale_warmup_steps": 20
+      },
+      "val_metrics": {
+        "val_demeaned_r": 0.00934353657066822,
+        "val_mse": 0.042165789753198624,
+        "val_pearson_r": 0.2536138892173767,
+        "train_demeaned_r": 0.0028208910953253508,
+        "train_mse": 0.04215262085199356,
+        "train_pearson_r": 0.24767981469631195
+      },
+      "test_metrics": {
+        "avg_rank": 0.5299145299145298,
+        "demeaned_pearson": 0.03453513979911804,
+        "mse": 0.04073115810751915,
+        "pearson": 0.25133973360061646,
+        "r2": -2.0752291679382324,
+        "top1_acc": 0.015384615384615384
+      },
+      "local_artifact_path": "/scratch/asr655/neuroinformatics/Conn2Conn/results/ray_results/NodalMLP/b634883c"
+    }
+  ]
+}

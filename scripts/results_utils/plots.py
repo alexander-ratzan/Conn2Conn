@@ -870,6 +870,96 @@ def plot_cov_dl_global_metric_panels(
     return fig, axes, plot_df
 
 
+def plot_importance_heatmap(
+    importance_df: pd.DataFrame,
+    title: Optional[str] = None,
+    show_title: bool = False,
+    figsize: Optional[tuple] = None,
+    cmap: str = "viridis",
+    label_fontsize: int = 16,
+    tick_fontsize: int = 14,
+    annotation_fontsize: int = 12,
+):
+    """
+    Heatmap of hyperparameter importance: rows = hyperparameters, columns = variants.
+    `importance_df` has one row per (variant, param, importance). Missing cells stay blank.
+    """
+    import matplotlib.pyplot as plt
+
+    plot_df = importance_df.pivot_table(index="param", columns="variant", values="importance", aggfunc="first")
+    plot_df = plot_df.loc[plot_df.max(axis=1).sort_values(ascending=False).index]
+    n_rows, n_cols = plot_df.shape
+    fig, ax = plt.subplots(figsize=figsize or (1.8 * n_cols + 3.0, 0.55 * n_rows + 1.6))
+    values = plot_df.to_numpy(dtype=float)
+    im = ax.imshow(np.ma.masked_invalid(values), aspect="auto", cmap=cmap, vmin=0.0,
+                   vmax=max(0.5, float(np.nanmax(values)) if np.isfinite(values).any() else 0.5))
+    ax.set_xticks(range(n_cols))
+    ax.set_xticklabels(plot_df.columns, rotation=20, ha="right", fontsize=tick_fontsize)
+    ax.set_yticks(range(n_rows))
+    ax.set_yticklabels(plot_df.index, fontsize=tick_fontsize)
+    for i in range(n_rows):
+        for j in range(n_cols):
+            v = values[i, j]
+            if np.isfinite(v):
+                ax.text(j, i, f"{v:.2f}", ha="center", va="center", fontsize=annotation_fontsize,
+                        color="white" if v < 0.25 else "black")
+    cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    cbar.set_label("fANOVA importance", fontsize=label_fontsize)
+    cbar.ax.tick_params(labelsize=tick_fontsize)
+    if show_title:
+        ax.set_title(title or "Hyperparameter importance", fontsize=label_fontsize + 2)
+    plt.tight_layout()
+    return fig, ax, plot_df.reset_index()
+
+
+def plot_trial_metric_distribution(
+    trials_df: pd.DataFrame,
+    metric: str = "value",
+    group: str = "variant",
+    order: Optional[list] = None,
+    metric_label: Optional[str] = None,
+    reference_value: Optional[float] = 0.0,
+    title: Optional[str] = None,
+    show_title: bool = False,
+    figsize: tuple = (10, 5.5),
+    label_fontsize: int = 18,
+    tick_fontsize: int = 15,
+    seed: int = 0,
+):
+    """
+    Distribution of a per-trial metric per group: box (median, IQR) plus every trial as a jittered point.
+    `trials_df` has one row per tune trial with columns `group` and `metric`.
+    """
+    import matplotlib.pyplot as plt
+
+    groups = order or sorted(trials_df[group].dropna().unique())
+    data = [trials_df.loc[trials_df[group] == g, metric].dropna().astype(float).to_numpy() for g in groups]
+    rng = np.random.default_rng(seed)
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.boxplot(data, positions=range(len(groups)), widths=0.55, showfliers=False,
+               medianprops={"color": "black", "linewidth": 1.6})
+    for i, vals in enumerate(data):
+        ax.scatter(i + rng.uniform(-0.18, 0.18, size=len(vals)), vals, s=14, alpha=0.55,
+                   color=_FALLBACK_POINT_COLOR, edgecolor="none", zorder=3)
+    if reference_value is not None:
+        ax.axhline(reference_value, color="#888888", linestyle="--", linewidth=1.2, zorder=1)
+    ax.set_xticks(range(len(groups)))
+    ax.set_xticklabels([f"{g}\n(n={len(v)})" for g, v in zip(groups, data)], fontsize=tick_fontsize)
+    ax.tick_params(axis="y", labelsize=tick_fontsize)
+    ax.set_ylabel(metric_label or metric, fontsize=label_fontsize)
+    ax.grid(axis="y", alpha=0.25, linestyle="--")
+    if show_title:
+        ax.set_title(title or f"{metric_label or metric} per tune trial", fontsize=label_fontsize + 2)
+    plt.tight_layout()
+    plot_df = pd.DataFrame({group: groups, "n": [len(v) for v in data],
+                            "median": [float(np.median(v)) if len(v) else np.nan for v in data],
+                            "max": [float(np.max(v)) if len(v) else np.nan for v in data]})
+    return fig, ax, plot_df
+
+
+_FALLBACK_POINT_COLOR = "#4C78A8"
+
+
 # ---------------------------------------------------------------------------
 # Figure registry + export (config-driven experiment scripts)
 # ---------------------------------------------------------------------------
@@ -882,6 +972,8 @@ FIGURE_TYPES = {
     "metric_scatter": plot_model_metric_scatter,
     "cov_dl_bars": plot_cov_dl_metric_bars,
     "cov_dl_panels": plot_cov_dl_global_metric_panels,
+    "importance_heatmap": plot_importance_heatmap,
+    "trial_distribution": plot_trial_metric_distribution,
 }
 
 
@@ -926,6 +1018,9 @@ def figure_name(spec: dict) -> str:
             parts.append(spec["metric"])
         if spec.get("rows"):
             parts.append(spec["rows"])
+    elif spec.get("type") in ("importance_heatmap", "trial_distribution"):
+        if spec.get("metric") and spec.get("metric") != "value":
+            parts.append(spec["metric"])
     else:
         parts.append(spec.get("metric", "demeaned_pearson"))
         parts.append("-".join(spec.get("sources") or ["SC", "SC_r2t", "SC+SC_r2t"]))

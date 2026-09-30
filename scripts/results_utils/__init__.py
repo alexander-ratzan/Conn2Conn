@@ -53,6 +53,8 @@ from .plots import (
     save_figure,
     plot_cov_dl_global_metric_panels,
     plot_cov_dl_metric_bars,
+    plot_importance_heatmap,
+    plot_trial_metric_distribution,
     plot_model_metric_scatter,
     plot_source_metric_bars,
 )

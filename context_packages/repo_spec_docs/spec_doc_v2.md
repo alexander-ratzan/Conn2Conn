@@ -15,7 +15,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
-| E0 | Architecture check: NodalMLP probe-decoder close-out (`nodal_mlp_probe_decoders`) | in progress (E0.1 done; E0.2 running; E0.5 planned) | code freeze during E0.2; E0.5 on C6, C1 | agent:infra |
+| E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | in progress (E0.1–E0.3 done; E0.6 running; results preliminary) | E0.5 on C6, C1, E0.6 | agent:infra |
 | E1 | Composite-loss trade-off on the linear backbone (`composite_loss_tradeoff`) | planned | C3 | agent:modeling |
 | E2 | Cross-model benchmark (`model_benchmark`, working name) | outline | C1, C2 | — |
 | C1 | `torch_geometric` missing from `kraken_env` | blocked (on C6) | C6 | agent:infra |
@@ -27,6 +27,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 | C!2 | v1:M1b — `ema` runs with `neidist` ≤ 0 during warmup | open | — | — |
 | C!3 | `CrossModal_linear_backbone` z-scored latents are PCA-space | open | — | — |
 | D1 | One job environment for all experiments and runs | decided | — | user |
+| D2 | Tuning budget: pilot first, pack small models, scale on evidence | decided | — | user |
 
 ---
 
@@ -98,6 +99,7 @@ the table below lists only what is specific to v2.
 | ID | Decision | Rationale |
 |---|---|---|
 | D1 | **One job environment for all experiments and runs:** the launchers' stack (`/ext3/env.sh` in `kraken_env`), consolidated into the overlay with user site-packages disabled (C6). Notebooks and interactive sessions use the same stack. | Every recorded result came from the launcher stack; one stack makes interactive checks reproduce in jobs. |
+| D2 | **Tuning budget scales with evidence.** A model without established signal starts with a pilot (1–2 seeds × 8–12 trials); full sweeps (32 trials, more seeds) only if the pilot's best val beats the null by a stated margin. Small models are packed onto the GPU (fractional `TUNE_GPUS_PER_TRIAL`, several trials at once). | NodalMLP probes took 38 array tasks / 612 trials / ~47 GPU-h for test demeaned r ≈ the null; one-trial-per-GPU jobs are killed for underutilization. |
 
 ## 4. Experiments
 
@@ -116,62 +118,56 @@ Status and owners are in the [status table](#status).
 - Decisions: (with defaults if not yet confirmed)
 ```
 
-### E0 — Architecture check: NodalMLP probe-decoder close-out   (slug: `nodal_mlp_probe_decoders`) · status: in progress · owner: agent:infra
+### E0 — Nodal models benchmark and architecture check   (slug: `nodal_models_benchmark`) · status: in progress (results preliminary) · owner: agent:infra
 
-Last check of the v1 architecture (moved launchers, results tooling, runner pattern) on a real, small experiment
-before E1. It closes out the never-run `scripts/notebooks/results_scrape/nodal_decoder_importance.ipynb`.
+Last check of the v1 architecture (moved launchers, results tooling, runner pattern) on a small real experiment before
+E1. Closes out the never-run `scripts/notebooks/results_scrape/nodal_decoder_importance.ipynb`; NodalGNN folded in
+2026-09-30 (it was E0.5 "expansion").
 
-- **Question:** how much of the SC→FC mapping can simple, interpretable edge decoders recover from per-region NodalMLP
-  embeddings (`dot`, `bilinear`, `linear_beta`, and the connectome-harmonic `spectral` encoder), and which
-  hyperparameters matter for each? Recorded as **closed** so it can be revisited from the SMT angle in GeneEx2Conn.
-- **Design:**
-  - `NodalMLP` configs `NodalMLP_{dot,bilinear,linear_beta,spectral}.yml`, `SC → FC`, loss MSE-only (v1 D4), seeds 0–3
-    (the launchers' `--array=0-3`; stated per §2), selection on `val_demeaned_r`.
-  - Evidence: Tune trials created ≥ 2026-04-27 (the NodalMLP schema change), 32 per variant × seed; best-trial reports
-    for test metrics. A run belongs to a variant only if its config matches that YAML's options; one best-trial run per
-    variant × seed (max `val_demeaned_r`). April trials logged `reg`, which is treated as `l2_reg` (equal per v1 8.7).
-  - Reference rows from existing W&B records (no new compute): NodalMLP with the MLP decoder (pre-schema runs),
-    `NodalGNN` (untuned prod runs), `Chen2024GCN` (tuned), null `CrossModalPCA` SC and `CrossModal_PCA_PLS_learnable`.
+- **Question:** how much of SC→FC can per-region (nodal) models recover: NodalMLP with simple probe edge decoders
+  (`dot`, `bilinear`, `linear_beta`, the connectome-harmonic `spectral` encoder) and NodalGNN, against the null, the
+  linear family and `Chen2024GCN`? Which hyperparameters matter? Recorded as closed for a later SMT revisit in GeneEx2Conn.
+- **Design:** `SC → FC`, MSE-only loss, seeds 0–3, selection on `val_demeaned_r`, one best-trial run per condition × seed.
+  NodalMLP variants: tune trials created ≥ 2026-04-27 whose config matches the variant YAML's options (`reg` treated as
+  `l2_reg`, equal per v1 8.7). References from the tracked benchmark snapshots (null `CrossModalPCA` SC,
+  `CrossModal_PCA_PLS_learnable`, `Chen2024GCN`, untuned `NodalGNN`) plus NodalMLP with the MLP decoder (pre-schema
+  `NodalMLP.yml` runs). Tuning budget follows D2.
+- **Preliminary results (2026-09-30, test split, seeds 0–3; write-up `nodal_models_benchmark.md`):** every nodal model
+  is at the null. Probes: demeaned r 0.011–0.018, avg rank 0.50–0.54; NodalMLP MLP decoder / NodalGNN default / Chen
+  0.016–0.023; null 0.013 / 0.518; `PCA_PLS_learnable` 0.075 / 0.665 on the same seeds. Probes cannot be ranked at
+  n = 3–4 (bilinear seed 0 not re-run). Tune-trial val scores are set mainly by the split (trials on one seed often
+  tie), so importance is computed on within-seed-centred scores — near-uniform, no hyperparameter moves the probes off
+  the null.
 - **Steps:**
-  - **E0.1 — Launcher and entrypoint checks (no GPU).** Changes: none. Accept: `bash -n` on all launchers;
-    `sbatch --test-only` on all 58 (directives and resources); `main.py --help` in `kraken_env`. `Chen2024GCN` /
-    `NodalGNN` launchers still fail at runtime until C1.
-    Result (2026-09-29, done): 59 launchers (58 + `checks/verify_modeling_track_array.sh`): `bash -n` 59/59;
-    `sbatch --test-only` 59/59 accepted (no jobs queued), plus the two E0.2 submissions with `--array=0|3
-    --time=8:00:00 --requeue`. `main.py --help` exits 0 in the launcher image (`cuda12.8.1…sif` + `/ext3/env.sh`):
-    torch 2.9.0+cu128, ray 2.54.1, lightning 2.6.1, wandb 0.25.1, optuna 4.8.0; `torch_geometric` absent (C1).
-  - **E0.2 — Fill the two missing seeds.** Changes: resubmit the unchanged launchers with overrides:
-    `sbatch --array=0 --time=8:00:00 --requeue scripts/sbatch/NodalMLP/tune_array_nodalmlp_bilinear_seeds.sh`
-    (seed 0 hit the 4 h limit) and `--array=3 … tune_array_nodalmlp_spectral_seeds.sh` (seed 3 was killed by a signal).
-    **Code freeze** on `main.py`, `models/` and `models/configs/NodalMLP_*` from submission until both finish
-    (jobs import live code at start and per trial). Accept: logs show `Tune finished: 32 trial(s)` and a best-trial
-    report; a new `best_trial_report` run per variant × seed in W&B; trial configs carry `loss_signature` (re-confirms C3).
-    Submitted 2026-09-29 against `04ae6ee`: job `18814359` (bilinear, seed 0), job `18814360` (spectral, seed 3).
-    Bilinear `18814359` stalled after trial 2 failed at 15:00 (`Trainable runner reuse requires reset_config() to be
-    implemented and return True`, from `reuse_actors=True` in `main.py`'s `TuneConfig`); Tune then scheduled nothing.
-    Cancelled after 41 min and resubmitted unchanged as `18816010`; the same code and package versions ran all April
-    trials without this error. If it recurs, set `reuse_actors=False` after the freeze.
-  - **E0.3 — Experiment build.** Changes: `scripts/experiments/nodal_mlp_probe_decoders/` on the runner pattern:
-    `config.yml` (variants, cutoff, metric, reference rows), `run.py`, tracked `records.json` (trial params + metrics,
-    best-trial records); tables `importance` (fANOVA, hparam × variant), `trial_summary`, `test_summary`,
-    `seed_records`; PNGs: importance heatmap, per-variant val distributions, test-metric bars with reference rows;
-    new generic `FIGURE_TYPES` entries for the heatmap and distributions. Optional self-contained HTML parallel-
-    coordinates view (replaces the notebook's plotly plot). Accept: dry run on current data; rendering deterministic
-    from `records.json`.
-  - **E0.5 — Graph-model expansion (after C6 and C1).** Changes: tune `NodalGNN` on seeds 0–3 with
-    `scripts/sbatch/NodalGNN/tune_array_nodalgnn_SC_seeds.sh` (it has only untuned default runs so far); keep
-    `Chen2024GCN` as a reference row from its tuned March sweeps, or re-tune for parity (decide at review). Add them as
-    rows in the E0 tables and figures. Accept: 4/4 seeds per added model. Budget: 4 jobs, approved separately.
-  - **E0.4 — Close-out.** Changes: `--rescrape`; write-up `nodal_mlp_probe_decoders.md` (status closed, revisit pointer
-    to GeneEx2Conn / SMT); experiments-index row; retire the notebook; record E0.1–E0.2 results here. Accept: 4/4 seeds
-    per variant; write-up cites caveats by ID.
-- **Budget:** 2 GPU jobs × ≤8 h (parallel), E0.2 only.
-- **Depends on:** code freeze during E0.2; nothing else (reference rows need no C1).
-- **Decisions (defaults, confirm at review):** 4 seeds (not extended to 10); reference rows included; parallel-
-  coordinates HTML optional. No W&B experiment tag on the reruns: `main.py` has no CLI flag for extra tags, and adding
-  one would break the freeze; runs are identified by variant filters and date.
-- **Known from existing data:** best-trial test `demeaned_pearson` ≈ 0.00–0.03 across variants (null 0.012; linear
-  family ≈ 0.09); best tune val ≈ 0.04–0.05.
+  - **E0.1 — Launcher and entrypoint checks** · done 2026-09-29. `bash -n` 59/59; `sbatch --test-only` 59/59 (no jobs
+    queued); `main.py --help` exits 0 in the launcher image (torch 2.9.0+cu128, ray 2.54.1, lightning 2.6.1, wandb
+    0.25.1, optuna 4.8.0; `torch_geometric` absent, C1).
+  - **E0.2 — Fill the two missing seeds** · done 2026-09-29 (partial). Spectral seed 3 (`18814360`, `04ae6ee`): 32 trials,
+    best-trial report, W&B run — the full launcher cycle works from `scripts/sbatch/`. Bilinear seed 0: `18814359`
+    stalled after a Ray actor-reuse error (`Trainable runner reuse requires reset_config()`); resubmitted as
+    `18816010`, which ran 26/32 trials without that error and was then killed by a signal, most likely the cluster's
+    GPU-underutilization policy (1 small trial per whole GPU). Not re-run (D2).
+  - **E0.3 — Experiment build** · done 2026-09-30. `scripts/experiments/nodal_models_benchmark/`: `config.yml`, `run.py`,
+    tracked `records.json` (best trials) + `trials.json` (tune trials); tables `trial_summary`, `importance`
+    (fANOVA, seeded), `test_summary`, `row_seed_metrics`, `seed_records`; PNGs: test bars, metric panels, importance
+    heatmap, trial-score distributions (new `FIGURE_TYPES`: `importance_heatmap`, `trial_distribution`).
+    `optuna_importance` gains `rows_to_frozen_trials` (cached rows, key aliases) and a `seed` for `get_importance`.
+    Accept: deterministic rendering from the snapshots; C3 re-confirmed from online trial configs (`loss_signature`).
+    Done 2026-09-30: 19 best-trial records + 16 reference, 554 tune trials; cache-mode re-render byte-identical;
+    all 60 logged `loss_signature`s are `mse` (the rest predate the field).
+  - **E0.6 — `reuse_actors` preflight** · in progress. `main.py` gains `--tune_reuse_actors {true,false}` (default true;
+    `4da4cd3`). `preflight/preflight_reuse_actors.sh`: a 12-trial NodalMLP bilinear tune (max_epochs 40), packed
+    4 trials per GPU, with reuse on and off, W&B offline; logs trial errors, `HCP_Base` builds and one timed build,
+    trial/job wall time, GPU utilization. Decision rule: keep reuse on if it runs packed without the reuse error;
+    otherwise weigh the per-trial rebuild cost of reuse off before changing the default.
+  - **E0.5 — NodalGNN pilot** · planned (after C6, C1, E0.6). Experiment-local MSE-only NodalGNN config (loss weights
+    pinned at 0; `max_epochs` ≤ 750) and launcher; seed 0 × 12 trials, packed per E0.6. **Gate:** extend to seeds 1–3
+    only if the seed-0 best val demeaned r ≥ 0.045 (the null's seed-0 val 0.025 + 0.02 — val is only comparable
+    within a seed); otherwise record NodalGNN as a negative result. Budget: 1 job ≤ 3 h; +3 if
+    gated in.
+  - **E0.4 — Close-out** · planned. `--rescrape`; write-up `nodal_models_benchmark.md` (status closed, SMT revisit
+    pointer); experiments-index row; retire the notebook. Accept: write-up cites caveats by ID.
+- **Depends on:** C6 and C1 for E0.5.
 
 ### E1 — Composite-loss trade-off on the linear backbone   (slug: `composite_loss_tradeoff`) · status: planned · owner: agent:modeling
 
@@ -286,5 +282,6 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E1 follow-ups:
 | 2026-09-29 | Reformatted to [`spec_conventions.md`](spec_conventions.md): purpose, contents, status table with owners. Carried items split into open work (C1–C4) and caveats: C!1 (v1:M5b), C!2 (v1:M1b), C!3 (was C5). C3 done: the 8.7 failure was a false negative (signature present in the offline run logs). |
 | 2026-09-29 | E0 added (planned): NodalMLP probe-decoder close-out as the last architecture check before E1; moved from a proposed v1 section, since v1 is closed. |
 | 2026-09-29 | E0.1 done (59/59 launchers pass `bash -n` and `sbatch --test-only`; `main.py` loads in the launcher image). E0.2 submitted; bilinear stalled on a Ray actor-reuse error and was resubmitted. C6 (environment divergence, `~/.local` leak) and D1 (one job environment) added; C1 now installs through C6; E0.5 (graph-model expansion) planned. |
+| 2026-09-30 | E0 renamed `nodal_models_benchmark` with NodalGNN folded in; results marked preliminary (probes at the null, far below the linear family). E0.2 done (spectral complete; bilinear seed 0 not re-run). E0.6 `reuse_actors` preflight added; E0.5 is now a gated NodalGNN pilot. D2 (tuning budget) added. |
 
 Last updated at: 2026-09-29 EDT

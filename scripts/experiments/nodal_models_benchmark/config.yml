@@ -1,0 +1,81 @@
+# Nodal models benchmark (spec v2 E0): how much of SC -> FC can per-region (nodal) models recover?
+#   - NodalMLP with simple "probe" edge decoders (dot, bilinear, linear_beta, spectral encoder)
+#   - NodalGNN (added after the environment fix, spec v2 E0.5)
+# compared against the null, the linear family, and existing graph-model runs. MSE-only loss throughout.
+#
+# Run:  python scripts/experiments/nodal_models_benchmark/run.py            # from records.json + trials.json
+#       python scripts/experiments/nodal_models_benchmark/run.py --rescrape # refresh both from W&B
+# Write-up: scripts/experiments/nodal_models_benchmark/nodal_models_benchmark.md
+
+seeds: [0, 1, 2, 3]
+
+# Best-trial selection within a (variant, seed) cell, and the tune-trial metric used for importance.
+selection:
+  metric: val_demeaned_r
+  mode: max
+importance_seed: 0             # fANOVA forest seed, so the importance table is reproducible
+importance_center: seed        # subtract each seed's median trial score first (splits differ far more than trials)
+param_aliases: {reg: l2_reg}   # April trials logged `reg`; identical to `l2_reg` (spec v1 8.7)
+
+# --- tuned conditions, scraped from W&B --------------------------------------------------------
+# A run belongs to a variant when it is inside the date window and, for each `options_from_config` key, its
+# value is one of that config's search-space choices (or its default when the key is not searched).
+# `match` pins exact values; `require_missing` keys must be absent (older schema).
+variants:
+  - {name: dot, model: NodalMLP, config: models/configs/NodalMLP_dot.yml, created_after: "2026-04-27",
+     options_from_config: [encoder_type, decoder_type], importance: true}
+  - {name: bilinear, model: NodalMLP, config: models/configs/NodalMLP_bilinear.yml, created_after: "2026-04-27",
+     options_from_config: [encoder_type, decoder_type], importance: true}
+  - {name: linear_beta, model: NodalMLP, config: models/configs/NodalMLP_linear_beta.yml, created_after: "2026-04-27",
+     options_from_config: [encoder_type, decoder_type], importance: true}
+  - {name: spectral, model: NodalMLP, config: models/configs/NodalMLP_spectral.yml, created_after: "2026-04-27",
+     options_from_config: [encoder_type, decoder_type], importance: true}
+  # NodalMLP with the default MLP decoder on SC rows (NodalMLP.yml, pre-schema runs): the flexible-decoder control
+  - {name: mlp_sc_rows, model: NodalMLP, config: models/configs/NodalMLP.yml, created_before: "2026-04-27",
+     match: {use_sc_row: true, use_volume: false}, require_missing: [decoder_type], importance: false}
+
+# --- references, from the tracked benchmark snapshots (no scrape) ------------------------------
+references:
+  - {name: null_pca, snapshot: scripts/experiments/sc_type_benchmark/records.json, model: CrossModalPCA, source: SC}
+  - {name: pca_pls_learnable, snapshot: scripts/experiments/sc_type_benchmark/records.json, model: CrossModal_PCA_PLS_learnable, source: SC}
+  - {name: chen_gcn, snapshot: scripts/experiments/cov_projector_benchmark/records.json, model: Chen2024GCN, source: SC}
+  - {name: nodal_gnn_default, snapshot: scripts/experiments/cov_projector_benchmark/records.json, model: NodalGNN, source: SC}
+
+# --- table / figure rows -------------------------------------------------------------------------
+# One entry per condition. Variant rows are matched by `variant`; reference rows by model (cov_type none).
+rows:
+  null_pca:          {model: CrossModalPCA, source: SC, display_model: "Null (CrossModalPCA SC)", cov_source_label: "-", plot_label: "null"}
+  pca_pls_learnable: {model: CrossModal_PCA_PLS_learnable, source: SC, display_model: PCA_PLS_learnable, cov_source_label: "-", plot_label: PCA_PLS_learnable}
+  chen_gcn:          {model: Chen2024GCN, source: SC, display_model: "GNN (Chen, 2024)", cov_source_label: "-", plot_label: "GNN (Chen)"}
+  nodal_gnn_default: {model: NodalGNN, source: SC, display_model: "NodalGNN (untuned default)", cov_source_label: "-", plot_label: "NodalGNN (default)"}
+  mlp_sc_rows:       {model: NodalMLP, source: SC, cov_type: mlp_sc_rows, display_model: NodalMLP, cov_source_label: "MLP decoder", plot_label: "NodalMLP mlp"}
+  dot:               {model: NodalMLP, source: SC, cov_type: dot, display_model: NodalMLP, cov_source_label: "dot", plot_label: "NodalMLP dot"}
+  bilinear:          {model: NodalMLP, source: SC, cov_type: bilinear, display_model: NodalMLP, cov_source_label: "bilinear", plot_label: "NodalMLP bilinear"}
+  linear_beta:       {model: NodalMLP, source: SC, cov_type: linear_beta, display_model: NodalMLP, cov_source_label: "linear_beta", plot_label: "NodalMLP linear_beta"}
+  spectral:          {model: NodalMLP, source: SC, cov_type: spectral, display_model: NodalMLP, cov_source_label: "spectral", plot_label: "NodalMLP spectral"}
+
+row_groups:
+  all: [pca_pls_learnable, null_pca, chen_gcn, nodal_gnn_default, mlp_sc_rows, dot, bilinear, linear_beta, spectral]
+  probes: [dot, bilinear, linear_beta, spectral]
+
+tables:
+  metrics: [pearson, demeaned_pearson, mse, avg_rank, top1_acc]
+  metric_labels: {pearson: corr, demeaned_pearson: demeaned_corr}
+  summaries:
+    - {name: test_summary, rows: all}
+
+# --- figures (types from scripts.results_utils.FIGURE_TYPES) --------------------------------------
+figures:
+  - {type: cov_dl_bars, rows: all, metric: demeaned_pearson, show_title: false, show_axis_labels: true}
+  - {type: cov_dl_bars, rows: all, metric: avg_rank, show_title: false, show_axis_labels: true}
+  - type: cov_dl_panels
+    rows: all
+    metrics: [pearson, demeaned_pearson, avg_rank, top1_acc]
+    show_title: false
+    show_axis_labels: true
+  - {type: importance_heatmap}
+  - {type: trial_distribution, metric_label: "val demeaned r (tune trials)", order: [dot, bilinear, linear_beta, spectral]}
+
+output_dir: .
+formats: [png]
+dpi: 300

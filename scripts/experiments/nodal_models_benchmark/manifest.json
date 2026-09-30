@@ -1,0 +1,96 @@
+{
+  "generated_at": "2026-09-30T09:50:02",
+  "git_commit": "4da4cd3",
+  "config": "scripts/experiments/nodal_models_benchmark/config.yml",
+  "records_cache": "scripts/experiments/nodal_models_benchmark/records.json",
+  "cache_metadata": {
+    "variants": [
+      "dot",
+      "bilinear",
+      "linear_beta",
+      "spectral",
+      "mlp_sc_rows"
+    ],
+    "seeds": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "selection_metric": "val_demeaned_r",
+    "selection_mode": "max",
+    "variant_filters": {
+      "dot": {
+        "config": "models/configs/NodalMLP_dot.yml",
+        "created_after": "2026-04-27",
+        "importance": true,
+        "model": "NodalMLP",
+        "options_from_config": [
+          "encoder_type",
+          "decoder_type"
+        ]
+      },
+      "bilinear": {
+        "config": "models/configs/NodalMLP_bilinear.yml",
+        "created_after": "2026-04-27",
+        "importance": true,
+        "model": "NodalMLP",
+        "options_from_config": [
+          "encoder_type",
+          "decoder_type"
+        ]
+      },
+      "linear_beta": {
+        "config": "models/configs/NodalMLP_linear_beta.yml",
+        "created_after": "2026-04-27",
+        "importance": true,
+        "model": "NodalMLP",
+        "options_from_config": [
+          "encoder_type",
+          "decoder_type"
+        ]
+      },
+      "spectral": {
+        "config": "models/configs/NodalMLP_spectral.yml",
+        "created_after": "2026-04-27",
+        "importance": true,
+        "model": "NodalMLP",
+        "options_from_config": [
+          "encoder_type",
+          "decoder_type"
+        ]
+      },
+      "mlp_sc_rows": {
+        "config": "models/configs/NodalMLP.yml",
+        "created_before": "2026-04-27",
+        "importance": false,
+        "match": {
+          "use_sc_row": true,
+          "use_volume": false
+        },
+        "model": "NodalMLP",
+        "require_missing": [
+          "decoder_type"
+        ]
+      }
+    },
+    "scraped_at": "2026-09-30T09:45:18",
+    "wandb": "alexander-ratzan-new-york-university/conn2conn"
+  },
+  "outputs": [
+    "tables/trial_summary.csv",
+    "tables/trial_summary.md",
+    "tables/importance.csv",
+    "tables/importance_wide.csv",
+    "tables/importance_wide.md",
+    "tables/seed_records.csv",
+    "tables/row_seed_metrics.csv",
+    "tables/test_summary.csv",
+    "tables/test_summary.md",
+    "figures/cov_dl_bars__demeaned_pearson__all.png",
+    "figures/cov_dl_bars__avg_rank__all.png",
+    "figures/cov_dl_panels__all.png",
+    "figures/importance_heatmap.png",
+    "figures/trial_distribution.png"
+  ]
+}
