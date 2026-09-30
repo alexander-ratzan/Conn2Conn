@@ -1,5 +1,6 @@
 #!/bin/bash
-# Composite-loss protocol (spec v2 E1). E1.3: consensus Stage 1 config retrained on seeds 0-4 (parallel on one GPU) + fixed reference scales.
+# Composite-loss protocol (spec v2 E1). Stage 1 summary + stop check, then E1.3: consensus Stage 1 config retrained on
+# seeds 0-4 (parallel on one GPU) + fixed reference scales. Chainable: sbatch --dependency=afterok:<stage1 job> ...
 #   sbatch scripts/experiments/composite_loss/launch_consensus.sh <instance>      (instance = folder under scripts/experiments/composite_loss/)
 # Exit code 2 from protocol.py = a D3 stop condition tripped (see the job log and the instance state.yml).
 #SBATCH --nodes=1
@@ -37,6 +38,8 @@ singularity exec --nv \
     export PYTHONUNBUFFERED=1 MPLBACKEND=Agg
     cd ${CONN2CONN_DIR}
     INSTANCE=${INSTANCE} SLURM_ARRAY_TASK_ID=${SLURM_ARRAY_TASK_ID:-0} SLURM_ARRAY_TASK_COUNT=${SLURM_ARRAY_TASK_COUNT}
+    set -e
+    python scripts/experiments/composite_loss/protocol.py stage1 --instance ${INSTANCE}
     python scripts/experiments/composite_loss/protocol.py consensus --instance ${INSTANCE}
   "
 
