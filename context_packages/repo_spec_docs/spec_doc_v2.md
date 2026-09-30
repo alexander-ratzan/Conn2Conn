@@ -18,7 +18,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 | E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | in progress (E0.1–E0.3 done; E0.6 running; results preliminary) | E0.5 on C6, C1, E0.6 | agent:infra |
 | E1 | Composite-loss trade-off on the linear backbone (`composite_loss_tradeoff`) | planned | C3 | agent:modeling |
 | E2 | Cross-model benchmark (`model_benchmark`, working name) | outline | C1, C2 | — |
-| C1 | `torch_geometric` missing from `kraken_env` | blocked (on C6) | C6 | agent:infra |
+| C1 | `torch_geometric` missing from `kraken_env` | blocked (on C6) | C6 | **Done 2026-09-30** (C6): `torch_geometric 2.8.0.post1` in the overlay; post-C6 `dev_runs` `18880103` trains both. |
 | C2 | Re-tune the M5b-affected sweeps | planned (within E2) | E2 | — |
 | C3 | Confirm `loss_signature` in Tune-trial W&B configs | done | — | agent:infra |
 | C4 | `latent_masked_test` notebook fixes | planned | — | — |
@@ -62,7 +62,7 @@ the table below lists only what is specific to v2.
 | C2 | Re-tune the sweeps affected by v1:M5b (`CrossModal_PCA_PLS_learnable`, `CrossModal_PCA_PLS_CovProjector`, `Sarwar2020MLP`) | E2 | Re-tune within E2; resolves C!1. |
 | C3 | Confirm Tune-trial W&B configs carry `loss_signature` (v1 8.7 check failed) | — | **Done 2026-09-29.** The failure was a false negative: wandb 0.25 offline runs write no `files/config.yaml`; the config is inside `run-*.wandb`. Both trials of the 8.7 tune run (`results/ray_checkpoints/CrossModal_linear_backbone_tune_1790207949/*/wandb/offline-run-*/run-*.wandb`) contain `loss_signature` = `mse+0.25*correye+0.5*neidist`. The check in `scripts/sbatch/checks/verify_modeling_track.py` should read `run-*.wandb` (or an online run) instead. E1.2's online sweep can re-confirm at no cost. |
 | C4 | `scripts/notebooks/model_testing/latent_masked_test.ipynb`: cell 6 reads `residual_linear.weight` (absent in `attention_only`); cell 4 sets `l2_reg` twice | — | Fix when that notebook is next used. |
-| C6 | **Environment divergence** (found 2026-09-29). (1) Two stacks share the overlay: `source /ext3/env.sh` (all 59 launchers) gives torch 2.9.0+cu128 from the overlay **plus `~/.local`**; `source /scratch/asr655/envs/activate_env.sh kraken_env` gives torch 2.11.0+cu130 from `/scratch/asr655/envs/kraken_env/pylibs` (5.1 GB, installed 2026-04-08) and hides `~/.local`. Interactive sessions and jobs can therefore run different torch / Ray / Lightning. (2) Jobs import ray 2.54.1, lightning 2.6.1, wandb 0.25.1, optuna 4.8.0, torchmetrics, pyarrow from `~/.local` (38 packages, 520 MB, 14k files, installed 2026-04-08). Home is at 25.4k / 30k files; `~/.local` is the only large home dir not symlinked to `/scratch`. **Root cause:** `pip install` in a session with the overlay mounted `:ro` silently falls back to a user install in `~/.local`, and `/ext3/env.sh` puts `~/.local` on every job's `sys.path`. | E0.5, E2, every run | See **C6 plan** below. |
+| C6 | **Environment divergence** (found 2026-09-29). (1) Two stacks share the overlay: `source /ext3/env.sh` (all 59 launchers) gives torch 2.9.0+cu128 from the overlay **plus `~/.local`**; `source /scratch/asr655/envs/activate_env.sh kraken_env` gives torch 2.11.0+cu130 from `/scratch/asr655/envs/kraken_env/pylibs` (5.1 GB, installed 2026-04-08) and hides `~/.local`. Interactive sessions and jobs can therefore run different torch / Ray / Lightning. (2) Jobs import ray 2.54.1, lightning 2.6.1, wandb 0.25.1, optuna 4.8.0, torchmetrics, pyarrow from `~/.local` (38 packages, 520 MB, 14k files, installed 2026-04-08). Home is at 25.4k / 30k files; `~/.local` is the only large home dir not symlinked to `/scratch`. **Root cause (confirmed 2026-09-30):** the overlay could not be written on this cluster. The image's skeleton dirs (`/upper`, `/upper/ext3`, `/work`) were owned by uid 0 while its contents are user-owned, so a plain `:rw` mount fails; the user has no `/etc/subuid` entry, so `--fakeroot` falls back to a root-mapped namespace that cannot write either. pip then says site-packages "is not writeable" and silently installs into `~/.local`, which `/ext3/env.sh` leaves on every job's `sys.path`. | E0.5, E2, every run | C6.1–C6.4 done 2026-09-30; C6.5 (user); archive cleanup pending. See **C6 plan** below. |
 
 ### Caveats (`C!`)
 
@@ -77,25 +77,37 @@ the table below lists only what is specific to v2.
 - **Preconditions:** E0.2 finished; no queued or running job and no Jupyter / OOD session has
   `overlay-15GB-500K.ext3` mounted (an `:rw` mount needs it exclusively; the file's mtime changed on 2026-09-29, so
   something mounted it writable that day); the other agent idle.
-- **C6.1 Snapshot:** `pip freeze` of the launcher stack (overlay + `~/.local`) saved as the reference "job version";
+- **C6.1 Snapshot** · done 2026-09-30: `pip freeze` of the launcher stack (overlay + `~/.local`) saved as the reference "job version";
   `~/.local` file list + checksums; temporary backup `cp --sparse=always` of the overlay (deleted after C6.4).
-  Snapshot taken 2026-09-30 (backup not yet): `/scratch/asr655/envs/kraken_env/c6_snapshot_2026-09-30/` — launcher
+  Snapshot and backup (`overlay-15GB-500K.ext3.c6_backup`, `cmp`-verified) taken 2026-09-30:
+  `/scratch/asr655/envs/kraken_env/c6_snapshot_2026-09-30/` — launcher
   freeze 153 = overlay 115 + user-site 38; `~/.local` md5s of 14,134 files; original `env.sh`. Pre-C6 baseline
   `verify_modeling_track` dev_runs (`18871223`): 9/9 models pass (matching the 2026-09-23 report within GPU noise),
   Chen2024GCN and NodalGNN skipped (no `torch_geometric`).
-- **C6.2 Consolidate into the overlay** (`singularity exec --fakeroot --overlay …:rw` with the launchers' image
-  `cuda12.8.1-cudnn9.8.0-ubuntu24.04.2.sif`): install the exact `~/.local` versions (`--no-deps`, from the snapshot) and
+- **C6.2 Consolidate into the overlay** · done 2026-09-30. `--fakeroot` could not write (see C6 root cause), so first
+  `c6_fix_ownership.sh` gave the three skeleton dirs to the user (offline `debugfs` edit, 6 inode fields; `e2fsck`
+  clean); the overlay then mounts `:rw` without `--fakeroot`. `c6_install.sh` (plain `:rw`, launchers' image
+  `cuda12.8.1-cudnn9.8.0-ubuntu24.04.2.sif`), rehearsed end-to-end on a throwaway copy first: install the exact `~/.local` versions (`--no-deps`, from the snapshot) and
   `torch_geometric==2.8.0.post1` into `/ext3/miniforge3` site-packages, existing overlay packages pinned by a constraints
   file. Guards: `PYTHONNOUSERSITE=1`, `PIP_USER=0`, `PIP_CACHE_DIR` on `/scratch`, `unset PYTHONPATH`. Then `pip check`.
-- **C6.3 Close the leak:** append to the overlay's `/ext3/env.sh`: `export PYTHONNOUSERSITE=1` and `export PIP_USER=0`
+  Result: 38 packages + `torch_geometric 2.8.0.post1` + `xxhash 4.0.1` (the only new dependency); `pip check` clean.
+  Leftovers in `/ext3`: three empty root-owned vim swap files from 2026-04-06 (`.env.sh.swp`, `.env.sh.swx`,
+  `env_sh.swp`, an earlier failed edit of `env.sh`); harmless, removable with `debugfs -w -R "rm …"`.
+- **C6.3 Close the leak** · done 2026-09-30: append to the overlay's `/ext3/env.sh`: `export PYTHONNOUSERSITE=1` and `export PIP_USER=0`
   (all launchers pick it up; none edited). Also drop its stray `PYTHONPATH=<bin dirs>` line. Optional safety net for
   every environment: `~/.config/pip/pip.conf` with `[install] user = false`.
-- **C6.4 Verify:** the launcher stack's `pip freeze` equals the C6.1 snapshot plus exactly the PyG packages; `~/.local`
+- **C6.4 Verify** · done 2026-09-30: the launcher stack's `pip freeze` equals the C6.1 snapshot plus exactly the PyG packages; `~/.local`
   absent from `sys.path`; `~/.local` file list unchanged; `main.py --help`; `verify_modeling_track` `dev_runs` trains
   every model family including `Chen2024GCN` / `NodalGNN` (closes C1). Then delete the backup copy.
+  2026-09-30: freeze = snapshot + `torch-geometric`, `xxhash`; user site disabled; every package loads from
+  `/ext3/miniforge3`; pip's user-install fallback gone; `~/.local/lib` and `~/.local/bin` byte-identical (only
+  Claude / Cursor state under `~/.local/state` changed); PyG `GCNConv` imports. Post-C6 `dev_runs` (`18880103`): 11/11 pass — the 9 baseline models match `18871223`
+  within GPU noise, `Chen2024GCN` and `NodalGNN` now train (closes C1). The backup was **moved, not deleted**, to
+  `/scratch/asr655/envs/archive/2026-09-30_c6/` (with the Miniforge installer and a stray log; see its `MANIFEST.md`);
+  delete that folder once post-C6 jobs have run clean for a while.
 - **C6.5 Align interactive use (user):** point `activate_env.sh` at the same setup as `/ext3/env.sh`, or retire `pylibs`;
   give Jupyter kernel specs (`~/.local/share/jupyter/kernels`) the same two variables.
-- **Not in scope yet:** removing packages from `~/.local`. `vformer_env` / `main_env` may still import from it; check
+- **Not in scope yet (user, 2026-09-30: hold `~/.local` as is):** removing packages from `~/.local`. `vformer_env` / `main_env` may still import from it; check
   those projects first.
 
 ### Decisions (`D`)
@@ -169,7 +181,7 @@ E1. Closes out the never-run `scripts/notebooks/results_scrape/nodal_decoder_imp
     build 43 s vs 22 s), idle GPU between trial waves. **Keep `reuse_actors=True` with packing** (the earlier reuse
     error was intermittent and did not recur packed). Four idle minutes at start-up (Ray start + per-actor builds) are
     the remaining underutilization risk for very short tunes.
-  - **E0.5 — NodalGNN pilot** · planned (after C6, C1, E0.6). Experiment-local MSE-only NodalGNN config (loss weights
+  - **E0.5 — NodalGNN pilot** · running (`18887602`, submitted 2026-09-30). Experiment-local MSE-only NodalGNN config (loss weights
     pinned at 0; `max_epochs` ≤ 750) and launcher; seed 0 × 12 trials, packed per E0.6. **Gate:** extend to seeds 1–3
     only if the seed-0 best val demeaned r ≥ 0.045 (the null's seed-0 val 0.025 + 0.02 — val is only comparable
     within a seed); otherwise record NodalGNN as a negative result. Budget: 1 job ≤ 3 h; +3 if
@@ -293,5 +305,6 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E1 follow-ups:
 | 2026-09-29 | E0.1 done (59/59 launchers pass `bash -n` and `sbatch --test-only`; `main.py` loads in the launcher image). E0.2 submitted; bilinear stalled on a Ray actor-reuse error and was resubmitted. C6 (environment divergence, `~/.local` leak) and D1 (one job environment) added; C1 now installs through C6; E0.5 (graph-model expansion) planned. |
 | 2026-09-30 | E0 renamed `nodal_models_benchmark` with NodalGNN folded in; results marked preliminary (probes at the null, far below the linear family). E0.2 done (spectral complete; bilinear seed 0 not re-run). E0.6 `reuse_actors` preflight added; E0.5 is now a gated NodalGNN pilot. D2 (tuning budget) added. |
 | 2026-09-30 | E0.3 done (byte-identical re-render, C3 re-confirmed; importance on within-seed-centred scores). E0.6 done: keep `reuse_actors=True` with packing. C6.1 snapshot and pre-C6 baseline recorded. |
+| 2026-09-30 | C6 done: root cause was a non-writable overlay (root-owned skeleton dirs; `--fakeroot` unusable without subuid), fixed by an offline ownership change; `~/.local` packages + PyG consolidated into the overlay; `env.sh` closes the leak. C1 closed. Backup archived. E0.5 NodalGNN pilot submitted (`18887602`). |
 
 Last updated at: 2026-09-29 EDT
