@@ -311,11 +311,22 @@ class Sim:
         needs_rebuild = not runtime_cov_set.issubset(current_cov_set)
 
         if not needs_rebuild:
+            # Honor the run's trainer batch_size: the loaders built at Sim init use Sim's batch_size argument, so
+            # a config / best-trial batch_size would otherwise be ignored in single runs (spec v2 C!4).
+            batch_size = trainer_cfg.get("batch_size")
+            if batch_size is None or int(batch_size) == self.train_loader.batch_size:
+                return {
+                    "base": self.base,
+                    "train_loader": self.train_loader,
+                    "val_loader": self.val_loader,
+                    "test_loader": self.test_loader,
+                }
+            batch_size = int(batch_size)
             return {
                 "base": self.base,
-                "train_loader": self.train_loader,
-                "val_loader": self.val_loader,
-                "test_loader": self.test_loader,
+                "train_loader": DataLoader(self.train_ds, batch_size=batch_size, shuffle=True),
+                "val_loader": DataLoader(self.val_ds, batch_size=batch_size, shuffle=False),
+                "test_loader": DataLoader(self.test_ds, batch_size=batch_size, shuffle=False),
             }
 
         batch_size = trainer_cfg.get("batch_size", 128)
@@ -478,6 +489,7 @@ class Sim:
         run_eval: bool = True,
         store_eval_md: bool = False,
         eval_kwargs: dict = None,
+        extra_callbacks: list = None,
     ):
         cfg = self._merge_config(config_override)
         data_ctx = self._build_runtime_data_context(cfg)
@@ -535,6 +547,7 @@ class Sim:
                 logger=False if mode == "dev" else (pl_logger is None),
                 pl_logger=pl_logger,
                 enable_progress_bar=(mode == "dev"),
+                extra_callbacks=extra_callbacks,
             )
             if mode == "dev":
                 train_result.plot()
@@ -726,6 +739,12 @@ class Sim:
             if "RAY_worker_register_timeout_seconds" not in os.environ:
                 os.environ["RAY_worker_register_timeout_seconds"] = "120"
             ray_init_kwargs = {"ignore_reinit_error": True}
+            # Size Ray to the SLURM allocation. Ray otherwise counts every core on the node and pre-starts that many
+            # workers (up to 128 seen); on some nodes they fail to register within the timeout and the driver hangs
+            # in ray.cluster_resources() (E1 Stage 1, 2026-09-30).
+            slurm_cpus = os.environ.get("SLURM_CPUS_PER_TASK") or os.environ.get("SLURM_CPUS_ON_NODE")
+            if slurm_cpus and slurm_cpus.split("(")[0].isdigit():
+                ray_init_kwargs["num_cpus"] = int(slurm_cpus.split("(")[0])
             if os.environ.get("RAY_INCLUDE_DASHBOARD", "").strip() != "1":
                 ray_init_kwargs["include_dashboard"] = False
             ray_tmpdir = os.environ.get("RAY_TMPDIR")

@@ -157,6 +157,7 @@ def train_model(
     logger=True,
     pl_logger=None,
     enable_progress_bar=False,
+    extra_callbacks=None,
 ):
     """
     Train a cross-modal model using PyTorch Lightning Trainer.
@@ -174,6 +175,7 @@ def train_model(
         logger: If True, use CSVLogger (writes to disk). If False, no logging to disk (dev mode).
         pl_logger: Optional Lightning logger (e.g. WandbLogger). If set, overrides logger/CSVLogger.
         enable_progress_bar: If True, show training progress bar (e.g. in dev/notebook).
+        extra_callbacks: optional list of additional Lightning callbacks (e.g. diagnostics).
 
     Returns:
         TrainResult with pl_module, trainer, callback, history_df and .plot().
@@ -216,7 +218,7 @@ def train_model(
         strategy = "ddp_notebook"
     else:
         strategy = "ddp"
-    callbacks = [callback]
+    callbacks = [callback] + list(extra_callbacks or [])
     if enable_progress_bar:
         callbacks.append(OrderedMetricsProgressBar())
 
