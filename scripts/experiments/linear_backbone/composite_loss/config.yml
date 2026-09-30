@@ -1,0 +1,83 @@
+# Composite-loss dynamics and trade-off on the linear backbone (spec v2 E1).
+# Write-up: scripts/experiments/linear_backbone/composite_loss/composite_loss.md
+#
+# Stages: E1.2 Stage 1 MSE-only tune -> E1.3 consensus runs + reference scales -> E1.4 Stage 2 weight grid
+# -> E1.5 tables and figures. Fields marked `null` are filled by the stage that produces them.
+
+model: CrossModal_linear_backbone
+source: SC
+target: FC
+seeds: [0, 1, 2, 3, 4]
+batch_size: 128                  # fixed in every stage (correye / neidist are batch-dependent)
+
+selection:                       # never select on test
+  metric: val_demeaned_r
+  mode: max
+
+# --- Stage 1 (E1.2): MSE-only tune -----------------------------------------------------------------------
+stage1:
+  config: scripts/experiments/linear_backbone/composite_loss/stage1/CrossModal_linear_backbone_mse.yml
+  launcher: scripts/experiments/linear_backbone/composite_loss/stage1/tune_stage1_seeds.sh
+  trials_per_seed: 32
+  packing: {max_concurrent_trials: 4, tune_gpus_per_trial: 0.25, reuse_actors: true}
+  monitor_terms: [varmatch, correye, neidist]
+  # Consensus rule: each seed's best trial; categorical keys by majority, lr / l2_reg by geometric median.
+  # Accept the consensus if its mean val_demeaned_r over seeds is within 1 SE of the mean of the per-seed
+  # bests; otherwise use the per-seed best config with the highest mean over seeds.
+  ray_tune_ids: null             # filled after submission (one per seed)
+  consensus: null                # filled by E1.3: {n_components_pca_source, zscore_pca_scores, l1_reg, l2_reg, lr, max_epochs}
+
+# --- E1.3: reference scales --------------------------------------------------------------------------------
+# s_t = mean |raw_t| over training batches (batch 128, eval mode) of the Stage 1 consensus model, averaged over
+# seeds. MSE stays raw (scale 1); every other term is divided by c_t = s_t / s_mse, so weight w_t means
+# "w x MSE's size at a good MSE-only solution".
+reference_scales: null           # filled by E1.3: {varmatch: c, correye: c, neidist: c, spread: {...}}
+
+# --- Stage 2 (E1.4): weight grid -----------------------------------------------------------------------------
+# Weights on the scaled terms; MSE = 1. loss_normalize: none. All four terms are logged in every run
+# (inactive ones as monitor-only terms), so dynamics are comparable across combinations.
+grid:
+  - {id: mse_only,       varmatch: 0.0, correye: 0.0, neidist: 0.0}
+  - {id: vm_0.1,         varmatch: 0.1, correye: 0.0, neidist: 0.0}
+  - {id: vm_0.5,         varmatch: 0.5, correye: 0.0, neidist: 0.0}
+  - {id: vm_1.0,         varmatch: 1.0, correye: 0.0, neidist: 0.0}
+  - {id: ce_0.1,         varmatch: 0.0, correye: 0.1, neidist: 0.0}
+  - {id: ce_0.5,         varmatch: 0.0, correye: 0.5, neidist: 0.0}
+  - {id: ce_1.0,         varmatch: 0.0, correye: 1.0, neidist: 0.0}
+  - {id: nd_0.1,         varmatch: 0.0, correye: 0.0, neidist: 0.1}
+  - {id: nd_0.5,         varmatch: 0.0, correye: 0.0, neidist: 0.5}
+  - {id: nd_1.0,         varmatch: 0.0, correye: 0.0, neidist: 1.0}
+  - {id: vm_ce_0.5,      varmatch: 0.5, correye: 0.5, neidist: 0.0}
+  - {id: vm_nd_0.5,      varmatch: 0.5, correye: 0.0, neidist: 0.5}
+  - {id: ce_nd_0.5,      varmatch: 0.0, correye: 0.5, neidist: 0.5}
+  - {id: all_0.1,        varmatch: 0.1, correye: 0.1, neidist: 0.1}
+  - {id: all_0.5,        varmatch: 0.5, correye: 0.5, neidist: 0.5}
+  - {id: all_1.0,        varmatch: 1.0, correye: 1.0, neidist: 1.0}
+stage2:
+  wandb_tags: [composite_loss, "composite_loss:stage2"]   # plus combo:<id>, set by the runner
+  epoch_history: tables/epoch_history.csv                # per run × epoch: raw / weighted / monitor terms, reg, val metrics
+
+# --- Compute envelope (spec v2 D3) --------------------------------------------------------------------------
+# Autonomous execution within these limits; stop and report if a stage exceeds its share or a gate fails.
+compute:
+  stage1_gpu_h: 4
+  e13_gpu_h: 1
+  stage2_gpu_h: 8
+  stop_if:
+    - any Stage 1 seed's best val_demeaned_r < 0.09 (linear-family best-per-sweep median is 0.11; spec v2 E2 audit)
+    - the E1.3 consensus MSE-only run misses its seed's Stage 1 best by more than 1 SE
+    - any Stage 2 run is non-finite, or its loss_signature does not match its combination
+    - a stage's GPU-h exceeds its budget
+
+# --- Outputs (E1.5) -----------------------------------------------------------------------------------------
+metrics: [demeaned_pearson, avg_rank, pearson, mse, top1_acc]   # test split; selection on val
+figures:
+  - tradeoff scatter: test demeaned_pearson vs avg_rank, one point per combination (mean ± SE over seeds), PNG + self-contained HTML
+  - term trajectories: raw value of each of the four terms over epochs, per combination
+  - loss composition: each term's share of the total loss over epochs
+  - validation trajectories: val demeaned_r / avg_rank over epochs
+  - single-term response curves: weight -> each test metric
+  - gradient cosine between terms on the latent map W over training
+output_dir: .
+formats: [png]
+dpi: 300
