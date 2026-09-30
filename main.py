@@ -705,9 +705,14 @@ class Sim:
         max_concurrent_trials: int = None,
         search_alg: str = "random",
         persist_final_artifacts: bool = False,
+        reuse_actors: bool = True,
     ):
         """
         Run Ray Tune for this model. Returns ResultGrid.
+
+        reuse_actors=True keeps each Ray worker process across trials, so the worker's
+        _WORKER_CACHE (HCP_Base, partitions, DataLoaders) is built once per worker instead
+        of once per trial.
 
         For a single run with wandb logging (no Ray), use run_single(mode="prod") instead.
         """
@@ -1131,7 +1136,7 @@ class Sim:
                 metric=metric,
                 mode=mode,
                 max_concurrent_trials=max_concurrent_trials,
-                reuse_actors=True,
+                reuse_actors=reuse_actors,
                 search_alg=_search_alg,
                 scheduler=ASHAScheduler(
                     max_t=scheduler_max_t,
@@ -1414,6 +1419,12 @@ def _parse_args():
         help="Ray Tune GPUs allocated per trial.",
     )
     p.add_argument(
+        "--tune_reuse_actors",
+        choices=["true", "false"],
+        default=os.environ.get("TUNE_REUSE_ACTORS", "true").strip().lower(),
+        help="Reuse Ray Tune worker processes across trials (keeps the per-worker data cache). Default true.",
+    )
+    p.add_argument(
         "--report_best_after_tune",
         action="store_true",
         help="After Tune completes, report comprehensive train/val/test metrics for the best trial only.",
@@ -1456,6 +1467,7 @@ if __name__ == "__main__":
             max_concurrent_trials=args.max_concurrent_trials,
             search_alg=args.search_alg,
             persist_final_artifacts=(args.save_checkpoint or args.report_best_after_tune or args.store_eval_md),
+            reuse_actors=(args.tune_reuse_actors == "true"),
         )
         if args.report_best_after_tune or args.store_eval_md:
             sim.report_best_tune_trial(
