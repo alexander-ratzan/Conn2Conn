@@ -5,13 +5,13 @@
 ## Question
 
 Does the composite-loss protocol reproduce on a second linear-family model? Same question as the primary instance
-[`linear_backbone/composite_loss`](../../linear_backbone/composite_loss/composite_loss.md), with
+[`composite_loss/linear_backbone`](../linear_backbone/linear_backbone.md), with
 `CrossModal_PCA_PLS_learnable` (PCA/PLS-initialized encoder → mid map → decoder, SC → FC). Comparing the two instances
 on identical combination ids tests whether the loss landscape is a property of the terms or of one model.
 
 ## Design
 
-Identical protocol: grid [`../../composite_loss_grid.yml`](../../composite_loss_grid.yml) v1, batch 64 (D4), seeds 0–4,
+Identical protocol: grid [`../grid.yml`](../grid.yml) v1, batch 64 (D4), seeds 0–4,
 selection on `val_demeaned_r`, fixed reference scales measured on this model's own Stage 1 solution, monitor-only terms
 in every run, the same output schema and stop conditions. Stage 1 searches this model's own 12 keys (MSE-only;
 `loss_type` fixed to `composite`, so the latent losses are excluded).
@@ -20,7 +20,7 @@ in every run, the same output schema and stop conditions. Stage 1 searches this 
 
 | Stage | Command |
 |---|---|
-| Stage 1 | `sbatch scripts/experiments/pca_pls_learnable/composite_loss/stage1/tune_stage1_seeds.sh` |
+| Stage 1 | `sbatch scripts/experiments/composite_loss/pca_pls_learnable/stage1/tune_stage1_seeds.sh` |
 | E1.3–E1.5 | shared protocol runner (see the primary instance) |
 
 ## Caveats

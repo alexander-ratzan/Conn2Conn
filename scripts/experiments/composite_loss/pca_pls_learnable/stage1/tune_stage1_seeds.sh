@@ -1,8 +1,8 @@
 #!/bin/bash
-# Composite-loss experiment, Stage 1 (spec v2 E1.2): 24-trial MSE-only tune of CrossModal_linear_backbone on
+# Composite-loss protocol, replicability instance, Stage 1 (spec v2 E1): 24-trial MSE-only tune of CrossModal_PCA_PLS_learnable on
 # SC -> FC, with varmatch / correye / neidist logged as monitor-only terms. Packed 4 trials per GPU with actor
 # reuse (E0.6 pattern). Array index = shuffle seed (0-4).
-#   sbatch scripts/experiments/linear_backbone/composite_loss/stage1/tune_stage1_seeds.sh
+#   sbatch scripts/experiments/composite_loss/pca_pls_learnable/stage1/tune_stage1_seeds.sh
 # Needs the E1.1 loss code (loss_monitor_terms) on main.
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced
@@ -12,9 +12,9 @@
 #SBATCH --mem=128GB
 #SBATCH --gres=gpu:1
 #SBATCH --requeue
-#SBATCH --job-name=e1_stage1_linear_backbone
-#SBATCH --output=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/e1_stage1_linear_backbone_%A_%a.out
-#SBATCH --error=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/e1_stage1_linear_backbone_%A_%a.err
+#SBATCH --job-name=e1_stage1_pca_pls_learnable
+#SBATCH --output=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/e1_stage1_pca_pls_learnable_%A_%a.out
+#SBATCH --error=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/e1_stage1_pca_pls_learnable_%A_%a.err
 #SBATCH --array=0-4
 
 set -euo pipefail
@@ -24,7 +24,7 @@ CONN2CONN_DIR="/scratch/asr655/neuroinformatics/Conn2Conn"
 cd "${CONN2CONN_DIR}"
 
 SEED=${SLURM_ARRAY_TASK_ID}
-CONFIG="scripts/experiments/linear_backbone/composite_loss/stage1/CrossModal_linear_backbone_mse.yml"
+CONFIG="scripts/experiments/composite_loss/pca_pls_learnable/stage1/CrossModal_PCA_PLS_learnable_mse.yml"
 
 export RAY_worker_register_timeout_seconds=120
 export OMP_NUM_THREADS=1
@@ -32,7 +32,7 @@ export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 
 echo "Starting job ${SLURM_JOB_ID} (task ${SLURM_ARRAY_TASK_ID}) on $(hostname) at $(date)"
-echo "Model=CrossModal_linear_backbone  Source=SC  Config=${CONFIG}  Seed=${SEED}  (24 trials, 4 packed per GPU)"
+echo "Model=CrossModal_PCA_PLS_learnable  Source=SC  Config=${CONFIG}  Seed=${SEED}  (24 trials, 4 packed per GPU)"
 
 singularity exec --nv \
   --overlay "/scratch/$USER/envs/kraken_env/overlay-15GB-500K.ext3:ro" \
@@ -46,7 +46,7 @@ singularity exec --nv \
     cd ${CONN2CONN_DIR}
     python main.py \
       --mode prod \
-      --model CrossModal_linear_backbone \
+      --model CrossModal_PCA_PLS_learnable \
       --config ${CONFIG} \
       --source SC \
       --target FC \

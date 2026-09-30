@@ -16,7 +16,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
 | E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | closed 2026-09-30 | — | agent:infra |
-| E1 | Composite-loss protocol v1: linear backbone (`linear_backbone/composite_loss`) + replicability instance `CrossModal_PCA_PLS_learnable` (`pca_pls_learnable/composite_loss`) | in progress (E1.1 merged; E1.2 Stage 1 submitted for both instances) | D3, D4 | agent:modeling |
+| E1 | Composite-loss protocol v1: linear backbone (`composite_loss/linear_backbone`) + replicability instance `CrossModal_PCA_PLS_learnable` (`composite_loss/pca_pls_learnable`) | in progress (E1.1 merged; E1.2 Stage 1 submitted for both instances) | D3, D4 | agent:modeling |
 | E2 | Cross-model benchmark (`model_benchmark`, working name) | outline | C1, C2 | — |
 | E3 | Composite-loss magnitude tuning for final models (follow-up to E1) | outline | E1 | — |
 | C1 | `torch_geometric` missing from `kraken_env` | done 2026-09-30 (via C6) | — | agent:infra |
@@ -210,16 +210,19 @@ E1. Closes out the never-run `scripts/notebooks/results_scrape/nodal_decoder_imp
     NodalGNN pilot rows not added to the tables (no best-trial report; the pilot is reported from its trial logs).
 - **Depends on:** —
 
-### E1 — Composite-loss dynamics and trade-off on the linear backbone   (slug: `linear_backbone/composite_loss`) · status: in progress · owner: agent:modeling
+### E1 — Composite-loss dynamics and trade-off (protocol v1)   (slug: `composite_loss`) · status: in progress · owner: agent:modeling
+
+Experiment home: `scripts/experiments/composite_loss/`: protocol write-up `composite_loss.md`, grid `grid.yml`,
+`checks/`, and one folder per model instance (`<model>/`: `<model>.md`, `config.yml`, `stage1/`).
 
 **Protocol and instances.** E1 defines a reusable protocol (v1) and runs it on two instances:
-- **Protocol:** the shared grid `scripts/experiments/composite_loss_grid.yml` (versioned; never edited after release),
+- **Protocol:** the shared grid `scripts/experiments/composite_loss/grid.yml` (versioned; never edited after release),
   batch 64 (D4), seeds 0–4, fixed reference scales measured per model, monitor-only terms in every run, one output
   schema (`seed_records.csv`, `epoch_history.csv`) and W&B tags (`<model>`, `loss_grid:v1`, `combo:<id>`), so later
   instances concatenate for cross-model comparison. Shared code (consensus selection, scale measurement, grid runner,
   figures) lives in `scripts/results_utils/loss_grid.py`; each instance is a thin folder
-  `scripts/experiments/<model>/composite_loss/` (`config.yml`, `stage1/`, write-up).
-- **Instances:** `linear_backbone/composite_loss` (primary) and `pca_pls_learnable/composite_loss` (replicability:
+  `scripts/experiments/composite_loss/<model>/` (`config.yml`, `stage1/`, write-up).
+- **Instances:** `composite_loss/linear_backbone` (primary) and `composite_loss/pca_pls_learnable` (replicability:
   does the landscape reproduce on a second linear-family model?). Degenerate models (E0: NodalMLP, NodalGNN) are not
   instances. Budget and autonomy: D3, per instance.
 - **Scope:** each combination keeps its model's Stage 1 hyperparameters, so the grid maps the loss landscape rather
@@ -279,7 +282,7 @@ constants `c_t` are recorded in the experiment `config.yml` and are identical ac
 - **Budget:** ≤ 1 GPU-h.
 
 #### E1.4 — Stage 2: weight grid
-- **Grid (protocol v1, `composite_loss_grid.yml`; 16 combinations; weights on the scaled terms, MSE = 1, never ablated):**
+- **Grid (protocol v1, `composite_loss/grid.yml`; 16 combinations; weights on the scaled terms, MSE = 1, never ablated):**
 
   | Block | Combinations | Count | Answers |
   |---|---|---|---|
@@ -303,7 +306,8 @@ constants `c_t` are recorded in the experiment `config.yml` and are identical ac
   - Dynamics: each term's raw trajectory over epochs per combination; loss composition (each term's share of the total)
     over epochs; val demeaned-r / avg-rank over epochs.
   - Single-term response curves (weight → each test metric); gradient cosine between terms on the latent map `W`.
-- **Accept:** rendering is deterministic from the tracked tables; `composite_loss.md` records the question, design,
+- **Accept:** rendering is deterministic from the tracked tables; each instance write-up (`<model>.md`) and the
+  protocol write-up `composite_loss.md` record the question, design,
   how to run, W&B ids, results, observations and caveats (cites v2:C!3).
 
 - **Depends on:** D3.
@@ -360,8 +364,9 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-09-30 | E0 MSE-only enforced: GNN and NodalMLP runs were already `mse`; the linear reference is now scraped MSE-only (the sc_type snapshot's winners were `demeaned_mse` on 3 of 4 seeds); `run.py` rejects non-MSE runs. |
 | 2026-09-30 | Status table synced (E0, C1, C6); E0 design records the MSE-only linear reference and the Chen vs NodalGNN difference, incl. NodalGNN's `r2t` input caveat; E0.5 files and 8 h budget. |
 | 2026-09-30 | **E0 closed.** NodalGNN pilot stopped by decision (seed-0 best val 0.011 < null); results, takeaways and the "learn on top of the mean" follow-up recorded (§5); notebook retired. |
-| 2026-09-30 | E1 prereqs done: slug → `linear_backbone/composite_loss`; E1.1 (fixed scales + monitor-only terms) built and verified on local branch `e1-loss-scale-monitor`, merges when E0 closes; Stage 1 config and packed launcher added; E1.3/E1.4 runner design and dynamics figures specified; D3 (compute envelope, autonomous execution). |
+| 2026-09-30 | E1 prereqs done: slug → `composite_loss/linear_backbone`; E1.1 (fixed scales + monitor-only terms) built and verified on local branch `e1-loss-scale-monitor`, merges when E0 closes; Stage 1 config and packed launcher added; E1.3/E1.4 runner design and dynamics figures specified; D3 (compute envelope, autonomous execution). |
 | 2026-09-30 | E1.1 merged (`75b7c11`) after E0 closed; regression 45/45 and E1.1 checks 23/23 on `main`; checks tracked as `scripts/sbatch/checks/loss_regression.py` and `composite_loss/checks/check_e1_loss.py`. |
-| 2026-09-30 | E1 becomes composite-loss protocol v1: shared versioned grid `composite_loss_grid.yml` (8-cell factorial at w = 0.5 + 8 dose points), batch 64 (D4), Stage 1 at 24 trials; replicability instance `pca_pls_learnable/composite_loss` added; E3 (magnitude tuning) outlined. |
+| 2026-09-30 | E1 becomes composite-loss protocol v1: shared versioned grid `composite_loss/grid.yml` (8-cell factorial at w = 0.5 + 8 dose points), batch 64 (D4), Stage 1 at 24 trials; replicability instance `composite_loss/pca_pls_learnable` added; E3 (magnitude tuning) outlined. |
+| 2026-09-30 | E1 restructured: one experiment folder `scripts/experiments/composite_loss/` (protocol write-up, `grid.yml`, `checks/`, instances `linear_backbone/`, `pca_pls_learnable/`); Stage 1 resubmitted on the new paths: linear seeds 0–2 `18899811`, 3–4 `18899801`; learnable 0–4 `18899802`. The first linear submission (`18899142`, seeds 0–2) failed when the move ran before its search-space read (`FileNotFoundError`, ~11 GPU-min lost): jobs re-read the config after Ray start-up. |
 
 Last updated at: 2026-09-30 EDT

@@ -1,7 +1,7 @@
 """E1.1 checks (spec v2): fixed per-term loss scales and monitor-only loss terms. CPU only, random tensors.
 
 Run (kraken_env, from anywhere in the repo):
-    python scripts/experiments/linear_backbone/composite_loss/checks/check_e1_loss.py
+    python scripts/experiments/composite_loss/linear_backbone/checks/check_e1_loss.py
 Exit code 1 on any failure.
 """
 import sys

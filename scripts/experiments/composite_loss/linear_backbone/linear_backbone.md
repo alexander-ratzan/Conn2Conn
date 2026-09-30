@@ -11,8 +11,8 @@ Which weightings are reasonable before the composite loss is extended to other m
 ## Design
 
 - **Protocol:** this folder is the primary instance of the composite-loss protocol v1 (grid in
-  [`../../composite_loss_grid.yml`](../../composite_loss_grid.yml); batch 64, fixed reference scales, fixed output
-  schema). The replicability instance is [`pca_pls_learnable/composite_loss`](../../pca_pls_learnable/composite_loss/).
+  [`../grid.yml`](../grid.yml); batch 64, fixed reference scales, fixed output
+  schema). The replicability instance is [`composite_loss/pca_pls_learnable`](../pca_pls_learnable/).
 - **Model:** `CrossModal_linear_backbone` (frozen PCA encoder / decoder, learned affine k×k latent map), SC → FC,
   Glasser, `batch_size` 64 in every stage (D4). Seeds 0–4. Selection on `val_demeaned_r`; test metrics are reported.
 - **Stage 1 (E1.2):** 24-trial MSE-only tune per seed (packed 4 trials per GPU). The other three terms are logged as
@@ -31,10 +31,10 @@ Which weightings are reasonable before the composite loss is extended to other m
 
 | Stage | Command | Needs |
 |---|---|---|
-| E1.2 | `sbatch scripts/experiments/linear_backbone/composite_loss/stage1/tune_stage1_seeds.sh` | E1.1 on `main` |
+| E1.2 | `sbatch scripts/experiments/composite_loss/linear_backbone/stage1/tune_stage1_seeds.sh` | E1.1 on `main` |
 | E1.3 | runner script (to be added) | Stage 1 done |
 | E1.4 | runner array (to be added) | E1.3 scales in `config.yml` |
-| E1.5 | `python scripts/experiments/linear_backbone/composite_loss/run.py` (to be added) | Stage 2 done |
+| E1.5 | `python scripts/experiments/composite_loss/linear_backbone/run.py` (to be added) | Stage 2 done |
 
 Stage 1 tune runs are identified by `ray_tune_id` (recorded in `config.yml`); Stage 2 runs carry the W&B tags
 `composite_loss`, `composite_loss:stage2`, `combo:<id>`.

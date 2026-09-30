@@ -1,5 +1,5 @@
 # Composite-loss grid protocol (spec v2 E1, D4). Shared by every model instance of the experiment
-# (scripts/experiments/<model>/composite_loss/config.yml -> grid_file). Never edit a released version: add a new one.
+# (scripts/experiments/composite_loss/<model>/config.yml -> grid_file). Never edit a released version: add a new one.
 #
 # Weights apply to the scaled terms (term_t / c_t, c_t = s_t / s_mse measured on each model's own Stage 1 MSE-only
 # solution), so "neidist: 0.5" means half the size of that model's MSE at a good MSE-only fit. MSE is the anchor

@@ -1,5 +1,5 @@
 # Composite-loss protocol, replicability instance (spec v2 E1, D4): CrossModal_PCA_PLS_learnable.yml, MSE-only.
-# Same protocol as linear_backbone/composite_loss: loss_type fixed to composite (no latent losses), loss-weight and
+# Same protocol as composite_loss/linear_backbone: loss_type fixed to composite (no latent losses), loss-weight and
 # EMA keys removed from the search, batch 64, varmatch / correye / neidist logged as monitor-only terms.
 learned: true
 
