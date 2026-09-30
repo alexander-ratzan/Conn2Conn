@@ -15,14 +15,14 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
-| E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | in progress (E0.1–E0.3 done; E0.6 running; results preliminary) | E0.5 on C6, C1, E0.6 | agent:infra |
+| E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | in progress (E0.1–E0.3, E0.6 done; E0.5 pilot running; results preliminary) | E0.5 gate | agent:infra |
 | E1 | Composite-loss trade-off on the linear backbone (`composite_loss_tradeoff`) | planned | C3 | agent:modeling |
 | E2 | Cross-model benchmark (`model_benchmark`, working name) | outline | C1, C2 | — |
-| C1 | `torch_geometric` missing from `kraken_env` | blocked (on C6) | C6 | **Done 2026-09-30** (C6): `torch_geometric 2.8.0.post1` in the overlay; post-C6 `dev_runs` `18880103` trains both. |
+| C1 | `torch_geometric` missing from `kraken_env` | done 2026-09-30 (via C6) | — | agent:infra |
 | C2 | Re-tune the M5b-affected sweeps | planned (within E2) | E2 | — |
 | C3 | Confirm `loss_signature` in Tune-trial W&B configs | done | — | agent:infra |
 | C4 | `latent_masked_test` notebook fixes | planned | — | — |
-| C6 | Environment: two `kraken_env` stacks; jobs import from `~/.local` | planned (after E0.2) | E0.2 done; overlay not mounted elsewhere | agent:infra |
+| C6 | Environment: two `kraken_env` stacks; jobs import from `~/.local` | done 2026-09-30 (C6.1–C6.4); C6.5 open; archive awaiting deletion | C6.5: user | agent:infra |
 | C!1 | v1:M5b — sampled L1/L2 not applied in past sweeps | open | resolved by C2 | — |
 | C!2 | v1:M1b — `ema` runs with `neidist` ≤ 0 during warmup | open | — | — |
 | C!3 | `CrossModal_linear_backbone` z-scored latents are PCA-space | open | — | — |
@@ -58,7 +58,7 @@ the table below lists only what is specific to v2.
 
 | ID | Item | Blocks | Next action |
 |---|---|---|---|
-| C1 | `torch_geometric` missing from the `kraken_env` overlay (torch 2.9.0); `Chen2024GCN` / `NodalGNN` cannot import, and their launchers fail. It was importable when those models ran (Mar/Apr 2026; both import it unconditionally) and has since disappeared; the overlay never had it. | E0.5, E2 (those two models) | Install `torch_geometric==2.8.0.post1` into the overlay as part of C6 (dry run: 10 new packages, no existing package changed); then `sbatch --array=0 scripts/sbatch/checks/verify_modeling_track_array.sh` (`dev_runs`) must train both. |
+| C1 | `torch_geometric` missing from the `kraken_env` overlay (torch 2.9.0); `Chen2024GCN` / `NodalGNN` cannot import, and their launchers fail. It was importable when those models ran (Mar/Apr 2026; both import it unconditionally) and has since disappeared; the overlay never had it. | E0.5, E2 (those two models) | **Done 2026-09-30** via C6: `torch_geometric 2.8.0.post1` (+ `xxhash`) in the overlay; post-C6 `dev_runs` `18880103` trains `Chen2024GCN` and `NodalGNN`. |
 | C2 | Re-tune the sweeps affected by v1:M5b (`CrossModal_PCA_PLS_learnable`, `CrossModal_PCA_PLS_CovProjector`, `Sarwar2020MLP`) | E2 | Re-tune within E2; resolves C!1. |
 | C3 | Confirm Tune-trial W&B configs carry `loss_signature` (v1 8.7 check failed) | — | **Done 2026-09-29.** The failure was a false negative: wandb 0.25 offline runs write no `files/config.yaml`; the config is inside `run-*.wandb`. Both trials of the 8.7 tune run (`results/ray_checkpoints/CrossModal_linear_backbone_tune_1790207949/*/wandb/offline-run-*/run-*.wandb`) contain `loss_signature` = `mse+0.25*correye+0.5*neidist`. The check in `scripts/sbatch/checks/verify_modeling_track.py` should read `run-*.wandb` (or an online run) instead. E1.2's online sweep can re-confirm at no cost. |
 | C4 | `scripts/notebooks/model_testing/latent_masked_test.ipynb`: cell 6 reads `residual_linear.weight` (absent in `attention_only`); cell 4 sets `l2_reg` twice | — | Fix when that notebook is next used. |
@@ -145,9 +145,18 @@ E1. Closes out the never-run `scripts/notebooks/results_scrape/nodal_decoder_imp
   linear family and `Chen2024GCN`? Which hyperparameters matter? Recorded as closed for a later SMT revisit in GeneEx2Conn.
 - **Design:** `SC → FC`, MSE-only loss, seeds 0–3, selection on `val_demeaned_r`, one best-trial run per condition × seed.
   NodalMLP variants: tune trials created ≥ 2026-04-27 whose config matches the variant YAML's options (`reg` treated as
-  `l2_reg`, equal per v1 8.7). References from the tracked benchmark snapshots (null `CrossModalPCA` SC,
-  `CrossModal_PCA_PLS_learnable`, `Chen2024GCN`, untuned `NodalGNN`) plus NodalMLP with the MLP decoder (pre-schema
-  `NodalMLP.yml` runs). Tuning budget follows D2.
+  `l2_reg`, equal per v1 8.7). NodalMLP with the MLP decoder (pre-schema `NodalMLP.yml` runs) as the flexible-decoder
+  control. Linear reference scraped here as the best **MSE-only** `CrossModal_PCA_PLS_learnable` SC run per seed (the
+  `sc_type_benchmark` snapshot picks across losses: `demeaned_mse` wins 3 of 4 seeds). From the tracked snapshots: null
+  `CrossModalPCA` SC (closed-form), `Chen2024GCN` (tuned) and untuned `NodalGNN` (both `loss_type: mse`). `run.py`
+  refuses to render if any learned run or importance trial is not plain MSE. Tuning budget follows D2.
+- **The two GNNs:** both pass messages over the subject's SC and decode each edge from its two node embeddings. They
+  differ in node input: `Chen2024GCN` starts from one-hot region identity (so its first layer is a linear map of each
+  region's SC row plus a learned per-region table), while `NodalGNN` starts from per-subject anatomy (volume, centroid,
+  the region's tract profile `r2t`) with a node MLP, residual + LayerNorm GCN layers, a richer edge decoder
+  (`[h_i, h_j, |h_i−h_j|, h_i·h_j]`) and dropout / edge dropout / ridge on all weights. **Input caveat:** `r2t` carries
+  `SC_r2t` information, so default `NodalGNN` is not input-matched to the SC-only rows; an SC-only ablation
+  (`use_r2t: false`, existing `tune_array_nodalgnn_ablation_SC_seeds.sh`) only if the E0.5 gate passes.
 - **Preliminary results (2026-09-30, test split, seeds 0–3; write-up `nodal_models_benchmark.md`):** every nodal model
   is at the null. Probes: demeaned r 0.011–0.018, avg rank 0.50–0.54; NodalMLP MLP decoder / NodalGNN default / Chen
   0.016–0.023; null 0.013 / 0.518; MSE-only `PCA_PLS_learnable` 0.078 / 0.686 on the same seeds (all rows verified MSE-only per run; `run.py` enforces it). Probes cannot be ranked at
@@ -169,8 +178,9 @@ E1. Closes out the never-run `scripts/notebooks/results_scrape/nodal_decoder_imp
     heatmap, trial-score distributions (new `FIGURE_TYPES`: `importance_heatmap`, `trial_distribution`).
     `optuna_importance` gains `rows_to_frozen_trials` (cached rows, key aliases) and a `seed` for `get_importance`.
     Accept: deterministic rendering from the snapshots; C3 re-confirmed from online trial configs (`loss_signature`).
-    Done 2026-09-30: 19 best-trial records + 16 reference, 554 tune trials; cache-mode re-render byte-identical;
-    all 60 logged `loss_signature`s are `mse` (the rest predate the field).
+    Done 2026-09-30: 23 scraped best-trial records (19 NodalMLP + 4 MSE-only linear) + 12 snapshot references,
+    554 tune trials; cache-mode re-render byte-identical; loss verified per run from W&B configs — every learned row
+    and all 554 importance trials are plain MSE.
   - **E0.6 — `reuse_actors` preflight** · done 2026-09-30. `main.py` gains `--tune_reuse_actors {true,false}` (default true;
     `4da4cd3`). `preflight/preflight_reuse_actors.sh`: a 12-trial NodalMLP bilinear tune (max_epochs 40), packed
     4 trials per GPU, with reuse on and off, W&B offline; logs trial errors, `HCP_Base` builds and one timed build,
@@ -181,14 +191,16 @@ E1. Closes out the never-run `scripts/notebooks/results_scrape/nodal_decoder_imp
     build 43 s vs 22 s), idle GPU between trial waves. **Keep `reuse_actors=True` with packing** (the earlier reuse
     error was intermittent and did not recur packed). Four idle minutes at start-up (Ray start + per-actor builds) are
     the remaining underutilization risk for very short tunes.
-  - **E0.5 — NodalGNN pilot** · running (`18887602`, submitted 2026-09-30). Experiment-local MSE-only NodalGNN config (loss weights
-    pinned at 0; `max_epochs` ≤ 750) and launcher; seed 0 × 12 trials, packed per E0.6. **Gate:** extend to seeds 1–3
+  - **E0.5 — NodalGNN pilot** · running (`18887602`, submitted 2026-09-30). `nodal_models_benchmark/pilot/`:
+    `NodalGNN_mse_pilot.yml` (`NodalGNN.yml` without the loss-weight / loss-scale searches, so MSE-only; `max_epochs`
+    ≤ 750) and `tune_nodalgnn_pilot.sh` (array index = seed); seed 0 × 12 trials, 4 packed per GPU, reuse on (E0.6). **Gate:** extend to seeds 1–3
     only if the seed-0 best val demeaned r ≥ 0.045 (the null's seed-0 val 0.025 + 0.02 — val is only comparable
-    within a seed); otherwise record NodalGNN as a negative result. Budget: 1 job ≤ 3 h; +3 if
-    gated in.
-  - **E0.4 — Close-out** · planned. `--rescrape`; write-up `nodal_models_benchmark.md` (status closed, SMT revisit
+    within a seed); otherwise record NodalGNN as a negative result. Budget: 1 job, 8 h limit (old 750-epoch default runs took ~47 min
+    each on a whole GPU; 3 packed waves expected ~3–4 h); +3 jobs (`--array=1-3`) if gated in.
+  - **E0.4 — Close-out** · planned. Add the pilot's NodalGNN rows (a `nodal_gnn` variant in `config.yml`, selected
+    like the others), `--rescrape`; write-up `nodal_models_benchmark.md` (status closed, SMT revisit
     pointer); experiments-index row; retire the notebook. Accept: write-up cites caveats by ID.
-- **Depends on:** C6 and C1 for E0.5.
+- **Depends on:** nothing open (C6, C1 and E0.6 done 2026-09-30).
 
 ### E1 — Composite-loss trade-off on the linear backbone   (slug: `composite_loss_tradeoff`) · status: planned · owner: agent:modeling
 
@@ -307,5 +319,6 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E1 follow-ups:
 | 2026-09-30 | E0.3 done (byte-identical re-render, C3 re-confirmed; importance on within-seed-centred scores). E0.6 done: keep `reuse_actors=True` with packing. C6.1 snapshot and pre-C6 baseline recorded. |
 | 2026-09-30 | C6 done: root cause was a non-writable overlay (root-owned skeleton dirs; `--fakeroot` unusable without subuid), fixed by an offline ownership change; `~/.local` packages + PyG consolidated into the overlay; `env.sh` closes the leak. C1 closed. Backup archived. E0.5 NodalGNN pilot submitted (`18887602`). |
 | 2026-09-30 | E0 MSE-only enforced: GNN and NodalMLP runs were already `mse`; the linear reference is now scraped MSE-only (the sc_type snapshot's winners were `demeaned_mse` on 3 of 4 seeds); `run.py` rejects non-MSE runs. |
+| 2026-09-30 | Status table synced (E0, C1, C6); E0 design records the MSE-only linear reference and the Chen vs NodalGNN difference, incl. NodalGNN's `r2t` input caveat; E0.5 files and 8 h budget. |
 
 Last updated at: 2026-09-29 EDT
