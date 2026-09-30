@@ -244,7 +244,6 @@ Primary results API: `scripts/results_utils/` (active development surface).
 - `optuna_importance.py` — hyperparameter importance from W&B tune trials: `python -m scripts.results_utils.optuna_importance --help`
 
 Notebook surface (`scripts/notebooks/`):
-- `results_scrape/nodal_decoder_importance.ipynb`
 - `kraken/track_krakencoder_model.ipynb`, `kraken/kraken_eval.ipynb`
 - model onboarding notebooks under `model_overviews/`, including PCA/PLS closed-form vs learnable overviews and latent-attention overviews
 - model smoke-test notebooks under `model_testing/`
@@ -257,6 +256,7 @@ Config-driven results benchmarks (replace the former `scrape_SCtype_results` / `
 python scripts/experiments/sc_type_benchmark/run.py              # tables + figures from the tracked records.json
 python scripts/experiments/sc_type_benchmark/run.py --rescrape   # refresh records.json from W&B first
 python scripts/experiments/cov_projector_benchmark/run.py        # covariate projector vs baselines and deep models
+python scripts/experiments/nodal_models_benchmark/run.py         # nodal models (NodalMLP decoders, GNNs) vs null / linear
 ```
 
 Edit each experiment's `config.yml` to change models / conditions, seeds, the summary tables, or the list of figures. Outputs are written into the experiment folder and tracked in git: `tables/`, `figures/` (PNG,
@@ -326,8 +326,7 @@ Conn2Conn/
 │   │   ├── EDA/
 │   │   ├── kraken/
 │   │   ├── model_overviews/
-│   │   ├── model_testing/
-│   │   └── results_scrape/
+│   │   └── model_testing/
 │   ├── experiments/                 # Self-contained side experiments (one folder each, write-up <name>.md)
 │   │   └── experiments_index.md     # One row per experiment
 │   └── sbatch/                      # Per-model SLURM scripts and seed arrays
@@ -349,4 +348,4 @@ Conn2Conn/
 └── krakencoder/                     # Bundled KrakenEncoder codebase
 ```
 
-Last updated at: 2026-09-29 EDT
+Last updated at: 2026-09-30 EDT

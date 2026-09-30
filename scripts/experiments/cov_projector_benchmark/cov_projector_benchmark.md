@@ -30,7 +30,7 @@
 ## 3. How to run
 
 ```bash
-# inside kraken_env via `source /ext3/env.sh` (wandb lives in ~/.local; activate_env.sh hides it)
+# inside kraken_env via `source /ext3/env.sh` (the launchers' job environment)
 python scripts/experiments/cov_projector_benchmark/run.py              # tables + figures from records.json
 python scripts/experiments/cov_projector_benchmark/run.py --rescrape   # refresh records.json from W&B first
 ```

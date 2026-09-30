@@ -1,9 +1,9 @@
 # Nodal Models Benchmark
 
-**Code:** `scripts/experiments/nodal_models_benchmark/` — `config.yml` (variants, references, rows, tables, figures), `run.py` (runner), `preflight/` (spec v2 E0.6)
-**Results snapshots (tracked):** `records.json` (one best-trial run per variant × seed) and `trials.json` (554 tune trials) — scraped 2026-09-30 09:45 from W&B `alexander-ratzan-new-york-university/conn2conn`
+**Code:** `scripts/experiments/nodal_models_benchmark/` — `config.yml` (variants, references, rows, tables, figures), `run.py` (runner), `preflight/` (spec v2 E0.6), `pilot/` (NodalGNN pilot, E0.5)
+**Results snapshots (tracked):** `records.json` (one best-trial run per variant × seed) and `trials.json` (554 tune trials) — scraped 2026-09-30 14:58 from W&B `alexander-ratzan-new-york-university/conn2conn`
 **Outputs (regenerable, in this folder):** `tables/`, `figures/` (PNG, 300 dpi), `manifest.json` — all tracked
-**Status:** preliminary (spec v2 E0) · NodalGNN pilot pending (E0.5, needs the environment fix v2:C6 / v2:C1) · replaces `scripts/notebooks/results_scrape/nodal_decoder_importance.ipynb` (never run to completion; retired at close-out)
+**Status:** closed 2026-09-30 (spec v2 E0) · follow-up recorded in §7 · replaces `scripts/notebooks/results_scrape/nodal_decoder_importance.ipynb` (never run to completion; removed at close-out, in git history)
 **W&B / Ray:** best-trial `prod` runs (`best_trial_report` tag), NodalMLP tune trials created ≥ 2026-04-27; per-cell run ids in `records.json`
 
 ---
@@ -34,7 +34,7 @@
 ## 3. How to run
 
 ```bash
-# inside kraken_env via `source /ext3/env.sh` (wandb/optuna live in the launcher stack; v2:C6)
+# inside kraken_env via `source /ext3/env.sh` (the launchers' job environment)
 python scripts/experiments/nodal_models_benchmark/run.py              # tables + figures from records.json + trials.json
 python scripts/experiments/nodal_models_benchmark/run.py --rescrape   # refresh both from W&B first
 ```
@@ -60,7 +60,24 @@ Tables: [`tables/test_summary.md`](tables/test_summary.md), [`tables/trial_summa
 [`tables/row_seed_metrics.csv`](tables/row_seed_metrics.csv); figures in [`figures/`](figures/). The linear reference is
 0.078 here (MSE-only, seeds 0–3) vs 0.092 over the 10 seeds of `sc_type_benchmark` (any loss).
 
-## 5. Findings (preliminary)
+### NodalGNN pilot (E0.5, seed 0, stopped early)
+
+MSE-only tune of `NodalGNN` (`pilot/NodalGNN_mse_pilot.yml`, all nodal features, 4 trials packed per GPU), job
+`18887602`, stopped by decision after 2 h 49 min with 10 of 12 trials started (no best-trial report). Per-trial
+validation from Ray's progress logs: [`pilot/pilot_trials.csv`](pilot/pilot_trials.csv).
+
+| | seed-0 val demeaned r |
+|---|---|
+| NodalGNN pilot, best of 10 trials (`20b6613a`, 114 epochs) | 0.011 |
+| NodalGNN pilot, other trials | −0.007 to 0.011 |
+| NodalMLP probes, best trial per variant | −0.006 to 0.012 |
+| Null (`CrossModalPCA` SC) | 0.025 |
+| `PCA_PLS_learnable` (MSE) | 0.117 |
+| Gate to run seeds 1–3 | ≥ 0.045 |
+
+Training demeaned r stayed at 0.003–0.007, so the model does not fit subject-specific FC even on training subjects.
+
+## 5. Findings
 
 1. **Every nodal model is at the null.** The four probes (demeaned corr 0.011–0.018, avg rank 0.50–0.54) and the
    nodal/graph references (0.016–0.023) sit within about one seed SD of the null (0.013) and far below `PCA_PLS_learnable`
@@ -75,19 +92,47 @@ Tables: [`tables/test_summary.md`](tables/test_summary.md), [`tables/trial_summa
    hyperparameter moves these models off the null.
 4. **The tuning budget was not justified** (612 trials over 38 array tasks, ~47 GPU-hours, for null-level models).
    This motivated spec v2 D2: pilot first, pack small models, scale on evidence.
-5. **Gate for NodalGNN (E0.5):** validation scores are only comparable within a seed, so the seed-0 pilot must reach a
-   best val demeaned r ≥ 0.045 (the null's seed-0 val 0.025 + 0.02; MSE-only `PCA_PLS_learnable` reaches 0.117) before
-   seeds 1–3 are run. The probes' seed-0 best trials reach −0.006 to 0.012.
+5. **Tuning does not rescue NodalGNN either.** Its seed-0 pilot peaked at val 0.011 — below the null (0.025), level
+   with the probes, far from the 0.045 gate — so seeds 1–3 were not run. Tuned `Chen2024GCN` is no better (test 0.017 ±
+   0.007 over 10 seeds, best seed 0.026; raw corr 0.754 < the null's 0.824).
+6. **The shared limitation is the formulation, not the decoder or the tuning.** Every nodal design here (NodalMLP with
+   any decoder, Chen, NodalGNN) predicts full FC edges under MSE. The population-mean FC dominates that error, so the
+   models learn it (or a worse copy) and stop: near-zero demeaned r on train as well as test. The linear family
+   instead models the population mean explicitly and learns per-subject deviations (PCA/PLS scores), which is where
+   all of its demeaned-r advantage lives.
+
+## 6. Takeaways
+
+- **NodalMLP-style models are closed** for SC→FC in this repo: no probe decoder, the MLP decoder, or hyperparameter
+  setting moves them off the null.
+- **The repo runs end to end after the v1 refactor:** launchers, tune/best-trial cycle, results tooling and runner
+  pattern (E0.1–E0.3); one job environment with `torch_geometric` (v2:C6, C1); `reuse_actors=True` with packed trials is
+  the efficient setting (E0.6).
+- **Process lessons carried forward:** pilot before sweeping and pack small models (v2:D2); compare val scores within a
+  seed only; compute importance on within-seed-centred scores; enforce the loss design per run (`run.py`).
+
+## 7. Follow-up (not scheduled)
+
+**Graph / nodal models that learn on top of the mean**, formulated like the PCA-family models: subtract the
+train-split population-mean FC and have the GNN predict each subject's deviation (demeaned target) or a small set of
+PCA scores / low-rank factors, rather than the full edge vector. This removes the shared pattern that currently
+absorbs the MSE and puts the graph model on the same footing as `PCA_PLS_learnable`. An input-matched variant
+(`NodalGNN` with `use_r2t: false`; SC-only node inputs) belongs in the same study. Tracked in spec v2 §5 (backlog).
 
 ## 6. Caveats
 
-- **Preliminary:** NodalGNN is so far only its untuned default; bilinear has n = 3; NodalMLP MLP decoder has test
-  metrics for 2 of its 4 seeds (the April runs for seeds 1–2 logged no test metrics; `tables/test_summary.md` shows
+- **Coverage:** bilinear has n = 3; the NodalGNN pilot is seed 0 only (10 of 12 trials, stopped early); the NodalGNN
+  row in the tables is its untuned default. NodalMLP MLP decoder has test metrics for 2 of its 4 seeds (the April runs for seeds 1–2 logged no test metrics; `tables/test_summary.md` shows
   `(n=4)` because it counts records, not values).
 - **v2:C!1 (regularization not applied):** affects the `PCA_PLS_learnable` reference, whose sweeps trained with the
   default L2 = 1e-4 (v1:M5b). NodalMLP applies its own `l2_reg`, so the probe rows are unaffected.
 - Best-trial re-runs score lower on val than their tune trial (for example bilinear seed 2: 0.049 in tuning, 0.025 on
   re-fit), consistent with Finding 3: the tune maximum is partly selection noise.
+- **Input mismatch:** default `NodalGNN` node features include the region's tract profile (`r2t`, the `SC_r2t`
+  information), so it is not input-matched to the SC-only rows.
+- **Chen seed 3** comes from the one `node_feature_type: sc_row` run (`9cdzcuae`, test 0.025) — the
+  `cov_projector_benchmark` snapshot keeps the best val run across node-feature types; the other seeds use the paper's
+  identity features. It barely moves the mean (seeds 0–3: 0.0184 as tabled vs 0.0179 identity-only).
 - `mlp_sc_rows` comes from an older schema and date window (created before 2026-04-27), so it is a control, not a
   matched condition.
 

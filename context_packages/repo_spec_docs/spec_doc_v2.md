@@ -15,7 +15,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
-| E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | in progress (E0.1–E0.3, E0.6 done; E0.5 pilot running; results preliminary) | E0.5 gate | agent:infra |
+| E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | closed 2026-09-30 | — | agent:infra |
 | E1 | Composite-loss dynamics and trade-off on the linear backbone (`linear_backbone/composite_loss`) | in progress (prereqs done; E1.1 on branch `e1-loss-scale-monitor`, merges when E0 closes) | E0 close (code window), D3 | agent:modeling |
 | E2 | Cross-model benchmark (`model_benchmark`, working name) | outline | C1, C2 | — |
 | C1 | `torch_geometric` missing from `kraken_env` | done 2026-09-30 (via C6) | — | agent:infra |
@@ -136,7 +136,7 @@ Status and owners are in the [status table](#status).
 - Decisions: (with defaults if not yet confirmed)
 ```
 
-### E0 — Nodal models benchmark and architecture check   (slug: `nodal_models_benchmark`) · status: in progress (results preliminary) · owner: agent:infra
+### E0 — Nodal models benchmark and architecture check   (slug: `nodal_models_benchmark`) · status: closed 2026-09-30 · owner: agent:infra
 
 Last check of the v1 architecture (moved launchers, results tooling, runner pattern) on a small real experiment before
 E1. Closes out the never-run `scripts/notebooks/results_scrape/nodal_decoder_importance.ipynb`; NodalGNN folded in
@@ -159,12 +159,13 @@ E1. Closes out the never-run `scripts/notebooks/results_scrape/nodal_decoder_imp
   (`[h_i, h_j, |h_i−h_j|, h_i·h_j]`) and dropout / edge dropout / ridge on all weights. **Input caveat:** `r2t` carries
   `SC_r2t` information, so default `NodalGNN` is not input-matched to the SC-only rows; an SC-only ablation
   (`use_r2t: false`, existing `tune_array_nodalgnn_ablation_SC_seeds.sh`) only if the E0.5 gate passes.
-- **Preliminary results (2026-09-30, test split, seeds 0–3; write-up `nodal_models_benchmark.md`):** every nodal model
-  is at the null. Probes: demeaned r 0.011–0.018, avg rank 0.50–0.54; NodalMLP MLP decoder / NodalGNN default / Chen
-  0.016–0.023; null 0.013 / 0.518; MSE-only `PCA_PLS_learnable` 0.078 / 0.686 on the same seeds (all rows verified MSE-only per run; `run.py` enforces it). Probes cannot be ranked at
-  n = 3–4 (bilinear seed 0 not re-run). Tune-trial val scores are set mainly by the split (trials on one seed often
-  tie), so importance is computed on within-seed-centred scores — near-uniform, no hyperparameter moves the probes off
-  the null.
+- **Result (closed 2026-09-30; write-up `nodal_models_benchmark.md`):** every nodal model is at the null on SC→FC
+  (test demeaned r: probes 0.011–0.018, NodalMLP MLP decoder / NodalGNN default / Chen 0.016–0.023; null 0.013 / avg
+  rank 0.518; MSE-only `PCA_PLS_learnable` 0.078 / 0.686 on the same seeds; all rows verified MSE-only per run). Tuning
+  does not help: val scores are set by the split, within-seed importance is near-uniform, and the NodalGNN pilot peaked
+  at seed-0 val 0.011 (null 0.025). Train demeaned r is also ≈ 0: the full-edge MSE formulation lets the population
+  mean absorb the loss. NodalMLP-style models are closed; the repo is confirmed working after the v1 refactor.
+  Follow-up (learn on top of the mean, PCA-like) is in §5.
 - **Steps:**
   - **E0.1 — Launcher and entrypoint checks** · done 2026-09-29. `bash -n` 59/59; `sbatch --test-only` 59/59 (no jobs
     queued); `main.py --help` exits 0 in the launcher image (torch 2.9.0+cu128, ray 2.54.1, lightning 2.6.1, wandb
@@ -193,16 +194,18 @@ E1. Closes out the never-run `scripts/notebooks/results_scrape/nodal_decoder_imp
     build 43 s vs 22 s), idle GPU between trial waves. **Keep `reuse_actors=True` with packing** (the earlier reuse
     error was intermittent and did not recur packed). Four idle minutes at start-up (Ray start + per-actor builds) are
     the remaining underutilization risk for very short tunes.
-  - **E0.5 — NodalGNN pilot** · running (`18887602`, submitted 2026-09-30). `nodal_models_benchmark/pilot/`:
+  - **E0.5 — NodalGNN pilot** · stopped 2026-09-30 by decision (gate clearly not reachable). `18887602`: 10 of 12
+    trials in 2 h 49 min, best seed-0 val demeaned r 0.011 (< null 0.025 < gate 0.045); per-trial results in
+    `pilot/pilot_trials.csv`. Seeds 1–3 and the SC-only ablation not run. Setup: `nodal_models_benchmark/pilot/`:
     `NodalGNN_mse_pilot.yml` (`NodalGNN.yml` without the loss-weight / loss-scale searches, so MSE-only; `max_epochs`
     ≤ 750) and `tune_nodalgnn_pilot.sh` (array index = seed); seed 0 × 12 trials, 4 packed per GPU, reuse on (E0.6). **Gate:** extend to seeds 1–3
     only if the seed-0 best val demeaned r ≥ 0.045 (the null's seed-0 val 0.025 + 0.02 — val is only comparable
     within a seed); otherwise record NodalGNN as a negative result. Budget: 1 job, 8 h limit (old 750-epoch default runs took ~47 min
     each on a whole GPU; 3 packed waves expected ~3–4 h); +3 jobs (`--array=1-3`) if gated in.
-  - **E0.4 — Close-out** · planned. Add the pilot's NodalGNN rows (a `nodal_gnn` variant in `config.yml`, selected
-    like the others), `--rescrape`; write-up `nodal_models_benchmark.md` (status closed, SMT revisit
-    pointer); experiments-index row; retire the notebook. Accept: write-up cites caveats by ID.
-- **Depends on:** nothing open (C6, C1 and E0.6 done 2026-09-30).
+  - **E0.4 — Close-out** · done 2026-09-30. Write-up closed with findings, takeaways and the follow-up; index row
+    closed; `scripts/notebooks/results_scrape/nodal_decoder_importance.ipynb` removed (superseded; in git history).
+    NodalGNN pilot rows not added to the tables (no best-trial report; the pilot is reported from its trial logs).
+- **Depends on:** —
 
 ### E1 — Composite-loss dynamics and trade-off on the linear backbone   (slug: `linear_backbone/composite_loss`) · status: in progress · owner: agent:modeling
 
@@ -307,8 +310,11 @@ constants `c_t` are recorded in the experiment `config.yml` and are identical ac
 
 ## 5. Backlog (not scheduled)
 
-From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E1 follow-ups:
-- **Editable install** (`pyproject.toml` + `pip install -e .`, needs a one-time `:rw` overlay mount) and `conn2conn/` namespacing.
+From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
+- **Graph / nodal models on top of the mean** (from E0): train GNNs on the subject's deviation from the train-split
+  mean FC, or on PCA scores / low-rank factors, as the PCA family does, instead of on full FC edges; include an
+  SC-only (`use_r2t: false`) `NodalGNN`. Pilot per D2 against `PCA_PLS_learnable` on the same seeds.
+- **Editable install** (`pyproject.toml` + `pip install -e .`; the overlay now mounts `:rw` without `--fakeroot`, C6) and `conn2conn/` namespacing.
 - **Artifact cleanup:** `results/ray_results/` (118 GB) and a `results/logs/` retention policy.
 - **Launcher/config manifest layer** to replace copied per-variant sbatch scripts and YAMLs (8 `CovProjector`, 7 `NodalMLP`).
 - **Shared constants** between `main.py` and `scripts/results_utils/records.py`.
@@ -330,6 +336,7 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E1 follow-ups:
 | 2026-09-30 | C6 done: root cause was a non-writable overlay (root-owned skeleton dirs; `--fakeroot` unusable without subuid), fixed by an offline ownership change; `~/.local` packages + PyG consolidated into the overlay; `env.sh` closes the leak. C1 closed. Backup archived. E0.5 NodalGNN pilot submitted (`18887602`). |
 | 2026-09-30 | E0 MSE-only enforced: GNN and NodalMLP runs were already `mse`; the linear reference is now scraped MSE-only (the sc_type snapshot's winners were `demeaned_mse` on 3 of 4 seeds); `run.py` rejects non-MSE runs. |
 | 2026-09-30 | Status table synced (E0, C1, C6); E0 design records the MSE-only linear reference and the Chen vs NodalGNN difference, incl. NodalGNN's `r2t` input caveat; E0.5 files and 8 h budget. |
+| 2026-09-30 | **E0 closed.** NodalGNN pilot stopped by decision (seed-0 best val 0.011 < null); results, takeaways and the "learn on top of the mean" follow-up recorded (§5); notebook retired. |
 | 2026-09-30 | E1 prereqs done: slug → `linear_backbone/composite_loss`; E1.1 (fixed scales + monitor-only terms) built and verified on local branch `e1-loss-scale-monitor`, merges when E0 closes; Stage 1 config and packed launcher added; E1.3/E1.4 runner design and dynamics figures specified; D3 (compute envelope, autonomous execution). |
 
 Last updated at: 2026-09-30 EDT

@@ -66,8 +66,9 @@ If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after 
 - `scripts/experiments/sc_type_benchmark/`, `scripts/experiments/cov_projector_benchmark/`
   - config-driven results benchmarks (`config.yml` + `run.py` + tracked `records.json`); templates for turning results
     notebooks into scripts (model × source grid vs labelled condition rows)
-- `scripts/notebooks/results_scrape/nodal_decoder_importance.ipynb`
-  - remaining results notebook (Optuna hparam importance for NodalMLP decoder variants)
+- `scripts/experiments/nodal_models_benchmark/`
+  - closed E0 benchmark of nodal models (NodalMLP probe decoders, NodalGNN, Chen GCN) with scraped tune trials
+    (`trials.json`) for within-seed hyperparameter importance; its `run.py` enforces an MSE-only loss per run
 - `scripts/notebooks/model_overviews/*.ipynb`
   - conceptual onboarding notebooks for PCA/PLS, conditional Gaussian, latent-attention, masked pretraining, and nodal baselines
 - `scripts/notebooks/model_testing/*.ipynb`
@@ -370,8 +371,11 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
 - Use SLURM scripts for large jobs; avoid long compute on login nodes.
 - Kernel environment: `kraken_env` runs inside a Singularity overlay (see `/scratch/asr655/envs/README.md`);
   mount the overlay `:ro` for import-only checks so running jobs are unaffected. Use `source /ext3/env.sh`
-  (what the launchers use): wandb (and other packages) live in `~/.local`, which `activate_env.sh` hides via
-  `PYTHONNOUSERSITE=1`. Without the library, `import wandb` silently picks up the repo-root `wandb/` run folder.
+  (what the launchers use): since 2026-09-30 (spec v2 C6) every job package, including `torch_geometric`, lives in the
+  overlay and `env.sh` sets `PYTHONNOUSERSITE=1` / `PIP_USER=0`, so `~/.local` is never read or written. Install
+  packages with a plain `:rw` mount (no `--fakeroot`; it cannot write the overlay on this cluster). `activate_env.sh`
+  is a different stack (`pylibs`, torch 2.11) until C6.5. Without the library, `import wandb` silently picks up the
+  repo-root `wandb/` run folder.
 
 ---
 
@@ -442,6 +446,13 @@ Debug missing results cell:
 
 ## Recent Changes
 
+2026-09-30 — E0 closed and environment consolidated (spec v2 E0, C6, C1):
+- `scripts/experiments/nodal_models_benchmark/` (closed): every nodal model is at the null on SC→FC; follow-up
+  "graph models on top of the mean" in spec v2 §5. `nodal_decoder_importance.ipynb` removed (superseded).
+- Job environment: `~/.local` packages + `torch_geometric 2.8.0.post1` moved into the kraken overlay; `/ext3/env.sh`
+  disables the user site. Snapshots and scripts: `/scratch/asr655/envs/kraken_env/c6_snapshot_2026-09-30/`.
+- `main.py --tune_reuse_actors {true,false}` (default true; keep it with packed trials, spec v2 E0.6).
+
 2026-09-23 — modeling track (spec v1 §8, M1–M8):
 - One loss path: `resolve_loss_config` → `create_loss_fn`; `composite` is the only edge-space loss type. `mse`,
   `weighted_mse`, `sarwar_mse_corr` and `vae` were retired and folded into composite terms, bit-exact with the old losses.
@@ -477,7 +488,7 @@ Debug missing results cell:
 Earlier:
 - Analysis/figure schematics and context images now live under `context_packages/schematics/`.
 - Notebook organization uses purpose folders under `scripts/notebooks/`: `EDA/`, `kraken/`, `model_overviews/`,
-  `model_testing/`, `results_scrape/`.
+  `model_testing/` (`results_scrape/` emptied and removed 2026-09-30).
 - PCA/PLS onboarding notebooks split closed-form models from learnable/covariate-projector models:
   - `scripts/notebooks/model_overviews/crossmodal_pca_pls_closed_form_overview.ipynb`
   - `scripts/notebooks/model_overviews/crossmodal_pca_pls_learnable_overview.ipynb`
@@ -493,4 +504,4 @@ Earlier:
 - Model code now lives under `models/architectures/`, training code under `models/train/`, and evaluation/reporting code under `models/eval/`.
 - Backward-compatibility shims for old top-level model/train/eval files are intentionally removed.
 
-Last updated at: 2026-09-29 EDT
+Last updated at: 2026-09-30 EDT
