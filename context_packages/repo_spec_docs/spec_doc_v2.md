@@ -16,7 +16,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
 | E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | closed 2026-09-30 | — | agent:infra |
-| E1 | Composite-loss dynamics and trade-off on the linear backbone (`linear_backbone/composite_loss`) | in progress (prereqs done; E1.1 on branch `e1-loss-scale-monitor`, merges when E0 closes) | E0 close (code window), D3 | agent:modeling |
+| E1 | Composite-loss dynamics and trade-off on the linear backbone (`linear_backbone/composite_loss`) | in progress (E1.1 merged; E1.2 next) | D3 | agent:modeling |
 | E2 | Cross-model benchmark (`model_benchmark`, working name) | outline | C1, C2 | — |
 | C1 | `torch_geometric` missing from `kraken_env` | done 2026-09-30 (via C6) | — | agent:infra |
 | C2 | Re-tune the M5b-affected sweeps | planned (within E2) | E2 | — |
@@ -229,7 +229,7 @@ Every other term is rescaled to MSE's magnitude at the Stage 1 reference model:
 the Stage 1 model, averaged over seeds. A weight `w_t` then means "w × MSE's size at a good MSE-only solution". The
 constants `c_t` are recorded in the experiment `config.yml` and are identical across all Stage 2 runs.
 
-#### E1.1 — Fixed per-term scale and monitor-only terms in `CompositeLoss`  · done on branch (merge when E0 closes)
+#### E1.1 — Fixed per-term scale and monitor-only terms in `CompositeLoss`  · done 2026-09-30
 - **Changes:**
   - Term kwarg `scale` (> 0, default 1): the term contributes `weight · raw / scale`; `*_loss_raw_*` stays unscaled.
     Tune-searchable as `loss_kwarg_<term>__scale`. Fixed scales replace EMA: `auto` with any scale resolves to `none`,
@@ -240,8 +240,9 @@ constants `c_t` are recorded in the experiment `config.yml` and are identical ac
   exact on random tensors, gradients included; `scale: 1` bit-identical to no scale under `none` and `ema`; monitors
   leave training bit-identical under `auto` / `ema` / `none`; monitored values equal the term functions; a CPU
   Lightning fit logs every monitor under the names Tune reports; the signature ignores scales and monitors.
-- **Result:** `4e3d886` on local branch `e1-loss-scale-monitor` (worktree `../Conn2Conn_wt_e1`), not yet on `main`.
-  **Merge only when no job imports live `models/` code** (E0 closed), then delete the worktree and branch.
+- **Result:** `4e3d886`, merged into `main` as `75b7c11` after E0 closed; worktree and branch deleted. Re-checked on
+  `main`: `scripts/sbatch/checks/loss_regression.py --old-ref 626f37d` → 45/45 configs bit-identical;
+  `composite_loss/checks/check_e1_loss.py` → 23/23. Both checks are tracked (node-local `/tmp` is not persistent).
 
 #### E1.2 — Stage 1: MSE-only tune
 - **Changes (done):** `stage1/CrossModal_linear_backbone_mse.yml` (MSE-only search over `n_components_pca_source`,
@@ -292,7 +293,7 @@ constants `c_t` are recorded in the experiment `config.yml` and are identical ac
 - **Accept:** rendering is deterministic from the tracked tables; `composite_loss.md` records the question, design,
   how to run, W&B ids, results, observations and caveats (cites v2:C!3).
 
-- **Depends on:** E0 closed (code window for merging E1.1); D3.
+- **Depends on:** D3.
 
 ### E2 — Cross-model benchmark   (slug: `model_benchmark`, working name) · status: outline · owner: —
 
@@ -338,5 +339,6 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-09-30 | Status table synced (E0, C1, C6); E0 design records the MSE-only linear reference and the Chen vs NodalGNN difference, incl. NodalGNN's `r2t` input caveat; E0.5 files and 8 h budget. |
 | 2026-09-30 | **E0 closed.** NodalGNN pilot stopped by decision (seed-0 best val 0.011 < null); results, takeaways and the "learn on top of the mean" follow-up recorded (§5); notebook retired. |
 | 2026-09-30 | E1 prereqs done: slug → `linear_backbone/composite_loss`; E1.1 (fixed scales + monitor-only terms) built and verified on local branch `e1-loss-scale-monitor`, merges when E0 closes; Stage 1 config and packed launcher added; E1.3/E1.4 runner design and dynamics figures specified; D3 (compute envelope, autonomous execution). |
+| 2026-09-30 | E1.1 merged (`75b7c11`) after E0 closed; regression 45/45 and E1.1 checks 23/23 on `main`; checks tracked as `scripts/sbatch/checks/loss_regression.py` and `composite_loss/checks/check_e1_loss.py`. |
 
 Last updated at: 2026-09-30 EDT
