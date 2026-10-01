@@ -108,5 +108,5 @@ Generated: `state.yml`, `runs/`, `tables/`, `figures/`. W&B tags: `CrossModal_li
 - Test metrics are taken at the last epoch (no early stopping). Validation demeaned r peaks at or near the final epoch
   for every combination, so this does not penalize any term.
 - The grid holds the Stage 1 hyperparameters fixed. A composite-loss model might prefer different `lr` / `l2_reg`;
-  magnitude tuning is spec v2 E3.
+  magnitude tuning is spec v2 E2.3.
 - v2:C!3: Stage 1 searched `zscore_pca_scores` (consensus: off), so latent diagnostics are in PCA space.

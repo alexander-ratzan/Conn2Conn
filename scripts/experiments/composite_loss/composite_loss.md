@@ -42,7 +42,7 @@ composite_loss/
 - **Fixed across models:** `batch_size` 64 (D4), seeds, selection on `val_demeaned_r`, output schema
   (`seed_records.csv`, `epoch_history.csv`), W&B tags (`<model>`, `loss_grid:v1`, `combo:<id>`).
 - **Scope:** the grid maps the landscape with each model's Stage 1 hyperparameters held fixed; magnitude tuning for a
-  final model is spec v2 E3.
+  final model is spec v2 E2.3 (composite-loss benchmark with tuned weights).
 
 ## Protocol v2 (superseded by v3)
 
@@ -136,7 +136,7 @@ $c_t$ equalizes each term's *value* with MSE. It does not equalize *gradients*. 
 (The scaled gradient is $\lVert \nabla \mathcal{L}_t \rVert / (c_t \lVert \nabla \mathcal{L}_{\text{mse}} \rVert)$.) So at the same grid
 weight, `neidist` pushes about 260× harder than `correye` on the linear backbone: `neidist` at $w = 0.1$ is already
 about 1.3× the MSE gradient, while `correye` at $w = 1$ is 5% of it. The grid's dose axis is therefore not
-comparable across terms. For E3, scaling by gradient norm (or sweeping each term over its own range) would make
+comparable across terms. For E2.3, scaling by gradient norm (or sweeping each term over its own range) would make
 the weights comparable.
 
 ### MSE (`mse`)

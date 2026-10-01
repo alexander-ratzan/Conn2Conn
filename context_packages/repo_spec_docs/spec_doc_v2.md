@@ -6,8 +6,8 @@ from v1, and hold the repo backlog.
 **Format:** [`spec_conventions.md`](spec_conventions.md)
 
 **Contents:** [Status](#status) · [1. Purpose](#1-purpose) · [2. Conventions](#2-conventions) ·
-[3. Carried over from v1](#3-carried-over-from-v1) · [4. Experiments](#4-experiments) · [5. Backlog](#5-backlog-not-scheduled) ·
-[6. Change log](#6-change-log)
+[3. Carried over from v1](#3-carried-over-from-v1) · [4. Experiments](#4-experiments) · [5. Infrastructure](#5-infrastructure) ·
+[6. Backlog](#6-backlog-not-scheduled) · [7. Change log](#7-change-log)
 
 To add an experiment, append a section under §4 using the template in §4.0 and add a row to the status table.
 
@@ -16,9 +16,10 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
 | E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | closed 2026-09-30 | — | agent:infra |
-| E1 | Composite-loss protocol v1: linear backbone (`composite_loss/linear_backbone`) first; `CrossModal_PCA_PLS_learnable` (`composite_loss/pca_pls_learnable`) paused as the reproducibility target | in progress (linear: SLURM chain Stage 1 `18902227` → consensus `18902844` → grid `18902845` → report `18902846`; learnable paused at Stage 1 seeds 0–2) | D3, D4 | agent:modeling |
-| E2 | Cross-model benchmark (`model_benchmark`, working name) | outline (E2.0 done; E2.1 Krakencoder retrain at near parity, loss-grid instance ready) | C2 | — |
-| E3 | Composite-loss magnitude tuning for final models (follow-up to E1) | outline | E1 | — |
+| E1 | Composite-loss dynamics and trade-off across models, SC → FC (`composite_loss`, grid v3) | in progress (E1.6 linear backbone and E1.7 PCA/PLS learnable done; E1.8 Krakencoder running under E2.1; E1.9 CovProjector and E1.10 cross-model HTML planned) | D3, D4, D5 | agent:modeling |
+| E2 | Cross-model benchmark, SC → FC (`model_benchmark`, working name): E2.2 MSE-only, E2.3 composite-loss tuned | outline (E2.0 done; E2.1 Krakencoder retrain at near parity) | C2, E1 | — |
+| E3 | Replicate E1 and E2 for FC → SC | outline | E1, E2, E2.0 | — |
+| I1 | HCP1200 timeseries and connectome-similarity views | in progress (I1.1) | — | agent:infra (I1.1) |
 | C1 | `torch_geometric` missing from `kraken_env` | done 2026-09-30 (via C6) | — | agent:infra |
 | C2 | Re-tune the M5b-affected sweeps | planned (within E2) | E2 | — |
 | C3 | Confirm `loss_signature` in Tune-trial W&B configs | done | — | agent:infra |
@@ -33,6 +34,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 | D2 | Tuning budget: pilot first, pack small models, scale on evidence | decided | — | user |
 | D3 | E1 compute envelope and autonomous execution | decided | — | user |
 | D4 | Composite-loss protocol batch size 64 | decided | — | user |
+| D5 | Demeaned corr-eye is the corr-eye variant in composite-loss mixtures | decided | — | user |
 
 ---
 
@@ -51,7 +53,7 @@ the table below lists only what is specific to v2.
 |---|---|
 | Experiment home | `scripts/experiments/<slug>/`: `<slug>.md` (question, design, how to run, W&B ids, results, caveats), `config.yml`, `run.py`, `tables/`, `figures/`, `manifest.json`, following the `sc_type_benchmark` / `cov_projector_benchmark` runner pattern. Add a row to `scripts/experiments/experiments_index.md`. |
 | Reported metrics | Test-split `demeaned_pearson` and `avg_rank` (the `metric_scatter` axes), plus `pearson`, `mse`, `top1_acc` in tables. Selection is always on `val_demeaned_r`; never select on test. |
-| Seeds | `shuffle_seed` 0–9 for benchmark-grade results; smaller seed sets are allowed for staged studies and stated per experiment. |
+| Seeds | `shuffle_seed` 0–9 for benchmark-grade results; smaller seed sets are allowed for staged studies and stated per experiment. E1, E2 and E3 use seeds 0–4 (five family-preserving splits; seed 0 = the original split). |
 | Loss normalization | **Fixed reference scales** are the go-forward way to balance composite terms: per-term constants, `loss_normalize: none`, no EMA (E1.1). `auto`/`ema` stay available; whether fixed scales become the repo default is decided after E1 (§5). |
 | Figures | Canonical figures are PNG, 300 dpi, per the scientific-figure-making skill, tracked. An experiment may add a **self-contained interactive HTML** (inline SVG + small script, no CDN or package dependency; `plotly` is not in `kraken_env`), tracked next to the PNG. |
 | Compute | Training and sweeps go through `sbatch` (array templates in `scripts/sbatch/`). Each compute stage is approved before submission. The local L40S node is used only for short checks, and only inside a compute allocation, never on a login node. |
@@ -123,8 +125,9 @@ the table below lists only what is specific to v2.
 |---|---|---|
 | D1 | **One job environment for all experiments and runs:** the launchers' stack (`/ext3/env.sh` in `kraken_env`), consolidated into the overlay with user site-packages disabled (C6). Notebooks and interactive sessions use the same stack. | Every recorded result came from the launcher stack; one stack makes interactive checks reproduce in jobs. |
 | D2 | **Tuning budget scales with evidence.** A model without established signal starts with a pilot (1–2 seeds × 8–12 trials); full sweeps (32 trials, more seeds) only if the pilot's best val beats the null by a stated margin. Small models are packed onto the GPU (fractional `TUNE_GPUS_PER_TRIAL`, several trials at once). | NodalMLP probes took 38 array tasks / 612 trials / ~47 GPU-h for test demeaned r ≈ the null; one-trial-per-GPU jobs are killed for underutilization. |
-| D3 | **E1 runs autonomously within a fixed envelope:** Stage 1 ≤ 4 GPU-h (packed), E1.3 ≤ 1 GPU-h, Stage 2 ≤ 8 GPU-h; defaults approved (seeds 0–4, the 16-point grid, test metrics with selection on val, gradient-cosine panel). The agent stops and reports on any stop condition in the E1 `config.yml` (weak Stage 1, consensus miss, non-finite or mismatched runs, budget overrun). | Lets E1 proceed without per-stage approval once E0 closes, with explicit exits. |
+| D3 | **E1 runs autonomously within a fixed envelope, per instance:** Stage 1 ≤ 4 GPU-h (packed), E1.3 ≤ 1 GPU-h, Stage 2 ≤ 10 GPU-h (8 until 2026-10-01); defaults approved (seeds 0–4, the current grid version, test metrics with selection on val, gradient-cosine panel). The agent stops and reports on any stop condition in the instance `config.yml` (weak Stage 1, wrong Stage 1 trial count, failed / non-finite / mismatched runs, budget overrun). A consensus-gate miss runs the re-check instead of stopping (E1.2). Relaxing a stop threshold needs the user and is recorded in the instance write-up. | Lets E1 proceed without per-stage approval, with explicit exits. |
 | D4 | **The composite-loss protocol trains at `batch_size` 64 in both stages, for every model.** Models that cannot train at 64 skip the batch-dependent terms (`correye`, `neidist`) rather than change the batch. The envelope in D3 applies per instance. | `correye` / `neidist` compare subjects within a batch, so cross-model comparisons need one batch size; 64 fits the linear family and most learned models in the packed setup. |
+| D5 | **Demeaned corr-eye (`correye_dm`) is the corr-eye variant in composite-loss mixtures** (grid v3; user 2026-10-01). Raw `correye` stays only as a single-term reference and is never combined with `correye_dm`. | Raw `correye` is inert until its gradient reaches Var-match's strength, then collapses predictions the same way; `correye_dm` acts on subject-specific deviations (E1 gradient-strength analysis, both instances). |
 
 ## 4. Experiments
 
@@ -214,140 +217,106 @@ E1. Closes out the never-run `scripts/notebooks/results_scrape/nodal_decoder_imp
     NodalGNN pilot rows not added to the tables (no best-trial report; the pilot is reported from its trial logs).
 - **Depends on:** —
 
-### E1 — Composite-loss dynamics and trade-off (protocol v1)   (slug: `composite_loss`) · status: in progress · owner: agent:modeling
+### E1 — Composite-loss dynamics and trade-off across models   (slug: `composite_loss`) · status: in progress · owner: agent:modeling
 
-Experiment home: `scripts/experiments/composite_loss/`: protocol write-up `composite_loss.md`, grid `grid.yml`,
-`checks/`, and one folder per model instance (`<model>/`: `<model>.md`, `config.yml`, `stage1/`).
+Experiment home `scripts/experiments/composite_loss/`: protocol write-up `composite_loss.md` (protocol, loss math,
+gradient-strength analysis, cross-model comparison), grids `grid.yml` (v1), `grid_v2.yml`, `grid_v3.yml` (current;
+released grids are frozen), `checks/`, and one folder per model instance (`<model>/`: `<model>.md`, `config.yml`,
+`stage1/`; generated `state.yml`, `runs/`, `tables/`, `figures/`).
 
-**Protocol and instances.** E1 defines a reusable protocol (v1) and runs it on two instances:
-- **Protocol:** the shared grid `scripts/experiments/composite_loss/grid.yml` (versioned; never edited after release),
-  batch 64 (D4), seeds 0–4, fixed reference scales measured per model, monitor-only terms in every run, one output
-  schema (`seed_records.csv`, `epoch_history.csv`) and W&B tags (`<model>`, `loss_grid:v1`, `combo:<id>`), so later
-  instances concatenate for cross-model comparison. Shared code (consensus selection, scale measurement, grid runner,
-  figures) lives in `scripts/results_utils/loss_grid.py`; each instance is a thin folder
-  `scripts/experiments/composite_loss/<model>/` (`config.yml`, `stage1/`, write-up).
-- **Instances:** `composite_loss/linear_backbone` (primary) and `composite_loss/pca_pls_learnable` (replicability:
-  does the landscape reproduce on a second linear-family model?). Degenerate models (E0: NodalMLP, NodalGNN) are not
-  instances. Budget and autonomy: D3, per instance.
-- **Scope:** each combination keeps its model's Stage 1 hyperparameters, so the grid maps the loss landscape rather
-  than retuning per loss mix; magnitude tuning for final models is E3.
+- **Question:** with MSE fixed at weight 1, how do Var-match, Corr-eye, Demeaned corr-eye and Neighbor dist shape
+  training dynamics and trade test `demeaned_pearson` against `avg_rank`, and does that landscape hold across model
+  types? (SC → FC; FC → SC is E3.)
+- **Protocol (v3), per model instance:**
+  1. **Stage 1:** MSE-only Optuna tune per seed (seeds 0–4, packed), all terms logged as monitor-only terms.
+  2. **Consensus + reference scales:** one consensus config, trained on seeds 0–4. Categorical keys are chosen by
+     majority, loguniform keys by geometric median, and uniform keys and ordered `consensus: median` choices by median.
+     Fixed scales $c_t = s_t / s_{\text{mse}}$ are measured on these fits.
+  3. **Grid v3** (29 combinations × 5 seeds), with Stage 1 hyperparameters held fixed and `loss_normalize: none`:
+     - MSE-only;
+     - 22 single-term points: Var-match and Neighbor dist at 0.1 / 0.5 / 1; Demeaned corr-eye and Corr-eye at 0.1–50;
+     - a 2 × 2 × 2 factorial at 0.5 over Var-match × Demeaned corr-eye × Neighbor dist;
+     - three-term doses at 0.1 and 1.
 
-- **Question:** with MSE fixed at weight 1, how do `varmatch`, `correye` and `neidist` shape the training dynamics of a
-  simple, strong linear probe, and how do they trade test `demeaned_pearson` against `avg_rank` across about 16 weight
-  combinations? Which weightings are reasonable before the composite loss is extended to other models?
-- **Design:**
-  - Model `CrossModal_linear_backbone` (and the replicability instance), `SC → FC` (Glasser), `batch_size` 64 (D4).
-  - Stage 1 learns the structure and regularization under MSE only. Stage 2 runs a fixed weight grid with the Stage 1
-    hyperparameters held fixed, under **fixed reference scales (no EMA)**.
-  - **All four terms are logged in every run**: inactive terms as monitor-only terms (E1.1), so dynamics are
-    comparable between MSE-only and weighted runs.
-  - Seeds 0–4 in both stages.
+     Corr-eye and Demeaned corr-eye never appear in one combination (D5).
+  4. **Report:** paired-by-seed effects vs MSE-only; trade-off scatter and interactive HTML (top-1 in the panel); dose
+     response; term trajectories; loss composition; gradient cosines.
+- **Budget / autonomy:** D3, per instance; batch 64 (D4).
 
-**Fixed reference scales (definition).** MSE stays raw (scale 1), so Stage 1's `l2_reg` stays calibrated against the loss.
-Every other term is rescaled to MSE's magnitude at the Stage 1 reference model:
-`term_t / c_t` with `c_t = s_t / s_mse`, where `s_t` is the mean `|raw_t|` over training batches (batch 64, eval mode) of
-the Stage 1 model, averaged over seeds. A weight `w_t` then means "w × MSE's size at a good MSE-only solution". The
-constants `c_t` are recorded in the experiment `config.yml` and are identical across all Stage 2 runs.
+#### E1.1–E1.5 — Protocol machinery · done
+- **E1.1** fixed per-term `scale` and monitor-only terms in `CompositeLoss`: `75b7c11`; regression 45/45, checks
+  23/23 (`scripts/sbatch/checks/loss_regression.py`, `composite_loss/checks/check_e1_loss.py`).
+- **E1.2–E1.5** Stage 1 / consensus / grid / report runner (`scripts/results_utils/loss_grid.py`,
+  `composite_loss/protocol.py`, `report.py`, launchers, `checks/check_protocol.py`): `a8362bc` (rebaseline re-check),
+  `4ed6c44` (`correye_dm` term, grid v2, in-job re-check, Stage 1 trial-count guard), `386573a` (grid v3, median
+  consensus, grid filter), `09ff5ea` (readable labels).
+- **Consensus gate (E1.2):** accept if the consensus mean val is within 1 SE of the mean of the per-seed Stage 1 bests.
+  On a miss, the same job retrains each seed's own best config (epochs capped at what ASHA trained), which removes the
+  best-of-N bias, and re-checks against those. If it still misses, it is accepted with a recorded note
+  (`consensus_check.basis`).
 
-#### E1.1 — Fixed per-term scale and monitor-only terms in `CompositeLoss`  · done 2026-09-30
-- **Changes:**
-  - Term kwarg `scale` (> 0, default 1): the term contributes `weight · raw / scale`; `*_loss_raw_*` stays unscaled.
-    Tune-searchable as `loss_kwarg_<term>__scale`. Fixed scales replace EMA: `auto` with any scale resolves to `none`,
-    and `ema` with a scale is rejected.
-  - New trainer key `loss_monitor_terms`: extra terms computed each step under `no_grad` and logged as
-    `*_loss_raw_*` (Lightning and Tune) without entering the loss. Active terms are dropped from the monitor list.
-- **Accept (met, `kraken_env`):** regression 45/45 existing configs bit-identical to `main`; `weight · raw / scale`
-  exact on random tensors, gradients included; `scale: 1` bit-identical to no scale under `none` and `ema`; monitors
-  leave training bit-identical under `auto` / `ema` / `none`; monitored values equal the term functions; a CPU
-  Lightning fit logs every monitor under the names Tune reports; the signature ignores scales and monitors.
-- **Result:** `4e3d886`, merged into `main` as `75b7c11` after E0 closed; worktree and branch deleted. Re-checked on
-  `main`: `scripts/sbatch/checks/loss_regression.py --old-ref 626f37d` → 45/45 configs bit-identical;
-  `composite_loss/checks/check_e1_loss.py` → 23/23. Both checks are tracked (node-local `/tmp` is not persistent).
+#### E1.6 — Instance `linear_backbone` · done 2026-10-01
+`CrossModal_linear_backbone`, Stage 1 24 trials (v1). Gate passed on the re-check. Grid v3: 145 runs (143 from v2 on the
+same Stage 1 and splits). Findings:
+- **Demeaned corr-eye 0.1:** Δ avg_rank +0.092, Δ demeaned r −0.017, top-1 ×2, test MSE unchanged.
+- **Neighbor dist 0.1:** +0.050 / −0.010.
+- **Raw Corr-eye:** inert up to w ≈ 5, collapses at w ≥ 10.
+- The v1 combinations reproduce v1 to within about 0.001.
 
-#### E1.2 — Stage 1: MSE-only tune
-- **Changes (done):** `stage1/CrossModal_linear_backbone_mse.yml` (MSE-only search over `n_components_pca_source`,
-  `zscore_pca_scores`, `l2_reg`, `l1_reg`, `lr`, `max_epochs`; monitors `varmatch`, `correye`, `neidist`) and
-  `stage1/tune_stage1_seeds.sh` (`--array=0-4`, 24 Optuna trials, packed 4 per GPU with actor reuse per E0.6,
-  `--report_best_after_tune`). Checked: config resolves to plain MSE with monitors; model keys match the constructor;
-  search space round-trips; `bash -n` and `sbatch --test-only` pass.
-- **Selection rule:** take each seed's best trial; choose categorical keys by majority and `lr` / `l2_reg` by geometric
-  median; then run that single consensus config on seeds 0–4 (E1.3). Accept it if its mean `val_demeaned_r` is within
-  one standard error of the mean of the per-seed bests; otherwise use the per-seed best config with the highest mean.
-- **Accept:** `ray_tune_id`s and the consensus config recorded in `config.yml`; C3 re-confirmed on these trial runs.
-- **Budget:** ≤ 4 GPU-h per instance (D3); about 1.7 GPU-h expected for the linear backbone.
-- **Replicability instance:** same launcher pattern; Stage 1 searches `CrossModal_PCA_PLS_learnable`'s own 12 keys
-  (MSE-only, `loss_type` fixed to `composite`).
+Write-up `composite_loss/linear_backbone/linear_backbone.md`; `876f50a`.
 
-#### E1.3–E1.5 implementation (2026-09-30)
-- **Shared code** `scripts/results_utils/loss_grid.py`: Stage 1 discovery (task logs → `ray_tune_id` per seed) and trial
-  collection, per-seed summary + stop check, consensus rule and 1-SE acceptance, reference-scale measurement (full
-  training batches of 64, eval mode, fixed order), grid-combination loss configs, `run_one` (one model × seed in its own
-  process; `Sim(batch_size=64)`; W&B tags), `TermGradCosine` callback, per-run outputs.
-- **CLI** `scripts/experiments/composite_loss/protocol.py {stage1,consensus,grid,report} --instance <name>`; exit
-  code 2 = a D3 stop condition. Generated values go to `<instance>/state.yml` (config.yml stays hand-written).
-  Launchers `launch_consensus.sh <instance>` (1 GPU, 5 seeds in parallel) and `launch_grid.sh <instance>` (4 array
-  tasks × 20 runs, 5 in parallel per GPU; packing per D2). Report: `report.py` (tables + 6 PNGs + interactive HTML).
-- **Stop behaviour:** a consensus miss stops the run (D3) rather than falling back to another config.
-- **Checks** `composite_loss/checks/check_protocol.py` (CPU, synthetic inputs): Stage 1 discovery ignores failed
-  attempts; consensus math; all 16 combinations resolve to the expected signature / scales / monitors; scale
-  measurement matches a manual computation; gradient cosines match a manual computation; report writes every output
-  and rebuilds byte-identically. Real-data training is first exercised by the E1.3 consensus step itself.
+#### E1.7 — Instance `pca_pls_learnable` · done 2026-10-01
+`CrossModal_PCA_PLS_learnable`. Architecture hand-selected and fixed (user): 256 / 16 / 256, only `W_mid` learnable.
+Stage 1 tunes the optimizer only: 16 trials over `lr` 3e-5 to 3e-3, `l2_reg`, `dropout`, epochs 100–250.
+- **Stop-threshold deviation (user):** 0.09 → 0.085, because seed 1 reached 0.0898.
+- **Gate:** passed directly. Consensus `lr` 5.4e-4, 150 epochs.
+- **Replication:** effects correlate with the linear backbone at 0.92 (Δ demeaned r) and 0.98 (Δ avg_rank). All three
+  terms at 0.1 give +0.106 / −0.018, the best trade-off on either model.
+- **Superseded run:** the earlier tuned 64 / 4 / 64 consensus (`lr` 3.8e-5 × 50 epochs) barely trained and is
+  overwritten (W&B `loss_grid:v2`).
 
-#### E1.3 — Consensus runs and reference scales  · code ready
-- **Changes:** one runner script in the experiment folder trains the consensus config per seed through
-  `Sim._run_learned_single` (monitors on), computes `s_t` for `mse`, `varmatch`, `correye`, `neidist` over training
-  batches, writes `c_t` (mean and across-seed spread) into `config.yml`, and saves each run's epoch history.
-- **Accept:** `c_t` recorded with spread; `neidist`'s sign at the reference model noted (its scaled term is signed).
-- **Budget:** ≤ 1 GPU-h.
+Write-up `composite_loss/pca_pls_learnable/pca_pls_learnable.md`; `876f50a`.
 
-#### E1.4 — Stage 2: weight grid  · code ready (gradient cosines need C7)
-- **Grid (protocol v1, `composite_loss/grid.yml`; 16 combinations; weights on the scaled terms, MSE = 1, never ablated):**
+#### E1.8 — Instance `krakencoder` · in progress (run under E2.1 by its owner)
+Krakencoder's own loss grid, `composite_loss/krakencoder/`; design, weights and autonomy are in E2.1. Its native
+`correye` acts in a mean-centred PCA space, so it corresponds to our Demeaned corr-eye (D5). The results join the
+E1 cross-model comparison.
 
-  | Block | Combinations | Count | Answers |
-  |---|---|---|---|
-  | factorial ablation at w = 0.5 | every on/off subset of `varmatch`, `correye`, `neidist` (incl. MSE only and all three) | 8 | main effects and interactions; pairs are leave-one-out ablations of all three |
-  | dose response | each single term and all three at 0.1 and 1.0 | 8 | how effects scale with weight (3 levels with the w = 0.5 cells) |
+#### E1.9 — Instance `pca_pls_covprojector` (all covariates) · planned · owner: —
+- **Model:** `CrossModal_PCA_PLS_CovProjector` with every covariate as input: demographics + all FreeSurfer features,
+  the largest `cov_projector_benchmark` set.
+- **Steps:** rerun the MSE-only Stage 1 pilot (D2), then the consensus step and grid v3, as in E1.6 / E1.7.
+- **Caveat:** its old sweeps carry C!1 (default regularization); this fresh tune does not.
+- **Accept / budget:** as in E1.6; D3.
 
-- **Changes:** a runner array in the experiment folder, one combination per task looping seeds 0–4, calling
-  `Sim._run_learned_single(wandb_tags=[<model>, loss_grid:v1, composite_loss:stage2, combo:<id>])`. `main.py` needs no change.
-  Stage 1 consensus config, `loss_normalize: none`, the E1.3 scales, inactive terms as monitors. Each run's per-epoch
-  history (raw / weighted / monitor terms, reg, val metrics) goes to `tables/epoch_history.csv`.
-- **Accept:** 80 runs complete; every run's `loss_signature` matches its combination; MSE-only reproduces the E1.3
-  consensus metrics per seed.
-- **Budget:** ≤ 8 GPU-h.
+#### E1.10 — Cross-model interactive comparison · planned · owner: agent:modeling
+- **Changes:** one self-contained HTML tool in `composite_loss/` built from every instance's `tables/`. It shows test
+  demeaned r vs avg_rank on **fixed axes** shared by all models, with per-model toggles and the same hover / click
+  panel as the instance plots.
+- **Ceiling:** the test-retest point (`TestRetestPrecomputed`, SC → FC) is drawn as the reference ceiling for demeaned
+  r and avg_rank.
+- **Accept:** rebuilds deterministically from the instance tables; adding an instance needs no code change.
 
-#### E1.5 — Analysis and figures  · code ready
-- **Changes:** `run.py` following the runner pattern: `tables/seed_records.csv` (combination × seed),
-  `tables/combo_summary.csv` (mean, SE), `tables/epoch_history.csv`. Figures:
-  - Trade-off scatter: test `demeaned_pearson` vs `avg_rank`, one point per combination (mean ± SE), MSE-only
-    highlighted, `sc_type_benchmark` style; plus `figures/tradeoff_interactive.html` (self-contained; hover and click
-    show the four weights, `loss_signature`, mean ± SE and per-seed values).
-  - Dynamics: each term's raw trajectory over epochs per combination; loss composition (each term's share of the total)
-    over epochs; val demeaned-r / avg-rank over epochs.
-  - Single-term response curves (weight → each test metric); gradient cosine between terms on the latent map `W`.
-- **Accept:** rendering is deterministic from the tracked tables; each instance write-up (`<model>.md`) and the
-  protocol write-up `composite_loss.md` record the question, design,
-  how to run, W&B ids, results, observations and caveats (cites v2:C!3).
+### E2 — Cross-model benchmark, SC → FC   (slug: `model_benchmark`, working name) · status: outline · owner: —
 
-- **Depends on:** D3.
-
-### E2 — Cross-model benchmark   (slug: `model_benchmark`, working name) · status: outline · owner: —
-
-- **Question:** on equal footing, how do all tunable models compare on test `demeaned_pearson`, `avg_rank` and the other
-  standard metrics, in **both directions** (`SC → FC` and `FC → SC`)?
-- **Roster:** every registered model, grouped by model type (null / ceiling, linear decomposition, latent / pretrained,
-  pairwise nodal, deep-learning baseline, experimental) and learning type (closed-form, supervised, self-supervised,
-  precomputed); the classification lives in the README "Models" table. `CrossModalVAE` is experimental (in development).
-- **Design (outline):** standard CV-style tuning per model (Optuna over each model's YAML `search_space`, selection on
-  `val_demeaned_r`, best-trial report), seeds 0–9. This is **not** the staged design of E1. Closed-form and precomputed
-  baselines are included without tuning.
-- **Outputs:** per-metric bar charts across models; `demeaned_pearson` vs `avg_rank` scatter across models (the
-  `sc_type_benchmark` style), through the runner pattern.
-- **Depends on:** C2 (re-tune the M5b-affected models; resolves C!1); C1 done 2026-09-30. E1 may inform whether
-  benchmark models also get composite-weight search or stay MSE-only.
-- **Open decisions:** sources beyond the two directions (`SC_r2t`, `SC+SC_r2t`); trial budget per model (D2); loss
-  policy (MSE-only vs E1-informed); which `CovProjector` / `NodalMLP` variants count as separate entries; further
-  requirements for modular cross-model comparisons (to be added).
+- **Question:** on equal footing, how are test `demeaned_pearson`, `avg_rank` and the other standard metrics
+  distributed across model types for all stable models, first MSE-only (E2.2) and then with composite losses tuned where
+  possible (E2.3)? FC → SC is E3.
+- **Roster:** every stable registered model, grouped by model type (null / ceiling, linear decomposition, latent /
+  pretrained, pairwise nodal, deep-learning baseline, experimental) and learning type (closed-form, supervised,
+  self-supervised, precomputed); the classification lives in the README "Models" table. `CrossModalVAE` is
+  experimental (in development).
+- **Design (outline):**
+  - Standard CV-style tuning per model: Optuna over each model's YAML `search_space`, selection on `val_demeaned_r`,
+    best-trial report. Seeds 0–4. This is not the staged design of E1.
+  - Trial budget scales with each model's search space (D2).
+  - Closed-form and precomputed baselines are included without tuning.
+- **Outputs:** per-metric distributions across model types (per-seed points), bar charts, and the `demeaned_pearson`
+  vs `avg_rank` scatter (the `sc_type_benchmark` style), through the runner pattern.
+- **Depends on:** C2 (re-tune the M5b-affected models; resolves C!1); C!4 re-runs (best-trial reports now train at the
+  tuned batch size, C7); E1 for E2.3.
+- **Open decisions:** whether E0's degenerate nodal models enter (narrowed re-runs) or stay as E0 results; sources
+  beyond SC (`SC_r2t`, `SC+SC_r2t`); which `CovProjector` / `NodalMLP` variants count as separate entries.
 
 #### E2.0 — Direction audit (`SC → FC` vs `FC → SC`) · done 2026-09-30
 The shared pipeline is direction-agnostic: dataset `x` / `y`, loss, evaluator (has a `target == "SC"` branch) and the
@@ -417,7 +386,7 @@ the upstream trainer; a native adapter of `krakencoder.model.Krakencoder` into o
   reproduces run_model's predictions exactly (per-subject r 1.000000). Upstream records only total loss per path.
   Caveat: upstream `generate_adapt_transformer` resets its subject-mask arguments, so input adaptation is fit on all
   subjects (run_model, March runs and here alike); with our inputs it is near identity (fit R² 1.000).
-- **Loss-grid instance (`scripts/experiments/composite_loss/krakencoder/`, a sibling of the E1 instances; not launched):**
+- **Loss-grid instance (`scripts/experiments/composite_loss/krakencoder/`, a sibling of the E1 instances; = E1.8):**
   grid v1 (16 cells) + Krakencoder's paper-default loss (`correye + neidist`, weight 1) as a reference cell + 4 extension
   cells at level 2.0 = 21 cells (105 fits, 27 jobs); weights = grid level × anchor (option B, user 2026-10-01): `correye`,
   `neidist` anchor 1 (paper weight), `var` anchor 9.2 (its level-1 share of the MSE term = `correye`'s at the paper
@@ -439,16 +408,50 @@ the upstream trainer; a native adapter of `krakencoder.model.Krakencoder` into o
   `HCP_Base` and its splits; serve predictions through a loader so evaluation is shared; gate on parity with published or
   cached results. `Sarwar2020MLP` and `Chen2024GCN` are already native reimplementations trained in our loop.
 
-### E3 — Composite-loss magnitude tuning for final models   (slug: tbd) · status: outline · owner: —
+#### E2.2 — MSE-only benchmark · outline
+- **Design:** the E2 roster, MSE-only loss, seeds 0–4. The goal is the distribution of scores across model types on
+  identical splits.
+- **Accept:** one best-trial report per model × seed, verified MSE-only from the run configs (as in E0); tables and
+  figures render deterministically from the tracked records.
 
-- **Question:** for models where E1's landscape shows a useful direction, what term magnitudes should a final model
-  use? E1's grid is coarse (0.1 / 0.5 / 1.0) and holds each model's Stage 1 hyperparameters fixed.
-- **Design (outline):** a dense sweep along E1's promising directions, or Optuna over the scaled weights
-  (`loss_weight_*` with the E1 fixed scales), with `lr` / `l2_reg` re-tuned jointly; selection on `val_demeaned_r`.
-  Only models with established signal (E1 instances, not E0's degenerate models).
-- **Depends on:** E1 results.
+#### E2.3 — Composite-loss benchmark (tuned weights) · outline
+Absorbs the former E3 outline (composite-loss magnitude tuning, never started).
+- **Design:** the E2 roster where the model trains at batch 64 (D4). Composite weights are tuned per model: Optuna over
+  the scaled weights (`loss_weight_*` with each model's fixed scales, measured as in E1.2) jointly with `lr` /
+  `l2_reg`. Seeds 0–4.
+- **E1 informs:** the term set (Var-match, Demeaned corr-eye, Neighbor dist; raw Corr-eye excluded, D5), the weight
+  ranges (value-matched weights are not gradient-matched; E1 gradient-strength table), and the selection metric. The
+  trade-off makes the choice of selection metric (demeaned r vs avg_rank, or a combination) a decision to make here.
+- **Depends on:** E1, E2.2.
 
-## 5. Backlog (not scheduled)
+### E3 — FC → SC: replicate E1 and E2   (slug: tbd) · status: outline · owner: —
+
+- **Question:** do the E1 loss landscape and the E2 model comparison hold in the reverse direction (FC → SC)?
+- **Design:** the E1 protocol and the E2.2 / E2.3 benchmark with `--source FC --target SC`, same seeds and grid.
+  Models follow the E2.0 direction audit: generic models as is; `Sarwar2020MLP` with `output_tanh: false`;
+  Krakencoder's loader already serves both directions (E2.1); graph and nodal models need the reverse variants
+  (not built).
+- **Ceiling:** none in the data (no SC retest). A literature value is used as a reference line (E2.0).
+- **Depends on:** E1, E2, E2.0.
+
+## 5. Infrastructure
+
+### I1 — HCP1200 timeseries and connectome-similarity views   · status: in progress · owner: agent:infra (I1.1)
+
+- **I1.1 — Move the HCP1200 timeseries into the data folders** from the transferred `.tar` · in progress ·
+  owner: agent:infra. This is an add-only merge into the partially populated destination: never overwrite existing
+  files. Procedure and safety rules: `context_packages/HCP1200_xcpd_transfer_merge_handoff.md`.
+- **I1.2 — Subject × subject connectome-similarity matrices** · planned · owner: —
+  - A correlation matrix over all subjects' connectome comparisons (diagonal = same subject), in raw and **demeaned**
+    form (training-set mean subtracted, as in Demeaned corr-eye).
+  - Interactive per-subject matrix views of the full and the demeaned connectome.
+  - Self-contained HTML per the figure convention (§2).
+- **I1.3 — Which behavioral FC best predicts SC** · planned · owner: —
+  - With the best E2 model, test which behavioral FC (from the I1.1 timeseries) best predicts SC.
+  - This is the starting point for timeseries modeling, with room for spatial analyses.
+  - **Depends on:** I1.1, E2, E3 (the FC → SC path).
+
+## 6. Backlog (not scheduled)
 
 From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 - **Graph / nodal models on top of the mean** (from E0): train GNNs on the subject's deviation from the train-split
@@ -463,7 +466,7 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 - **EMA diagnostics:** `*_loss_ref_*` behavior after warmup, and batch-size sensitivity of `correye` / `neidist` (64 vs 128).
 - **Default normalization:** after E1, decide whether fixed reference scales replace `auto`/`ema` as the repo default.
 
-## 6. Change log
+## 7. Change log
 
 | Date | Change |
 |---|---|
@@ -488,5 +491,6 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-09-30 | E1.3–E1.5 code ready (`loss_grid.py`, `protocol.py`, `report.py`, launchers, `check_protocol.py`). C!4 (single runs ignored the tuned batch size) found; fix + `extra_callbacks` on branch `e1-callbacks-batchsize` (C7, merges after Stage 1). Trial-index parsing fixed in the `multimodel_scfc` audit script. |
 | 2026-09-30 | C7 merged (`cfc1c32`, regression 45/45): batch-size fix (C!4), `extra_callbacks`, and **Ray sized to the SLURM CPU allocation** — five Stage 1 tasks had hung because Ray pre-started 128 workers (all node cores) that never registered; cancelled. E1 order: linear backbone first (seeds 1/2/4 resubmitted `18902227`), learnable paused at seeds 0–2 as the reproducibility target. |
 | 2026-09-30 | E1 linear backbone runs autonomously as a SLURM `afterok` chain (Stage 1 → consensus (stage1 summary first) → grid → CPU report; `--kill-on-invalid-dep=yes`, so a D3 stop cancels the rest) with `scripts/sbatch/checks/watch_jobs.py` watching for Ray hangs / silent logs. Real-data Stage 1 check on seeds 0–3: best val 0.096–0.108 (≥ 0.09). |
+| 2026-10-01 | E1 aligned to the user's plan: protocol v3 (grid v3, 29 combinations; D5 Demeaned corr-eye in mixtures; consensus re-check; Stage 2 cap 10 GPU-h in D3); instances E1.6 linear backbone and E1.7 PCA/PLS learnable done (replicate: effects correlate 0.92 / 0.98); E1.8 Krakencoder (= E2.1 loss grid), E1.9 CovProjector (all covariates), E1.10 cross-model HTML with the test-retest ceiling added. E2 narrowed to SC → FC with E2.2 (MSE-only) and E2.3 (composite-loss tuned; absorbs the former E3 outline). E3 redefined as FC → SC replication of E1 and E2 (the former E3 outline was never started; its content moved to E2.3). I1 added (HCP1200 timeseries merge, connectome-similarity views, behavioral FC → SC). |
 
-Last updated at: 2026-09-30 EDT
+Last updated at: 2026-10-01 EDT
