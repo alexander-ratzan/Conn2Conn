@@ -1,0 +1,47 @@
+# Krakencoder instance of the composite-loss experiment (spec v2 E1 grid, E2.1 retrainable Krakencoder).
+# Same 16-cell grid as the other instances (grid v1) plus Krakencoder's paper-default loss as a reference cell; the
+# identifiability terms vary, MSE and the latent terms stay fixed. Architecture / optimiser are the paper defaults
+# (no Stage 1 tune). Trained on all flavors (cross-parcellation alignment), evaluated on Glasser in both directions.
+#
+#   python scripts/experiments/composite_loss/krakencoder/grid_runner.py plan --set pilot
+#   sbatch --array=0-<n-1> --export=ALL,SET=pilot scripts/experiments/composite_loss/krakencoder/launch_grid.sh
+#   python scripts/experiments/composite_loss/krakencoder/grid_runner.py collect --set grid
+#
+# Weights are Krakencoder's native loss weights (its terms act in its PCA-256 output space, next to mse.w1000), so
+# they are not on the scaled-term footing of the other instances (c_t calibration); compare shapes and directions.
+
+model: Krakencoder
+base_config: models/configs/Krakencoder.yml
+grid_file: scripts/experiments/composite_loss/grid.yml        # v1: 16 cells, shared with the other instances
+term_map: {varmatch: var, correye: correye, neidist: neidist}  # grid term -> Krakencoder loss name (same formulas)
+fixed_loss: "mse.w1000+enceye.w10+encdist.w10+latentsimloss.w10000"   # in every cell (MSE anchor + latent terms)
+reference_cells:
+  # Krakencoder paper default: correye + neidist at weight 1 (with the fixed terms above)
+  - {id: kraken_default, block: reference, varmatch: 0.0, correye: 1.0, neidist: 1.0}
+
+recipe:                     # overrides of base_config `retrain:` for every fit
+  batch_size: 64            # protocol batch size (D4); Krakencoder default is 41
+  epochs: 2000              # pilot measures where val plateaus at batch 64; set the grid value from it
+  checkpoint_every: 100     # checkpoints feed epoch_history.csv (checkpoint_eval.py)
+  infer_parcellations: [Glasser]
+
+eval:
+  parcellation: Glasser
+  loss_batch_size: 64
+
+tag_prefix: cl_kraken_v1    # results/krakencoder/<tag_prefix>_<cell>/seed<S>/
+
+sets:
+  pilot:                    # D2: compute + epoch pilot, packed
+    cells: [mse_only, ce_0.5, nd_0.5, kraken_default]
+    seeds: [0]
+  grid:
+    cells: all              # 16 grid cells + reference cells
+    seeds: [0, 1, 2, 3, 4]
+  noise:                    # retrain variability at a fixed split: init seeds only
+    cells: [kraken_default]
+    seeds: [0]
+    random_seeds: [1, 2]    # random_seed 0 is the grid fit itself
+
+packing:
+  fits_per_job: 4           # concurrent fits on one GPU

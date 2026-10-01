@@ -31,6 +31,9 @@ retrain:
   trainvalsplitfrac: 0.8                   # ignored by upstream when a subject split file is given (it is)
   valsplitfrac: 0.1
   adaptmode: meanfit+meanshift             # inference-time input adaptation (as in the March runs)
+  batch_size: 41                           # upstream default (mini-batches of 41 subjects; validation is full-batch)
+  random_seed: 0                           # upstream --randseed (weight init); 0 = upstream default
+  infer_parcellations: null                # null = all trained parcellations; e.g. [Glasser] to skip the others
   extra_train_args: []                     # verbatim extra run_training.py flags
 
 # Intentionally empty: variants are separate retrain tags, not Tune trials.

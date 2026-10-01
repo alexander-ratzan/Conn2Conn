@@ -151,6 +151,9 @@ Prediction files (`krakencoder_prediction_path`):
   unmodified; `_vendor_entry.py` pins the import and accepts our non-upstream flavor names). Inputs are built from
   `HCP_Base` (canonical subject order = `metadata_df["subject"]`; `sc_/fc_subject_ids` keep raw load order) with the
   per-seed `trainvaltest_partition_indices`. SLURM: `scripts/sbatch/Krakencoder/train_array_krakencoder_seeds.sh`.
+- `checkpoint_eval.py` scores every saved checkpoint in-process (our metrics + loss terms, both directions) →
+  `epoch_history.csv`; recipe overrides via `retrain.py --set KEY=VALUE` (e.g. `losstype`, `batch_size`, `random_seed`).
+  Loss-weight grid instance: `scripts/experiments/composite_loss/krakencoder/` (`grid_runner.py`, packed fits).
 
 Naming note:
 - config file is `models/configs/Krakencoder_precomputed.yml`

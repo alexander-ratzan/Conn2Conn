@@ -45,6 +45,8 @@ from models.architectures.krakencoder.precomputed import (  # noqa: E402
 
 VENDOR_ENTRY = Path(__file__).resolve().parent / "_vendor_entry.py"
 VENDOR_COMMIT = "b57e39c2771c36ab39d2f24a5d4355f3d375624d"  # vendor/VENDOR.md
+# Recipe keys that may be absent from older configs (upstream default when unset).
+OPTIONAL_RECIPE_KEYS = {"batch_size", "random_seed", "infer_parcellations"}
 # Input file names per modality (as in the March runs) and the matrix field each file holds.
 INPUT_FILE = {"FC": "mydata_{parc}_FCcorrhpf.mat", "SC": "mydata_{parc}_SCifod2actvolnorm.mat"}
 
@@ -171,6 +173,10 @@ def train(recipe: dict, files: dict, seed_dir: Path, epochs: int) -> Path:
              "--outputprefix", seed_dir / "kraken", "--epochs", epochs,
              "--checkpointepochsevery", min(int(recipe["checkpoint_every"]), epochs),
              "--displayepochs", min(int(recipe["display_every"]), epochs)]
+    if recipe.get("batch_size") is not None:
+        args += ["--batchsize", int(recipe["batch_size"])]
+    if recipe.get("random_seed") is not None:
+        args += ["--randseed", int(recipe["random_seed"])]
     args += list(recipe.get("extra_train_args") or [])
     run_vendor("run_training", args, seed_dir / "train.log")
     ckpt = find_checkpoint(seed_dir, epochs)
@@ -181,7 +187,10 @@ def train(recipe: dict, files: dict, seed_dir: Path, epochs: int) -> Path:
 
 def infer(recipe: dict, files: dict, seed: int, tag: str, root: Path, ckpt: Path) -> list:
     written = []
+    infer_parcs = recipe.get("infer_parcellations") or recipe["parcellations"]
     for (m, parc), path in files["inputs"].items():
+        if parc not in infer_parcs:
+            continue
         out = krakencoder_prediction_path(seed, parc, m, tag=tag, predictions_root=root)
         if out.exists():
             log(f"predictions exist, skipping: {out.name}")
@@ -206,25 +215,36 @@ def main():
     ap.add_argument("--tag", help="override default.model.tag (use a new tag for checks, e.g. smoke)")
     ap.add_argument("--epochs", type=int, help="override retrain.epochs (quick checks)")
     ap.add_argument("--stage", choices=["all", "inputs", "train", "infer"], default="all")
+    ap.add_argument("--set", dest="overrides", action="append", default=[], metavar="KEY=VALUE",
+                    help="override a retrain recipe key (YAML value), e.g. --set losstype=mse.w1000 --set batch_size=64")
     args = ap.parse_args()
 
     cfg = yaml.safe_load(args.config.read_text())
     recipe = dict(cfg["retrain"])
+    overrides = {}
+    for item in args.overrides:
+        key, sep, value = item.partition("=")
+        if not sep or key not in recipe.keys() | OPTIONAL_RECIPE_KEYS:
+            sys.exit(f"--set {item!r}: expected KEY=VALUE with KEY in {sorted(recipe.keys() | OPTIONAL_RECIPE_KEYS)}")
+        overrides[key] = yaml.safe_load(value)
+    recipe.update(overrides)
     model_cfg = cfg["default"]["model"]
     tag = args.tag or model_cfg["tag"]
     root = Path(model_cfg.get("predictions_root") or RETRAINED_PREDICTIONS_ROOT)
     epochs = int(args.epochs or recipe["epochs"])
+    if epochs % min(int(recipe["checkpoint_every"]), epochs):
+        sys.exit(f"epochs ({epochs}) must be a multiple of checkpoint_every ({recipe['checkpoint_every']})")
     unknown = [m for m in recipe["modalities"] if m not in INPUT_FILE]
     if unknown:
         sys.exit(f"unsupported modalities {unknown}; expected {list(INPUT_FILE)}")
 
     seed_dir = root / tag / f"seed{args.seed}"
-    seed_dir.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
     log(f"tag={tag} seed={args.seed} epochs={epochs} flavors={recipe['parcellations']} x {recipe['modalities']}")
     files = build_inputs(recipe, args.seed, root / "_inputs")
     if args.stage == "inputs":
         return
+    seed_dir.mkdir(parents=True, exist_ok=True)
     ckpt = train(recipe, files, seed_dir, epochs) if args.stage in ("all", "train") else find_checkpoint(seed_dir, epochs)
     if args.stage == "train":
         return
@@ -234,7 +254,7 @@ def main():
     manifest = {
         "tag": tag, "seed": args.seed, "config": str(args.config.resolve().relative_to(REPO_ROOT))
         if args.config.resolve().is_relative_to(REPO_ROOT) else str(args.config),
-        "recipe": {**recipe, "epochs": epochs}, "vendor_commit": VENDOR_COMMIT, "repo_commit": git_commit(),
+        "recipe": {**recipe, "epochs": epochs}, "overrides": overrides, "vendor_commit": VENDOR_COMMIT, "repo_commit": git_commit(),
         "checkpoint": ckpt.name, "predictions": [p.name for p in preds],
         "finished_at": dt.datetime.now().isoformat(timespec="seconds"), "wall_s_this_call": round(time.time() - t0, 1),
     }

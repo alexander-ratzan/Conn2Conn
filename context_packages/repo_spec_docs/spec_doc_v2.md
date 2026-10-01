@@ -17,7 +17,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 |---|---|---|---|---|
 | E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | closed 2026-09-30 | — | agent:infra |
 | E1 | Composite-loss protocol v1: linear backbone (`composite_loss/linear_backbone`) first; `CrossModal_PCA_PLS_learnable` (`composite_loss/pca_pls_learnable`) paused as the reproducibility target | in progress (linear: SLURM chain Stage 1 `18902227` → consensus `18902844` → grid `18902845` → report `18902846`; learnable paused at Stage 1 seeds 0–2) | D3, D4 | agent:modeling |
-| E2 | Cross-model benchmark (`model_benchmark`, working name) | outline (E2.0 direction audit done; E2.1 Krakencoder retrain built, parity running) | C2 | — |
+| E2 | Cross-model benchmark (`model_benchmark`, working name) | outline (E2.0 done; E2.1 Krakencoder retrain at near parity, loss-grid instance ready) | C2 | — |
 | E3 | Composite-loss magnitude tuning for final models (follow-up to E1) | outline | E1 | — |
 | C1 | `torch_geometric` missing from `kraken_env` | done 2026-09-30 (via C6) | — | agent:infra |
 | C2 | Re-tune the M5b-affected sweeps | planned (within E2) | E2 | — |
@@ -386,7 +386,7 @@ line rather than a computed row.
 with our SC 0.915), already on our SC scale (same mean 0.0533; linear fit slope 1.006, intercept 0.000), test demeaned
 r ≈ 0.116. The `mydata_kraken_demeaned*` files are other variants, not the per-seed benchmark files.
 
-#### E2.1 — Retrainable Krakencoder baseline · built 2026-10-01; parity check running
+#### E2.1 — Retrainable Krakencoder baseline · built 2026-10-01; near parity; loss-grid instance ready (not launched)
 Krakencoder becomes a refittable benchmark model instead of only cached predictions (Option A: tracked wrapper around
 the upstream trainer; a native adapter of `krakencoder.model.Krakencoder` into our Lightning loop is a later option).
 - **Code:** one package, `models/architectures/krakencoder/`: vendored upstream `vendor/` at `b57e39c` (unmodified; byte-identical to the overlay's
@@ -403,9 +403,31 @@ the upstream trainer; a native adapter of `krakencoder.model.Krakencoder` into o
   test demeaned r 0.116, avg rank 0.876, top-1 0.123.
 - **Smoke check (2026-10-01):** tag `smoke`, Glasser only, 20 epochs: inputs → train → infer → evaluate in both
   directions completes (near-chance metrics, as expected); resumable stages verified (requeue skips finished stages).
-- **Parity gate (running):** default recipe (4 flavors, March loss string, 2000 epochs), seed 0, tag `kraken_default`;
-  accept if test demeaned r and avg rank in both directions are within seed noise of the cached March predictions.
-  Then seeds 1–9 (about 50 min per seed on one GPU), evaluated with W&B.
+- **Parity (2026-10-01, seed 0, default recipe, tag `kraken_default`): near parity.** Test, retrained vs March cached:
+  SC → FC demeaned r 0.083 vs 0.083, avg rank 0.737 vs 0.734, top-1 0.072 vs 0.067; FC → SC 0.121 vs 0.120, 0.883 vs
+  0.879, 0.144 vs 0.149; per-subject r between the two prediction sets 0.999 (SC → FC) and 1.000 (FC → SC). Not
+  bit-identical: GPU / shuffle nondeterminism and a different code copy (`krakencoder_experimental/`, its extra loss code
+  inactive for this loss string); the init-seed noise check below sizes ordinary retrain variability.
+- **Epoch pilot (same run, val, batch 41):** SC → FC val demeaned r is flat from epoch 250 (0.063 → 0.066); FC → SC
+  rises to ≈ epoch 1000–1250 (0.099 at 250, 0.117 at 1000, 0.119 at 1250–2000). At batch 64 an epoch has ≈ 1.6×
+  fewer updates, so the grid's epoch count is set from the batch-64 pilot (dense checkpoints), not from this run.
+- **Checkpoint evaluator (`checkpoint_eval.py`):** scores every saved checkpoint in-process (vendored model + transforms)
+  with `compute_basic_regression_metrics` (the benchmark tables' definitions) and the `models/train/loss.py` term
+  functions in edge space (batches of 64) → `epoch_history.csv` per fit, both directions on Glasser. The last checkpoint
+  reproduces run_model's predictions exactly (per-subject r 1.000000). Upstream records only total loss per path.
+  Caveat: upstream `generate_adapt_transformer` resets its subject-mask arguments, so input adaptation is fit on all
+  subjects (run_model, March runs and here alike); with our inputs it is near identity (fit R² 1.000).
+- **Loss-grid instance (`scripts/experiments/composite_loss/krakencoder/`, a sibling of the E1 instances; not launched):**
+  grid v1 (16 cells) + Krakencoder's paper-default loss (`correye + neidist`, weight 1) as a reference cell = 17 cells;
+  E1 terms map to Krakencoder's (`varmatch → var`, same formula; `correye`, `neidist`); fixed in every cell:
+  `mse.w1000 + enceye.w10 + encdist.w10 + latentsimloss.w10000`; weights are Krakencoder-native (its terms act in its
+  PCA-256 space), not E1's scaled-term footing. Paper-default architecture / optimiser (no Stage 1); batch 64 (D4);
+  trained on all 4 flavors, evaluated on Glasser in both directions. Sets: `pilot` (mse_only, ce_0.5, nd_0.5,
+  kraken_default × seed 0), `grid` (17 cells × seeds 0–4 = 85 fits, 22 jobs of 4), `noise` (kraken_default, seed 0,
+  init seeds 1–2). `grid_runner.py` plans, runs fits packed 4 per GPU (`launch_grid.sh`), scores them and collects
+  E1-schema tables (`seed_records`, `epoch_history` + `direction`, `random_seed`). Smoke check (20 epochs, packed 4):
+  passed end to end. **Budget:** ≈ 48 min per fit unpacked at 2000 epochs / batch 41; the pilot measures packed
+  throughput and the batch-64 plateau, then the grid's `epochs` is fixed in `config.yml` before launch.
 - **Variants:** a copy of `Krakencoder.yml` with a new `tag` and `retrain:` block (e.g. MSE-only `losstype`, Glasser-only
   `parcellations` for equal-data comparison, E1/E3-informed weights). Not Tune-searchable (each fit is a full run).
 - **Pattern for other external baselines:** vendor upstream unmodified; adapt only in a wrapper; build inputs from
@@ -453,6 +475,7 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-09-30 | E2: both directions in scope; E2.0 direction audit recorded (generic vs needs config/loader vs reverse variants), reverse-variant requirement (FC graph threshold τ, default 0.5), `FC → SC` ceiling from literature, Krakencoder `FC → SC` file/key reference. README model table regrouped by model type × learning type. |
 | 2026-10-01 | E2.1: retrainable Krakencoder (vendored upstream `b57e39c`, wrapper, `Krakencoder` model, launcher); loader serves both directions; local copy renamed `krakencoder_experimental/`; smoke check passed, parity run started. |
 | 2026-10-01 | E2.1 restructured: vendored upstream, retrain wrapper and loader moved into one package `models/architectures/krakencoder/` (no root `third_party/`, no `scripts/krakencoder/`); launcher stays in `scripts/sbatch/Krakencoder/`. |
+| 2026-10-01 | E2.1: near parity with the March fit (seed 0); epoch pilot at batch 41; `checkpoint_eval.py`; Krakencoder loss-grid instance (17 cells incl. paper default, packed runner) built and smoke-checked, not launched. |
 | 2026-09-30 | E1 prereqs done: slug → `composite_loss/linear_backbone`; E1.1 (fixed scales + monitor-only terms) built and verified on local branch `e1-loss-scale-monitor`, merges when E0 closes; Stage 1 config and packed launcher added; E1.3/E1.4 runner design and dynamics figures specified; D3 (compute envelope, autonomous execution). |
 | 2026-09-30 | E1.1 merged (`75b7c11`) after E0 closed; regression 45/45 and E1.1 checks 23/23 on `main`; checks tracked as `scripts/sbatch/checks/loss_regression.py` and `composite_loss/checks/check_e1_loss.py`. |
 | 2026-09-30 | E1 becomes composite-loss protocol v1: shared versioned grid `composite_loss/grid.yml` (8-cell factorial at w = 0.5 + 8 dose points), batch 64 (D4), Stage 1 at 24 trials; replicability instance `composite_loss/pca_pls_learnable` added; E3 (magnitude tuning) outlined. |

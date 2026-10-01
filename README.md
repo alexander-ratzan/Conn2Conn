@@ -264,6 +264,9 @@ python main.py --mode prod --model Krakencoder --config models/configs/Krakencod
 - outputs: `results/krakencoder/<tag>/seed{seed}/` (checkpoint, transforms, logs, `manifest.json`,
   `predictions_source_{parc}.{SC|FC}.mat`); shared inputs in `results/krakencoder/_inputs/`
 - about 50 min per seed on one GPU for the default recipe (2000 epochs, 4 flavors)
+- per-checkpoint curves: `python -m models.architectures.krakencoder.checkpoint_eval --run-dir results/krakencoder/<tag>/seed<S>`
+  (our metrics and loss terms at every saved checkpoint, both directions) → `epoch_history.csv`
+- loss-weight grid (composite-loss experiment instance): `scripts/experiments/composite_loss/krakencoder/`
 
 **Precomputed (`Krakencoder_precomputed`):** the cached March 2026 predictions in
 `krakencoder_experimental/example_data/` (`mydata_kraken_seed{seed}_source_{parc}.{SC|FC}.mat`), produced by the
@@ -348,7 +351,7 @@ Conn2Conn/
 │   ├── architectures/               # Model definitions grouped by architecture family
 │   │   ├── crossmodal_pca_pls.py    # PCA/PLS closed-form, learnable, and cov-projector baselines
 │   │   ├── crossmodal_vae.py        # VAE baseline
-│   │   ├── krakencoder/             # Krakencoder: vendor/ (upstream, unmodified), retrain.py, precomputed.py
+│   │   ├── krakencoder/             # Krakencoder: vendor/ (upstream, unmodified), retrain.py, precomputed.py, checkpoint_eval.py
 │   │   ├── sarwar2020_mlp.py
 │   │   ├── latent_attention/        # Latent attention and conditional Gaussian models
 │   │   └── graph_based/             # Chen GCN, NodalGNN, NodalMLP, graph feature builders

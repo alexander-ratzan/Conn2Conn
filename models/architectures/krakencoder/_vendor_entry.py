@@ -41,18 +41,33 @@ def _patch_flavor_lookup() -> None:
             module.canonical_data_flavor = canonical_data_flavor
 
 
-def main() -> None:
-    if len(sys.argv) < 2 or sys.argv[1] not in SCRIPTS:
-        sys.exit(f"usage: {Path(__file__).name} {{{','.join(SCRIPTS)}}} [args...]")
-    script = SCRIPTS[sys.argv[1]]
-    sys.path.insert(0, str(VENDOR_DIR))
+def activate():
+    """Import the vendored `krakencoder` (first on sys.path), check where it came from, patch the flavor lookup.
+
+    Idempotent; also used in-process (checkpoint_eval.py). Fails if another `krakencoder` was imported first.
+    """
+    if str(VENDOR_DIR) not in sys.path:
+        sys.path.insert(0, str(VENDOR_DIR))
     import krakencoder
 
     loaded = Path(krakencoder.__file__).resolve()
     if VENDOR_DIR not in loaded.parents:
-        sys.exit(f"krakencoder imported from {loaded}, expected the vendored copy under {VENDOR_DIR}")
-    _patch_flavor_lookup()
-    print(f"[krakencoder vendor] {krakencoder.__version__} from {loaded.parent}", flush=True)
+        raise ImportError(f"krakencoder imported from {loaded}, expected the vendored copy under {VENDOR_DIR}")
+    if not getattr(krakencoder, "_conn2conn_patched", False):
+        _patch_flavor_lookup()
+        krakencoder._conn2conn_patched = True
+    return krakencoder
+
+
+def main() -> None:
+    if len(sys.argv) < 2 or sys.argv[1] not in SCRIPTS:
+        sys.exit(f"usage: {Path(__file__).name} {{{','.join(SCRIPTS)}}} [args...]")
+    script = SCRIPTS[sys.argv[1]]
+    try:
+        krakencoder = activate()
+    except ImportError as exc:
+        sys.exit(str(exc))
+    print(f"[krakencoder vendor] {krakencoder.__version__} from {Path(krakencoder.__file__).parent}", flush=True)
     sys.argv = [str(script)] + sys.argv[2:]
     runpy.run_path(str(script), run_name="__main__")
 
