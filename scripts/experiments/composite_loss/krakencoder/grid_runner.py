@@ -38,6 +38,7 @@ def cells(cfg: dict) -> list[dict]:
     grid = yaml.safe_load((REPO_ROOT / cfg["grid_file"]).read_text())
     out = [{**c, "grid_version": grid["version"]} for c in grid["combos"]]
     out += [{**c, "grid_version": grid["version"]} for c in cfg.get("reference_cells", [])]
+    out += [{**c, "grid_version": grid["version"]} for c in cfg.get("extension_cells", [])]
     ids = [c["id"] for c in out]
     if len(set(ids)) != len(ids):
         sys.exit(f"duplicate cell ids: {ids}")
@@ -47,10 +48,10 @@ def cells(cfg: dict) -> list[dict]:
 def loss_string(cfg: dict, cell: dict) -> str:
     parts = []
     for term in TERMS:
-        w = float(cell.get(term, 0.0) or 0.0)
+        w = float(cell.get(term, 0.0) or 0.0) * float(cfg.get("term_anchor", {}).get(term, 1.0))
         if w > 0:
             name = cfg["term_map"][term]
-            parts.append(name if w == 1 else f"{name}.w{w:g}")
+            parts.append(name if w == 1 else f"{name}.w{round(w, 4):g}")
     return "+".join(parts + [cfg["fixed_loss"]])
 
 
@@ -143,8 +144,11 @@ def collect(cfg: dict, fits: list[dict], set_name: str, suffix: str) -> None:
             missing.append(f"{fit['tag']}/seed{fit['seed']}")
             continue
         cell = fit["cell"]
+        anchor = cfg.get("term_anchor", {})
         extra = {"grid_version": cell["grid_version"], "combo_id": cell["id"], "block": cell.get("block", ""),
-                 **{f"w_{t}": float(cell.get(t, 0.0) or 0.0) for t in TERMS}, "random_seed": fit["random_seed"]}
+                 **{f"w_{t}": float(cell.get(t, 0.0) or 0.0) for t in TERMS},
+                 **{f"native_w_{t}": float(cell.get(t, 0.0) or 0.0) * float(anchor.get(t, 1.0)) for t in TERMS},
+                 "random_seed": fit["random_seed"]}
         rows = list(csv.DictReader(open(path)))
         last = max(int(r["epoch"]) for r in rows)
         for r in rows:

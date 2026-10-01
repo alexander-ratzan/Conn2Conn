@@ -18,9 +18,21 @@ term_map: {varmatch: var, correye: correye, neidist: neidist}  # grid term -> Kr
 # `correye_dm` (demeaned correye; E1 grid v2/v3) restricted to the top 256 PCs, not to plain `correye`. `neidist`
 # (distances) and `var` (relative variance across subjects) are unaffected by demeaning. Grid stays v1 (user decision).
 fixed_loss: "mse.w1000+enceye.w10+encdist.w10+latentsimloss.w10000"   # in every cell (MSE anchor + latent terms)
+# Option B (user, 2026-10-01): grid level x anchor = native weight, anchored to the paper default. correye / neidist:
+# anchor 1 (paper weight). var (not in the paper): anchor 9.2, so var at level 1.0 has the same share of the MSE term
+# as correye at its paper weight. Measured at the paper-default solution (kraken_default seed 0, ep 2000, batches of
+# 64, Krakencoder's training space, checks/term_magnitudes.py): correye/(1000*mse) = 0.16-0.27 (mean 0.199 over the
+# four Glasser paths), var/(1000*mse) = 0.020-0.025 (mean 0.0217); 0.199 / 0.0217 = 9.2. neidist's value is ~0 and
+# negative (a self-vs-nearest-other distance difference), so it keeps the paper anchor.
+term_anchor: {varmatch: 9.2, correye: 1.0, neidist: 1.0}
 reference_cells:
   # Krakencoder paper default: correye + neidist at weight 1 (with the fixed terms above)
   - {id: kraken_default, block: reference, varmatch: 0.0, correye: 1.0, neidist: 1.0}
+extension_cells:            # option B: one dose level above the paper default (grid v1 stops at 1.0)
+  - {id: vm_2.0,  block: extension, varmatch: 2.0, correye: 0.0, neidist: 0.0}
+  - {id: ce_2.0,  block: extension, varmatch: 0.0, correye: 2.0, neidist: 0.0}
+  - {id: nd_2.0,  block: extension, varmatch: 0.0, correye: 0.0, neidist: 2.0}
+  - {id: all_2.0, block: extension, varmatch: 2.0, correye: 2.0, neidist: 2.0}
 
 recipe:                     # overrides of base_config `retrain:` for every fit
   batch_size: 64            # protocol batch size (D4); Krakencoder default is 41
@@ -39,7 +51,7 @@ sets:
     cells: [mse_only, ce_0.5, nd_0.5, kraken_default]
     seeds: [0]
   grid:
-    cells: all              # 16 grid cells + reference cells
+    cells: all              # 16 grid v1 cells + reference + extension = 21 cells
     seeds: [0, 1, 2, 3, 4]
   noise:                    # retrain variability at a fixed split: init seeds only
     cells: [kraken_default]
@@ -48,3 +60,20 @@ sets:
 
 packing:
   fits_per_job: 4           # concurrent fits on one GPU
+
+# Autonomy (user, 2026-10-01: run the pilot, then carry on autonomously). The agent proceeds pilot -> grid -> report
+# without asking while every gate holds; any failed gate stops the run and is reported.
+autonomy:
+  pilot_gate:
+    - all pilot fits finish (no OOM, no underutilisation kill); packed GPU use is logged (results/logs/cl_kraken_*.gpu.csv)
+    - kraken_default (batch 64) final val demeaned r within 0.01 of the batch-41 parity fit, both directions
+  epochs_rule: >-
+    smallest checkpoint epoch at which, for both directions, the mean over pilot cells of val demeaned r is >= 98% of
+    its maximum over checkpoints and val avg rank is >= its maximum - 0.005; add 20% and round up to a multiple of
+    100 (cap 2000). Written to recipe.epochs before the grid starts.
+  grid_budget_gpu_h: 40      # projected = 27 jobs x measured packed job wall (scaled to the chosen epochs); above -> stop
+  stop_if:
+    - any grid job fails twice (after its automatic requeue)
+    - a cell's fits are all non-finite or worse than mse_only by > 0.05 val demeaned r in both directions (diverged)
+  after_grid: collect tables, per-cell summary (mean +- SD over seeds, by direction), dose and epoch-curve figures (PNG),
+    write-up, spec update; then stop for review.

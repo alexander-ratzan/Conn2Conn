@@ -418,7 +418,10 @@ the upstream trainer; a native adapter of `krakencoder.model.Krakencoder` into o
   Caveat: upstream `generate_adapt_transformer` resets its subject-mask arguments, so input adaptation is fit on all
   subjects (run_model, March runs and here alike); with our inputs it is near identity (fit R² 1.000).
 - **Loss-grid instance (`scripts/experiments/composite_loss/krakencoder/`, a sibling of the E1 instances; not launched):**
-  grid v1 (16 cells) + Krakencoder's paper-default loss (`correye + neidist`, weight 1) as a reference cell = 17 cells;
+  grid v1 (16 cells) + Krakencoder's paper-default loss (`correye + neidist`, weight 1) as a reference cell + 4 extension
+  cells at level 2.0 = 21 cells (105 fits, 27 jobs); weights = grid level × anchor (option B, user 2026-10-01): `correye`,
+  `neidist` anchor 1 (paper weight), `var` anchor 9.2 (its level-1 share of the MSE term = `correye`'s at the paper
+  weight: 0.0217 vs 0.199 of 1000·MSE at the paper-default solution, `checks/term_magnitudes.py`);
   E1 terms map to Krakencoder's (`varmatch → var`, same formula; `correye`, `neidist`; Krakencoder's native `correye`
   acts in its mean-centred PCA space, so it is closest to our `correye_dm`, not plain `correye`; grid stays v1); fixed in every cell:
   `mse.w1000 + enceye.w10 + encdist.w10 + latentsimloss.w10000`; weights are Krakencoder-native (its terms act in its
@@ -427,7 +430,8 @@ the upstream trainer; a native adapter of `krakencoder.model.Krakencoder` into o
   kraken_default × seed 0), `grid` (17 cells × seeds 0–4 = 85 fits, 22 jobs of 4), `noise` (kraken_default, seed 0,
   init seeds 1–2). `grid_runner.py` plans, runs fits packed 4 per GPU (`launch_grid.sh`), scores them and collects
   E1-schema tables (`seed_records`, `epoch_history` + `direction`, `random_seed`). Smoke check (20 epochs, packed 4):
-  passed end to end. **Budget:** ≈ 48 min per fit unpacked at 2000 epochs / batch 41; the pilot measures packed
+  passed end to end. Pilot (`18973935`) and noise check (`18973936`) submitted 2026-10-01; then autonomous per the
+  instance `config.yml` `autonomy:` block (pilot gate, epochs rule, 40 GPU-h grid budget, stop conditions). **Budget:** ≈ 48 min per fit unpacked at 2000 epochs / batch 41; the pilot measures packed
   throughput and the batch-64 plateau, then the grid's `epochs` is fixed in `config.yml` before launch.
 - **Variants:** a copy of `Krakencoder.yml` with a new `tag` and `retrain:` block (e.g. MSE-only `losstype`, Glasser-only
   `parcellations` for equal-data comparison, E1/E3-informed weights). Not Tune-searchable (each fit is a full run).
