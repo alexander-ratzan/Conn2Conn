@@ -1,0 +1,58 @@
+# Composite-loss grid protocol v3 (spec v2 E1). Shared by every model instance of the experiment
+# (scripts/experiments/composite_loss/<model>/config.yml -> grid_file). Never edit a released version: add a new one.
+#
+# Same scaling as v1 / v2: weights apply to term_t / c_t, c_t = s_t / s_mse measured on each model's own Stage 1
+# MSE-only consensus fit; MSE is the anchor (weight 1, never ablated); loss_normalize: none.
+#
+# Changes from v2 (combination ids unchanged where the combination is unchanged):
+#   - correye_dm (demeaned corr-eye) is the corr-eye variant used in every mixture. v2 showed raw correye is inert
+#     until it collapses predictions like varmatch, so it keeps only its single-term sweep, as a reference.
+#   - The mixtures form a full 2 x 2 x 2 factorial over {varmatch, correye_dm, neidist} at w = 0.5 (8 cells incl.
+#     MSE-only), plus the three-term dose points at 0.1 and 1.0.
+#   - Dropped from v2: the five raw-correye mixtures (vm_ce_0.5, ce_nd_0.5, all_0.1, all_0.5, all_1.0).
+#     Added: alldm_0.1, alldm_1.0.
+#   - The largest model is MSE + varmatch + correye_dm + neidist (correye and correye_dm are never both active).
+
+version: v3
+batch_size: 64            # protocol batch size (D4); correye / neidist compare subjects within a batch
+terms: [varmatch, correye, correye_dm, neidist]
+exclusive: [[correye, correye_dm]]
+
+combos:
+  # --- 2 x 2 x 2 factorial at w = 0.5 over varmatch, demeaned corr-eye, neighbor dist ---
+  - {id: mse_only,     block: factorial, varmatch: 0.0, correye: 0.0, correye_dm: 0.0, neidist: 0.0}
+  - {id: vm_0.5,       block: factorial, varmatch: 0.5, correye: 0.0, correye_dm: 0.0, neidist: 0.0}
+  - {id: cedm_0.5,     block: factorial, varmatch: 0.0, correye: 0.0, correye_dm: 0.5, neidist: 0.0}
+  - {id: nd_0.5,       block: factorial, varmatch: 0.0, correye: 0.0, correye_dm: 0.0, neidist: 0.5}
+  - {id: vm_cedm_0.5,  block: factorial, varmatch: 0.5, correye: 0.0, correye_dm: 0.5, neidist: 0.0}
+  - {id: vm_nd_0.5,    block: factorial, varmatch: 0.5, correye: 0.0, correye_dm: 0.0, neidist: 0.5}
+  - {id: cedm_nd_0.5,  block: factorial, varmatch: 0.0, correye: 0.0, correye_dm: 0.5, neidist: 0.5}
+  - {id: alldm_0.5,    block: factorial, varmatch: 0.5, correye: 0.0, correye_dm: 0.5, neidist: 0.5}
+  # --- dose response: varmatch, neighbor dist, and all three (demeaned corr-eye) at 0.1 and 1.0 ---
+  - {id: vm_0.1,       block: dose,      varmatch: 0.1, correye: 0.0, correye_dm: 0.0, neidist: 0.0}
+  - {id: vm_1.0,       block: dose,      varmatch: 1.0, correye: 0.0, correye_dm: 0.0, neidist: 0.0}
+  - {id: nd_0.1,       block: dose,      varmatch: 0.0, correye: 0.0, correye_dm: 0.0, neidist: 0.1}
+  - {id: nd_1.0,       block: dose,      varmatch: 0.0, correye: 0.0, correye_dm: 0.0, neidist: 1.0}
+  - {id: alldm_0.1,    block: dose,      varmatch: 0.1, correye: 0.0, correye_dm: 0.1, neidist: 0.1}
+  - {id: alldm_1.0,    block: dose,      varmatch: 1.0, correye: 0.0, correye_dm: 1.0, neidist: 1.0}
+  # --- demeaned corr-eye ladder (with cedm_0.5 above: 8 levels) ---
+  - {id: cedm_0.1,     block: dose_dm,   varmatch: 0.0, correye: 0.0, correye_dm: 0.1,  neidist: 0.0}
+  - {id: cedm_1.0,     block: dose_dm,   varmatch: 0.0, correye: 0.0, correye_dm: 1.0,  neidist: 0.0}
+  - {id: cedm_2,       block: dose_dm,   varmatch: 0.0, correye: 0.0, correye_dm: 2.0,  neidist: 0.0}
+  - {id: cedm_5,       block: dose_dm,   varmatch: 0.0, correye: 0.0, correye_dm: 5.0,  neidist: 0.0}
+  - {id: cedm_10,      block: dose_dm,   varmatch: 0.0, correye: 0.0, correye_dm: 10.0, neidist: 0.0}
+  - {id: cedm_20,      block: dose_dm,   varmatch: 0.0, correye: 0.0, correye_dm: 20.0, neidist: 0.0}
+  - {id: cedm_50,      block: dose_dm,   varmatch: 0.0, correye: 0.0, correye_dm: 50.0, neidist: 0.0}
+  # --- raw corr-eye reference ladder (single term only) ---
+  - {id: ce_0.1,       block: dose_ce,   varmatch: 0.0, correye: 0.1,  correye_dm: 0.0, neidist: 0.0}
+  - {id: ce_0.5,       block: dose_ce,   varmatch: 0.0, correye: 0.5,  correye_dm: 0.0, neidist: 0.0}
+  - {id: ce_1.0,       block: dose_ce,   varmatch: 0.0, correye: 1.0,  correye_dm: 0.0, neidist: 0.0}
+  - {id: ce_2,         block: dose_ce,   varmatch: 0.0, correye: 2.0,  correye_dm: 0.0, neidist: 0.0}
+  - {id: ce_5,         block: dose_ce,   varmatch: 0.0, correye: 5.0,  correye_dm: 0.0, neidist: 0.0}
+  - {id: ce_10,        block: dose_ce,   varmatch: 0.0, correye: 10.0, correye_dm: 0.0, neidist: 0.0}
+  - {id: ce_20,        block: dose_ce,   varmatch: 0.0, correye: 20.0, correye_dm: 0.0, neidist: 0.0}
+  - {id: ce_50,        block: dose_ce,   varmatch: 0.0, correye: 50.0, correye_dm: 0.0, neidist: 0.0}
+
+# 29 combinations x 5 seeds = 145 runs per model:
+#   1 MSE-only · 22 single-term points (VM 3, ND 3, dCE 8, CE 8) · 3 two-term (0.5) · 3 three-term (0.1 / 0.5 / 1.0)
+# W&B tags per Stage 2 run: <model>, loss_grid:v3, combo:<id>, composite_loss:stage2

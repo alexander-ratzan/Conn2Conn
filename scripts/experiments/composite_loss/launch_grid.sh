@@ -1,6 +1,7 @@
 #!/bin/bash
 # Composite-loss protocol (spec v2 E1). E1.4: the grid combinations x 5 seeds, interleaved over 8 array tasks, 5 runs in parallel per GPU.
-#   sbatch scripts/experiments/composite_loss/launch_grid.sh <instance>      (instance = folder under scripts/experiments/composite_loss/)
+#   sbatch scripts/experiments/composite_loss/launch_grid.sh <instance> [combo_id ...]   (instance = folder under scripts/experiments/composite_loss/;
+#   combo ids restrict the run, e.g. sbatch --array=0 ... launch_grid.sh linear_backbone alldm_0.1 alldm_1.0)
 # Exit code 2 from protocol.py = a D3 stop condition tripped (see the job log and the instance state.yml).
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced
@@ -17,7 +18,9 @@
 
 set -euo pipefail
 
-INSTANCE="${1:?usage: sbatch scripts/experiments/composite_loss/launch_grid.sh <instance>}"
+INSTANCE="${1:?usage: sbatch scripts/experiments/composite_loss/launch_grid.sh <instance> [combo_id ...]}"
+shift
+COMBOS="${*:-}"   # optional: only these combinations (e.g. the ones a newer grid adds); default all
 module purge
 CONN2CONN_DIR="/scratch/asr655/neuroinformatics/Conn2Conn"
 cd "${CONN2CONN_DIR}"
@@ -37,7 +40,7 @@ singularity exec --nv \
     export PYTHONUNBUFFERED=1 MPLBACKEND=Agg
     cd ${CONN2CONN_DIR}
     INSTANCE=${INSTANCE} SLURM_ARRAY_TASK_ID=${SLURM_ARRAY_TASK_ID:-0} SLURM_ARRAY_TASK_COUNT=${SLURM_ARRAY_TASK_COUNT}
-    python scripts/experiments/composite_loss/protocol.py grid --instance ${INSTANCE} --task-index ${SLURM_ARRAY_TASK_ID} --tasks ${SLURM_ARRAY_TASK_COUNT}
+    python scripts/experiments/composite_loss/protocol.py grid --instance ${INSTANCE} --task-index ${SLURM_ARRAY_TASK_ID} --tasks ${SLURM_ARRAY_TASK_COUNT} ${COMBOS:+--combos ${COMBOS}}
   "
 
 echo "Job Over at $(date)"

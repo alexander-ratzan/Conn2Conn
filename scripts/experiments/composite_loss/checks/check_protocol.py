@@ -76,6 +76,11 @@ def stage1_checks(tmp):
     counts = best["p.n_components_pca_source"].value_counts()
     check("consensus: categorical majority", consensus["n_components_pca_source"] in counts[counts == counts.max()].index)
     check("consensus: every search key decided", set(consensus) == set(search))
+    tr2 = pd.DataFrame({"seed": range(5), "val_demeaned_r": [0.1, 0.2, 0.3, 0.4, 0.5], "p.max_epochs": [50, 50, 200, 250, 250]})
+    c2, _ = lg.consensus_config(tr2, {"max_epochs": {"type": "choice", "values": [50, 100, 150, 200, 250], "consensus": "median"}})
+    c3, _ = lg.consensus_config(tr2, {"max_epochs": {"type": "choice", "values": [50, 100, 150, 200, 250]}})
+    check("consensus: `consensus: median` choice -> median snapped to the grid (200), majority otherwise (250)",
+          c2["max_epochs"] == 200 and c3["max_epochs"] == 250)
     ok, stats = lg.consensus_accepted({s: v for s, v in zip(range(5), [0.1] * 5)}, {s: 0.1 for s in range(5)})
     check("consensus_accepted: equal -> accepted", ok)
     ok2, _ = lg.consensus_accepted({s: 0.05 for s in range(5)}, {0: 0.10, 1: 0.11, 2: 0.10, 3: 0.11, 4: 0.10})
@@ -101,13 +106,13 @@ def loss_config_checks():
         if not ok:
             print("   bad combo", c["id"], r)
     n = len(cfg["grid"]["combos"])
-    check(f"all {n} grid combos resolve (signature, normalize none, scales, monitors = inactive terms)", ok_all and n == 32)
+    check(f"all {n} grid combos resolve (signature, normalize none, scales, monitors = inactive terms)", ok_all and n == 29)
     try:
         lg.combo_loss_trainer({"id": "bad", "correye": 0.5, "correye_dm": 0.5}, scales, 64)
         check("correye + correye_dm in one combination raises", False)
     except ValueError:
         check("correye + correye_dm in one combination raises", True)
-    check("no grid v2 combination activates both correye variants",
+    check("no grid combination activates both correye variants",
           all(not (c.get("correye", 0) > 0 and c.get("correye_dm", 0) > 0) for c in cfg["grid"]["combos"]))
 
 
@@ -206,7 +211,7 @@ def report_checks(tmp):
             out.mkdir(parents=True)
             for c in combos:
                 for seed in range(5):
-                    rec = {"model": cfg["model"], "instance": "linear_backbone", "grid_version": "v2", "stage": stage, "combo_id": c["id"],
+                    rec = {"model": cfg["model"], "instance": "linear_backbone", "grid_version": "v3", "stage": stage, "combo_id": c["id"],
                            "seed": seed, "batch_size": 64, "loss_signature": lg.expected_signature(c), "val_demeaned_r_last": 0.1, "epochs": 6,
                            **{f"{sp}_{m}": float(rng.rand()) for sp in ("train", "val", "test") for m in lg.METRICS}}
                     (out / f"{c['id']}__seed{seed}.json").write_text(json.dumps(rec))
@@ -216,6 +221,8 @@ def report_checks(tmp):
                         for a in range(6):
                             ep.loc[a, "cos_mse_neidist"] = np.cos(a)
                     ep.to_csv(out / f"{c['id']}__seed{seed}__epochs.csv", index=False)
+        stray = dict(rec, combo_id="vm_ce_0.5", stage="stage2")  # a v2-only combination left in runs/
+        (inst / "runs" / "stage2" / "vm_ce_0.5__seed0.json").write_text(json.dumps(stray))
         spec = importlib.util.spec_from_file_location("report", lg.REPO_ROOT / "scripts/experiments/composite_loss/report.py")
         report = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(report)
@@ -227,7 +234,7 @@ def report_checks(tmp):
         missing = [e for e in expected if not (inst / e).exists()]
         check("report.build writes every table and figure", rc == 0 and not missing, f"missing={missing}")
         summ = pd.read_csv(inst / "tables" / "combo_summary.csv")
-        check("combo_summary: 32 combinations × 5 seeds, grid order", len(summ) == 32 and (summ["n_seeds"] == 5).all()
+        check("combo_summary: 29 combinations × 5 seeds, grid order", len(summ) == 29 and (summ["n_seeds"] == 5).all()
               and summ["combo_id"].tolist() == [c["id"] for c in cfg["grid"]["combos"]])
         snap = tmp / "snap"
         shutil.copytree(inst / "tables", snap / "tables")
@@ -236,7 +243,7 @@ def report_checks(tmp):
         same = all(filecmp.cmp(snap / e, inst / e, shallow=False) for e in expected if not e.endswith(".gz"))
         check("report is deterministic (tables, PNGs and HTML byte-identical on rebuild)", same)
         htm = (inst / "figures" / "tradeoff_interactive.html").read_text()
-        check("interactive HTML: 32 clickable points, no external scripts", htm.count('class="pt"') == 32 and "<script src" not in htm)
+        check("interactive HTML: 29 clickable points, no external scripts", htm.count('class="pt"') == 29 and "<script src" not in htm)
     finally:
         lg.EXPERIMENT_DIR = orig
 

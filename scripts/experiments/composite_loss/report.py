@@ -376,6 +376,16 @@ def build(instance):
     if records.empty:
         print(f"{instance}: no runs yet")
         return 1
+    # Only the instance's current grid: runs of combinations from an older grid stay in runs/ (and W&B) but are not
+    # mixed into this grid's tables and figures.
+    grid_ids = {c["id"] for c in cfg["grid"]["combos"]}
+    keep = (records["stage"] != "stage2") | records["combo_id"].isin(grid_ids)
+    dropped = sorted(set(records.loc[~keep, "combo_id"]))
+    if dropped:
+        print(f"{instance}: excluding {len(dropped)} combinations not in grid {cfg['grid_version']}: {dropped}")
+    records = records[keep]
+    if not epochs.empty:
+        epochs = epochs[(epochs["stage"] != "stage2") | epochs["combo_id"].isin(grid_ids)]
     d = lg.instance_dir(instance)
     (d / "tables").mkdir(exist_ok=True)
     (d / "figures").mkdir(exist_ok=True)

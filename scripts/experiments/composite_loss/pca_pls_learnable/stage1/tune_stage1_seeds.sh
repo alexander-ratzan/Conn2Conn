@@ -1,5 +1,5 @@
 #!/bin/bash
-# Composite-loss protocol, replicability instance, Stage 1 (spec v2 E1): 32-trial MSE-only tune of CrossModal_PCA_PLS_learnable on
+# Composite-loss protocol, replicability instance, Stage 1 (spec v2 E1): 16-trial MSE-only tune (optimizer keys; architecture fixed) of CrossModal_PCA_PLS_learnable on
 # SC -> FC, with varmatch / correye / neidist logged as monitor-only terms. Packed 4 trials per GPU with actor
 # reuse (E0.6 pattern). Array index = shuffle seed (0-4).
 #   sbatch scripts/experiments/composite_loss/pca_pls_learnable/stage1/tune_stage1_seeds.sh
@@ -32,7 +32,7 @@ export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 
 echo "Starting job ${SLURM_JOB_ID} (task ${SLURM_ARRAY_TASK_ID}) on $(hostname) at $(date)"
-echo "Model=CrossModal_PCA_PLS_learnable  Source=SC  Config=${CONFIG}  Seed=${SEED}  (32 trials, 4 packed per GPU)"
+echo "Model=CrossModal_PCA_PLS_learnable  Source=SC  Config=${CONFIG}  Seed=${SEED}  (16 trials, 4 packed per GPU)"
 
 singularity exec --nv \
   --overlay "/scratch/$USER/envs/kraken_env/overlay-15GB-500K.ext3:ro" \
@@ -55,7 +55,7 @@ singularity exec --nv \
       --save_checkpoint \
       --use_tune \
       --search_alg optuna \
-      --num_samples 32 \
+      --num_samples 16 \
       --max_concurrent_trials 4 \
       --tune_cpus_per_trial 2 \
       --tune_gpus_per_trial 0.25 \

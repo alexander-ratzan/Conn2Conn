@@ -157,14 +157,20 @@ def stage1_summary(trials, min_best_val=None):
 
 def consensus_config(trials, search_space):
     """Consensus of the per-seed best trials: categorical keys by majority (ties -> the best-scoring seed's value),
-    loguniform keys by geometric median, uniform keys by median."""
+    loguniform keys by geometric median, uniform keys by median; a choice key with `consensus: median` (ordered
+    numeric values) takes the median of the per-seed bests, snapped to the nearest allowed value."""
     best = trials.loc[trials.groupby("seed")["val_demeaned_r"].idxmax()].sort_values("val_demeaned_r", ascending=False)
     out, detail = {}, {}
     for key, spec in search_space.items():
         col = f"p.{key}"
         vals = best[col].tolist()
         kind = spec.get("type")
-        if kind in ("choice", "grid"):
+        if kind in ("choice", "grid") and spec.get("consensus") == "median":
+            # ordered numeric choice (e.g. max_epochs): median of the per-seed bests, snapped to the nearest choice
+            allowed = np.asarray(spec["values"], dtype=float)
+            med = float(np.median(np.asarray(vals, dtype=float)))
+            out[key] = _plain(spec["values"][int(np.argmin(np.abs(allowed - med)))])
+        elif kind in ("choice", "grid"):
             counts = pd.Series([json.dumps(v) for v in vals]).value_counts()
             top = counts[counts == counts.max()].index
             winner = next(json.dumps(v) for v in vals if json.dumps(v) in top)  # best-scoring seed breaks ties

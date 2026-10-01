@@ -36,13 +36,13 @@ stage1:
 reference_scales: null           # filled by E1.3: {varmatch: c, correye: c, neidist: c, spread: {...}}
 
 # --- Stage 2 (E1.4): weight grid -----------------------------------------------------------------------------
-# The grid is the shared protocol file (v2: v1's 16 combinations + correye_dm cells + extended correye ladders; 32), so every
+# The grid is the shared protocol file (v3: demeaned corr-eye in every mixture, raw corr-eye as a single-term ladder; 29), so every
 # model instance uses identical combination ids. Weights on the scaled terms; MSE = 1; loss_normalize: none.
 # All four terms are logged in every run (inactive ones as monitor-only terms).
-grid_file: scripts/experiments/composite_loss/grid_v2.yml
-grid_version: v2
+grid_file: scripts/experiments/composite_loss/grid_v3.yml
+grid_version: v3
 stage2:
-  wandb_tags: [CrossModal_linear_backbone, "loss_grid:v2", "composite_loss:stage2"]   # plus combo:<id>, set by the runner
+  wandb_tags: [CrossModal_linear_backbone, "loss_grid:v3", "composite_loss:stage2"]   # plus combo:<id>, set by the runner
   epoch_history: tables/epoch_history.csv                # per run × epoch: raw / weighted / monitor terms, reg, val metrics
 
 # --- Compute envelope (spec v2 D3) --------------------------------------------------------------------------
@@ -62,7 +62,7 @@ stop:
   stage1_min_best_val: 0.09      # any seed's Stage 1 best val_demeaned_r below this -> stop
 runtime:
   parallel: 5                    # (combination, seed) runs sharing one GPU as separate processes
-  grid_tasks: 8                  # launch_grid.sh array size (160 runs -> 20 per task)
+  grid_tasks: 8                  # launch_grid.sh array size (145 runs -> 18-19 per task)
   grad_cosine: {param: W_mid, every: 5}   # per-term gradient cosines on the latent map (needs extra_callbacks)
 
 # --- Outputs (E1.5) -----------------------------------------------------------------------------------------
