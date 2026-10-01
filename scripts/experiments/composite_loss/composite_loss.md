@@ -72,43 +72,46 @@ are the rows for subject $i$. $\bar y \in \mathbb{R}^E$ is the training-set mean
 $\tilde x = x - \tfrac{1}{E}\sum_e x_e$ is the row centered over its edges, and $\varepsilon$ is a small
 numerical constant ($10^{-10}$).
 
-### Total loss (protocol v1, `loss_normalize: none`)
+### Total loss (protocol v1 / v2, `loss_normalize: none`)
 
 $$
 \mathcal{L}  =  \mathcal{L}_{\text{mse}}
- +  \sum_{t \in \lbrace \text{varmatch}, \text{correye}, \text{neidist} \rbrace} w_t \frac{\mathcal{L}_t}{c_t},
+ +  \sum_{t \in \lbrace \text{varmatch}, \text{correye}, \text{correye-dm}, \text{neidist} \rbrace} w_t \frac{\mathcal{L}_t}{c_t},
 \qquad
 c_t = \frac{\overline{\lvert \mathcal{L}_t \rvert}}{\overline{\mathcal{L}_{\text{mse}}}}
 $$
 
-Here $w_t$ is the grid weight (0, 0.1, 0.5 or 1) and $c_t$ is the fixed reference scale (the per-term `scale`
+Here $w_t$ is the grid weight (v1: 0, 0.1, 0.5 or 1; v2 also up to 50; `correye` and `correye_dm` are never both non-zero) and $c_t$ is the fixed reference scale (the per-term `scale`
 kwarg). Each mean $\overline{\cdot}$ is over all training batches of the trained consensus MSE-only model,
 then over seeds 0–4. The scaling means that at the consensus model each active term contributes about
 $w_t \mathcal{L}_{\text{mse}}$, so $w_t$ reads as "fraction of the MSE magnitude". The scale is fixed: it never
 adapts during training. That differs from `loss_normalize: ema`, which divides by a running mean of
 $\lvert \mathcal{L}_t \rvert$.
 
-Measured for `linear_backbone` (in `state.yml`):
+Measured on each instance's consensus fit (in `<instance>/state.yml`):
 
-| Term | $\overline{\lvert\mathcal{L}_t\rvert}$ | $c_t$ |
-|---|---|---|
-| mse | 0.0122 | 1 |
-| varmatch | 0.966 | 79.3 |
-| correye | 52.9 | 4342 |
-| neidist | 1.25 | 103 |
+| Term | linear_backbone $\overline{\lvert\mathcal{L}_t\rvert}$ | $c_t$ | pca_pls_learnable $\overline{\lvert\mathcal{L}_t\rvert}$ | $c_t$ |
+|---|---|---|---|---|
+| mse | 0.0122 | 1 | 0.0133 | 1 |
+| varmatch | 0.966 | 79.3 | 0.963 | 72.5 |
+| correye | 52.9 | 4342 | 52.9 | 3981 |
+| correye_dm | 8.58 | 705 | 12.2 | 915 |
+| neidist | 1.26 | 103 | 2.57 | 193 |
 
 ### Gradient strength (why matched loss values are not matched effects)
 
 $c_t$ equalizes each term's *value* with MSE. It does not equalize *gradients*. Below is the mean gradient norm on
 `W_mid` over training for `mse_only` (logged every 5 epochs by `TermGradCosine`), relative to MSE:
 
-| Term | $\lVert \nabla \mathcal{L}_t \rVert / (c_t \lVert \nabla \mathcal{L}_{\text{mse}} \rVert)$ | cosine with MSE gradient |
-|---|---|---|
-| varmatch | 0.40 | 0.31–0.36 |
-| correye | 0.05 | 0.26–0.31 |
-| neidist | 13.1 | 0.76 |
+| Term | linear_backbone: scaled gradient ÷ MSE's | cosine with MSE | pca_pls_learnable: scaled gradient ÷ MSE's | cosine with MSE |
+|---|---|---|---|---|
+| varmatch | 0.40 | 0.33 | 0.82 | −0.03 |
+| correye | 0.05 | 0.29 | 0.09 | −0.01 |
+| correye_dm | 6.3 | 0.19 | 7.1 | 0.29 |
+| neidist | 13.1 | 0.77 | 7.2 | 0.75 |
 
-So at the same grid weight, `neidist` pushes about 260× harder than `correye`: `neidist` at $w = 0.1$ is already
+(The scaled gradient is $\lVert \nabla \mathcal{L}_t \rVert / (c_t \lVert \nabla \mathcal{L}_{\text{mse}} \rVert)$.) So at the same grid
+weight, `neidist` pushes about 260× harder than `correye` on the linear backbone: `neidist` at $w = 0.1$ is already
 about 1.3× the MSE gradient, while `correye` at $w = 1$ is 5% of it. The grid's dose axis is therefore not
 comparable across terms. For E3, scaling by gradient norm (or sweeping each term over its own range) would make
 the weights comparable.
@@ -134,10 +137,13 @@ This penalizes the shrinkage toward the mean that MSE produces: the predictions'
 match the targets'. It constrains one scalar per batch, not each edge's variance, and says nothing about whether
 the spread points in the right subject-specific direction.
 
-### Correlation-identity (`correye`, Krakencoder)
+### Correlation-identity: `correye` (raw) and `correye_dm` (de-meaned)
 
-$C \in \mathbb{R}^{B \times B}$ holds the edge-wise Pearson correlation between every target and every prediction
-in the batch (rows = targets):
+Both terms ask that, within a batch, each prediction correlates with its own target (diagonal → 1) and not with the
+other subjects' targets (off-diagonal → 0). They differ only in what is correlated.
+
+**Raw (`correye`, as in the Krakencoder code).** $C \in \mathbb{R}^{B \times B}$ holds the edge-wise Pearson
+correlation between every target and every prediction in the batch (rows = targets):
 
 $$
 C_{ij} = \frac{\langle \tilde y_i, \tilde{\hat y}_j \rangle}
@@ -147,17 +153,61 @@ C_{ij} = \frac{\langle \tilde y_i, \tilde{\hat y}_j \rangle}
 = \sqrt{\sum_i (C_{ii} - 1)^2 + \sum_{i \ne j} C_{ij}^2}
 $$
 
-The term asks for own-subject correlations of 1 and cross-subject correlations of 0. Note that it is the
-Frobenius norm, not its square, and that the correlations are on the **raw** (not de-meaned) connectomes.
+**De-meaned (`correye_dm`, grid v2).** The same norm on correlations of the *deviations* from the training-set mean
+target $\bar y$ (each row is then centered over edges as before):
 
-*Reading of the E1 result:* raw FC rows are dominated by the shared group connectome, so every entry of $C$ sits
-near the raw Pearson $r \approx 0.83$. Plugging in diagonal 0.84 and off-diagonal 0.83 gives
-$\sqrt{64 \cdot 0.16^2 + 4032 \cdot 0.83^2} \approx 52.7$, which matches the measured mean of 52.9. The diagonal,
-which carries the identity information, is about 0.06% of $\lVert C - I \rVert_F^2$. The logged gradients (see
-*Gradient strength* below) show why the term does nothing: at $w = 1$ its scaled gradient is only about 5% of the
-MSE gradient. Correlation is invariant to each row's offset and scale, so the gradient on raw-FC-sized rows is
-small. Its direction is mostly "spread the predictions out": it is $\approx 0.86$–$0.96$ cosine-aligned with
-`varmatch`, but at about a tenth of `varmatch`'s strength.
+$$
+\mathcal{L}_{\text{correye-dm}} = \lVert C^{\text{dm}} - I_B \rVert_F,
+\qquad
+C^{\text{dm}}_{ij} = \operatorname{corr}\big(y_i - \bar y, \hat y_j - \bar y\big)
+$$
+
+Both are Frobenius norms, not squared. `correye_dm` is the closer match to Krakencoder in practice: Krakencoder
+applies its `correye` in a mean-centred PCA space, so the group mean is already removed there.
+
+**Magnitude: what each loss is made of** (consensus MSE-only fits, batch $B = 64$; the de-meaned diagonal share is
+estimated from the fits' train demeaned r)
+
+| | `correye` linear | `correye_dm` linear | `correye` learnable | `correye_dm` learnable |
+|---|---|---|---|---|
+| mean loss $\overline{\lvert\mathcal{L}\rvert}$ | 52.9 | 8.6 | 52.9 | 12.2 |
+| typical off-diagonal $\lvert C_{ij}\rvert$ | ≈ 0.83 | ≈ 0.12 | ≈ 0.83 | ≈ 0.16 |
+| diagonal share of $\lVert C - I\rVert_F^2$ | ≈ 0.06% | ≈ 23% | ≈ 0.06% | ≈ 30% |
+| reference scale $c_t$ | 4342 | 705 | 3981 | 915 |
+
+Raw FC rows are dominated by the shared group connectome, so every raw correlation, own-subject or not, sits near
+0.83. Plugging that in gives $\sqrt{64 \cdot 0.16^2 + 4032 \cdot 0.83^2} \approx 52.7$, which matches the measured
+52.9: the raw loss is essentially "the group mean is shared". Subtracting $\bar y$ removes that shared part.
+Off-diagonals fall to about 0.12, the loss drops about 6×, and the identity-carrying diagonal goes from a rounding
+error to a quarter of the loss.
+
+**Gradient: why the de-meaned signal is better**
+
+| | `correye` | `correye_dm` |
+|---|---|---|
+| scaled gradient ÷ MSE gradient, linear / learnable | 0.05 / 0.09 | **6.3 / 7.1** |
+| cosine with MSE gradient (linear) | 0.29 | 0.19 |
+| cosine with `varmatch` gradient (linear) | 0.86–0.96 | −0.07 |
+| effect at w = 0.1 (linear, paired Δ avg_rank / Δ demeaned r) | +0.000 / +0.000 | **+0.092 / −0.017** |
+| effect at w = 10 (linear) | **−0.183 / −0.040** (collapse) | +0.082 / −0.046 |
+| test MSE change (any weight, linear) | up to +0.028 | ≤ +0.0003 |
+
+1. **Raw: the only lever is the shared pattern.** Every target shares $\bar y$, so lowering a cross-subject raw
+   correlation also lowers the own-subject one. The loss is nearly flat in subject-specific directions. What gradient
+   remains says "spread the predictions out" (cosine 0.86–0.96 with `varmatch`). At w ≈ 10 it reaches varmatch's
+   strength and collapses the predictions the same way: varmatch 1.0 gives 0.064 / 0.593, correye 10 gives
+   0.063 / 0.599.
+2. **De-meaned: gradient on exactly the identity directions.** The correlation gradient scales as
+   $1/\lVert \tilde{\hat y}_j \rVert$, one over the norm of the correlated prediction row. For `correye` that row is a
+   full FC pattern. For `correye_dm` it is the predicted *deviation*, which MSE shrinks hard: the predicted
+   between-subject variance is only about 2% of the targets' at the MSE-only fit (varmatch ≈ 0.97). So the same
+   weight gives about 80–125× more gradient, and it points along subject-specific directions, nearly orthogonal to MSE,
+   `varmatch` and raw `correye`.
+3. **Why MSE does not move.** Correlation ignores scale, so `correye_dm` changes the *direction* of each predicted
+   deviation, not its size. Because the deviations are small, re-orienting them costs almost no MSE. That matches
+   test MSE being unchanged while avg_rank rises by 0.09. The price is demeaned r (the edge-wise fidelity of the
+   deviation): `correye_dm` makes each prediction distinct from the other subjects rather than closer to its own
+   target edge by edge.
 
 ### Nearest-neighbor distance (`neidist`, Krakencoder; `margin: null`)
 
@@ -200,20 +250,6 @@ At $w = 1$ it drives train `neidist` to $-4.9$ (train `avg_rank` = 1.000) and *l
 
 With `margin` $= m$ set, the code instead uses
 $d_{\text{self}} + \max(0, m - d_{\text{other}})$ (unused in v1).
-
-### De-meaned correlation-identity (`correye_dm`, grid v2)
-
-$$
-\mathcal{L}_{\text{correye-dm}} = \lVert C^{\text{dm}} - I_B \rVert_F,
-\qquad
-C^{\text{dm}}_{ij} = \operatorname{corr}\big(y_i - \bar y, \hat y_j - \bar y\big)
-$$
-
-This is `correye` after subtracting the training-set mean target $\bar y$ from both sides (each row is then
-centered over edges as before). The shared group connectome no longer dominates $C$: cross-subject entries start
-near 0, and the diagonal carries the subject-identity signal. That is the setting Krakencoder's `correye` works
-in, because Krakencoder computes its losses in a mean-centred PCA space. Its own reference scale $c_t$ and gradient
-strength are measured on each model's consensus fit like the other terms.
 
 ### Other terms in `loss.py` (not in grid v1)
 
