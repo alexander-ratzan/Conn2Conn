@@ -92,8 +92,8 @@ def fig_tradeoff(summary, path):
                [("MSE only", PALETTE["blue_main"]), ("+ varmatch", TERM_COLOR["varmatch"]), ("+ correye", TERM_COLOR["correye"]),
                 ("+ neidist", TERM_COLOR["neidist"]), ("two terms", PALETTE["green_3"]), ("all three", PALETTE["grey"])]]
     ax.legend(handles=handles, loc="best", fontsize=10)
-    ax.set_xlabel("Average rank (test)")
-    ax.set_ylabel("Demeaned corr. (test)")
+    ax.set_xlabel("Average rank (test, max)")
+    ax.set_ylabel("Demeaned corr. (test, max)")
     ax.grid(alpha=0.25, ls="--")
     _save(fig, path)
 
@@ -132,8 +132,8 @@ def fig_interactive(summary, records, path, title):
     svg = (f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="{html.escape(title)}">'
            f'<line x1="{L}" y1="{H-B}" x2="{W-20}" y2="{H-B}" class="ax"/><line x1="{L}" y1="20" x2="{L}" y2="{H-B}" class="ax"/>'
            + "".join(ticks) + "".join(points) +
-           f'<text x="{(W+L)/2:.0f}" y="{H-15}" text-anchor="middle" class="lab">Average rank (test)</text>'
-           f'<text transform="translate(18 {(H-B)/2:.0f}) rotate(-90)" text-anchor="middle" class="lab">Demeaned corr. (test)</text></svg>')
+           f'<text x="{(W+L)/2:.0f}" y="{H-15}" text-anchor="middle" class="lab">Average rank (test, max)</text>'
+           f'<text transform="translate(18 {(H-B)/2:.0f}) rotate(-90)" text-anchor="middle" class="lab">Demeaned corr. (test, max)</text></svg>')
     page = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(title)}</title><style>
 :root{{--bg:#fff;--fg:#1f2328;--muted:#57606a;--card:#f6f8fa}}
@@ -179,7 +179,7 @@ def fig_term_trajectories(ep, combos, path):
         for i, cid in enumerate(fac):
             g = m[m["combo_id"] == cid]
             ax.plot(g["epoch"], g[col], lw=2.2 if cid == "mse_only" else 1.4, color="black" if cid == "mse_only" else cmap(i), label=cid)
-        ax.set_title(col.replace("val_loss_raw_", "val "))
+        ax.set_title(col.replace("val_loss_raw_", "val ") + " (min)")
         ax.set_xlabel("Epoch")
     np.atleast_1d(axes)[0].legend(fontsize=8)
     _save(fig, path)
@@ -216,7 +216,7 @@ def fig_val_trajectories(ep, combos, path):
         g = m[m["combo_id"] == cid]
         ax.plot(g["epoch"], g["val_demeaned_r"], lw=2.2 if cid == "mse_only" else 1.4, color="black" if cid == "mse_only" else cmap(i), label=cid)
     ax.set_xlabel("Epoch")
-    ax.set_ylabel("Val demeaned r")
+    ax.set_ylabel("Val demeaned r (max)")
     ax.legend(fontsize=8, ncol=2)
     _save(fig, path)
 
@@ -225,7 +225,7 @@ def fig_dose_response(summary, path):
     plt.rcParams.update(RC)
     base = summary[summary["combo_id"] == "mse_only"].iloc[0]
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
-    for ax, metric, label in zip(axes, ("demeaned_pearson", "avg_rank"), ("Demeaned corr. (test)", "Average rank (test)")):
+    for ax, metric, label in zip(axes, ("demeaned_pearson", "avg_rank"), ("Demeaned corr. (test, max)", "Average rank (test, max)")):
         lines = {t: summary[(summary[[f"w_{u}" for u in lg.TERMS if u != t]].sum(axis=1) == 0) & (summary[f"w_{t}"] > 0)] for t in lg.TERMS}
         lines["all three"] = summary[(summary[[f"w_{u}" for u in lg.TERMS]] > 0).all(axis=1)
                                      & (summary[[f"w_{u}" for u in lg.TERMS]].nunique(axis=1) == 1)]
