@@ -91,6 +91,7 @@ _DISPLAY_METRIC_LABELS = {
 }
 _DISPLAY_MODEL_LABELS = {
     "Krakencoder_precomputed": "Krakencoder",
+    "Krakencoder": "Krakencoder (retrained)",
 }
 _MODEL_PLOT_COLORS = {
     "CrossModalPCA": "#4C78A8",
@@ -99,6 +100,7 @@ _MODEL_PLOT_COLORS = {
     "CrossModal_PCA_PLS_learnable": "#D67C1C",
     "CrossModal_PCA_PLS_CovProjector": "#F4A259",
     "Krakencoder_precomputed": "#9467BD",
+    "Krakencoder": "#7A4FA8",
     "Sarwar2020MLP": "#B07AA1",
     "Chen2024GCN": "#59A14F",
     "NodalGNN": "#17BECF",

@@ -131,21 +131,25 @@ Learned (`learned: true`):
 Closed-form / hybrid special cases present in configs:
 - `CrossModal_ConditionalGaussian` (implemented in `models/architectures/latent_attention/conditional_gaussian.py`)
 
-### Special: `Krakencoder_precomputed`
+### Special: `Krakencoder_precomputed` and `Krakencoder` (retrained)
 
-CLI/YAML model ID: `Krakencoder_precomputed`  
-Implementation class in `models/architectures/krakencoder_precomputed.py`: `KrakencoderPrecomputed`.
+CLI/YAML model IDs: `Krakencoder_precomputed` (cached March 2026 predictions) and `Krakencoder` (retrained in the repo).
+Both map to `KrakencoderPrecomputed` in `models/architectures/krakencoder_precomputed.py`.
 
 Behavior:
-- loads per-seed inference `.mat` predictions
-- stores full prediction matrix + FC targets from `base`
-- serves split-specific `(preds, targets)` via `predict_split(split)`
-- raises if `forward()` is called directly
+- loads the per-seed inference `.mat` for the run's **source** modality and takes `predicted_alltypes[source][target]`,
+  so `SC → FC` and `FC → SC` both work (every file holds all input → output types)
+- stores the prediction matrix + the matching targets (`fc_` or `sc_upper_triangles`) from `base`
+- serves split-specific `(preds, targets)` via `predict_split(split)`; raises if `forward()` is called directly
 
-Input assumptions:
-- default artifact dir: `krakencoder/example_data/`
-- file pattern: `mydata_kraken_seed{seed}_source_{parc}.{conn_type}.mat`
-- supported source keys currently map to `SC` and `FC`
+Prediction files (`krakencoder_prediction_path`):
+- `Krakencoder_precomputed` (no `tag`): `krakencoder_experimental/example_data/mydata_kraken_seed{seed}_source_{parc}.{SC|FC}.mat`
+  (gitignored local Krakencoder copy = upstream + demeaned-MSE loss; kept as reference)
+- `Krakencoder` (`tag` in `models/configs/Krakencoder.yml`): `results/krakencoder/<tag>/seed{seed}/predictions_source_{parc}.{SC|FC}.mat`,
+  written by `scripts/krakencoder/train_krakencoder.py` (vendored upstream `third_party/krakencoder/`, commit `b57e39c`,
+  unmodified; `_vendor_entry.py` pins the import and accepts our non-upstream flavor names). Inputs are built from
+  `HCP_Base` (canonical subject order = `metadata_df["subject"]`; `sc_/fc_subject_ids` keep raw load order) with the
+  per-seed `trainvaltest_partition_indices`. SLURM: `scripts/sbatch/Krakencoder/train_array_krakencoder_seeds.sh`.
 
 Naming note:
 - config file is `models/configs/Krakencoder_precomputed.yml`
@@ -504,4 +508,4 @@ Earlier:
 - Model code now lives under `models/architectures/`, training code under `models/train/`, and evaluation/reporting code under `models/eval/`.
 - Backward-compatibility shims for old top-level model/train/eval files are intentionally removed.
 
-Last updated at: 2026-09-30 EDT
+Last updated at: 2026-10-01 EDT

@@ -9,43 +9,64 @@ from scipy.io import loadmat
 # Krakencoder precomputed dummy model
 # ---------------------------------------------------------------------------
 
-# Input-type key fragments used by krakencoder inference outputs
-_KRAKEN_INPUT_KEY = {
+# Connectome-flavor keys used in Krakencoder inference outputs (`predicted_alltypes[input][output]`).
+_KRAKEN_FLAVOR_KEY = {
     "SC": "SCifod2act_{parc}_volnorm",
     "FC": "FCcorr_{parc}_hpf",
 }
-_KRAKEN_OUTPUT_KEY = "FCcorr_{parc}_hpf"
+# Legacy name kept for callers that imported it.
+_KRAKEN_INPUT_KEY = _KRAKEN_FLAVOR_KEY
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+# Cached March 2026 predictions (gitignored local Krakencoder copy).
+LEGACY_PREDICTIONS_DIR = _REPO_ROOT / "krakencoder_experimental" / "example_data"
+LEGACY_FILE_PATTERN = "mydata_kraken_seed{seed}_source_{parc}.{conn}.mat"
+# Retrained runs (scripts/krakencoder/train_krakencoder.py): <root>/<tag>/seed{seed}/<pattern>.
+RETRAINED_PREDICTIONS_ROOT = _REPO_ROOT / "results" / "krakencoder"
+RETRAINED_FILE_PATTERN = "predictions_source_{parc}.{conn}.mat"
+
+
+def krakencoder_prediction_path(seed, parc, conn, tag=None, predictions_root=None, kraken_predictions_dir=None):
+    """Path of the inference file for one seed / parcellation / source modality.
+
+    `tag` selects a retrained run under `predictions_root` (default `results/krakencoder`); otherwise the legacy
+    cache directory `kraken_predictions_dir` (default `krakencoder_experimental/example_data`) is used.
+    """
+    if tag:
+        root = Path(predictions_root) if predictions_root else RETRAINED_PREDICTIONS_ROOT
+        return root / str(tag) / f"seed{seed}" / RETRAINED_FILE_PATTERN.format(parc=parc, conn=conn)
+    directory = Path(kraken_predictions_dir) if kraken_predictions_dir else LEGACY_PREDICTIONS_DIR
+    return directory / LEGACY_FILE_PATTERN.format(seed=seed, parc=parc, conn=conn)
 
 
 class KrakencoderPrecomputed(nn.Module):
     """
-    Dummy Conn2Conn model that serves precomputed Krakencoder predictions.
+    Conn2Conn model that serves Krakencoder predictions computed outside the training loop.
 
-    At construction time the model loads the per-seed inference `.mat` file
-    produced by `krakencoder_runner.ipynb` and stores the full [957 x N_edges]
-    prediction array together with the corresponding FC ground-truth array from
-    `base`.  `predict_split()` then slices both by the partition indices stored
-    in `base`, returning ready-to-evaluate (preds, targets) pairs without ever
-    running a forward pass through a neural network.
+    At construction time the model loads the per-seed inference `.mat` file for the run's source modality, takes the
+    prediction for the run's **target** modality (so both `SC -> FC` and `FC -> SC` work: every inference file holds
+    all input -> output types), and stores it with the matching ground truth from `base`. `predict_split()` slices
+    both by the partition indices in `base`, so no forward pass is run.
 
-    The model is wired as a closed-form (learned=false) model so it follows the
-    same wandb prod-run path as CrossModalPCA / CrossModal_PLS_SVD — with one
-    small guard in `Sim._evaluate_model` that calls `predict_split()` instead of
-    `predict_from_loader()`.
+    Two prediction sources:
+      - registry name `Krakencoder_precomputed` (no `tag`): the cached March 2026 predictions in
+        `krakencoder_experimental/example_data/` (`mydata_kraken_seed{seed}_source_{parc}.{SC|FC}.mat`);
+      - registry name `Krakencoder` (`tag` set): a retrained run written by `scripts/krakencoder/train_krakencoder.py`
+        to `results/krakencoder/<tag>/seed{seed}/predictions_source_{parc}.{SC|FC}.mat`.
 
-    No tuning is possible: the YAML `search_space` is intentionally empty, which
-    causes `Sim.run_tune()` to raise `ValueError` immediately.
+    The model is wired as closed-form (`learned: false`), so it follows the CrossModalPCA prod-run path; the YAML
+    `search_space` is empty, so `Sim.run_tune()` raises immediately (variants are separate retrain tags).
 
     Args:
-        base: `HCP_Base` instance.  `base.shuffle_seed`, `base.parcellation`,
-              and `base.source` determine which inference file is loaded.
-        kraken_predictions_dir: Directory that contains the inference `.mat`
-              files.  Defaults to `<repo_root>/krakencoder/example_data/`.
+        base: `HCP_Base` instance; `shuffle_seed`, `parcellation`, `source` and `target` pick the file and key.
+        kraken_predictions_dir: legacy cache directory (only used without `tag`).
+        tag: retrained-run tag under `predictions_root`.
+        predictions_root: root of retrained runs (default `<repo>/results/krakencoder`).
     """
 
     is_precomputed = True
 
-    def __init__(self, base, kraken_predictions_dir=None, **kwargs):
+    def __init__(self, base, kraken_predictions_dir=None, tag=None, predictions_root=None, **kwargs):
         super().__init__()
 
         seed = base.shuffle_seed
@@ -56,46 +77,42 @@ class KrakencoderPrecomputed(nn.Module):
             if hasattr(base, "source_modalities")
             else base.source
         )
+        target = base.target
+        for role, modality in (("source", conn_type), ("target", target)):
+            if modality not in _KRAKEN_FLAVOR_KEY:
+                raise ValueError(
+                    f"KrakencoderPrecomputed: unsupported {role} modality '{modality}'. "
+                    f"Expected one of {list(_KRAKEN_FLAVOR_KEY)}."
+                )
 
-        if conn_type not in _KRAKEN_INPUT_KEY:
-            raise ValueError(
-                f"KrakencoderPrecomputed: unsupported source modality '{conn_type}'. "
-                f"Expected one of {list(_KRAKEN_INPUT_KEY)}."
-            )
-
-        if kraken_predictions_dir is None:
-            repo_root = Path(__file__).resolve().parent.parent.parent
-            kraken_predictions_dir = repo_root / "krakencoder" / "example_data"
-
-        mat_path = (
-            Path(kraken_predictions_dir)
-            / f"mydata_kraken_seed{seed}_source_{parc}.{conn_type}.mat"
-        )
+        mat_path = krakencoder_prediction_path(seed, parc, conn_type, tag=tag, predictions_root=predictions_root,
+                                               kraken_predictions_dir=kraken_predictions_dir)
         if not mat_path.exists():
-            raise FileNotFoundError(
-                f"KrakencoderPrecomputed: inference file not found:\n  {mat_path}\n"
-                "Run `krakencoder_runner.ipynb` (inference loop) for this seed first."
-            )
+            hint = (f"Run `scripts/krakencoder/train_krakencoder.py --tag {tag} --seed {seed}` first." if tag
+                    else "Cached predictions come from the local Krakencoder copy (krakencoder_experimental/).")
+            raise FileNotFoundError(f"KrakencoderPrecomputed: inference file not found:\n  {mat_path}\n{hint}")
 
         mat = loadmat(str(mat_path), simplify_cells=True)
-        input_key  = _KRAKEN_INPUT_KEY[conn_type].format(parc=parc)
-        output_key = _KRAKEN_OUTPUT_KEY.format(parc=parc)
+        input_key  = _KRAKEN_FLAVOR_KEY[conn_type].format(parc=parc)
+        output_key = _KRAKEN_FLAVOR_KEY[target].format(parc=parc)
 
         try:
             preds_all = np.array(
                 mat["predicted_alltypes"][input_key][output_key], dtype=np.float32
             )
         except (KeyError, TypeError) as exc:
-            available = list(mat.get("predicted_alltypes", {}).keys())
+            available = {k: list(v) for k, v in mat.get("predicted_alltypes", {}).items()}
             raise KeyError(
                 f"KrakencoderPrecomputed: could not find "
                 f"predicted_alltypes['{input_key}']['{output_key}'] "
-                f"in {mat_path.name}.  Available input keys: {available}"
+                f"in {mat_path.name}.  Available input -> output keys: {available}"
             ) from exc
 
+        targets_all = base.fc_upper_triangles if target == "FC" else base.sc_upper_triangles
         self._preds_all     = preds_all                                    # [N_subj, N_edges]
-        self._targets_all   = base.fc_upper_triangles.astype(np.float32)   # [N_subj, N_edges]
+        self._targets_all   = np.asarray(targets_all, dtype=np.float32)    # [N_subj, N_edges]
         self._split_indices = base.trainvaltest_partition_indices
+        self.prediction_file = str(mat_path)
 
         n_subj = self._preds_all.shape[0]
         n_base = self._targets_all.shape[0]
@@ -107,7 +124,7 @@ class KrakencoderPrecomputed(nn.Module):
 
         print(
             f"KrakencoderPrecomputed: loaded  seed={seed}  parc={parc}  "
-            f"source={conn_type}  shape={preds_all.shape}"
+            f"{conn_type}->{target}  tag={tag}  file={mat_path}  shape={preds_all.shape}"
         )
 
     def predict_split(self, split: str):

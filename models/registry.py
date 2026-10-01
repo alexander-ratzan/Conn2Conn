@@ -176,7 +176,8 @@ def _model_class(name):
     if name == "CrossModal_ConditionalGaussian":
         from models.architectures.latent_attention.conditional_gaussian import CrossModal_ConditionalGaussian
         return CrossModal_ConditionalGaussian
-    if name == "Krakencoder_precomputed":
+    if name in ("Krakencoder_precomputed", "Krakencoder"):
+        # Krakencoder = retrained runs by tag (scripts/krakencoder/train_krakencoder.py); same loader.
         from models.architectures.krakencoder_precomputed import KrakencoderPrecomputed
         return KrakencoderPrecomputed
     if name == "TestRetestPrecomputed":
@@ -221,7 +222,7 @@ def build_model(base, model_name: str = None, model_kwargs: dict = None):
         kwargs["l1_l2_tuple"] = (l1, l2)
     if kwargs.get("device") is None:
         kwargs["device"] = None
-    if name in ("Krakencoder_precomputed", "TestRetestPrecomputed"):
+    if name in ("Krakencoder_precomputed", "Krakencoder", "TestRetestPrecomputed"):
         kwargs.pop("device", None)
 
     return _model_class(name)(base, **kwargs)

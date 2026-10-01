@@ -17,7 +17,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 |---|---|---|---|---|
 | E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | closed 2026-09-30 | — | agent:infra |
 | E1 | Composite-loss protocol v1: linear backbone (`composite_loss/linear_backbone`) first; `CrossModal_PCA_PLS_learnable` (`composite_loss/pca_pls_learnable`) paused as the reproducibility target | in progress (linear: SLURM chain Stage 1 `18902227` → consensus `18902844` → grid `18902845` → report `18902846`; learnable paused at Stage 1 seeds 0–2) | D3, D4 | agent:modeling |
-| E2 | Cross-model benchmark (`model_benchmark`, working name) | outline (E2.0 direction audit done) | C2 | — |
+| E2 | Cross-model benchmark (`model_benchmark`, working name) | outline (E2.0 direction audit done; E2.1 Krakencoder retrain built, parity running) | C2 | — |
 | E3 | Composite-loss magnitude tuning for final models (follow-up to E1) | outline | E1 | — |
 | C1 | `torch_geometric` missing from `kraken_env` | done 2026-09-30 (via C6) | — | agent:infra |
 | C2 | Re-tune the M5b-affected sweeps | planned (within E2) | E2 | — |
@@ -379,12 +379,38 @@ launchers are `CrossModalPCA` FC→FC), so "generic" means the code path, not a 
 literature (dMRI structural-connectome test-retest reliability, HCP-YA retest or comparable) and cite it as a reference
 line rather than a computed row.
 
-**Krakencoder `FC → SC` results (for memory):** `krakencoder/example_data/mydata_kraken_seed{seed}_source_{parc}.FC.mat`
+**Krakencoder `FC → SC` results (for memory):** `krakencoder_experimental/example_data/mydata_kraken_seed{seed}_source_{parc}.FC.mat` (folder renamed from `krakencoder/` on 2026-10-01; retrained runs: E2.1)
 (seeds 0–9 present for Glasser and 4S456Parcels), key `predicted_alltypes["FCcorr_{parc}_hpf"]["SCifod2act_{parc}_volnorm"]`
 (every file holds all four input → output types; the SC-source files are `…_source_{parc}.SC.mat` with outer key
 `SCifod2act_{parc}_volnorm`). Checked 2026-09-30 (Glasser, seed 0): 957 subjects in `HCP_Base` order (per-subject r
 with our SC 0.915), already on our SC scale (same mean 0.0533; linear fit slope 1.006, intercept 0.000), test demeaned
 r ≈ 0.116. The `mydata_kraken_demeaned*` files are other variants, not the per-seed benchmark files.
+
+#### E2.1 — Retrainable Krakencoder baseline · built 2026-10-01; parity check running
+Krakencoder becomes a refittable benchmark model instead of only cached predictions (Option A: tracked wrapper around
+the upstream trainer; a native adapter of `krakencoder.model.Krakencoder` into our Lightning loop is a later option).
+- **Code:** vendored upstream `third_party/krakencoder/` at `b57e39c` (unmodified; byte-identical to the overlay's
+  `krakencoder 1.0.0`; `VENDOR.md`). The old local copy is renamed `krakencoder_experimental/` (gitignored; upstream +
+  demeaned-MSE loss, debug prints, `accept_unknowns=True`) and kept as reference / development copy; it still holds
+  `participants.tsv` used by `data/dataset_utils.py`. `scripts/krakencoder/_vendor_entry.py` pins the vendored import
+  and accepts our non-upstream flavor names (the one behavioural setting the local copy changed);
+  `scripts/krakencoder/train_krakencoder.py` builds inputs from `HCP_Base` (identical to the March inputs and splits),
+  trains, infers both source flavors and writes `results/krakencoder/<tag>/seed{S}/`; model `Krakencoder`
+  (`models/configs/Krakencoder.yml`, recipe in `retrain:`, output folder = `tag`) serves both directions through
+  `main.py`; launcher `scripts/sbatch/Krakencoder/train_array_krakencoder_seeds.sh` (train + evaluate SC → FC and FC → SC).
+- **Both directions:** one joint fit predicts every input → output type; the loader now selects the target's output key
+  and targets (`Krakencoder_precomputed` gains `FC → SC` too). Checked on the cached seed-0 predictions: `FC → SC`
+  test demeaned r 0.116, avg rank 0.876, top-1 0.123.
+- **Smoke check (2026-10-01):** tag `smoke`, Glasser only, 20 epochs: inputs → train → infer → evaluate in both
+  directions completes (near-chance metrics, as expected); resumable stages verified (requeue skips finished stages).
+- **Parity gate (running):** default recipe (4 flavors, March loss string, 2000 epochs), seed 0, tag `kraken_default`;
+  accept if test demeaned r and avg rank in both directions are within seed noise of the cached March predictions.
+  Then seeds 1–9 (about 50 min per seed on one GPU), evaluated with W&B.
+- **Variants:** a copy of `Krakencoder.yml` with a new `tag` and `retrain:` block (e.g. MSE-only `losstype`, Glasser-only
+  `parcellations` for equal-data comparison, E1/E3-informed weights). Not Tune-searchable (each fit is a full run).
+- **Pattern for other external baselines:** vendor upstream unmodified; adapt only in a wrapper; build inputs from
+  `HCP_Base` and its splits; serve predictions through a loader so evaluation is shared; gate on parity with published or
+  cached results. `Sarwar2020MLP` and `Chen2024GCN` are already native reimplementations trained in our loop.
 
 ### E3 — Composite-loss magnitude tuning for final models   (slug: tbd) · status: outline · owner: —
 
@@ -425,6 +451,7 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-09-30 | Status table synced (E0, C1, C6); E0 design records the MSE-only linear reference and the Chen vs NodalGNN difference, incl. NodalGNN's `r2t` input caveat; E0.5 files and 8 h budget. |
 | 2026-09-30 | **E0 closed.** NodalGNN pilot stopped by decision (seed-0 best val 0.011 < null); results, takeaways and the "learn on top of the mean" follow-up recorded (§5); notebook retired. |
 | 2026-09-30 | E2: both directions in scope; E2.0 direction audit recorded (generic vs needs config/loader vs reverse variants), reverse-variant requirement (FC graph threshold τ, default 0.5), `FC → SC` ceiling from literature, Krakencoder `FC → SC` file/key reference. README model table regrouped by model type × learning type. |
+| 2026-10-01 | E2.1: retrainable Krakencoder (vendored upstream `b57e39c`, wrapper, `Krakencoder` model, launcher); loader serves both directions; local copy renamed `krakencoder_experimental/`; smoke check passed, parity run started. |
 | 2026-09-30 | E1 prereqs done: slug → `composite_loss/linear_backbone`; E1.1 (fixed scales + monitor-only terms) built and verified on local branch `e1-loss-scale-monitor`, merges when E0 closes; Stage 1 config and packed launcher added; E1.3/E1.4 runner design and dynamics figures specified; D3 (compute envelope, autonomous execution). |
 | 2026-09-30 | E1.1 merged (`75b7c11`) after E0 closed; regression 45/45 and E1.1 checks 23/23 on `main`; checks tracked as `scripts/sbatch/checks/loss_regression.py` and `composite_loss/checks/check_e1_loss.py`. |
 | 2026-09-30 | E1 becomes composite-loss protocol v1: shared versioned grid `composite_loss/grid.yml` (8-cell factorial at w = 0.5 + 8 dose points), batch 64 (D4), Stage 1 at 24 trials; replicability instance `composite_loss/pca_pls_learnable` added; E3 (magnitude tuning) outlined. |

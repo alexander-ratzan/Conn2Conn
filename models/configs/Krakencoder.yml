@@ -1,0 +1,37 @@
+# Krakencoder retrained inside the repo (vendored upstream, third_party/krakencoder; spec v2 E2).
+# Two steps per seed, both driven by this file:
+#   1. train + infer:  python scripts/krakencoder/train_krakencoder.py --config models/configs/Krakencoder.yml --seed S
+#      -> results/krakencoder/<tag>/seed<S>/predictions_source_<parc>.<SC|FC>.mat (all input -> output types)
+#   2. evaluate:       python main.py --mode prod --model Krakencoder --source SC --target FC --shuffle_seed S
+#      (and --source FC --target SC); the loader reads the tag's predictions for the run's direction.
+# A variant (different loss terms, flavors, epochs) = a copy of this file with a new `tag` and `retrain` block.
+learned: false
+
+default:
+  model:
+    name: Krakencoder
+    tag: kraken_default            # results/krakencoder/<tag>/; one tag per retrain recipe
+    predictions_root: null         # null = <repo_root>/results/krakencoder
+
+# Recipe for scripts/krakencoder/train_krakencoder.py (not read by main.py). Defaults reproduce the March 2026
+# local runs (krakencoder_experimental/run_seed.py) with the vendored upstream code.
+retrain:
+  parcellations: [Glasser, 4S456Parcels]   # flavors trained jointly (x SC, FC); [Glasser] = equal-data variant
+  modalities: [FC, SC]
+  datagroups: SCFC
+  latentsize: 128
+  latentunit: true                         # unit-norm latent
+  hiddenlayers: []                         # [] = one linear layer per encoder / decoder (upstream default)
+  transformation: pca256
+  dropout: 0.5
+  losstype: "correye+enceye.w10+neidist+encdist.w10+mse.w1000+latentsimloss.w10000"
+  epochs: 2000
+  checkpoint_every: 250
+  display_every: 25
+  trainvalsplitfrac: 0.8                   # ignored by upstream when a subject split file is given (it is)
+  valsplitfrac: 0.1
+  adaptmode: meanfit+meanshift             # inference-time input adaptation (as in the March runs)
+  extra_train_args: []                     # verbatim extra run_training.py flags
+
+# Intentionally empty: variants are separate retrain tags, not Tune trials.
+search_space: {}

@@ -700,7 +700,7 @@ def load_metadata(shuffle_seed=0, rare_race_eth_threshold=10):
             - "sex"      : float32 array  (N, 2) — one-hot [F, M]
             - "race_eth" : float32 array  (N, k) — collapsed race/eth one-hot
     """
-    participants_path = "/scratch/asr655/neuroinformatics/Conn2Conn/krakencoder/example_data/HCP-YA_dataset/participants.tsv"
+    participants_path = "/scratch/asr655/neuroinformatics/Conn2Conn/krakencoder_experimental/example_data/HCP-YA_dataset/participants.tsv"
     restricted_path = "/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/HCP1200_RESTRICTED.csv"
     
     # Load participants.tsv

@@ -768,6 +768,7 @@ def plot_cov_dl_global_metric_panels(
             "Chen2024GCN": 1,
             "Sarwar2020MLP": 2,
             "Krakencoder_precomputed": 3,
+            "Krakencoder": 3,
             "CrossModal_PCA_PLS_learnable": 4,
             "CrossModal_PCA_PLS_CovProjector": 5,
         }

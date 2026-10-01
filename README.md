@@ -29,6 +29,7 @@ Grouped by **model type** (what the model is) and **learning type** (how it is f
 | `Chen2024GCN` | Deep-learning baseline | Supervised (gradient) | Chen et al. (2024): one-hot nodes → GCN over the SC graph → edge MLP on `[h_i ‖ h_j]` |
 | `Sarwar2020MLP` | Deep-learning baseline | Supervised (gradient) | Sarwar et al. (2021): edge-vector MLP trained with MSE + inter-subject correlation penalty |
 | `Krakencoder_precomputed` | Deep-learning baseline | Precomputed (trained externally) | Krakencoder predictions loaded per seed (class `KrakencoderPrecomputed`) |
+| `Krakencoder` | Deep-learning baseline | Supervised (upstream trainer, retrained per seed) | Krakencoder retrained in the repo from vendored upstream; one fit serves `SC → FC` and `FC → SC` |
 | `CrossModalVAE` | Experimental (in development) | Supervised (gradient) | Variational autoencoder cross-modal mapping |
 
 ---|---|---|
@@ -241,16 +242,33 @@ Current model folders under `scripts/sbatch/`:
 
 ---
 
-## Krakencoder Baseline (Precomputed)
+## Krakencoder Baseline (retrainable and precomputed)
 
-`Krakencoder_precomputed` (class `KrakencoderPrecomputed`) is a special baseline that loads prediction matrices produced outside the training loop (from Krakencoder inference `.mat` files), then returns split-specific predictions/targets directly.
+Krakencoder runs outside the Lightning loop: its upstream code trains and predicts, and the loader class
+`KrakencoderPrecomputed` serves the predictions to the evaluator (split slicing, no `forward` pass). Every inference
+file holds all input → output types, so both `SC → FC` and `FC → SC` are served from one fit. Not tunable through
+Ray (empty `search_space`); a variant is a new retrain tag.
 
-- default inference location: `krakencoder/example_data/`
-- file pattern: `mydata_kraken_seed{seed}_source_{parc}.{source}.mat`
-- supported source modalities: `SC`, `FC`
-- run with: `python main.py --mode prod --model Krakencoder_precomputed --source SC --shuffle_seed 0`
-- not tuneable: the model's search space is intentionally empty
-- evaluation path uses precomputed split slicing (no neural `forward` pass)
+**Retrained (`Krakencoder`):** vendored upstream (`third_party/krakencoder/`, commit `b57e39c`, unmodified; see
+`VENDOR.md`), inputs built from `HCP_Base` with the same per-seed splits as every other model.
+```bash
+# per seed: train + infer + evaluate both directions (EVAL_MODE=prod logs to W&B; dev does not)
+sbatch scripts/sbatch/Krakencoder/train_array_krakencoder_seeds.sh                       # seeds 0-9, default recipe
+sbatch --array=0 --export=ALL,CONFIG=<variant.yml> scripts/sbatch/Krakencoder/train_array_krakencoder_seeds.sh
+# or step by step
+python scripts/krakencoder/train_krakencoder.py --config models/configs/Krakencoder.yml --seed 0
+python main.py --mode prod --model Krakencoder --config models/configs/Krakencoder.yml --source FC --target SC --shuffle_seed 0
+```
+- recipe: the `retrain:` block of `models/configs/Krakencoder.yml` (flavors, loss string, epochs, latent size, dropout);
+  defaults reproduce the March 2026 runs; `default.model.tag` names the output folder
+- outputs: `results/krakencoder/<tag>/seed{seed}/` (checkpoint, transforms, logs, `manifest.json`,
+  `predictions_source_{parc}.{SC|FC}.mat`); shared inputs in `results/krakencoder/_inputs/`
+- about 50 min per seed on one GPU for the default recipe (2000 epochs, 4 flavors)
+
+**Precomputed (`Krakencoder_precomputed`):** the cached March 2026 predictions in
+`krakencoder_experimental/example_data/` (`mydata_kraken_seed{seed}_source_{parc}.{SC|FC}.mat`), produced by the
+gitignored local copy `krakencoder_experimental/` (upstream + a demeaned-MSE loss; kept as reference and for
+development). Run with `python main.py --mode prod --model Krakencoder_precomputed --source SC --target FC --shuffle_seed 0`.
 
 ---
 
@@ -349,6 +367,7 @@ Conn2Conn/
 │   │   ├── kraken/
 │   │   ├── model_overviews/
 │   │   └── model_testing/
+│   ├── krakencoder/                 # Krakencoder retrain wrapper (train_krakencoder.py, vendored-code entry point)
 │   ├── experiments/                 # Self-contained side experiments (one folder each, write-up <name>.md)
 │   │   └── experiments_index.md     # One row per experiment
 │   └── sbatch/                      # Per-model SLURM scripts and seed arrays
@@ -361,13 +380,15 @@ Conn2Conn/
 │   ├── ray_tmp/                     # Per-job Ray session scratch + Ray system logs
 │   ├── local_results/               # Notebook / local evaluation artifacts and markdown reports
 │   ├── figures/                     # Notebook-generated figures
+│   ├── krakencoder/                 # Retrained Krakencoder runs by tag + shared inputs
 │   └── logs/                        # SLURM stdout/stderr
 ├── context_packages/                # Reference material for humans and agents
 │   ├── modeling/                    # Model design notes
 │   ├── repo_spec_docs/              # Repo refactor specs
 │   ├── schematics/                  # Figure / model schematics
 │   └── T1/                          # Example T1 parcellation files
-└── krakencoder/                     # Bundled KrakenEncoder codebase
+├── third_party/krakencoder/         # Vendored upstream Krakencoder (unmodified, VENDOR.md)
+└── krakencoder_experimental/        # Local Krakencoder copy + data, cached predictions (gitignored)
 ```
 
-Last updated at: 2026-09-30 EDT
+Last updated at: 2026-10-01 EDT
