@@ -52,16 +52,16 @@ numerical constant ($10^{-10}$).
 ### Total loss (protocol v1, `loss_normalize: none`)
 
 $$
-\mathcal{L} \;=\; \mathcal{L}_{\text{mse}}
-\;+\; \sum_{t \,\in\, \{\text{varmatch},\,\text{correye},\,\text{neidist}\}} w_t\,\frac{\mathcal{L}_t}{c_t},
+\mathcal{L}  =  \mathcal{L}_{\text{mse}}
+ +  \sum_{t \in \lbrace \text{varmatch}, \text{correye}, \text{neidist} \rbrace} w_t \frac{\mathcal{L}_t}{c_t},
 \qquad
 c_t = \frac{\overline{\lvert \mathcal{L}_t \rvert}}{\overline{\mathcal{L}_{\text{mse}}}}
 $$
 
 Here $w_t$ is the grid weight (0, 0.1, 0.5 or 1) and $c_t$ is the fixed reference scale (the per-term `scale`
-kwarg). Each mean $\overline{\,\cdot\,}$ is over all training batches of the trained consensus MSE-only model,
+kwarg). Each mean $\overline{\cdot}$ is over all training batches of the trained consensus MSE-only model,
 then over seeds 0–4. The scaling means that at the consensus model each active term contributes about
-$w_t\,\mathcal{L}_{\text{mse}}$, so $w_t$ reads as "fraction of the MSE magnitude". The scale is fixed: it never
+$w_t \mathcal{L}_{\text{mse}}$, so $w_t$ reads as "fraction of the MSE magnitude". The scale is fixed: it never
 adapts during training. That differs from `loss_normalize: ema`, which divides by a running mean of
 $\lvert \mathcal{L}_t \rvert$.
 
@@ -102,7 +102,7 @@ in the batch (rows = targets):
 
 $$
 C_{ij} = \frac{\langle \tilde y_i, \tilde{\hat y}_j \rangle}
-{\sqrt{\lVert \tilde y_i \rVert^2 + \varepsilon}\,\sqrt{\lVert \tilde{\hat y}_j \rVert^2 + \varepsilon}},
+{\sqrt{\lVert \tilde y_i \rVert^2 + \varepsilon} \sqrt{\lVert \tilde{\hat y}_j \rVert^2 + \varepsilon}},
 \qquad
 \mathcal{L}_{\text{correye}} = \lVert C - I_B \rVert_F
 = \sqrt{\sum_i (C_{ii} - 1)^2 + \sum_{i \ne j} C_{ij}^2}
@@ -143,19 +143,21 @@ the consensus model own-subject distances are still larger than nearest-competit
 the hardest competitor per subject receives gradient, so this is a margin-style identifiability objective, much
 closer to `avg_rank` than any other term. That matches the E1 finding that `neidist` is the only term that
 raises `avg_rank`. With `margin` $= m$ set, the code instead uses
-$d_{\text{self}} + \operatorname{ReLU}(m - d_{\text{other}})$ (unused in v1).
+$d_{\text{self}} + \max(0, m - d_{\text{other}})$ (unused in v1).
 
 ### Other terms in `loss.py` (not in grid v1)
 
+`demeaned_mse` ($\mathcal{L}_{\text{dm-mse}}$), `pairwise_corr` ($\mathcal{L}_{\text{pcorr}}$) and `kld`:
+
 $$
-\mathcal{L}_{\text{demeaned\_mse}} = \frac{1}{BE}\sum_{i,e}\big((\hat y_{ie} - \bar y_e) - (y_{ie} - \bar y_e)\big)^2
-\;=\; \mathcal{L}_{\text{mse}}
+\mathcal{L}_{\text{dm-mse}} = \frac{1}{BE}\sum_{i,e}\big((\hat y_{ie} - \bar y_e) - (y_{ie} - \bar y_e)\big)^2
+= \mathcal{L}_{\text{mse}}
 $$
 
 (identical in value and gradient, since $\bar y$ cancels; kept for logging parity),
 
 $$
-\mathcal{L}_{\text{pairwise\_corr}} = \left\lvert \frac{1}{B(B-1)}\sum_{i \ne j} \operatorname{corr}(\hat y_i, \hat y_j) - \rho^\ast \right\rvert,
+\mathcal{L}_{\text{pcorr}} = \left\lvert \frac{1}{B(B-1)}\sum_{i \ne j} \operatorname{corr}(\hat y_i, \hat y_j) - \rho^\ast \right\rvert,
 \quad \rho^\ast = 0.4 \text{ (Sarwar et al.)},
 \qquad
 \mathcal{L}_{\text{kld}} = -\frac{1}{2B}\sum_{i}\sum_{k}\left(1 + \log\sigma_{ik}^2 - \mu_{ik}^2 - \sigma_{ik}^2\right)
@@ -163,16 +165,19 @@ $$
 
 ### Evaluation metrics (full test split, not batches)
 
-$$
-r^{\text{dm}} = \frac{1}{N}\sum_i
-\frac{\langle \hat y_i - \bar y,\; y_i - \bar y \rangle}{\lVert \hat y_i - \bar y \rVert\,\lVert y_i - \bar y \rVert + \varepsilon}
-\qquad\text{(`demeaned_pearson`)}
-$$
+`demeaned_pearson`:
 
 $$
-\text{avg\_rank} = 1 - \frac{1}{N}\sum_i \frac{\operatorname{rank}_i}{N},
+r^{\text{dm}} = \frac{1}{N}\sum_i
+\frac{\langle \hat y_i - \bar y, y_i - \bar y \rangle}{\lVert \hat y_i - \bar y \rVert \lVert y_i - \bar y \rVert + \varepsilon}
+$$
+
+`avg_rank`:
+
+$$
+\text{avg rank} = 1 - \frac{1}{N}\sum_i \frac{\operatorname{rank}_i}{N},
 \qquad
-\operatorname{rank}_i = \#\{\, j \ne i : C_{ij} > C_{ii} \,\}
+\operatorname{rank}_i = \left\lvert \lbrace j \ne i : C_{ij} > C_{ii} \rbrace \right\rvert
 $$
 
 Here $C$ is the raw-FC Pearson matrix as in `correye`, but over all $N$ test subjects. $\operatorname{rank}_i$ is
