@@ -339,7 +339,8 @@ def fig_dose_response(summary, path):
         ax.set_xlim(-0.03, float(summary[[f"w_{u}" for u in terms]].to_numpy().max()) * 1.4)
         ax.set_xlabel("Term weight (scaled; MSE = 1; symlog)")
         ax.set_ylabel(label)
-    axes[0].legend(fontsize=9)
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.0), ncol=3, fontsize=10, title="Training loss = MSE +")
     fig.suptitle("Mean ± SE of the per-seed difference from MSE-only (paired by seed / split)", fontsize=11, color=PALETTE["grey"])
     _save(fig, path)
 

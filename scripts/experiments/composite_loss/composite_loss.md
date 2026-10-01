@@ -1,6 +1,6 @@
 # Composite-loss protocol
 
-**Status:** grid v2 complete on both instances (spec v2 E1) · **Owner:** agent:modeling · **Grid:** [`grid_v2.yml`](grid_v2.yml) (current; v1 in [`grid.yml`](grid.yml), frozen)
+**Status:** grid v3 complete on both instances (spec v2 E1) · **Owner:** agent:modeling · **Grid:** [`grid_v3.yml`](grid_v3.yml) (current; v1 [`grid.yml`](grid.yml) and v2 [`grid_v2.yml`](grid_v2.yml) frozen)
 
 ## Question
 
@@ -14,7 +14,8 @@ landscape can be compared across configurations within a model and across models
 composite_loss/
 ├── composite_loss.md        # this file: protocol + cross-model comparison
 ├── grid.yml                 # protocol grid v1 (16 combinations; frozen)
-├── grid_v2.yml              # protocol grid v2 (32 combinations; current)
+├── grid_v2.yml              # protocol grid v2 (32 combinations; frozen)
+├── grid_v3.yml              # protocol grid v3 (29 combinations; current)
 ├── checks/                  # loss-code checks for the protocol (E1.1)
 └── <model>/                 # one folder per model instance
     ├── <model>.md           # instance write-up
@@ -43,7 +44,7 @@ composite_loss/
 - **Scope:** the grid maps the landscape with each model's Stage 1 hyperparameters held fixed; magnitude tuning for a
   final model is spec v2 E3.
 
-## Protocol v2 (current)
+## Protocol v2 (superseded by v3)
 
 Same stages, scaling and gates as v1. Changes:
 
@@ -60,6 +61,28 @@ Same stages, scaling and gates as v1. Changes:
 - **Instances:** `linear_backbone` reuses its v1 Stage 1 tune (same 5 splits, seeds 0–4) and reruns consensus, grid
   and report, overwriting its v1 outputs (still in W&B under `loss_grid:v1`). `pca_pls_learnable` reruns Stage 1 with 32
   trials per seed and `learn_mid` fixed to True (11-key search). Stage 2 budget: 10 GPU-h per instance.
+
+## Protocol v3 (current)
+
+Same stages, scaling and gates as v2. Grid v3 ([`grid_v3.yml`](grid_v3.yml), 29 combinations × 5 seeds = 145 runs)
+makes **Demeaned corr-eye the corr-eye variant in every mixture**. Raw Corr-eye keeps only its single-term ladder,
+as a reference.
+
+| Group | Combinations | Count |
+|---|---|---|
+| MSE only | baseline | 1 |
+| MSE + one term | Var-match 0.1 / 0.5 / 1; Neighbor dist 0.1 / 0.5 / 1; Demeaned corr-eye and Corr-eye at 0.1 / 0.5 / 1 / 2 / 5 / 10 / 20 / 50 | 22 |
+| MSE + two terms (0.5 each) | Var-match + Demeaned corr-eye; Var-match + Neighbor dist; Demeaned corr-eye + Neighbor dist | 3 |
+| MSE + all three | Var-match + Demeaned corr-eye + Neighbor dist at 0.1 / 0.5 / 1 | 3 |
+
+The mixtures form a full 2 × 2 × 2 factorial at 0.5. The largest model is MSE + Var-match + Demeaned corr-eye +
+Neighbor dist. Instances:
+- **`linear_backbone`** reuses its v2 runs and adds the two new three-term doses.
+- **`pca_pls_learnable`** was rerun with a hand-selected architecture (256 / 16 / 256, only `W_mid` learnable) and an
+  optimizer-only Stage 1 (16 trials; `lr` ≥ 3e-5, 100–250 epochs, median consensus for epochs). The rerun replaced its
+  barely-trained 64 / 4 / 64 consensus.
+
+The report only uses the instance grid's combinations: older-grid runs stay in `runs/` and W&B.
 
 ## Loss terms (math)
 
@@ -92,11 +115,11 @@ Measured on each instance's consensus fit (in `<instance>/state.yml`):
 
 | Term | linear_backbone $\overline{\lvert\mathcal{L}_t\rvert}$ | $c_t$ | pca_pls_learnable $\overline{\lvert\mathcal{L}_t\rvert}$ | $c_t$ |
 |---|---|---|---|---|
-| mse | 0.0122 | 1 | 0.0133 | 1 |
-| varmatch | 0.966 | 79.3 | 0.963 | 72.5 |
-| correye | 52.9 | 4342 | 52.9 | 3981 |
-| correye_dm | 8.58 | 705 | 12.2 | 915 |
-| neidist | 1.26 | 103 | 2.57 | 193 |
+| MSE | 0.0122 | 1 | 0.0129 | 1 |
+| Var-match | 0.966 | 79.3 | 0.991 | 77.0 |
+| Corr-eye | 52.9 | 4342 | 53.0 | 4124 |
+| Demeaned corr-eye | 8.58 | 705 | 8.98 | 699 |
+| Neighbor dist | 1.26 | 103 | 1.95 | 152 |
 
 ### Gradient strength (why matched loss values are not matched effects)
 
@@ -105,10 +128,10 @@ $c_t$ equalizes each term's *value* with MSE. It does not equalize *gradients*. 
 
 | Term | linear_backbone: scaled gradient ÷ MSE's | cosine with MSE | pca_pls_learnable: scaled gradient ÷ MSE's | cosine with MSE |
 |---|---|---|---|---|
-| varmatch | 0.40 | 0.33 | 0.82 | −0.03 |
-| correye | 0.05 | 0.29 | 0.09 | −0.01 |
-| correye_dm | 6.3 | 0.19 | 7.1 | 0.29 |
-| neidist | 13.1 | 0.77 | 7.2 | 0.75 |
+| Var-match | 0.40 | 0.33 | 0.27 | 0.44 |
+| Corr-eye | 0.05 | 0.29 | 0.04 | 0.35 |
+| Demeaned corr-eye | 6.3 | 0.19 | 11.0 | 0.14 |
+| Neighbor dist | 13.1 | 0.77 | 8.7 | 0.76 |
 
 (The scaled gradient is $\lVert \nabla \mathcal{L}_t \rVert / (c_t \lVert \nabla \mathcal{L}_{\text{mse}} \rVert)$.) So at the same grid
 weight, `neidist` pushes about 260× harder than `correye` on the linear backbone: `neidist` at $w = 0.1$ is already
@@ -168,12 +191,12 @@ applies its `correye` in a mean-centred PCA space, so the group mean is already 
 **Magnitude: what each loss is made of** (consensus MSE-only fits, batch $B = 64$; the de-meaned diagonal share is
 estimated from the fits' train demeaned r)
 
-| | `correye` linear | `correye_dm` linear | `correye` learnable | `correye_dm` learnable |
+| | Corr-eye, linear | Demeaned corr-eye, linear | Corr-eye, PCA/PLS | Demeaned corr-eye, PCA/PLS |
 |---|---|---|---|---|
-| mean loss $\overline{\lvert\mathcal{L}\rvert}$ | 52.9 | 8.6 | 52.9 | 12.2 |
-| typical off-diagonal $\lvert C_{ij}\rvert$ | ≈ 0.83 | ≈ 0.12 | ≈ 0.83 | ≈ 0.16 |
-| diagonal share of $\lVert C - I\rVert_F^2$ | ≈ 0.06% | ≈ 23% | ≈ 0.06% | ≈ 30% |
-| reference scale $c_t$ | 4342 | 705 | 3981 | 915 |
+| mean loss $\overline{\lvert\mathcal{L}\rvert}$ | 52.9 | 8.6 | 53.0 | 9.0 |
+| typical off-diagonal $\lvert C_{ij}\rvert$ | ≈ 0.83 | ≈ 0.12 | ≈ 0.83 | ≈ 0.12 |
+| diagonal share of $\lVert C - I\rVert_F^2$ | ≈ 0.06% | ≈ 23% | ≈ 0.06% | ≈ 23% |
+| reference scale $c_t$ | 4342 | 705 | 4124 | 699 |
 
 Raw FC rows are dominated by the shared group connectome, so every raw correlation, own-subject or not, sits near
 0.83. Plugging that in gives $\sqrt{64 \cdot 0.16^2 + 4032 \cdot 0.83^2} \approx 52.7$, which matches the measured
@@ -183,12 +206,13 @@ error to a quarter of the loss.
 
 **Gradient: why the de-meaned signal is better**
 
-| | `correye` | `correye_dm` |
+| | Corr-eye | Demeaned corr-eye |
 |---|---|---|
-| scaled gradient ÷ MSE gradient, linear / learnable | 0.05 / 0.09 | **6.3 / 7.1** |
+| scaled gradient ÷ MSE gradient, linear / PCA/PLS | 0.05 / 0.04 | **6.3 / 11.0** |
 | cosine with MSE gradient (linear) | 0.29 | 0.19 |
 | cosine with `varmatch` gradient (linear) | 0.86–0.96 | −0.07 |
-| effect at w = 0.1 (linear, paired Δ avg_rank / Δ demeaned r) | +0.000 / +0.000 | **+0.092 / −0.017** |
+| effect at w = 0.1 (paired Δ avg_rank / Δ demeaned r), linear | +0.000 / +0.000 | **+0.092 / −0.017** |
+| effect at w = 0.1, PCA/PLS | +0.001 / −0.001 | **+0.111 / −0.025** |
 | effect at w = 10 (linear) | **−0.183 / −0.040** (collapse) | +0.082 / −0.046 |
 | test MSE change (any weight, linear) | up to +0.028 | ≤ +0.0003 |
 
@@ -201,7 +225,7 @@ error to a quarter of the loss.
    $1/\lVert \tilde{\hat y}_j \rVert$, one over the norm of the correlated prediction row. For `correye` that row is a
    full FC pattern. For `correye_dm` it is the predicted *deviation*, which MSE shrinks hard: the predicted
    between-subject variance is only about 2% of the targets' at the MSE-only fit (varmatch ≈ 0.97). So the same
-   weight gives about 80–125× more gradient, and it points along subject-specific directions, nearly orthogonal to MSE,
+   weight gives about 125–290× more gradient, and it points along subject-specific directions, nearly orthogonal to MSE,
    `varmatch` and raw `correye`.
 3. **Why MSE does not move.** Correlation ignores scale, so `correye_dm` changes the *direction* of each predicted
    deviation, not its size. Because the deviations are small, re-orienting them costs almost no MSE. That matches
@@ -296,36 +320,40 @@ the trade-off E1 maps: `neidist` buys rank by sacrificing edge-level deviation f
 
 | Instance | Role | Status |
 |---|---|---|
-| [`linear_backbone`](linear_backbone/linear_backbone.md) | primary | grid v2 complete (160 runs; Stage 1 reused from v1) |
-| [`pca_pls_learnable`](pca_pls_learnable/pca_pls_learnable.md) | replicability | grid v2 complete (Stage 1 32 trials + 160 runs) |
+| [`linear_backbone`](linear_backbone/linear_backbone.md) | primary | grid v3 complete (145 runs; Stage 1 reused from v1) |
+| [`pca_pls_learnable`](pca_pls_learnable/pca_pls_learnable.md) | replicability | grid v3 complete (256 / 16 / 256; Stage 1 16 trials + 145 runs) |
 
 ## Cross-model comparison
 
-Paired effects (Δ vs MSE-only on the same split, mean over seeds 0–4) on identical combination ids. Per-instance
-tables: `<instance>/tables/combo_summary.csv`.
+Paired effects (Δ vs MSE-only on the same split, mean over seeds 0–4) on identical grid-v3 combination ids.
+Per-instance tables: `<instance>/tables/combo_summary.csv`.
 
-| Combination | linear_backbone Δ dm-r | Δ avg_rank | pca_pls_learnable Δ dm-r | Δ avg_rank |
+| Training loss = MSE + | linear_backbone Δ dm-r | Δ avg_rank | pca_pls_learnable Δ dm-r | Δ avg_rank |
 |---|---|---|---|---|
-| neidist 0.1 | −0.010 | +0.050 | −0.000 | +0.005 |
-| neidist 1.0 | −0.025 | +0.038 | −0.002 | +0.010 |
-| correye_dm 0.1 | −0.017 | +0.092 | −0.000 | +0.008 |
-| correye_dm 0.5 | −0.038 | +0.098 | −0.002 | +0.016 |
-| correye_dm 50 | −0.048 | +0.067 | −0.004 | +0.015 |
-| correye 1.0 | −0.001 | +0.001 | +0.000 | +0.001 |
-| correye 10 | −0.040 | −0.183 | −0.001 | +0.009 |
-| varmatch 1.0 | −0.040 | −0.189 | −0.001 | +0.009 |
-| MSE-only (absolute) | 0.103 | 0.782 | 0.094 | 0.699 |
+| Neighbor dist 0.1 | −0.010 | +0.050 | −0.008 | +0.063 |
+| Neighbor dist 0.5 | −0.021 | +0.051 | −0.013 | +0.078 |
+| Demeaned corr-eye 0.1 | −0.017 | +0.092 | −0.025 | +0.111 |
+| Demeaned corr-eye 0.5 | −0.038 | +0.098 | −0.041 | +0.103 |
+| Demeaned corr-eye 50 | −0.047 | +0.067 | −0.047 | +0.080 |
+| Demeaned corr-eye 0.5 + Neighbor dist 0.5 | −0.023 | +0.058 | −0.021 | +0.101 |
+| All three 0.1 | −0.014 | +0.071 | −0.018 | +0.106 |
+| All three 1 | −0.029 | +0.030 | −0.020 | +0.076 |
+| Corr-eye 1 | −0.000 | +0.001 | +0.001 | +0.001 |
+| Corr-eye 10 | −0.040 | −0.183 | −0.020 | −0.117 |
+| Var-match 1 | −0.040 | −0.189 | −0.024 | −0.154 |
+| MSE-only (absolute) | 0.103 | 0.782 | 0.102 | 0.768 |
 
-- **What replicates:** each identity term trades demeaned r for avg_rank. `correye_dm` is the strongest identity
-  term in both models (about 1.7–1.8× neidist), and raw `correye` is inert up to w ≈ 1–5. Across the 31
-  non-baseline combinations, the two models' Δ demeaned r correlate at 0.90; Δ avg_rank correlates at 0.43 because
-  of the collapse regime below.
-- **What does not:** effect sizes are 5–10× smaller on `pca_pls_learnable`, and the collapse that strong varmatch /
-  correye cause on the linear backbone (avg_rank −0.18) does not occur there.
-- **Most likely cause:** `pca_pls_learnable`'s consensus fit barely trains. It uses a rank-4 latent map and a
-  step budget (`lr` × epochs) about 20× smaller, so its train MSE is nearly its test MSE. The gradient ratios
-  (term ÷ MSE on `W_mid`) have the same ordering in both models, so the scaling is consistent; how far the optimizer
-  can move is what differs. A replication on a well-trained second model needs a larger fixed training budget
-  (spec v2 E3 / a v3 consensus rule).
-- **Gradient strength note:** value-matched weights are not comparable across terms. At w = 1, `correye_dm` and
-  `neidist` push 6–13× harder than MSE, while raw `correye` pushes at 0.05–0.09×.
+- **The landscape replicates.** Across the 28 non-baseline combinations, the two models' effects correlate at
+  **0.92** (Δ demeaned r) and **0.98** (Δ avg_rank); signs agree in 86% and 93% of combinations. In both models:
+  - Demeaned corr-eye is the strongest identity term: it more than doubles top-1 accuracy, with test MSE unchanged.
+  - Neighbor dist trades a little demeaned r for avg_rank and overfits identity on the training set.
+  - Raw Corr-eye is inert at low weight and collapses predictions like Var-match at high weight.
+- **Where they differ:** on `pca_pls_learnable`, mixtures with Neighbor dist keep most of Demeaned corr-eye's avg_rank
+  gain at about half its demeaned-r cost. All three at 0.1 gives +0.106 at −0.018, the best trade-off on either model.
+  On the linear backbone, mixtures land nearer Neighbor dist alone. Neighbor dist is also stronger and cheaper on
+  `pca_pls_learnable`.
+- **The earlier, weaker replication was an optimization artifact.** The 2026-10-01 PCA/PLS consensus (64 / 4 / 64,
+  `lr` 3.8e-5 × 50 epochs) barely trained, and every effect was 5–10× smaller. With a fixed 256 / 16 / 256
+  architecture and a real training budget (`lr` 5.4e-4 × 150 epochs), the effects match the linear backbone in size.
+- **Gradient strength:** value-matched weights are not comparable across terms. At w = 1, Demeaned corr-eye and
+  Neighbor dist push 6–13× harder than MSE in both models, while raw Corr-eye pushes at 0.04–0.05×.
