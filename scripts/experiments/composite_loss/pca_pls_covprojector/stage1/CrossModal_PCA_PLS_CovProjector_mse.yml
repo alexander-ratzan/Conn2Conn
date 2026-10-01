@@ -1,0 +1,81 @@
+# E1.9 Stage 1 (spec v2 E1): CrossModal_PCA_PLS_CovProjector with all covariates (FreeSurfer fs_all + age, sex,
+# race/ethnicity), MSE-only. Model default from models/configs/CrossModal_PCA_PLS_CovProjector_SC_fs_all_demo.yml
+# (user 2026-10-01): PCA/PLS backbone frozen (W_mid fixed at its PLS fit), so only the covariate projectors and fusion
+# learn. Loss-weight and EMA keys removed from the search; varmatch / correye / correye_dm / neidist logged as
+# monitor-only terms; batch 64 (D4).
+learned: true
+
+default:
+  data:
+    source: SC
+    target: FC
+  model:
+    name: CrossModal_PCA_PLS_CovProjector
+    n_components_pca_source: 256
+    n_components_pca_target: 256
+    n_components_pls: 16
+    learn_encoder: false
+    learn_mid: false
+    learn_decoder: false
+    random_init: false
+    l1_reg: 0.0
+    l2_reg: 0.0001
+    dropout: 0.1
+    cov_sources: [fs_all, age, sex, race_eth]
+    cov_projectors:
+      fs_all:   {type: linear, out_dim: 64}
+      age:      {type: linear, out_dim: 4}
+      sex:      {type: linear, out_dim: 4}
+      race_eth: {type: linear, out_dim: 8}
+    cov_fusion:
+      type: mlp
+      hidden_dims: [64]
+      dropout: 0.1
+      layer_norm: true
+    use_target_scores_in_projector: false
+    device: null
+  trainer:
+    lr: 1.0e-4
+    loss_type: composite
+    loss_terms:
+      - {name: mse, weight: 1.0}
+    loss_normalize: auto            # one active term -> none: exactly plain MSE
+    loss_monitor_terms: [varmatch, correye, correye_dm, neidist]
+    max_epochs: 200
+    batch_size: 64                  # protocol batch size (D4)
+    log_every: 5
+
+search_space:
+  n_components_pca_source:
+    type: choice
+    values: [128, 256]
+  n_components_pca_target:
+    type: choice
+    values: [128, 256]
+  n_components_pls:
+    type: choice
+    values: [8, 16, 32]
+  cov_projectors:
+    type: choice
+    values:
+      - {fs_all: {type: linear, out_dim: 32},  age: {type: linear, out_dim: 2}, sex: {type: linear, out_dim: 2}, race_eth: {type: linear, out_dim: 4}}
+      - {fs_all: {type: linear, out_dim: 64},  age: {type: linear, out_dim: 4}, sex: {type: linear, out_dim: 4}, race_eth: {type: linear, out_dim: 8}}
+      - {fs_all: {type: linear, out_dim: 128}, age: {type: linear, out_dim: 8}, sex: {type: linear, out_dim: 4}, race_eth: {type: linear, out_dim: 16}}
+  cov_fusion:
+    type: choice
+    values:
+      - {type: linear}
+      - {type: mlp, hidden_dims: [64],  dropout: 0.1, layer_norm: true}
+      - {type: mlp, hidden_dims: [128], dropout: 0.1, layer_norm: true}
+  dropout:
+    type: uniform
+    lower: 0.0
+    upper: 0.3
+  lr:
+    type: loguniform
+    lower: 1.0e-5
+    upper: 1.0e-3
+  max_epochs:
+    type: choice
+    values: [100, 150, 200]
+    consensus: median      # ordered: median of the per-seed bests (snapped), not a majority vote

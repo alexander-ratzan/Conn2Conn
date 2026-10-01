@@ -122,7 +122,6 @@ def cmd_rebaseline(args):
     best-of-24 selection bias from the reference) and re-check the consensus against those retrained values.
     If it still misses, the consensus is accepted anyway as a recorded fallback so Stage 2 can run; the
     deviation is kept in state.yml (consensus_check.basis / note) for a later revisit."""
-    import pandas as pd
     import yaml
     cfg = lg.load_instance(args.instance)
     state = cfg["state"]
@@ -130,7 +129,10 @@ def cmd_rebaseline(args):
         print("run the consensus step first")
         return 1
     seeds = args.seeds or [int(s) for s in cfg["seeds"]]
-    trials = pd.read_csv(lg.instance_dir(args.instance) / "tables" / "stage1_trials.csv")
+    # Re-collect from the Ray trial folders rather than tables/stage1_trials.csv: the CSV stringifies dict-valued
+    # search keys (e.g. CovProjector's cov_projectors / cov_fusion), which would then reach the model as strings.
+    runs = {int(s): v for s, v in state["stage1_runs"].items()}
+    trials, _ = lg.collect_stage1_trials(cfg["model"], {s: runs[s] for s in seeds})
     search = yaml.safe_load((REPO_ROOT / cfg["stage1"]["config"]).read_text())["search_space"]
     best = lg.seed_best_configs(trials, search)
     trainer = lg.mse_only_trainer(cfg["grid"]["batch_size"])

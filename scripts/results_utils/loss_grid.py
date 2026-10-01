@@ -289,6 +289,18 @@ def reference_scales(scales_by_seed):
 
 
 # --------------------------------------------------------------------------------------------- gradient cosines
+def _map_tensors(obj, fn):
+    """Apply fn to every tensor in a (nested) dict / list batch; other values pass through."""
+    import torch
+    if torch.is_tensor(obj):
+        return fn(obj)
+    if isinstance(obj, dict):
+        return {k: _map_tensors(v, fn) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return type(obj)(_map_tensors(v, fn) for v in obj)
+    return obj
+
+
 class TermGradCosine:
     """Lightning callback factory: every `every` epochs, gradients of each term w.r.t. one parameter on a fixed
     training batch; logs pairwise cosines and gradient norms (rows in `.rows`). Built lazily so importing this module
@@ -311,7 +323,7 @@ class TermGradCosine:
 
             def on_train_batch_start(self, trainer, pl_module, batch, batch_idx):
                 if self._batch is None:  # first training batch, kept fixed for every measurement
-                    self._batch = {k: (v.detach().clone() if torch.is_tensor(v) else v) for k, v in batch.items()}
+                    self._batch = _map_tensors(batch, lambda v: v.detach().clone())
 
             def on_train_epoch_end(self, trainer, pl_module):
                 epoch = trainer.current_epoch
@@ -319,10 +331,10 @@ class TermGradCosine:
                     return
                 params = dict(pl_module.model.named_parameters())
                 if self.param_name not in params or not params[self.param_name].requires_grad:
-                    # fall back to the first trainable 2-D weight (recorded in the rows)
-                    self.param_name = next(n for n, q in params.items() if q.requires_grad and q.dim() == 2)
+                    # fall back to the last trainable 2-D weight, i.e. the one nearest the output (recorded in the rows)
+                    self.param_name = [n for n, q in params.items() if q.requires_grad and q.dim() == 2][-1]
                 param = params[self.param_name]
-                batch = {k: (v.to(pl_module.device) if torch.is_tensor(v) else v) for k, v in self._batch.items()}
+                batch = _map_tensors(self._batch, lambda v: v.to(pl_module.device))
                 was_training = pl_module.training
                 pl_module.eval()
                 with torch.enable_grad():
