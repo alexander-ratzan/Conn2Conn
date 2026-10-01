@@ -74,6 +74,22 @@ Measured for `linear_backbone` (in `state.yml`):
 | correye | 52.9 | 4342 |
 | neidist | 1.25 | 103 |
 
+### Gradient strength (why matched loss values are not matched effects)
+
+$c_t$ equalizes each term's *value* with MSE. It does not equalize *gradients*. Below is the mean gradient norm on
+`W_mid` over training for `mse_only` (logged every 5 epochs by `TermGradCosine`), relative to MSE:
+
+| Term | $\lVert \nabla \mathcal{L}_t \rVert / c_t \;÷\; \lVert \nabla \mathcal{L}_{\text{mse}} \rVert$ | cosine with MSE gradient |
+|---|---|---|
+| varmatch | 0.40 | 0.31–0.36 |
+| correye | 0.05 | 0.26–0.31 |
+| neidist | 13.1 | 0.76 |
+
+So at the same grid weight, `neidist` pushes about 260× harder than `correye`: `neidist` at $w = 0.1$ is already
+about 1.3× the MSE gradient, while `correye` at $w = 1$ is 5% of it. The grid's dose axis is therefore not
+comparable across terms. For E3, scaling by gradient norm (or sweeping each term over its own range) would make
+the weights comparable.
+
 ### MSE (`mse`)
 
 $$
@@ -111,13 +127,14 @@ $$
 The term asks for own-subject correlations of 1 and cross-subject correlations of 0. Note that it is the
 Frobenius norm, not its square, and that the correlations are on the **raw** (not de-meaned) connectomes.
 
-*Reading of the E1 result (interpretation, not a separate test):* raw FC rows are dominated by the shared group
-connectome, so every entry of $C$ sits near the raw Pearson $r \approx 0.83$. Plugging in diagonal 0.84 and
-off-diagonal 0.83 gives $\sqrt{64 \cdot 0.16^2 + 4032 \cdot 0.83^2} \approx 52.7$, which matches the measured
-mean of 52.9. So the off-diagonal sum (4032 terms) carries almost all of the loss. Lowering it means pushing
-predictions away from the group mean, which MSE resists. That is consistent with `correye` having no measurable
-effect at any weight. The `grad_cosine` figure tests this directly: its gradient should be near-parallel or
-anti-parallel to MSE's on `W_mid`.
+*Reading of the E1 result:* raw FC rows are dominated by the shared group connectome, so every entry of $C$ sits
+near the raw Pearson $r \approx 0.83$. Plugging in diagonal 0.84 and off-diagonal 0.83 gives
+$\sqrt{64 \cdot 0.16^2 + 4032 \cdot 0.83^2} \approx 52.7$, which matches the measured mean of 52.9. The diagonal,
+which carries the identity information, is about 0.06% of $\lVert C - I \rVert_F^2$. The logged gradients (see
+*Gradient strength* below) show why the term does nothing: at $w = 1$ its scaled gradient is only about 5% of the
+MSE gradient. Correlation is invariant to each row's offset and scale, so the gradient on raw-FC-sized rows is
+small. Its direction is mostly "spread the predictions out": it is $\approx 0.86$–$0.96$ cosine-aligned with
+`varmatch`, but at about a tenth of `varmatch`'s strength.
 
 ### Nearest-neighbor distance (`neidist`, Krakencoder; `margin: null`)
 
@@ -135,6 +152,11 @@ d_{\text{other}} = \frac{1}{B}\sum_{i}\frac{1}{2}\Big(\min_{k \ne i} D_{ki} + \m
 \mathcal{L}_{\text{neidist}} = d_{\text{self}} - d_{\text{other}}
 $$
 
+$D$ is **not symmetric**. It compares two different sets, targets (rows) and predictions (columns), so
+$D_{ki} = \lVert y_k - \hat y_i \rVert$ ("does prediction $i$ look like someone else's target?") and
+$D_{ik} = \lVert y_i - \hat y_k \rVert$ ("does someone else's prediction look like target $i$?") are different
+pairs. They coincide only if $\hat Y = Y$. The two minima can also pick different competitors $k$.
+
 In the code, $k \ne i$ is enforced by adding $\max D$ to the diagonal before taking the minimum. The first min is
 the nearest *other target* to prediction $i$; the second is the nearest *other prediction* to target $i$. The
 loss is **signed**: it is negative once every prediction is closer to its own target than to its closest
@@ -142,7 +164,18 @@ competitor. That is why the reference scale uses $\lvert\mathcal{L}_t\rvert$. Th
 the consensus model own-subject distances are still larger than nearest-competitor distances on average. Only
 the hardest competitor per subject receives gradient, so this is a margin-style identifiability objective, much
 closer to `avg_rank` than any other term. That matches the E1 finding that `neidist` is the only term that
-raises `avg_rank`. With `margin` $= m$ set, the code instead uses
+raises `avg_rank`. How it is optimized: write $u = (\hat y_i - y_i)/\lVert \hat y_i - y_i \rVert$. The $d_{\text{self}}$ part
+pulls each $\hat y_i$ toward $y_i$ with gradient $u/B$. That is a unit vector, so the pull has the same strength
+however small the error is. MSE's pull, $2(\hat y_i - y_i)/(BE)$, instead shrinks with the error and with the
+edge count $E$. The $-d_{\text{other}}$ part pushes only the argmin pairs apart (hard-negative mining): prediction
+$i$ away from its nearest wrong target, and the nearest wrong prediction away from target $i$, each with a
+unit-vector gradient of weight $1/(2B)$. The difference $y_i - \hat y_j$ cancels the group mean $\bar y$, so
+`neidist` acts entirely on subject-specific deviations; `correye` acts on raw rows that the group mean
+dominates. In the logs, its gradient is $\approx 0.75$ cosine-aligned with MSE's, yet 13× larger after scaling.
+At $w = 1$ it drives train `neidist` to $-4.9$ (train `avg_rank` = 1.000) and *lowers* train MSE (0.0122 →
+0.0103) while raising test MSE (0.0135 → 0.0153): it overfits subject identity on the training set.
+
+With `margin` $= m$ set, the code instead uses
 $d_{\text{self}} + \max(0, m - d_{\text{other}})$ (unused in v1).
 
 ### Other terms in `loss.py` (not in grid v1)
