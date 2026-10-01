@@ -6,7 +6,7 @@ generated `state.yml` (Stage 1 tune ids, consensus config, reference scales). Th
 
 Stages and the helpers they use:
     Stage 1 summary   find_stage1_runs, collect_stage1_trials, stage1_summary, consensus_config
-    E1.3 consensus    build_run_override (MSE-only), measure_term_scales, reference_scales
+    E1.3 consensus    build_run_override (MSE-only), measure_term_scales, reference_scales, seed_best_configs
     E1.4 grid         combo_loss_trainer (fixed scales, loss_normalize none, inactive terms monitored)
     both              run_one (one model x seed run in its own process), TermGradCosine (optional callback)
     E1.5 report       collect_runs (concatenates per-run outputs into seed_records / epoch_history)
@@ -180,6 +180,19 @@ def consensus_accepted(consensus_val_by_seed, best_val_by_seed):
     return bool(gap <= se), {"best_mean": best.mean(), "consensus_mean": cons.mean(), "se": se, "gap": gap}
 
 
+def seed_best_configs(trials, search_space):
+    """Each seed's own best Stage 1 trial as a config, with max_epochs capped at the epochs the trial actually
+    trained (ASHA may stop it early; same rule as main.py's best-trial refit)."""
+    out = {}
+    for seed, g in trials.groupby("seed"):
+        best = g.loc[g["val_demeaned_r"].idxmax()]
+        conf = {k: _plain(best[f"p.{k}"]) for k in search_space}
+        if "max_epochs" in conf:
+            conf["max_epochs"] = int(min(int(conf["max_epochs"]), int(best["n_epochs"])))
+        out[int(seed)] = {"config": conf, "stage1_val": float(best["val_demeaned_r"]), "trial": str(best["trial"])}
+    return out
+
+
 # --------------------------------------------------------------------------------------------- loss configs
 def split_consensus(consensus, stage1_config_path):
     """Consensus keys -> {"model": ..., "trainer": ...} overrides (trainer keys per models.registry)."""
@@ -296,9 +309,9 @@ class TermGradCosine:
 
 
 # --------------------------------------------------------------------------------------------- one run
-def run_one(instance, stage, combo_id, seed, trainer_overrides, grad_cosine=None, mode="prod", out_root=None):
-    """Train + evaluate one (combination, seed) with the instance's consensus config. Writes the run's JSON and
-    epoch CSV and returns the JSON record. Meant to run in its own process (see protocol.py)."""
+def run_one(instance, stage, combo_id, seed, trainer_overrides, grad_cosine=None, mode="prod", out_root=None, hparams=None):
+    """Train + evaluate one (combination, seed) with the instance's consensus config (or `hparams` in its place).
+    Writes the run's JSON and epoch CSV and returns the JSON record. Meant to run in its own process (see protocol.py)."""
     import inspect
     from main import Sim
     cfg = load_instance(instance)
@@ -306,7 +319,7 @@ def run_one(instance, stage, combo_id, seed, trainer_overrides, grad_cosine=None
     if "consensus" not in state:
         raise RuntimeError(f"{instance}: no consensus in state.yml (run the stage1 step first)")
     batch = int(cfg["grid"]["batch_size"])
-    override = split_consensus(state["consensus"], cfg["stage1"]["config"])
+    override = split_consensus(hparams if hparams is not None else state["consensus"], cfg["stage1"]["config"])
     override["trainer"] = {**override["trainer"], **trainer_overrides}
     sim = Sim(model_name=cfg["model"], config_path=str(REPO_ROOT / cfg["stage1"]["config"]), source=cfg["source"],
               target=cfg["target"], shuffle_seed=int(seed), data_load_mode="precomputed", batch_size=batch)
@@ -330,7 +343,7 @@ def run_one(instance, stage, combo_id, seed, trainer_overrides, grad_cosine=None
     tr = run_out["train_result"]
     hist = tr.history_df.copy()
     rec = {"model": cfg["model"], "instance": instance, "grid_version": cfg["grid_version"], "stage": stage,
-           "combo_id": combo_id, "seed": int(seed), "batch_size": batch,
+           "combo_id": combo_id, "seed": int(seed), "batch_size": batch, "hparams": hparams,
            "loss_signature": dict(tr.pl_module.hparams).get("loss_signature"),
            "val_demeaned_r_last": float(hist["val_demeaned_r"].dropna().iloc[-1]) if "val_demeaned_r" in hist else None,
            "epochs": int(len(hist))}

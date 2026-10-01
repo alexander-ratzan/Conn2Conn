@@ -298,6 +298,11 @@ def build(instance):
         written += ["figures/loss_composition.png", "figures/val_trajectories.png", "figures/dose_response.png"]
         if fig_grad_cosine(ep2, d / "figures" / "grad_cosine.png"):
             written.append("figures/grad_cosine.png")
+    check = cfg["state"].get("consensus_check", {})
+    if check.get("note"):
+        (d / "tables" / "consensus_note.txt").write_text(f"basis: {check.get('basis')}\n{check['note']}\n")
+        written.append("tables/consensus_note.txt")
+        print(f"NOTE ({check.get('basis')}): {check['note']}")
     for w in written:
         print("wrote", d / w)
     return 0

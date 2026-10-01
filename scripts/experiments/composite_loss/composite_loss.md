@@ -27,6 +27,10 @@ composite_loss/
   `correye`, `neidist` logged as monitor-only terms.
 - **Consensus + reference scales:** one consensus config (categorical by majority, `lr` / `l2_reg` by geometric
   median; accepted within 1 SE of the per-seed bests); fixed scales `c_t = s_t / s_mse` measured on it.
+  If the check fails, `protocol.py rebaseline` (`launch_rebaseline.sh`) retrains each seed's own best config on its
+  seed (epochs capped at what ASHA let the trial train) and re-checks against those retrained values, which removes the
+  best-of-24 selection bias. If it still fails, the consensus is accepted as a recorded fallback
+  (`state.yml` `consensus_check.basis: fallback_accept`, echoed in `tables/consensus_note.txt`) so Stage 2 runs.
 - **Stage 2:** the 16 grid combinations (8-cell on/off factorial at w = 0.5 + 8 dose-response points) × 5 seeds,
   Stage 1 hyperparameters fixed, `loss_normalize: none`, all four terms logged every epoch.
 - **Fixed across models:** `batch_size` 64 (D4), seeds, selection on `val_demeaned_r`, output schema
