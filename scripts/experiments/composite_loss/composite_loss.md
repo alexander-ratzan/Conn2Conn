@@ -79,7 +79,7 @@ Measured for `linear_backbone` (in `state.yml`):
 $c_t$ equalizes each term's *value* with MSE. It does not equalize *gradients*. Below is the mean gradient norm on
 `W_mid` over training for `mse_only` (logged every 5 epochs by `TermGradCosine`), relative to MSE:
 
-| Term | $\lVert \nabla \mathcal{L}_t \rVert / c_t \;÷\; \lVert \nabla \mathcal{L}_{\text{mse}} \rVert$ | cosine with MSE gradient |
+| Term | $\lVert \nabla \mathcal{L}_t \rVert / (c_t \lVert \nabla \mathcal{L}_{\text{mse}} \rVert)$ | cosine with MSE gradient |
 |---|---|---|
 | varmatch | 0.40 | 0.31–0.36 |
 | correye | 0.05 | 0.26–0.31 |
