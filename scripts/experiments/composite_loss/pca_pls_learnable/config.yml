@@ -61,7 +61,8 @@ compute:
 
 # --- Stop conditions and runtime (read by protocol.py) ------------------------------------------------------
 stop:
-  stage1_min_best_val: 0.09      # any seed's Stage 1 best val_demeaned_r below this -> stop
+  stage1_min_best_val: 0.085     # any seed's Stage 1 best val_demeaned_r below this -> stop. Lowered from 0.09 on
+                                 # 2026-10-01 (user decision): seed 1, the hardest split for every model, reached 0.0898.
 runtime:
   parallel: 5                    # (combination, seed) runs sharing one GPU as separate processes
   grid_tasks: 8                  # launch_grid.sh array size (145 runs -> 18-19 per task)
