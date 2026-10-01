@@ -35,6 +35,32 @@ PALETTE = {"blue_main": "#0F4D92", "blue_secondary": "#3775BA", "green_3": "#8BC
 TERM_COLOR = {"mse": PALETTE["blue_main"], "varmatch": PALETTE["teal"], "correye": PALETTE["violet"],
               "correye_dm": "#E3962B", "neidist": PALETTE["red_strong"]}
 FACTORIAL_BLOCKS = ("factorial", "factorial_dm")
+TERM_LABEL = {"mse": "MSE", "varmatch": "Var-match", "correye": "Corr-eye", "correye_dm": "Demeaned corr-eye",
+              "neidist": "Neighbor dist"}
+
+
+TERM_SHORT = {"varmatch": "VM", "correye": "CE", "correye_dm": "dCE", "neidist": "ND"}
+SHORT_KEY = "VM Var-match · CE Corr-eye · dCE Demeaned corr-eye · ND Neighbor dist"
+
+
+def combo_label(c, with_mse=True, sep=" + ", short=False):
+    """Readable name for a combination (dict or summary row): 'MSE + neidist 0.5 + correye (de-meaned) 0.5'."""
+    get = c.get if hasattr(c, "get") else (lambda k, d=None: c[k] if k in c else d)
+    names = TERM_SHORT if short else TERM_LABEL
+    parts = [f"{names[t]} {float(get(t, get(f'w_{t}', 0.0)) or 0.0):g}" for t in lg.TERMS
+             if float(get(t, get(f"w_{t}", 0.0)) or 0.0) > 0]
+    if not parts:
+        return "MSE only"
+    return sep.join((["MSE"] if with_mse else []) + parts)
+
+
+def cos_label(col):
+    """'cos_correye_dm_neidist' -> 'correye (de-meaned) vs neidist'."""
+    body = col[len("cos_"):]
+    for a in sorted(lg.ALL_TERMS, key=len, reverse=True):
+        if body.startswith(a + "_") and body[len(a) + 1:] in lg.ALL_TERMS:
+            return f"{TERM_LABEL[a]} vs {TERM_LABEL[body[len(a) + 1:]]}"
+    return body
 RC = {"font.family": ["DejaVu Sans", "Helvetica", "Arial", "sans-serif"], "font.size": 14, "axes.spines.right": False,
       "axes.spines.top": False, "axes.linewidth": 2, "legend.frameon": False, "svg.fonttype": "none"}
 DPI = 300
@@ -59,7 +85,7 @@ def _mix_color(row):
 
 def _save(fig, path):
     fig.tight_layout(pad=1.5)
-    fig.savefig(path, dpi=DPI, facecolor="white")
+    fig.savefig(path, dpi=DPI, facecolor="white", bbox_inches="tight", pad_inches=0.15)
     plt.close(fig)
 
 
@@ -103,11 +129,12 @@ def fig_tradeoff(summary, path):
                     fmt="o", ms=12 if is_base else 8, color=color, ecolor=color, elinewidth=1.2, capsize=3,
                     mec="black" if is_base else color, mew=2 if is_base else 0.5, zorder=3 if is_base else 2)
     handles = [plt.Line2D([], [], marker="o", ls="", color=c, ms=8, label=l) for l, c in
-               [("MSE only", PALETTE["blue_main"]), ("+ varmatch", TERM_COLOR["varmatch"]), ("+ correye", TERM_COLOR["correye"]),
-                ("+ correye_dm", TERM_COLOR["correye_dm"]), ("+ neidist", TERM_COLOR["neidist"]),
-                ("two terms", PALETTE["green_3"]), ("three terms", PALETTE["grey"])]]
-    ax.legend(handles=handles, loc="best", fontsize=10)
+               [("MSE only", PALETTE["blue_main"]), ("+ Var-match", TERM_COLOR["varmatch"]), ("+ Corr-eye", TERM_COLOR["correye"]),
+                ("+ Demeaned corr-eye", TERM_COLOR["correye_dm"]), ("+ Neighbor dist", TERM_COLOR["neidist"]),
+                ("+ two terms", PALETTE["green_3"]), ("+ three terms", PALETTE["grey"])]]
+    ax.legend(handles=handles, loc="upper left", fontsize=10)
     _place_labels(ax, summary)
+    ax.text(0.99, 0.01, SHORT_KEY, transform=ax.transAxes, ha="right", va="bottom", fontsize=8, color=PALETTE["grey"])
     ax.set_xlabel("Average rank (test, max)")
     ax.set_ylabel("Demeaned corr. (test, max)")
     ax.grid(alpha=0.25, ls="--")
@@ -121,11 +148,14 @@ def _place_labels(ax, summary):
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
     placed = [ax.get_legend().get_window_extent(renderer)] if ax.get_legend() else []
-    offsets = [(6, 0), (-6, 0), (6, 8), (6, -8), (-6, 8), (-6, -8)]
+    pts = ax.transData.transform(summary[["avg_rank_mean", "demeaned_pearson_mean"]].to_numpy())
+    from matplotlib.transforms import Bbox
+    placed += [Bbox.from_extents(x - 9, y - 9, x + 9, y + 9) for x, y in pts]  # keep labels off the markers
+    offsets = [(10, 0), (-10, 0), (10, 9), (10, -9), (-10, 9), (-10, -9)]
     rows = summary.sort_values(["demeaned_pearson_mean", "avg_rank_mean"], ascending=False)
     for _, r in rows.iterrows():
         for dx, dy in offsets:
-            txt = ax.annotate(r["combo_id"], (r["avg_rank_mean"], r["demeaned_pearson_mean"]), xytext=(dx, dy),
+            txt = ax.annotate(combo_label(r, with_mse=False, short=True), (r["avg_rank_mean"], r["demeaned_pearson_mean"]), xytext=(dx, dy),
                               textcoords="offset points", fontsize=8, color=PALETTE["grey"],
                               ha="left" if dx > 0 else "right", va="center")
             bb = txt.get_window_extent(renderer).expanded(1.05, 1.15)
@@ -148,12 +178,13 @@ def fig_interactive(summary, records, path, title):
     points = []
     for i, r in summary.iterrows():
         seeds = records[(records["stage"] == "stage2") & (records["combo_id"] == r["combo_id"])].sort_values("seed")
-        info = {"id": r["combo_id"], "block": r["block"], "signature": r["loss_signature"],
-                "weights": {"mse": 1.0, **{t: float(r[f"w_{t}"]) for t in _terms(summary)}},
+        info = {"id": r["combo_id"], "label": combo_label(r), "block": r["block"], "signature": r["loss_signature"],
+                "weights": {"MSE": 1.0, **{TERM_LABEL[t]: float(r[f"w_{t}"]) for t in _terms(summary)}},
                 "demeaned_pearson": f"{r['demeaned_pearson_mean']:.4f} ± {r['demeaned_pearson_se']:.4f}",
                 "avg_rank": f"{r['avg_rank_mean']:.4f} ± {r['avg_rank_se']:.4f}",
+                "top1_acc": f"{r['top1_acc_mean']:.4f} ± {r['top1_acc_se']:.4f}",
                 "per_seed": [{"seed": int(s.seed), "demeaned_pearson": round(s.test_demeaned_pearson, 4),
-                              "avg_rank": round(s.test_avg_rank, 4)} for s in seeds.itertuples()]}
+                              "avg_rank": round(s.test_avg_rank, 4), "top1_acc": round(s.test_top1_acc, 4)} for s in seeds.itertuples()]}
         cx, cy = sx(x[i]), sy(y[i])
         color = _mix_color(r)
         points.append(
@@ -188,11 +219,11 @@ td,th{{padding:2px 6px;text-align:left;border-bottom:1px solid var(--muted)}} h1
 const panel=document.getElementById('panel');
 function show(el){{const d=JSON.parse(el.dataset.info);
  let w=Object.entries(d.weights).map(([k,v])=>`<tr><td>${{k}}</td><td>${{v}}</td></tr>`).join('');
- let s=d.per_seed.map(r=>`<tr><td>${{r.seed}}</td><td>${{r.demeaned_pearson}}</td><td>${{r.avg_rank}}</td></tr>`).join('');
- panel.innerHTML=`<h3>${{d.id}} <small>(${{d.block}})</small></h3><p><code>${{d.signature}}</code></p>
- <table><tr><th>term</th><th>weight</th></tr>${{w}}</table>
- <p>demeaned corr: ${{d.demeaned_pearson}}<br>avg rank: ${{d.avg_rank}}</p>
- <table><tr><th>seed</th><th>demeaned</th><th>avg rank</th></tr>${{s}}</table>`;}}
+ let s=d.per_seed.map(r=>`<tr><td>${{r.seed}}</td><td>${{r.demeaned_pearson}}</td><td>${{r.avg_rank}}</td><td>${{r.top1_acc}}</td></tr>`).join('');
+ panel.innerHTML=`<h3>${{d.label}}</h3><p><small>id <code>${{d.id}}</code> · block ${{d.block}} · loss <code>${{d.signature}}</code></small></p>
+ <table><tr><th>Term</th><th>Weight</th></tr>${{w}}</table>
+ <p>Demeaned corr.: ${{d.demeaned_pearson}}<br>Average rank: ${{d.avg_rank}}<br>Top-1 accuracy: ${{d.top1_acc}}</p>
+ <table><tr><th>Seed</th><th>Demeaned corr.</th><th>Avg. rank</th><th>Top-1 acc.</th></tr>${{s}}</table>`;}}
 document.querySelectorAll('.pt').forEach(el=>{{el.addEventListener('mouseenter',()=>show(el));
  el.addEventListener('click',()=>{{document.querySelectorAll('.pt').forEach(p=>p.classList.remove('sel'));el.classList.add('sel');show(el);}});}});
 </script></body></html>"""
@@ -206,6 +237,7 @@ def _mean_over_seeds(ep, cols):
 def fig_term_trajectories(ep, combos, path):
     plt.rcParams.update(RC)
     fac = [c["id"] for c in combos if c["block"] in FACTORIAL_BLOCKS]
+    by_id = {c["id"]: c for c in combos}
     cols = [f"val_loss_raw_{t}" for t in lg.ALL_TERMS if f"val_loss_raw_{t}" in ep]
     if not cols:
         return False
@@ -215,10 +247,12 @@ def fig_term_trajectories(ep, combos, path):
     for ax, col in zip(np.atleast_1d(axes), cols):
         for i, cid in enumerate(fac):
             g = m[m["combo_id"] == cid]
-            ax.plot(g["epoch"], g[col], lw=2.2 if cid == "mse_only" else 1.4, color="black" if cid == "mse_only" else cmap(i), label=cid)
-        ax.set_title(col.replace("val_loss_raw_", "val ") + " (min)")
+            ax.plot(g["epoch"], g[col], lw=2.2 if cid == "mse_only" else 1.4, color="black" if cid == "mse_only" else cmap(i),
+                    label=combo_label(by_id[cid]))
+        ax.set_title(f"Validation {TERM_LABEL[col.replace('val_loss_raw_', '')]} (min)", fontsize=12)
         ax.set_xlabel("Epoch")
-    np.atleast_1d(axes)[0].legend(fontsize=8)
+    handles, labels = np.atleast_1d(axes)[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="center left", bbox_to_anchor=(1.0, 0.5), fontsize=9, title="Training loss")
     _save(fig, path)
     return True
 
@@ -238,14 +272,15 @@ def fig_loss_composition(ep, combos, scales, path):
             if float(c.get(t, 0)) > 0:
                 parts[t] = (float(c[t]) * g[f"train_loss_raw_{t}"] / float(scales[t])).abs()
         tot = sum(parts.values())
-        ax.stackplot(g["epoch"], *[parts[k] / tot for k in parts], colors=[TERM_COLOR[k] for k in parts], labels=list(parts))
-        ax.set_title(c["id"], fontsize=11)
+        ax.stackplot(g["epoch"], *[parts[k] / tot for k in parts], colors=[TERM_COLOR[k] for k in parts],
+                     labels=[TERM_LABEL[k] for k in parts])
+        ax.set_title(combo_label(c, sep="\n+ "), fontsize=10)
         ax.set_xlabel("Epoch")
         ax.set_ylim(0, 1)
     for row in axes:
         row[0].set_ylabel("Share of |weighted loss|")
     handles = [plt.Rectangle((0, 0), 1, 1, color=TERM_COLOR[k]) for k in lg.ALL_TERMS if f"train_loss_raw_{k}" in ep]
-    fig.legend(handles, [k for k in lg.ALL_TERMS if f"train_loss_raw_{k}" in ep], loc="lower center",
+    fig.legend(handles, [TERM_LABEL[k] for k in lg.ALL_TERMS if f"train_loss_raw_{k}" in ep], loc="lower center",
                ncol=len(handles), fontsize=9, bbox_to_anchor=(0.5, -0.02))
     _save(fig, path)
 
@@ -253,15 +288,17 @@ def fig_loss_composition(ep, combos, scales, path):
 def fig_val_trajectories(ep, combos, path):
     plt.rcParams.update(RC)
     fac = [c["id"] for c in combos if c["block"] in FACTORIAL_BLOCKS]
+    by_id = {c["id"]: c for c in combos}
     m = _mean_over_seeds(ep[ep["combo_id"].isin(fac)], ["val_demeaned_r"])
     fig, ax = plt.subplots(figsize=(8, 5))
     cmap = plt.get_cmap("tab20")
     for i, cid in enumerate(fac):
         g = m[m["combo_id"] == cid]
-        ax.plot(g["epoch"], g["val_demeaned_r"], lw=2.2 if cid == "mse_only" else 1.4, color="black" if cid == "mse_only" else cmap(i), label=cid)
+        ax.plot(g["epoch"], g["val_demeaned_r"], lw=2.2 if cid == "mse_only" else 1.4, color="black" if cid == "mse_only" else cmap(i),
+                label=combo_label(by_id[cid]))
     ax.set_xlabel("Epoch")
-    ax.set_ylabel("Val demeaned r (max)")
-    ax.legend(fontsize=8, ncol=2)
+    ax.set_ylabel("Validation demeaned r (max)")
+    ax.legend(fontsize=9, loc="center left", bbox_to_anchor=(1.02, 0.5), title="Training loss")
     _save(fig, path)
 
 
@@ -294,7 +331,8 @@ def fig_dose_response(summary, path):
             es = np.r_[0.0, g[f"d_{metric}_se"].to_numpy()][order]
             three = name.startswith("three terms")
             color = PALETTE["grey"] if three else TERM_COLOR[name]
-            ax.errorbar(xs[order], ys, yerr=es, marker="o", lw=2, capsize=3, color=color, label=name,
+            shown = (f"Var-match + {TERM_LABEL[name.split('(')[1][:-1]]} + Neighbor dist (equal weights)" if three else TERM_LABEL[name])
+            ax.errorbar(xs[order], ys, yerr=es, marker="o", lw=2, capsize=3, color=color, label=shown,
                         ls="--" if three and name.endswith("_dm)") else "-")
         ax.axhline(0, color=PALETTE["blue_main"], ls=":", lw=1.5)
         ax.set_xscale("symlog", linthresh=0.1, linscale=0.5)
@@ -306,22 +344,24 @@ def fig_dose_response(summary, path):
     _save(fig, path)
 
 
-def fig_grad_cosine(ep, path):
+def fig_grad_cosine(ep, combos, path):
     cos_cols = [c for c in ep.columns if c.startswith("cos_")]
     if not cos_cols:
         return False
     plt.rcParams.update(RC)
     show = [c for c in ("mse_only", "all_0.5", "alldm_0.5") if c in set(ep["combo_id"])]
+    by_id = {c["id"]: c for c in combos}
     fig, axes = plt.subplots(1, len(show), figsize=(6.5 * len(show), 4.6), sharey=True, squeeze=False)
     for ax, cid in zip(axes[0], show):
         g = ep[(ep["combo_id"] == cid)].dropna(subset=cos_cols).groupby("epoch")[cos_cols].mean()
         for col in cos_cols:
-            ax.plot(g.index, g[col], marker=".", lw=1.6, label=col.replace("cos_", "").replace("_", " vs ", 1))
+            ax.plot(g.index, g[col], marker=".", lw=1.6, label=cos_label(col))
         ax.axhline(0, color=PALETTE["neutral"], lw=1)
-        ax.set_title(f"{cid}: gradient cosine on the latent map", fontsize=11)
+        ax.set_title(f"Gradient cosine on the latent map\ntraining loss: {combo_label(by_id.get(cid, {'id': cid}))}", fontsize=10)
         ax.set_xlabel("Epoch")
     axes[0][0].set_ylabel("cosine")
-    axes[0][0].legend(fontsize=8, ncol=2)
+    handles, labels = axes[0][0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="center left", bbox_to_anchor=(1.0, 0.5), fontsize=9, title="Gradient pair")
     _save(fig, path)
     return True
 
@@ -358,7 +398,7 @@ def build(instance):
         fig_val_trajectories(ep2, combos, d / "figures" / "val_trajectories.png")
         fig_dose_response(summary, d / "figures" / "dose_response.png")
         written += ["figures/loss_composition.png", "figures/val_trajectories.png", "figures/dose_response.png"]
-        if fig_grad_cosine(ep2, d / "figures" / "grad_cosine.png"):
+        if fig_grad_cosine(ep2, combos, d / "figures" / "grad_cosine.png"):
             written.append("figures/grad_cosine.png")
     check = cfg["state"].get("consensus_check", {})
     if check.get("note"):
