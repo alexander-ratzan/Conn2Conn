@@ -103,7 +103,10 @@ def build():
     ys = [r["demeaned_pearson_mean"] for r in flat] + ([ceiling["demeaned_pearson_mean"]] if ceiling else [])
     x0, x1 = min(0.5, min(xs) - 0.02), min(1.0, max(xs) + 0.02)
     y0, y1 = min(0.0, min(ys) - 0.005), max(ys) * 1.06
-    data = {"models": [{"id": k, "label": MODEL_LABEL.get(k, k), "color": COLORS[i % len(COLORS)],
+    mx = [r["avg_rank_mean"] for r in flat]; my = [r["demeaned_pearson_mean"] for r in flat]
+    zx, zy = (max(mx) - min(mx)) * 0.06 + 1e-3, (max(my) - min(my)) * 0.08 + 1e-3
+    zoom = [min(mx) - zx, max(mx) + zx, min(my) - zy, max(my) + zy]
+    data = {"zoom": zoom, "models": [{"id": k, "label": MODEL_LABEL.get(k, k), "color": COLORS[i % len(COLORS)],
                         "note": NATIVE_NOTE.get(k, ""), "points": v} for i, (k, v) in enumerate(models.items())],
             "ceiling": ceiling, "axes": [x0, x1, y0, y1]}
     out = HERE / "figures"
@@ -132,12 +135,12 @@ table{border-collapse:collapse;width:100%;font-size:13px} td,th{padding:2px 6px;
 small{color:var(--muted)}
 </style></head><body>
 <h1>Composite losses across models (SC → FC, test split)</h1>
-<p class="sub">Mean over seeds 0–4 per loss combination. Axes are fixed across models. Ringed points are each model's MSE-only fit; the dashed lines mark the test-retest ceiling.</p>
+<p class="sub">Mean over seeds 0–4 per loss combination. Axes are fixed across models (toggling a model never rescales them). Ringed points are each model's MSE-only fit; the dashed lines mark the test-retest ceiling.</p>
 <div id="toggles"></div>
 <main><div><svg id="plot" viewBox="0 0 760 560" role="img" aria-label="Test demeaned correlation against average rank, per model and loss combination"></svg></div>
 <div id="panel"><em>Hover or click a point to see its loss weights, paired change from that model's MSE-only fit, and per-seed results.</em></div></main>
 <script>
-const D=__DATA__; const W=760,H=560,L=70,B=56,T=16,R=16; const [x0,x1,y0,y1]=D.axes;
+const D=__DATA__; const W=760,H=560,L=70,B=56,T=16,R=16; let [x0,x1,y0,y1]=D.axes; let zoomed=false;
 const sx=v=>L+(v-x0)/(x1-x0)*(W-L-R), sy=v=>H-B-(v-y0)/(y1-y0)*(H-B-T);
 const on={}; D.models.forEach(m=>on[m.id]=true);
 let saved=null; try{saved=JSON.parse(localStorage.getItem('cl_models'))}catch(e){}
@@ -146,13 +149,14 @@ const f=(v,d=4)=>v==null?'–':Number(v).toFixed(d), pm=(m,s,d=4)=>m==null?'–'
 const sg=v=>v==null?'–':(v>=0?'+':'')+Number(v).toFixed(4);
 function ticks(a,b,n){const s=(b-a)/n;return Array.from({length:n+1},(_,i)=>a+i*s)}
 function render(){
+ [x0,x1,y0,y1]=zoomed?D.zoom:D.axes;
  const svg=document.getElementById('plot'); let o='';
  ticks(x0,x1,5).forEach(v=>{o+=`<line class="gl" x1="${sx(v)}" x2="${sx(v)}" y1="${T}" y2="${H-B}"/><text x="${sx(v)}" y="${H-B+18}" text-anchor="middle">${v.toFixed(3)}</text>`});
  ticks(y0,y1,5).forEach(v=>{o+=`<line class="gl" x1="${L}" x2="${W-R}" y1="${sy(v)}" y2="${sy(v)}"/><text x="${L-8}" y="${sy(v)+4}" text-anchor="end">${v.toFixed(3)}</text>`});
  o+=`<line class="ax" x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}"/><line class="ax" x1="${L}" y1="${T}" x2="${L}" y2="${H-B}"/>`;
  o+=`<text class="lab" x="${(W+L)/2}" y="${H-12}" text-anchor="middle">Average rank (test, max)</text>`;
  o+=`<text class="lab" transform="translate(16 ${(H-B)/2}) rotate(-90)" text-anchor="middle">Demeaned corr. (test, max)</text>`;
- if(D.ceiling){const c=D.ceiling,cx=sx(c.avg_rank_mean),cy=sy(c.demeaned_pearson_mean);
+ if(D.ceiling&&!zoomed){const c=D.ceiling,cx=sx(c.avg_rank_mean),cy=sy(c.demeaned_pearson_mean);
   o+=`<line x1="${L}" x2="${W-R}" y1="${cy}" y2="${cy}" stroke="currentColor" stroke-dasharray="6 4" opacity=".5"/>`;
   o+=`<line x1="${cx}" x2="${cx}" y1="${T}" y2="${H-B}" stroke="currentColor" stroke-dasharray="6 4" opacity=".5"/>`;
   o+=`<rect class="pt" data-c="1" x="${cx-7}" y="${cy-7}" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"/>`;
@@ -185,6 +189,8 @@ function show(el){
 const tg=document.getElementById('toggles');
 D.models.forEach(m=>{const l=document.createElement('label');l.innerHTML=`<input type="checkbox" ${on[m.id]?'checked':''}><span class="sw" style="background:${m.color}"></span>${m.label} <small>(${m.points.length})</small>`;
  l.querySelector('input').addEventListener('change',e=>{on[m.id]=e.target.checked;try{localStorage.setItem('cl_models',JSON.stringify(on))}catch(_){};render()});tg.appendChild(l)});
+const zl=document.createElement('label');zl.innerHTML='<input type="checkbox"> Zoom to the models (axes fit all models, ceiling hidden)';
+zl.querySelector('input').addEventListener('change',e=>{zoomed=e.target.checked;render()});tg.appendChild(zl);
 render();
 </script></body></html>
 """
