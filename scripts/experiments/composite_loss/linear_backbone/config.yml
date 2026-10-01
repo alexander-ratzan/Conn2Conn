@@ -30,19 +30,19 @@ stage1:
   consensus: null                # filled by E1.3: {n_components_pca_source, zscore_pca_scores, l1_reg, l2_reg, lr, max_epochs}
 
 # --- E1.3: reference scales --------------------------------------------------------------------------------
-# s_t = mean |raw_t| over training batches (batch 128, eval mode) of the Stage 1 consensus model, averaged over
+# s_t = mean |raw_t| over training batches (batch 64, eval mode) of the Stage 1 consensus model, averaged over
 # seeds. MSE stays raw (scale 1); every other term is divided by c_t = s_t / s_mse, so weight w_t means
 # "w x MSE's size at a good MSE-only solution".
 reference_scales: null           # filled by E1.3: {varmatch: c, correye: c, neidist: c, spread: {...}}
 
 # --- Stage 2 (E1.4): weight grid -----------------------------------------------------------------------------
-# The grid is the shared protocol file (factorial ablation at w = 0.5 + dose response; 16 combinations), so every
+# The grid is the shared protocol file (v2: v1's 16 combinations + correye_dm cells + extended correye ladders; 32), so every
 # model instance uses identical combination ids. Weights on the scaled terms; MSE = 1; loss_normalize: none.
 # All four terms are logged in every run (inactive ones as monitor-only terms).
-grid_file: scripts/experiments/composite_loss/grid.yml
-grid_version: v1
+grid_file: scripts/experiments/composite_loss/grid_v2.yml
+grid_version: v2
 stage2:
-  wandb_tags: [CrossModal_linear_backbone, "loss_grid:v1", "composite_loss:stage2"]   # plus combo:<id>, set by the runner
+  wandb_tags: [CrossModal_linear_backbone, "loss_grid:v2", "composite_loss:stage2"]   # plus combo:<id>, set by the runner
   epoch_history: tables/epoch_history.csv                # per run × epoch: raw / weighted / monitor terms, reg, val metrics
 
 # --- Compute envelope (spec v2 D3) --------------------------------------------------------------------------
@@ -50,7 +50,7 @@ stage2:
 compute:
   stage1_gpu_h: 4
   e13_gpu_h: 1
-  stage2_gpu_h: 8
+  stage2_gpu_h: 10
   stop_if:
     - any Stage 1 seed's best val_demeaned_r < 0.09 (linear-family best-per-sweep median is 0.11; spec v2 E2 audit)
     - the E1.3 consensus MSE-only run misses its seed's Stage 1 best by more than 1 SE
@@ -62,7 +62,7 @@ stop:
   stage1_min_best_val: 0.09      # any seed's Stage 1 best val_demeaned_r below this -> stop
 runtime:
   parallel: 5                    # (combination, seed) runs sharing one GPU as separate processes
-  grid_tasks: 4                  # launch_grid.sh array size (80 runs -> 20 per task)
+  grid_tasks: 8                  # launch_grid.sh array size (160 runs -> 20 per task)
   grad_cosine: {param: W_mid, every: 5}   # per-term gradient cosines on the latent map (needs extra_callbacks)
 
 # --- Outputs (E1.5) -----------------------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Composite-loss protocol (spec v2 E1). E1.4: the 16 grid combinations x 5 seeds, interleaved over 4 array tasks, 5 runs in parallel per GPU.
+# Composite-loss protocol (spec v2 E1). E1.4: the grid combinations x 5 seeds, interleaved over 8 array tasks, 5 runs in parallel per GPU.
 #   sbatch scripts/experiments/composite_loss/launch_grid.sh <instance>      (instance = folder under scripts/experiments/composite_loss/)
 # Exit code 2 from protocol.py = a D3 stop condition tripped (see the job log and the instance state.yml).
 #SBATCH --nodes=1
@@ -13,7 +13,7 @@
 #SBATCH --job-name=e1_grid
 #SBATCH --output=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/e1_grid_%A_%a.out
 #SBATCH --error=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/e1_grid_%A_%a.err
-#SBATCH --array=0-3
+#SBATCH --array=0-7
 
 set -euo pipefail
 

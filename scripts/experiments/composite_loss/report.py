@@ -10,7 +10,7 @@ Figures (<instance>/figures/, PNG 300 dpi, figure-making skill style):
     term_trajectories.png        val raw value of each term over epochs (factorial combinations)
     loss_composition.png         each active term's share of the weighted training loss over epochs
     val_trajectories.png         val demeaned r over epochs (factorial combinations)
-    dose_response.png            weight -> test demeaned_pearson / avg_rank per term (single-term and all-three lines)
+    dose_response.png            weight -> test demeaned_pearson / avg_rank per term (single terms + three-term mixtures; symlog)
     grad_cosine.png              per-term gradient cosines on the latent map over epochs (if recorded)
 """
 import html
@@ -32,16 +32,23 @@ from scripts.results_utils import loss_grid as lg  # noqa: E402
 
 PALETTE = {"blue_main": "#0F4D92", "blue_secondary": "#3775BA", "green_3": "#8BCF8B", "red_strong": "#B64342",
            "teal": "#42949E", "violet": "#9A4D8E", "neutral": "#CFCECE", "grey": "#4D4D4D", "highlight": "#FFD700"}
-TERM_COLOR = {"mse": PALETTE["blue_main"], "varmatch": PALETTE["teal"], "correye": PALETTE["violet"], "neidist": PALETTE["red_strong"]}
+TERM_COLOR = {"mse": PALETTE["blue_main"], "varmatch": PALETTE["teal"], "correye": PALETTE["violet"],
+              "correye_dm": "#E3962B", "neidist": PALETTE["red_strong"]}
+FACTORIAL_BLOCKS = ("factorial", "factorial_dm")
 RC = {"font.family": ["DejaVu Sans", "Helvetica", "Arial", "sans-serif"], "font.size": 14, "axes.spines.right": False,
       "axes.spines.top": False, "axes.linewidth": 2, "legend.frameon": False, "svg.fonttype": "none"}
 DPI = 300
 TEST_METRICS = ("demeaned_pearson", "avg_rank", "pearson", "mse", "top1_acc")
 
 
+def _terms(df):
+    """Protocol terms present in a table (v1 tables have no correye_dm column)."""
+    return [t for t in lg.TERMS if f"w_{t}" in df]
+
+
 def _mix_color(row):
     """Colour by which terms are active: MSE-only blue, single terms their own colour, mixtures grey shades."""
-    active = [t for t in lg.TERMS if row[f"w_{t}"] > 0]
+    active = [t for t in lg.TERMS if row.get(f"w_{t}", 0) > 0]
     if not active:
         return PALETTE["blue_main"]
     if len(active) == 1:
@@ -90,7 +97,8 @@ def fig_tradeoff(summary, path):
                     textcoords="offset points", fontsize=8, color=PALETTE["grey"])
     handles = [plt.Line2D([], [], marker="o", ls="", color=c, ms=8, label=l) for l, c in
                [("MSE only", PALETTE["blue_main"]), ("+ varmatch", TERM_COLOR["varmatch"]), ("+ correye", TERM_COLOR["correye"]),
-                ("+ neidist", TERM_COLOR["neidist"]), ("two terms", PALETTE["green_3"]), ("all three", PALETTE["grey"])]]
+                ("+ correye_dm", TERM_COLOR["correye_dm"]), ("+ neidist", TERM_COLOR["neidist"]),
+                ("two terms", PALETTE["green_3"]), ("three terms", PALETTE["grey"])]]
     ax.legend(handles=handles, loc="best", fontsize=10)
     ax.set_xlabel("Average rank (test, max)")
     ax.set_ylabel("Demeaned corr. (test, max)")
@@ -112,7 +120,7 @@ def fig_interactive(summary, records, path, title):
     for i, r in summary.iterrows():
         seeds = records[(records["stage"] == "stage2") & (records["combo_id"] == r["combo_id"])].sort_values("seed")
         info = {"id": r["combo_id"], "block": r["block"], "signature": r["loss_signature"],
-                "weights": {"mse": 1.0, **{t: float(r[f"w_{t}"]) for t in lg.TERMS}},
+                "weights": {"mse": 1.0, **{t: float(r[f"w_{t}"]) for t in _terms(summary)}},
                 "demeaned_pearson": f"{r['demeaned_pearson_mean']:.4f} ± {r['demeaned_pearson_se']:.4f}",
                 "avg_rank": f"{r['avg_rank_mean']:.4f} ± {r['avg_rank_se']:.4f}",
                 "per_seed": [{"seed": int(s.seed), "demeaned_pearson": round(s.test_demeaned_pearson, 4),
@@ -168,13 +176,13 @@ def _mean_over_seeds(ep, cols):
 
 def fig_term_trajectories(ep, combos, path):
     plt.rcParams.update(RC)
-    fac = [c["id"] for c in combos if c["block"] == "factorial"]
+    fac = [c["id"] for c in combos if c["block"] in FACTORIAL_BLOCKS]
     cols = [f"val_loss_raw_{t}" for t in lg.ALL_TERMS if f"val_loss_raw_{t}" in ep]
     if not cols:
         return False
     m = _mean_over_seeds(ep[ep["combo_id"].isin(fac)], cols)
-    fig, axes = plt.subplots(1, len(cols), figsize=(4.2 * len(cols), 4))
-    cmap = plt.get_cmap("tab10")
+    fig, axes = plt.subplots(1, len(cols), figsize=(4.2 * len(cols), 4.4))
+    cmap = plt.get_cmap("tab20")
     for ax, col in zip(np.atleast_1d(axes), cols):
         for i, cid in enumerate(fac):
             g = m[m["combo_id"] == cid]
@@ -188,9 +196,13 @@ def fig_term_trajectories(ep, combos, path):
 
 def fig_loss_composition(ep, combos, scales, path):
     plt.rcParams.update(RC)
-    fac = [c for c in combos if c["block"] == "factorial" and c["id"] != "mse_only"]
-    fig, axes = plt.subplots(1, len(fac), figsize=(3.2 * len(fac), 3.6), sharey=True)
-    for ax, c in zip(np.atleast_1d(axes), fac):
+    fac = [c for c in combos if c["block"] in FACTORIAL_BLOCKS and c["id"] != "mse_only"]
+    ncol = min(4, len(fac))
+    nrow = int(np.ceil(len(fac) / ncol))
+    fig, axes = plt.subplots(nrow, ncol, figsize=(3.4 * ncol, 3.4 * nrow), sharey=True, squeeze=False)
+    for ax in axes.flat[len(fac):]:
+        ax.axis("off")
+    for ax, c in zip(axes.flat, fac):
         g = _mean_over_seeds(ep[ep["combo_id"] == c["id"]], [f"train_loss_raw_{t}" for t in lg.ALL_TERMS if f"train_loss_raw_{t}" in ep])
         parts = {"mse": g["train_loss_raw_mse"].abs()}
         for t in lg.TERMS:
@@ -201,17 +213,20 @@ def fig_loss_composition(ep, combos, scales, path):
         ax.set_title(c["id"], fontsize=11)
         ax.set_xlabel("Epoch")
         ax.set_ylim(0, 1)
-    np.atleast_1d(axes)[0].set_ylabel("Share of |weighted loss|")
-    np.atleast_1d(axes)[-1].legend(fontsize=8, loc="lower right")
+    for row in axes:
+        row[0].set_ylabel("Share of |weighted loss|")
+    handles = [plt.Rectangle((0, 0), 1, 1, color=TERM_COLOR[k]) for k in lg.ALL_TERMS if f"train_loss_raw_{k}" in ep]
+    fig.legend(handles, [k for k in lg.ALL_TERMS if f"train_loss_raw_{k}" in ep], loc="lower center",
+               ncol=len(handles), fontsize=9, bbox_to_anchor=(0.5, -0.02))
     _save(fig, path)
 
 
 def fig_val_trajectories(ep, combos, path):
     plt.rcParams.update(RC)
-    fac = [c["id"] for c in combos if c["block"] == "factorial"]
+    fac = [c["id"] for c in combos if c["block"] in FACTORIAL_BLOCKS]
     m = _mean_over_seeds(ep[ep["combo_id"].isin(fac)], ["val_demeaned_r"])
-    fig, ax = plt.subplots(figsize=(7, 4.5))
-    cmap = plt.get_cmap("tab10")
+    fig, ax = plt.subplots(figsize=(8, 5))
+    cmap = plt.get_cmap("tab20")
     for i, cid in enumerate(fac):
         g = m[m["combo_id"] == cid]
         ax.plot(g["epoch"], g["val_demeaned_r"], lw=2.2 if cid == "mse_only" else 1.4, color="black" if cid == "mse_only" else cmap(i), label=cid)
@@ -222,25 +237,40 @@ def fig_val_trajectories(ep, combos, path):
 
 
 def fig_dose_response(summary, path):
+    """Weight -> test metric for each single term, and for the equal-weight mixtures of three terms (one line per
+    correye variant). Symlog x axis: the v2 correye ladders run to w = 50."""
     plt.rcParams.update(RC)
+    terms = _terms(summary)
+    W = summary[[f"w_{u}" for u in terms]]
     base = summary[summary["combo_id"] == "mse_only"].iloc[0]
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
+    lines = {t: summary[(W.drop(columns=f"w_{t}").sum(axis=1) == 0) & (W[f"w_{t}"] > 0)] for t in terms}
+    for variant in ("correye", "correye_dm"):
+        if variant not in terms:
+            continue
+        others = [u for u in terms if u not in ("correye", "correye_dm")] + [variant]
+        sel = (summary[[f"w_{u}" for u in others]] > 0).all(axis=1) & (summary[[f"w_{u}" for u in others]].nunique(axis=1) == 1)
+        sel &= W[[f"w_{u}" for u in terms if u not in others]].sum(axis=1) == 0
+        if sel.any():
+            lines[f"three terms ({variant})"] = summary[sel]
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.8))
     for ax, metric, label in zip(axes, ("demeaned_pearson", "avg_rank"), ("Demeaned corr. (test, max)", "Average rank (test, max)")):
-        lines = {t: summary[(summary[[f"w_{u}" for u in lg.TERMS if u != t]].sum(axis=1) == 0) & (summary[f"w_{t}"] > 0)] for t in lg.TERMS}
-        lines["all three"] = summary[(summary[[f"w_{u}" for u in lg.TERMS]] > 0).all(axis=1)
-                                     & (summary[[f"w_{u}" for u in lg.TERMS]].nunique(axis=1) == 1)]
         for name, g in lines.items():
-            w = g[f"w_{lg.TERMS[0]}"] if name == "all three" else g[f"w_{name}"]
-            xs = np.r_[0.0, w.to_numpy()]
+            if g.empty:
+                continue
+            wcol = f"w_{name}" if name in terms else f"w_{terms[0]}"
+            xs = np.r_[0.0, g[wcol].to_numpy()]
             order = np.argsort(xs)
             ys = np.r_[base[f"{metric}_mean"], g[f"{metric}_mean"].to_numpy()][order]
             es = np.r_[base[f"{metric}_se"], g[f"{metric}_se"].to_numpy()][order]
-            color = PALETTE["grey"] if name == "all three" else TERM_COLOR[name]
-            ax.errorbar(xs[order], ys, yerr=es, marker="o", lw=2, capsize=3, color=color, label=name)
+            three = name.startswith("three terms")
+            color = PALETTE["grey"] if three else TERM_COLOR[name]
+            ax.errorbar(xs[order], ys, yerr=es, marker="o", lw=2, capsize=3, color=color, label=name,
+                        ls="--" if three and name.endswith("_dm)") else "-")
         ax.axhline(base[f"{metric}_mean"], color=PALETTE["blue_main"], ls=":", lw=1.5)
-        ax.set_xlabel("Term weight (scaled; MSE = 1)")
+        ax.set_xscale("symlog", linthresh=0.1, linscale=0.5)
+        ax.set_xlabel("Term weight (scaled; MSE = 1; symlog)")
         ax.set_ylabel(label)
-    axes[0].legend(fontsize=10)
+    axes[0].legend(fontsize=9)
     _save(fig, path)
 
 
@@ -249,8 +279,8 @@ def fig_grad_cosine(ep, path):
     if not cos_cols:
         return False
     plt.rcParams.update(RC)
-    show = [c for c in ("mse_only", "all_0.5") if c in set(ep["combo_id"])]
-    fig, axes = plt.subplots(1, len(show), figsize=(6.5 * len(show), 4.2), sharey=True, squeeze=False)
+    show = [c for c in ("mse_only", "all_0.5", "alldm_0.5") if c in set(ep["combo_id"])]
+    fig, axes = plt.subplots(1, len(show), figsize=(6.5 * len(show), 4.6), sharey=True, squeeze=False)
     for ax, cid in zip(axes[0], show):
         g = ep[(ep["combo_id"] == cid)].dropna(subset=cos_cols).groupby("epoch")[cos_cols].mean()
         for col in cos_cols:

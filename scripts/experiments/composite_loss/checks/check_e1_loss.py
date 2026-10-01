@@ -16,7 +16,8 @@ import torch.nn as nn  # noqa: E402
 import torch.nn.functional as F  # noqa: E402
 
 from models.train.loss import (  # noqa: E402
-    compute_correye_loss, compute_neidist_loss, compute_var_match_loss, create_loss_fn, resolve_loss_config,
+    CompositeLoss, compute_correye_dm_loss, compute_correye_loss, compute_neidist_loss, compute_var_match_loss,
+    create_loss_fn, resolve_loss_config,
 )
 
 fails = 0
@@ -156,7 +157,47 @@ def lightning_checks():
     check("no loss_monitor_terms hparam when unset", "loss_monitor_terms" not in m2.hparams)
 
 
+def correye_dm_checks():
+    """correye_dm = correye on (pred - mean, target - mean); needs the target mean; usable as term and monitor."""
+    torch.manual_seed(5)
+    mean = 3.0 * torch.randn(40)
+    dev = torch.randn(16, 40)
+    y = mean + 0.3 * dev
+    p = (mean + 0.3 * dev + 0.3 * torch.randn(16, 40)).requires_grad_(True)
+    v = compute_correye_dm_loss(p, y, mean)
+    check("correye_dm equals correye on de-meaned inputs", torch.equal(v, compute_correye_loss(p - mean, y - mean)))
+    check("shared mean dominates raw correye, not correye_dm",
+          float(compute_correye_loss(p, y)) > 2 * float(v), f"raw={float(compute_correye_loss(p, y)):.2f} dm={float(v):.2f}")
+    p0 = (y.clone()).requires_grad_(True)
+    check("at a perfect fit correye_dm < raw correye (no shared-mean off-diagonals)",
+          float(compute_correye_dm_loss(p0, y, mean)) < float(compute_correye_loss(p0, y)))
+    try:
+        CompositeLoss(["mse", "correye_dm"], normalize="none")
+        check("correye_dm without target_mean raises", False)
+    except ValueError:
+        check("correye_dm without target_mean raises", True)
+    try:
+        comp(loss_terms=["mse", "correye_dm"])
+        check("create_loss_fn without base raises for correye_dm", False)
+    except ValueError:
+        check("create_loss_fn without base raises for correye_dm", True)
+    fn = CompositeLoss([{"name": "mse", "weight": 1.0}, {"name": "correye_dm", "weight": 0.5, "kwargs": {"scale": 4.0}}],
+                       normalize="none", target_mean=mean, monitor_terms=["correye", "neidist"])
+    out = fn(p, y)
+    manual = F.mse_loss(p, y) + 0.5 * compute_correye_dm_loss(p, y, mean) / 4.0
+    check("correye_dm weighted/scaled term exact", torch.allclose(out, manual, rtol=0, atol=1e-7))
+    g, = torch.autograd.grad(out, p)
+    check("correye_dm gradient finite", bool(torch.isfinite(g).all()))
+    fm = CompositeLoss(["mse"], normalize="none", target_mean=mean, monitor_terms=["correye_dm"])
+    fm(p, y)
+    check("correye_dm as monitor equals the term function", torch.equal(fm.last_monitor_terms["correye_dm"], v.detach()))
+    r = resolve_loss_config({"loss_type": "composite", "loss_terms": [{"name": "mse", "weight": 1.0},
+                             {"name": "correye_dm", "weight": 2.0, "kwargs": {"scale": 9.0}}]})
+    check("correye_dm signature + auto->none with scale", r["loss_signature"] == "mse+2*correye_dm" and r["loss_normalize"] == "none")
+
+
 if __name__ == "__main__":
+    correye_dm_checks()
     scaling_checks()
     config_checks()
     monitor_checks()

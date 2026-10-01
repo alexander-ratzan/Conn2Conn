@@ -8,7 +8,8 @@
 
 GPU steps go through launch_consensus.sh / launch_grid.sh. Several (combination, seed) runs share one GPU as separate
 processes (`runtime.parallel` in the instance config). Exit code 2 = a stop condition from the instance config
-tripped (spec v2 D3): the agent stops and reports instead of continuing.
+tripped (spec v2 D3): the agent stops and reports instead of continuing. Exit code 3 (consensus step only) = only
+the consensus gate missed; launch_consensus.sh then runs the rebaseline re-check in the same job.
 """
 import argparse
 import json
@@ -23,6 +24,7 @@ sys.path.insert(0, str(REPO_ROOT))
 from scripts.results_utils import loss_grid as lg  # noqa: E402
 
 STOP = 2
+RECHECK = 3
 
 
 def _stop(instance, reasons, **extra):
@@ -44,6 +46,10 @@ def cmd_stage1(args):
         return 1
     trials, epochs = lg.collect_stage1_trials(cfg["model"], {s: runs[s] for s in seeds})
     summary, stop = lg.stage1_summary(trials, cfg.get("stop", {}).get("stage1_min_best_val"))
+    want = cfg["stage1"].get("trials_per_seed")
+    short = summary[summary["n_trials"] != int(want)] if want else summary.iloc[0:0]
+    if len(short):  # e.g. an older sweep with a different budget picked up from the logs
+        stop.append(f"Stage 1 trial count != {want} for seeds {short['seed'].tolist()} ({short['n_trials'].tolist()})")
     search = yaml.safe_load((REPO_ROOT / cfg["stage1"]["config"]).read_text())["search_space"]
     consensus, detail = lg.consensus_config(trials, search)
     tables = lg.instance_dir(args.instance) / "tables"
@@ -99,13 +105,15 @@ def cmd_consensus(args):
     lg.update_state(args.instance, consensus_check={"accepted": ok, **stats}, reference_scales=scales)
     print("consensus check:", json.dumps(lg._plain({"accepted": ok, **stats})))
     print("reference scales c_t:", json.dumps(scales["c"]), "| spread (cv):", json.dumps(scales["spread_cv"]))
-    if not ok:
-        _stop(args.instance, [f"consensus mean val {stats['consensus_mean']:.4f} misses the per-seed best mean "
-                              f"{stats['best_mean']:.4f} by more than 1 SE ({stats['se']:.4f})"])
     import math
     bad = [t for t, v in scales["c"].items() if not (isinstance(v, float) and math.isfinite(v) and v > 0)]
     if bad:
         _stop(args.instance, [f"non-finite or non-positive reference scale for {bad}"])
+    if not ok:
+        print(f"consensus gate missed: mean val {stats['consensus_mean']:.4f} vs per-seed best mean "
+              f"{stats['best_mean']:.4f} (SE {stats['se']:.4f}); rebaseline re-check next", flush=True)
+        lg.update_state(args.instance, consensus_check_stage1={"accepted": ok, **stats})
+        return RECHECK
     return 0
 
 

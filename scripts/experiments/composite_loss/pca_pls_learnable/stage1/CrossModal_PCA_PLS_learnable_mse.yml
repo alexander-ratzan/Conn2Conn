@@ -1,6 +1,6 @@
 # Composite-loss protocol, replicability instance (spec v2 E1, D4): CrossModal_PCA_PLS_learnable.yml, MSE-only.
 # Same protocol as composite_loss/linear_backbone: loss_type fixed to composite (no latent losses), loss-weight and
-# EMA keys removed from the search, batch 64, varmatch / correye / neidist logged as monitor-only terms.
+# EMA keys removed from the search, batch 64, varmatch / correye / correye_dm / neidist logged as monitor-only terms; learn_mid fixed to True.
 learned: true
 
 default:
@@ -13,7 +13,7 @@ default:
     n_components_pca_target: 256
     n_components_pls: 16
     learn_encoder: false
-    learn_mid: true
+    learn_mid: true                 # fixed: W_mid is the model's main learnable component (not searched)
     learn_decoder: false
     random_init: false
     l1_reg: 0.0
@@ -26,7 +26,7 @@ default:
     loss_terms:
       - {name: mse, weight: 1.0}
     loss_normalize: auto            # one active term -> none: exactly plain MSE
-    loss_monitor_terms: [varmatch, correye, neidist]
+    loss_monitor_terms: [varmatch, correye, correye_dm, neidist]
     max_epochs: 200
     batch_size: 64                  # protocol batch size (D4)
     log_every: 5
@@ -44,9 +44,6 @@ search_space:
   learn_encoder:
     type: choice
     values: [false, true]
-  learn_mid:
-    type: choice
-    values: [true, false]
   learn_decoder:
     type: choice
     values: [false, true]

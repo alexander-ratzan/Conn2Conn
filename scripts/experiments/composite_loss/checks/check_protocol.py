@@ -11,6 +11,7 @@ import math
 import shutil
 import sys
 import tempfile
+import types
 from pathlib import Path
 
 REPO_ROOT = next(p for p in Path(__file__).resolve().parents if (p / "main.py").exists())
@@ -23,7 +24,7 @@ import torch.nn as nn  # noqa: E402
 import yaml  # noqa: E402
 
 from scripts.results_utils import loss_grid as lg  # noqa: E402
-from models.train.loss import resolve_loss_config, compute_correye_loss, compute_neidist_loss, compute_var_match_loss  # noqa: E402
+from models.train.loss import resolve_loss_config, compute_correye_loss, compute_correye_dm_loss, compute_neidist_loss, compute_var_match_loss  # noqa: E402
 
 fails = 0
 
@@ -86,12 +87,12 @@ def stage1_checks(tmp):
 
 def loss_config_checks():
     cfg = lg.load_instance("linear_backbone")
-    scales = {"varmatch": 0.3, "correye": 50.0, "neidist": 20.0}
+    scales = {"varmatch": 0.3, "correye": 50.0, "correye_dm": 7.0, "neidist": 20.0}
     ok_all = True
     for c in cfg["grid"]["combos"]:
         tr = lg.combo_loss_trainer(c, scales, 64)
         r = resolve_loss_config(tr)
-        active = [t for t in lg.TERMS if c[t] > 0]
+        active = [t for t in lg.TERMS if c.get(t, 0) > 0]
         ok = (r["loss_signature"] == lg.expected_signature(c) and r["loss_normalize"] == "none"
               and (r["loss_monitor_terms"] or []) == [t for t in lg.TERMS if t not in active]
               and all(s["kwargs"]["scale"] == scales[s["name"]] for s in r["loss_terms"] if isinstance(s, dict) and s["name"] != "mse")
@@ -99,13 +100,22 @@ def loss_config_checks():
         ok_all &= ok
         if not ok:
             print("   bad combo", c["id"], r)
-    check("all 16 grid combos resolve (signature, normalize none, scales, monitors = inactive terms)", ok_all)
+    n = len(cfg["grid"]["combos"])
+    check(f"all {n} grid combos resolve (signature, normalize none, scales, monitors = inactive terms)", ok_all and n == 32)
+    try:
+        lg.combo_loss_trainer({"id": "bad", "correye": 0.5, "correye_dm": 0.5}, scales, 64)
+        check("correye + correye_dm in one combination raises", False)
+    except ValueError:
+        check("correye + correye_dm in one combination raises", True)
+    check("no grid v2 combination activates both correye variants",
+          all(not (c.get("correye", 0) > 0 and c.get("correye_dm", 0) > 0) for c in cfg["grid"]["combos"]))
 
 
 class _DS(torch.utils.data.Dataset):
     def __init__(self, n=200, d_in=10, d_out=20, seed=0):
         g = torch.Generator().manual_seed(seed)
         self.x, self.y = torch.randn(n, d_in, generator=g), torch.randn(n, d_out, generator=g)
+        self.base = types.SimpleNamespace(target_modality="FC", fc_train_avg=np.linspace(-1, 1, d_out).astype(np.float32))
 
     def __len__(self):
         return len(self.x)
@@ -132,6 +142,9 @@ def scale_checks():
     manual = np.mean([abs(float(compute_correye_loss(p[i:i + 64], ds.y[i:i + 64]))) for i in range(0, 192, 64)])
     check("measure_term_scales: full batches only (3 of 200/64), matches manual |correye|",
           s["correye"]["n_batches"] == 3 and abs(s["correye"]["abs_mean"] - manual) < 1e-6)
+    mean = torch.as_tensor(ds.base.fc_train_avg)
+    manual_dm = np.mean([abs(float(compute_correye_dm_loss(p[i:i + 64], ds.y[i:i + 64], mean))) for i in range(0, 192, 64)])
+    check("measure_term_scales: correye_dm uses the training target mean", abs(s["correye_dm"]["abs_mean"] - manual_dm) < 1e-6)
     by_seed = {0: s, 1: copy.deepcopy(s)}
     by_seed[1]["correye"]["abs_mean"] *= 2
     r = lg.reference_scales(by_seed)
@@ -164,6 +177,16 @@ def grad_cosine_checks():
     gb, = torch.autograd.grad(compute_neidist_loss(p, b["y"]), W)
     manual = float(torch.nn.functional.cosine_similarity(ga.flatten(), gb.flatten(), dim=0))
     check("TermGradCosine: final-epoch mse/neidist cosine matches a manual computation", abs(rows.iloc[-1]["cos_mse_neidist"] - manual) < 1e-5)
+    mean = np.linspace(-1, 1, 20).astype(np.float32)
+    cb2 = lg.TermGradCosine("no_such_param", every=1, target_mean=mean)
+    m2 = CrossModalLightningModule(_Lin(), FakeBase(), lr=1e-2, loss_cfg={"loss_type": "composite", "loss_terms": ["mse"]})
+    pl.Trainer(max_epochs=2, accelerator="cpu", logger=False, enable_progress_bar=False, enable_checkpointing=False,
+               enable_model_summary=False, callbacks=[cb2]).fit(m2, DataLoader(_DS(), batch_size=64), DataLoader(_DS(seed=1), batch_size=64))
+    rows2 = pd.DataFrame(cb2.rows)
+    check("TermGradCosine with target mean: 5 terms, 10 cosines incl. correye_dm",
+          len([c for c in rows2 if c.startswith("cos_")]) == 10 and "gnorm_correye_dm" in rows2)
+    check("TermGradCosine: missing/frozen param falls back to a trainable weight (recorded)",
+          set(rows2["grad_param"]) == {"W_mid"})
 
 
 def report_checks(tmp):
@@ -175,21 +198,21 @@ def report_checks(tmp):
     orig = lg.EXPERIMENT_DIR
     lg.EXPERIMENT_DIR = exp_dir
     try:
-        lg.update_state("linear_backbone", reference_scales={"c": {"varmatch": 0.3, "correye": 50.0, "neidist": 20.0}})
+        lg.update_state("linear_backbone", reference_scales={"c": {"varmatch": 0.3, "correye": 50.0, "correye_dm": 7.0, "neidist": 20.0}})
         cfg = lg.load_instance("linear_backbone")
         rng = np.random.RandomState(1)
-        for stage, combos in (("consensus", [{"id": "mse_only", "varmatch": 0, "correye": 0, "neidist": 0}]), ("stage2", cfg["grid"]["combos"])):
+        for stage, combos in (("consensus", [{"id": "mse_only", "varmatch": 0, "correye": 0, "correye_dm": 0, "neidist": 0}]), ("stage2", cfg["grid"]["combos"])):
             out = inst / "runs" / stage
             out.mkdir(parents=True)
             for c in combos:
                 for seed in range(5):
-                    rec = {"model": cfg["model"], "instance": "linear_backbone", "grid_version": "v1", "stage": stage, "combo_id": c["id"],
+                    rec = {"model": cfg["model"], "instance": "linear_backbone", "grid_version": "v2", "stage": stage, "combo_id": c["id"],
                            "seed": seed, "batch_size": 64, "loss_signature": lg.expected_signature(c), "val_demeaned_r_last": 0.1, "epochs": 6,
                            **{f"{sp}_{m}": float(rng.rand()) for sp in ("train", "val", "test") for m in lg.METRICS}}
                     (out / f"{c['id']}__seed{seed}.json").write_text(json.dumps(rec))
                     ep = pd.DataFrame({"combo_id": c["id"], "seed": seed, "epoch": range(6), "val_demeaned_r": rng.rand(6),
                                        **{f"{sp}_loss_raw_{t}": rng.rand(6) for sp in ("train", "val") for t in lg.ALL_TERMS}})
-                    if c["id"] in ("mse_only", "all_0.5"):
+                    if c["id"] in ("mse_only", "all_0.5", "alldm_0.5"):
                         for a in range(6):
                             ep.loc[a, "cos_mse_neidist"] = np.cos(a)
                     ep.to_csv(out / f"{c['id']}__seed{seed}__epochs.csv", index=False)
@@ -204,7 +227,7 @@ def report_checks(tmp):
         missing = [e for e in expected if not (inst / e).exists()]
         check("report.build writes every table and figure", rc == 0 and not missing, f"missing={missing}")
         summ = pd.read_csv(inst / "tables" / "combo_summary.csv")
-        check("combo_summary: 16 combinations × 5 seeds, grid order", len(summ) == 16 and (summ["n_seeds"] == 5).all()
+        check("combo_summary: 32 combinations × 5 seeds, grid order", len(summ) == 32 and (summ["n_seeds"] == 5).all()
               and summ["combo_id"].tolist() == [c["id"] for c in cfg["grid"]["combos"]])
         snap = tmp / "snap"
         shutil.copytree(inst / "tables", snap / "tables")
@@ -213,7 +236,7 @@ def report_checks(tmp):
         same = all(filecmp.cmp(snap / e, inst / e, shallow=False) for e in expected if not e.endswith(".gz"))
         check("report is deterministic (tables, PNGs and HTML byte-identical on rebuild)", same)
         htm = (inst / "figures" / "tradeoff_interactive.html").read_text()
-        check("interactive HTML: 16 clickable points, no external scripts", htm.count('class="pt"') == 16 and "<script src" not in htm)
+        check("interactive HTML: 32 clickable points, no external scripts", htm.count('class="pt"') == 32 and "<script src" not in htm)
     finally:
         lg.EXPERIMENT_DIR = orig
 

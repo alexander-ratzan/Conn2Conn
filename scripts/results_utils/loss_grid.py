@@ -30,7 +30,8 @@ REPO_ROOT = next(p for p in Path(__file__).resolve().parents if (p / "main.py").
 EXPERIMENT_DIR = REPO_ROOT / "scripts" / "experiments" / "composite_loss"
 RAY_CHECKPOINTS_DIR = REPO_ROOT / "results" / "ray_checkpoints"
 LOG_DIR = REPO_ROOT / "results" / "logs"
-TERMS = ("varmatch", "correye", "neidist")
+TERMS = ("varmatch", "correye", "correye_dm", "neidist")
+EXCLUSIVE_TERMS = (("correye", "correye_dm"),)   # never active together in one combination
 ALL_TERMS = ("mse",) + TERMS
 METRICS = ("demeaned_pearson", "avg_rank", "pearson", "mse", "top1_acc", "r2")
 
@@ -48,6 +49,13 @@ def load_instance(instance):
     cfg["grid"] = yaml.safe_load((REPO_ROOT / cfg["grid_file"]).read_text())
     if cfg["grid"]["version"] != cfg["grid_version"]:
         raise ValueError(f"{instance}: config grid_version {cfg['grid_version']} != grid file {cfg['grid']['version']}")
+    for c in cfg["grid"]["combos"]:
+        unknown = set(c) - {"id", "block"} - set(TERMS)
+        if unknown:
+            raise ValueError(f"{instance}: combination {c['id']} has unknown terms {sorted(unknown)}")
+        for group in EXCLUSIVE_TERMS:
+            if sum(float(c.get(x, 0.0)) > 0 for x in group) > 1:
+                raise ValueError(f"{instance}: combination {c['id']} activates mutually exclusive terms {group}")
     cfg["state"] = load_state(instance)
     return cfg
 
@@ -204,6 +212,10 @@ def split_consensus(consensus, stage1_config_path):
 
 def combo_loss_trainer(combo, scales, batch_size):
     """Trainer overrides for one grid combination: MSE anchor + scaled active terms, the rest monitored."""
+    for group in EXCLUSIVE_TERMS:
+        on = [x for x in group if float(combo.get(x, 0.0)) > 0]
+        if len(on) > 1:
+            raise ValueError(f"combination {combo.get('id')}: {on} are mutually exclusive")
     terms = [{"name": "mse", "weight": 1.0}]
     monitors = []
     for t in TERMS:
@@ -226,14 +238,23 @@ def expected_signature(combo):
 
 
 # --------------------------------------------------------------------------------------------- scales
+def term_functions(target_mean):
+    """{term: f(y_pred, y_true)} for every protocol term; correye_dm needs the training-set target mean."""
+    import torch
+    import torch.nn.functional as F
+    from models.train.loss import compute_var_match_loss, compute_correye_loss, compute_correye_dm_loss, compute_neidist_loss
+    tm = torch.as_tensor(np.asarray(target_mean), dtype=torch.float32)
+    return {"mse": F.mse_loss, "varmatch": compute_var_match_loss, "correye": compute_correye_loss,
+            "correye_dm": lambda p, y: compute_correye_dm_loss(p, y, tm.to(p.device)), "neidist": compute_neidist_loss}
+
+
 def measure_term_scales(model, dataset, batch_size, device=None):
     """Mean |raw| and mean signed raw of every term over full training batches (eval mode, fixed order)."""
     import torch
     from torch.utils.data import DataLoader
-    import torch.nn.functional as F
     from models.utils import predict_from_loader
-    from models.train.loss import compute_var_match_loss, compute_correye_loss, compute_neidist_loss
-    fns = {"mse": F.mse_loss, "varmatch": compute_var_match_loss, "correye": compute_correye_loss, "neidist": compute_neidist_loss}
+    from models.train.loss import get_target_train_mean
+    fns = term_functions(get_target_train_mean(dataset.base))
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
     model.eval()
     preds, targets = predict_from_loader(model, loader)
@@ -267,12 +288,16 @@ class TermGradCosine:
     training batch; logs pairwise cosines and gradient norms (rows in `.rows`). Built lazily so importing this module
     does not import Lightning."""
 
-    def __new__(cls, param_name, every=5, terms=ALL_TERMS):
+    def __new__(cls, param_name, every=5, terms=ALL_TERMS, target_mean=None):
         import lightning.pytorch as pl
         import torch
         import torch.nn.functional as F
-        from models.train.loss import compute_var_match_loss, compute_correye_loss, compute_neidist_loss
-        fns = {"mse": F.mse_loss, "varmatch": compute_var_match_loss, "correye": compute_correye_loss, "neidist": compute_neidist_loss}
+        if target_mean is not None:
+            fns = term_functions(target_mean)
+        else:  # no target mean: correye_dm cannot be computed
+            terms = [t for t in terms if t != "correye_dm"]
+            from models.train.loss import compute_var_match_loss, compute_correye_loss, compute_neidist_loss
+            fns = {"mse": F.mse_loss, "varmatch": compute_var_match_loss, "correye": compute_correye_loss, "neidist": compute_neidist_loss}
 
         class _Callback(pl.Callback):
             def __init__(self):
@@ -286,7 +311,11 @@ class TermGradCosine:
                 epoch = trainer.current_epoch
                 if self._batch is None or (epoch % self.every and epoch != trainer.max_epochs - 1):
                     return
-                param = dict(pl_module.model.named_parameters())[self.param_name]
+                params = dict(pl_module.model.named_parameters())
+                if self.param_name not in params or not params[self.param_name].requires_grad:
+                    # fall back to the first trainable 2-D weight (recorded in the rows)
+                    self.param_name = next(n for n, q in params.items() if q.requires_grad and q.dim() == 2)
+                param = params[self.param_name]
                 batch = {k: (v.to(pl_module.device) if torch.is_tensor(v) else v) for k, v in self._batch.items()}
                 was_training = pl_module.training
                 pl_module.eval()
@@ -299,7 +328,7 @@ class TermGradCosine:
                         grads[t] = g.flatten()
                 if was_training:
                     pl_module.train()
-                row = {"epoch": epoch, **{f"gnorm_{t}": float(grads[t].norm()) for t in self.terms}}
+                row = {"epoch": epoch, "grad_param": self.param_name, **{f"gnorm_{t}": float(grads[t].norm()) for t in self.terms}}
                 for i, a in enumerate(self.terms):
                     for b in self.terms[i + 1:]:
                         row[f"cos_{a}_{b}"] = float(F.cosine_similarity(grads[a], grads[b], dim=0))
@@ -329,7 +358,9 @@ def run_one(instance, stage, combo_id, seed, trainer_overrides, grad_cosine=None
     cb = None
     if grad_cosine:
         if "extra_callbacks" in inspect.signature(Sim._run_learned_single).parameters:
-            cb = TermGradCosine(grad_cosine["param"], every=int(grad_cosine.get("every", 5)))
+            from models.train.loss import get_target_train_mean
+            cb = TermGradCosine(grad_cosine["param"], every=int(grad_cosine.get("every", 5)),
+                                target_mean=get_target_train_mean(sim.base))
             kwargs["extra_callbacks"] = [cb]
         else:
             print("grad cosine skipped: Sim._run_learned_single has no extra_callbacks parameter", flush=True)

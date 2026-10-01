@@ -69,6 +69,13 @@ def compute_correye_loss(y_pred, y_true):
     return torch.norm(cc - eye)
 
 
+def compute_correye_dm_loss(y_pred, y_true, target_mean):
+    """correye on de-meaned connectomes: the training-set target mean is subtracted from both sides before the
+    subject-by-subject correlation, so the shared group connectome no longer dominates the matrix (the
+    Krakencoder setting, where losses act in a mean-centred PCA space)."""
+    return compute_correye_loss(y_pred - target_mean, y_true - target_mean)
+
+
 def compute_neidist_loss(y_pred, y_true, margin=None):
     """
     Krakencoder-style nearest-neighbor distance loss.
@@ -123,7 +130,8 @@ class CompositeLoss(nn.Module):
     - "mse+neidist"
     - [{"name": "mse", "weight": 1.0}, {"name": "neidist", "weight": 0.25}]
 
-    Terms: mse, varmatch, correye, neidist (kwarg margin), demeaned_mse (needs target_mean),
+    Terms: mse, varmatch, correye, correye_dm (correye after subtracting target_mean), neidist (kwarg margin),
+    demeaned_mse (needs target_mean),
     pairwise_corr (kwarg corr_target; Sarwar et al.), kld (needs the model's mu/logvar).
 
     Any term accepts kwarg `scale` (> 0, default 1): a fixed reference scale, so the term contributes
@@ -132,9 +140,10 @@ class CompositeLoss(nn.Module):
     enter the loss or its gradients.
     """
 
-    MONITOR_TERMS = ("mse", "varmatch", "correye", "neidist", "demeaned_mse", "pairwise_corr")
+    MONITOR_TERMS = ("mse", "varmatch", "correye", "correye_dm", "neidist", "demeaned_mse", "pairwise_corr")
 
-    VALID_TERMS = ("mse", "varmatch", "correye", "neidist", "demeaned_mse", "pairwise_corr", "kld")
+    VALID_TERMS = ("mse", "varmatch", "correye", "correye_dm", "neidist", "demeaned_mse", "pairwise_corr", "kld")
+    MEAN_TERMS = ("demeaned_mse", "correye_dm")   # need the training-set target mean
     VALID_NORMALIZE = ("ema", "none")
 
     def __init__(self, loss_terms, normalize="ema", ema_decay=0.95, warmup_steps=100, target_mean=None,
@@ -178,8 +187,9 @@ class CompositeLoss(nn.Module):
             self.register_buffer("target_mean", torch.as_tensor(target_mean, dtype=torch.float32))
         else:
             self.target_mean = None
-        if "demeaned_mse" in active | set(self.monitor_terms) and self.target_mean is None:
-            raise ValueError("Composite term 'demeaned_mse' requires target_mean (pass base to create_loss_fn).")
+        needs_mean = [n for n in self.MEAN_TERMS if n in active | set(self.monitor_terms)]
+        if needs_mean and self.target_mean is None:
+            raise ValueError(f"Composite terms {needs_mean} require target_mean (pass base to create_loss_fn).")
         self.loss_terms = [spec["name"] for spec in self.term_specs]
         self.term_weights = OrderedDict((spec["name"], float(spec["weight"])) for spec in self.term_specs)
         self.normalize = normalize
@@ -227,6 +237,8 @@ class CompositeLoss(nn.Module):
             return compute_correye_loss(y_pred, y_true)
         if name == "neidist":
             return compute_neidist_loss(y_pred, y_true, margin=kwargs.get("margin"))
+        if name == "correye_dm":
+            return compute_correye_dm_loss(y_pred, y_true, self.target_mean)
         if name == "demeaned_mse":
             return compute_demeaned_mse_loss(y_pred, y_true, self.target_mean)
         if name == "pairwise_corr":
@@ -455,7 +467,7 @@ def create_loss_fn(loss_cfg, base=None):
 
     Args:
         loss_cfg: resolved loss config dict.
-        base: Dataset base object (required for the demeaned_mse composite term).
+        base: Dataset base object (required for the demeaned_mse / correye_dm composite terms).
 
     Returns:
         Loss function module. Latent loss types have no edge-space module and raise here;
@@ -465,9 +477,10 @@ def create_loss_fn(loss_cfg, base=None):
     loss_type = loss_cfg["loss_type"]
     if loss_type == "composite":
         specs = CompositeLoss._parse_loss_terms(loss_cfg["loss_terms"])
-        needs_mean = any(spec["name"] == "demeaned_mse" for spec in specs) or "demeaned_mse" in (loss_cfg["loss_monitor_terms"] or [])
+        used = {spec["name"] for spec in specs} | set(loss_cfg["loss_monitor_terms"] or [])
+        needs_mean = bool(used & set(CompositeLoss.MEAN_TERMS))
         if needs_mean and base is None:
-            raise ValueError("base is required for the demeaned_mse composite term")
+            raise ValueError(f"base is required for the composite terms {sorted(used & set(CompositeLoss.MEAN_TERMS))}")
         return CompositeLoss(
             loss_terms=loss_cfg["loss_terms"],
             normalize=loss_cfg["loss_normalize"],
