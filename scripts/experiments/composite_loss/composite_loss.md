@@ -322,8 +322,15 @@ the trade-off E1 maps: `neidist` buys rank by sacrificing edge-level deviation f
 |---|---|---|
 | [`linear_backbone`](linear_backbone/linear_backbone.md) | primary | grid v3 complete (145 runs; Stage 1 reused from v1) |
 | [`pca_pls_learnable`](pca_pls_learnable/pca_pls_learnable.md) | replicability | grid v3 complete (256 / 16 / 256; Stage 1 16 trials + 145 runs) |
+| [`pca_pls_covprojector`](pca_pls_covprojector/pca_pls_covprojector.md) | covariate model (E1.9) | grid v3 complete on a **fallback consensus** (backbone frozen; all covariates) |
+| [`krakencoder`](krakencoder/) | external model (E1.8) | run under spec v2 E2.1; joins the cross-model page when its grid tables land |
 
 ## Cross-model comparison
+
+**Interactive:** [`figures/cross_model_interactive.html`](figures/cross_model_interactive.html) (`compare.py`; rebuilt by
+every instance report). Fixed axes across models, per-model toggles, paired Δ and top-1 per point, the test-retest
+ceiling (`ceiling/test_retest.py`: test demeaned r 0.49, avg_rank 0.987, top-1 0.93), and a zoom-to-models toggle.
+Summary table: `tables/cross_model_summary.csv`.
 
 Paired effects (Δ vs MSE-only on the same split, mean over seeds 0–4) on identical grid-v3 combination ids.
 Per-instance tables: `<instance>/tables/combo_summary.csv`.
@@ -342,6 +349,13 @@ Per-instance tables: `<instance>/tables/combo_summary.csv`.
 | Corr-eye 10 | −0.040 | −0.183 | −0.020 | −0.117 |
 | Var-match 1 | −0.040 | −0.189 | −0.024 | −0.154 |
 | MSE-only (absolute) | 0.103 | 0.782 | 0.102 | 0.768 |
+
+`pca_pls_covprojector` (backbone frozen, fallback consensus), same combinations: Neighbor dist 0.5 −0.013 / +0.048;
+Demeaned corr-eye 0.5 −0.009 / +0.051; Demeaned corr-eye 50 −0.060 / −0.098; Demeaned corr-eye 0.5 + Neighbor dist 0.5
+−0.017 / +0.058; all three 0.1 +0.000 / +0.036; Var-match 1 −0.022 / −0.085; Corr-eye 10 −0.084 / −0.101. MSE-only
+0.100 / 0.697. Its effects correlate with the linear backbone at 0.82 / 0.68 and with PCA/PLS learnable at 0.66 /
+0.73: same directions, about half the avg_rank gain, and collapse at lower weights (Var-match from 0.5, Demeaned
+corr-eye at 50).
 
 - **The landscape replicates.** Across the 28 non-baseline combinations, the two models' effects correlate at
   **0.92** (Δ demeaned r) and **0.98** (Δ avg_rank); signs agree in 86% and 93% of combinations. In both models:
