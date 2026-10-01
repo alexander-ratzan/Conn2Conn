@@ -177,8 +177,8 @@ def _model_class(name):
         from models.architectures.latent_attention.conditional_gaussian import CrossModal_ConditionalGaussian
         return CrossModal_ConditionalGaussian
     if name in ("Krakencoder_precomputed", "Krakencoder"):
-        # Krakencoder = retrained runs by tag (scripts/krakencoder/train_krakencoder.py); same loader.
-        from models.architectures.krakencoder_precomputed import KrakencoderPrecomputed
+        # Krakencoder = retrained runs by tag (models/architectures/krakencoder/retrain.py); same loader.
+        from models.architectures.krakencoder import KrakencoderPrecomputed
         return KrakencoderPrecomputed
     if name == "TestRetestPrecomputed":
         from models.architectures.test_retest_precomputed import TestRetestPrecomputed

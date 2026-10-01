@@ -17,11 +17,11 @@ _KRAKEN_FLAVOR_KEY = {
 # Legacy name kept for callers that imported it.
 _KRAKEN_INPUT_KEY = _KRAKEN_FLAVOR_KEY
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+_REPO_ROOT = next(p for p in Path(__file__).resolve().parents if (p / "main.py").exists())
 # Cached March 2026 predictions (gitignored local Krakencoder copy).
 LEGACY_PREDICTIONS_DIR = _REPO_ROOT / "krakencoder_experimental" / "example_data"
 LEGACY_FILE_PATTERN = "mydata_kraken_seed{seed}_source_{parc}.{conn}.mat"
-# Retrained runs (scripts/krakencoder/train_krakencoder.py): <root>/<tag>/seed{seed}/<pattern>.
+# Retrained runs (models/architectures/krakencoder/retrain.py): <root>/<tag>/seed{seed}/<pattern>.
 RETRAINED_PREDICTIONS_ROOT = _REPO_ROOT / "results" / "krakencoder"
 RETRAINED_FILE_PATTERN = "predictions_source_{parc}.{conn}.mat"
 
@@ -51,7 +51,7 @@ class KrakencoderPrecomputed(nn.Module):
     Two prediction sources:
       - registry name `Krakencoder_precomputed` (no `tag`): the cached March 2026 predictions in
         `krakencoder_experimental/example_data/` (`mydata_kraken_seed{seed}_source_{parc}.{SC|FC}.mat`);
-      - registry name `Krakencoder` (`tag` set): a retrained run written by `scripts/krakencoder/train_krakencoder.py`
+      - registry name `Krakencoder` (`tag` set): a retrained run written by `retrain.py` (this package)
         to `results/krakencoder/<tag>/seed{seed}/predictions_source_{parc}.{SC|FC}.mat`.
 
     The model is wired as closed-form (`learned: false`), so it follows the CrossModalPCA prod-run path; the YAML
@@ -88,7 +88,7 @@ class KrakencoderPrecomputed(nn.Module):
         mat_path = krakencoder_prediction_path(seed, parc, conn_type, tag=tag, predictions_root=predictions_root,
                                                kraken_predictions_dir=kraken_predictions_dir)
         if not mat_path.exists():
-            hint = (f"Run `scripts/krakencoder/train_krakencoder.py --tag {tag} --seed {seed}` first." if tag
+            hint = (f"Run `python -m models.architectures.krakencoder.retrain --seed {seed}` with the config whose tag is {tag} first." if tag
                     else "Cached predictions come from the local Krakencoder copy (krakencoder_experimental/).")
             raise FileNotFoundError(f"KrakencoderPrecomputed: inference file not found:\n  {mat_path}\n{hint}")
 

@@ -249,14 +249,14 @@ Krakencoder runs outside the Lightning loop: its upstream code trains and predic
 file holds all input → output types, so both `SC → FC` and `FC → SC` are served from one fit. Not tunable through
 Ray (empty `search_space`); a variant is a new retrain tag.
 
-**Retrained (`Krakencoder`):** vendored upstream (`third_party/krakencoder/`, commit `b57e39c`, unmodified; see
-`VENDOR.md`), inputs built from `HCP_Base` with the same per-seed splits as every other model.
+**Retrained (`Krakencoder`):** package `models/architectures/krakencoder/` — vendored upstream (`vendor/`, commit
+`b57e39c`, unmodified; see `vendor/VENDOR.md`), retrain wrapper (`retrain.py`), prediction loader (`precomputed.py`); inputs built from `HCP_Base` with the same per-seed splits as every other model.
 ```bash
 # per seed: train + infer + evaluate both directions (EVAL_MODE=prod logs to W&B; dev does not)
 sbatch scripts/sbatch/Krakencoder/train_array_krakencoder_seeds.sh                       # seeds 0-9, default recipe
 sbatch --array=0 --export=ALL,CONFIG=<variant.yml> scripts/sbatch/Krakencoder/train_array_krakencoder_seeds.sh
 # or step by step
-python scripts/krakencoder/train_krakencoder.py --config models/configs/Krakencoder.yml --seed 0
+python -m models.architectures.krakencoder.retrain --config models/configs/Krakencoder.yml --seed 0
 python main.py --mode prod --model Krakencoder --config models/configs/Krakencoder.yml --source FC --target SC --shuffle_seed 0
 ```
 - recipe: the `retrain:` block of `models/configs/Krakencoder.yml` (flavors, loss string, epochs, latent size, dropout);
@@ -348,7 +348,7 @@ Conn2Conn/
 │   ├── architectures/               # Model definitions grouped by architecture family
 │   │   ├── crossmodal_pca_pls.py    # PCA/PLS closed-form, learnable, and cov-projector baselines
 │   │   ├── crossmodal_vae.py        # VAE baseline
-│   │   ├── krakencoder_precomputed.py
+│   │   ├── krakencoder/             # Krakencoder: vendor/ (upstream, unmodified), retrain.py, precomputed.py
 │   │   ├── sarwar2020_mlp.py
 │   │   ├── latent_attention/        # Latent attention and conditional Gaussian models
 │   │   └── graph_based/             # Chen GCN, NodalGNN, NodalMLP, graph feature builders
@@ -367,7 +367,6 @@ Conn2Conn/
 │   │   ├── kraken/
 │   │   ├── model_overviews/
 │   │   └── model_testing/
-│   ├── krakencoder/                 # Krakencoder retrain wrapper (train_krakencoder.py, vendored-code entry point)
 │   ├── experiments/                 # Self-contained side experiments (one folder each, write-up <name>.md)
 │   │   └── experiments_index.md     # One row per experiment
 │   └── sbatch/                      # Per-model SLURM scripts and seed arrays
@@ -387,7 +386,6 @@ Conn2Conn/
 │   ├── repo_spec_docs/              # Repo refactor specs
 │   ├── schematics/                  # Figure / model schematics
 │   └── T1/                          # Example T1 parcellation files
-├── third_party/krakencoder/         # Vendored upstream Krakencoder (unmodified, VENDOR.md)
 └── krakencoder_experimental/        # Local Krakencoder copy + data, cached predictions (gitignored)
 ```
 

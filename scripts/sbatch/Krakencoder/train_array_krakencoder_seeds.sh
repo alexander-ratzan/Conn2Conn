@@ -44,7 +44,7 @@ singularity exec --nv \
     source /ext3/env.sh
     export PYTHONUNBUFFERED=1
     cd ${CONN2CONN_DIR}
-    python scripts/krakencoder/train_krakencoder.py --config ${CONFIG} --seed ${SEED}
+    python -m models.architectures.krakencoder.retrain --config ${CONFIG} --seed ${SEED}
     for DIR in 'SC FC' 'FC SC'; do
       set -- \${DIR}
       python main.py --mode ${EVAL_MODE} --model Krakencoder --config ${CONFIG} \

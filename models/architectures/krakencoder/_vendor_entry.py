@@ -1,11 +1,11 @@
 """
-Run a script from the vendored upstream Krakencoder (third_party/krakencoder) with the vendored package.
+Run a script from the vendored upstream Krakencoder (vendor/ next to this file) with the vendored package.
 
-    python scripts/krakencoder/_vendor_entry.py run_training <run_training.py args...>
-    python scripts/krakencoder/_vendor_entry.py run_model    <run_model.py args...>
+    python models/architectures/krakencoder/_vendor_entry.py run_training <run_training.py args...>
+    python models/architectures/krakencoder/_vendor_entry.py run_model    <run_model.py args...>
 
-The vendored files are never edited (third_party/krakencoder/VENDOR.md). This entry point:
-  1. puts third_party/krakencoder first on sys.path and checks that `krakencoder` is imported from there
+The vendored files are never edited (vendor/VENDOR.md). This entry point:
+  1. puts vendor/ first on sys.path and checks that `krakencoder` is imported from there
      (the kraken_env overlay also has an installed `krakencoder 1.0.0`; the vendored commit is identical to it,
      but the check keeps runs pinned to the tracked copy);
   2. makes `canonical_data_flavor` default to accept_unknowns=True, so flavor names that are not in upstream's
@@ -20,8 +20,7 @@ import runpy
 import sys
 from pathlib import Path
 
-REPO_ROOT = next(p for p in Path(__file__).resolve().parents if (p / "main.py").exists())
-VENDOR_DIR = REPO_ROOT / "third_party" / "krakencoder"
+VENDOR_DIR = Path(__file__).resolve().parent / "vendor"
 SCRIPTS = {"run_training": VENDOR_DIR / "run_training.py", "run_model": VENDOR_DIR / "run_model.py"}
 
 

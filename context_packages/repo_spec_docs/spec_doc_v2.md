@@ -389,15 +389,15 @@ r ≈ 0.116. The `mydata_kraken_demeaned*` files are other variants, not the per
 #### E2.1 — Retrainable Krakencoder baseline · built 2026-10-01; parity check running
 Krakencoder becomes a refittable benchmark model instead of only cached predictions (Option A: tracked wrapper around
 the upstream trainer; a native adapter of `krakencoder.model.Krakencoder` into our Lightning loop is a later option).
-- **Code:** vendored upstream `third_party/krakencoder/` at `b57e39c` (unmodified; byte-identical to the overlay's
+- **Code:** one package, `models/architectures/krakencoder/`: vendored upstream `vendor/` at `b57e39c` (unmodified; byte-identical to the overlay's
   `krakencoder 1.0.0`; `VENDOR.md`). The old local copy is renamed `krakencoder_experimental/` (gitignored; upstream +
   demeaned-MSE loss, debug prints, `accept_unknowns=True`) and kept as reference / development copy; it still holds
-  `participants.tsv` used by `data/dataset_utils.py`. `scripts/krakencoder/_vendor_entry.py` pins the vendored import
+  `participants.tsv` used by `data/dataset_utils.py`. `_vendor_entry.py` pins the vendored import
   and accepts our non-upstream flavor names (the one behavioural setting the local copy changed);
-  `scripts/krakencoder/train_krakencoder.py` builds inputs from `HCP_Base` (identical to the March inputs and splits),
+  `retrain.py` (`python -m models.architectures.krakencoder.retrain`) builds inputs from `HCP_Base` (identical to the March inputs and splits),
   trains, infers both source flavors and writes `results/krakencoder/<tag>/seed{S}/`; model `Krakencoder`
-  (`models/configs/Krakencoder.yml`, recipe in `retrain:`, output folder = `tag`) serves both directions through
-  `main.py`; launcher `scripts/sbatch/Krakencoder/train_array_krakencoder_seeds.sh` (train + evaluate SC → FC and FC → SC).
+  (`models/configs/Krakencoder.yml`, recipe in `retrain:`, output folder = `tag`; loader `precomputed.py`) serves both
+  directions through `main.py`; launcher `scripts/sbatch/Krakencoder/train_array_krakencoder_seeds.sh` (train + evaluate SC → FC and FC → SC).
 - **Both directions:** one joint fit predicts every input → output type; the loader now selects the target's output key
   and targets (`Krakencoder_precomputed` gains `FC → SC` too). Checked on the cached seed-0 predictions: `FC → SC`
   test demeaned r 0.116, avg rank 0.876, top-1 0.123.
@@ -452,6 +452,7 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-09-30 | **E0 closed.** NodalGNN pilot stopped by decision (seed-0 best val 0.011 < null); results, takeaways and the "learn on top of the mean" follow-up recorded (§5); notebook retired. |
 | 2026-09-30 | E2: both directions in scope; E2.0 direction audit recorded (generic vs needs config/loader vs reverse variants), reverse-variant requirement (FC graph threshold τ, default 0.5), `FC → SC` ceiling from literature, Krakencoder `FC → SC` file/key reference. README model table regrouped by model type × learning type. |
 | 2026-10-01 | E2.1: retrainable Krakencoder (vendored upstream `b57e39c`, wrapper, `Krakencoder` model, launcher); loader serves both directions; local copy renamed `krakencoder_experimental/`; smoke check passed, parity run started. |
+| 2026-10-01 | E2.1 restructured: vendored upstream, retrain wrapper and loader moved into one package `models/architectures/krakencoder/` (no root `third_party/`, no `scripts/krakencoder/`); launcher stays in `scripts/sbatch/Krakencoder/`. |
 | 2026-09-30 | E1 prereqs done: slug → `composite_loss/linear_backbone`; E1.1 (fixed scales + monitor-only terms) built and verified on local branch `e1-loss-scale-monitor`, merges when E0 closes; Stage 1 config and packed launcher added; E1.3/E1.4 runner design and dynamics figures specified; D3 (compute envelope, autonomous execution). |
 | 2026-09-30 | E1.1 merged (`75b7c11`) after E0 closed; regression 45/45 and E1.1 checks 23/23 on `main`; checks tracked as `scripts/sbatch/checks/loss_regression.py` and `composite_loss/checks/check_e1_loss.py`. |
 | 2026-09-30 | E1 becomes composite-loss protocol v1: shared versioned grid `composite_loss/grid.yml` (8-cell factorial at w = 0.5 + 8 dose points), batch 64 (D4), Stage 1 at 24 trials; replicability instance `composite_loss/pca_pls_learnable` added; E3 (magnitude tuning) outlined. |

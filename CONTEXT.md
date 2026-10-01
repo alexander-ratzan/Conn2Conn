@@ -134,7 +134,8 @@ Closed-form / hybrid special cases present in configs:
 ### Special: `Krakencoder_precomputed` and `Krakencoder` (retrained)
 
 CLI/YAML model IDs: `Krakencoder_precomputed` (cached March 2026 predictions) and `Krakencoder` (retrained in the repo).
-Both map to `KrakencoderPrecomputed` in `models/architectures/krakencoder_precomputed.py`.
+Both map to `KrakencoderPrecomputed` in the package `models/architectures/krakencoder/` (`precomputed.py`; the
+package also holds `vendor/` = upstream Krakencoder, unmodified, and `retrain.py`).
 
 Behavior:
 - loads the per-seed inference `.mat` for the run's **source** modality and takes `predicted_alltypes[source][target]`,
@@ -146,7 +147,7 @@ Prediction files (`krakencoder_prediction_path`):
 - `Krakencoder_precomputed` (no `tag`): `krakencoder_experimental/example_data/mydata_kraken_seed{seed}_source_{parc}.{SC|FC}.mat`
   (gitignored local Krakencoder copy = upstream + demeaned-MSE loss; kept as reference)
 - `Krakencoder` (`tag` in `models/configs/Krakencoder.yml`): `results/krakencoder/<tag>/seed{seed}/predictions_source_{parc}.{SC|FC}.mat`,
-  written by `scripts/krakencoder/train_krakencoder.py` (vendored upstream `third_party/krakencoder/`, commit `b57e39c`,
+  written by `python -m models.architectures.krakencoder.retrain` (vendored upstream `vendor/`, commit `b57e39c`,
   unmodified; `_vendor_entry.py` pins the import and accepts our non-upstream flavor names). Inputs are built from
   `HCP_Base` (canonical subject order = `metadata_df["subject"]`; `sc_/fc_subject_ids` keep raw load order) with the
   per-seed `trainvaltest_partition_indices`. SLURM: `scripts/sbatch/Krakencoder/train_array_krakencoder_seeds.sh`.

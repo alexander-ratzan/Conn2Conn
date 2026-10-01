@@ -5,7 +5,7 @@ import torch
 
 from data.data_utils import tri2square
 from models.architectures.crossmodal_pca_pls import CrossModalPCA
-from models.architectures.krakencoder_precomputed import KrakencoderPrecomputed
+from models.architectures.krakencoder import KrakencoderPrecomputed
 
 __all__ = [
     "resolve_subject_id_and_indices",

@@ -1,7 +1,7 @@
 # Vendored: Krakencoder
 
 Unmodified copy of upstream [kjamison/krakencoder](https://github.com/kjamison/krakencoder) (MIT, see `LICENSE`),
-used by the retrainable `Krakencoder` benchmark model (`scripts/krakencoder/train_krakencoder.py`).
+used by the retrainable `Krakencoder` benchmark model (`../retrain.py`).
 
 | | |
 |---|---|
@@ -15,7 +15,7 @@ Why this commit: it is byte-identical to the `krakencoder 1.0.0` installed in th
 of `krakencoder_experimental/` (gitignored local copy that produced the March 2026 cached predictions; it adds a
 demeaned-MSE loss, debug prints and `canonical_data_flavor(accept_unknowns=True)` on top of this commit).
 
-**Do not edit files here.** Repo-side adaptations live in the wrapper (`scripts/krakencoder/_vendor_entry.py`): it puts
+**Do not edit files here.** Repo-side adaptations live in the wrapper (`../_vendor_entry.py`): it puts
 this directory first on `sys.path`, checks that `krakencoder` is imported from here, and makes
 `canonical_data_flavor` accept flavor names that are not in upstream's `flavordb.json` (our `Glasser` /
 `4S456Parcels` flavors), which is the one setting the local copy changed in code. To update, replace the files from a

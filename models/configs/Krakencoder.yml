@@ -1,6 +1,6 @@
-# Krakencoder retrained inside the repo (vendored upstream, third_party/krakencoder; spec v2 E2).
+# Krakencoder retrained inside the repo (vendored upstream, models/architectures/krakencoder/vendor; spec v2 E2.1).
 # Two steps per seed, both driven by this file:
-#   1. train + infer:  python scripts/krakencoder/train_krakencoder.py --config models/configs/Krakencoder.yml --seed S
+#   1. train + infer:  python -m models.architectures.krakencoder.retrain --config models/configs/Krakencoder.yml --seed S
 #      -> results/krakencoder/<tag>/seed<S>/predictions_source_<parc>.<SC|FC>.mat (all input -> output types)
 #   2. evaluate:       python main.py --mode prod --model Krakencoder --source SC --target FC --shuffle_seed S
 #      (and --source FC --target SC); the loader reads the tag's predictions for the run's direction.
@@ -13,7 +13,7 @@ default:
     tag: kraken_default            # results/krakencoder/<tag>/; one tag per retrain recipe
     predictions_root: null         # null = <repo_root>/results/krakencoder
 
-# Recipe for scripts/krakencoder/train_krakencoder.py (not read by main.py). Defaults reproduce the March 2026
+# Recipe for models/architectures/krakencoder/retrain.py (not read by main.py). Defaults reproduce the March 2026
 # local runs (krakencoder_experimental/run_seed.py) with the vendored upstream code.
 retrain:
   parcellations: [Glasser, 4S456Parcels]   # flavors trained jointly (x SC, FC); [Glasser] = equal-data variant

@@ -1,8 +1,8 @@
 """
 Retrain Krakencoder for one seed with the vendored upstream code and write predictions for the benchmark loader.
 
-    python scripts/krakencoder/train_krakencoder.py --config models/configs/Krakencoder.yml --seed 0
-    python scripts/krakencoder/train_krakencoder.py --config ... --seed 0 --tag smoke --epochs 20   # quick check
+    python -m models.architectures.krakencoder.retrain --config models/configs/Krakencoder.yml --seed 0
+    python -m models.architectures.krakencoder.retrain --config ... --seed 0 --tag smoke --epochs 20   # quick check
 
 Stages (all by default; each is skipped when its output exists, so a requeued job resumes):
   inputs  connectome .mat files per flavor, built from HCP_Base (identical to the March 2026 inputs to float32
@@ -37,20 +37,20 @@ import numpy as np  # noqa: E402
 import yaml  # noqa: E402
 from scipy.io import savemat  # noqa: E402
 
-from models.architectures.krakencoder_precomputed import (  # noqa: E402
+from models.architectures.krakencoder.precomputed import (  # noqa: E402
     RETRAINED_PREDICTIONS_ROOT,
     _KRAKEN_FLAVOR_KEY,
     krakencoder_prediction_path,
 )
 
-VENDOR_ENTRY = REPO_ROOT / "scripts" / "krakencoder" / "_vendor_entry.py"
-VENDOR_COMMIT = "b57e39c2771c36ab39d2f24a5d4355f3d375624d"  # third_party/krakencoder/VENDOR.md
+VENDOR_ENTRY = Path(__file__).resolve().parent / "_vendor_entry.py"
+VENDOR_COMMIT = "b57e39c2771c36ab39d2f24a5d4355f3d375624d"  # vendor/VENDOR.md
 # Input file names per modality (as in the March runs) and the matrix field each file holds.
 INPUT_FILE = {"FC": "mydata_{parc}_FCcorrhpf.mat", "SC": "mydata_{parc}_SCifod2actvolnorm.mat"}
 
 
 def log(msg: str) -> None:
-    print(f"[train_krakencoder {dt.datetime.now():%H:%M:%S}] {msg}", flush=True)
+    print(f"[krakencoder.retrain {dt.datetime.now():%H:%M:%S}] {msg}", flush=True)
 
 
 def git_commit() -> str:
