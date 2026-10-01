@@ -419,7 +419,8 @@ the upstream trainer; a native adapter of `krakencoder.model.Krakencoder` into o
   subjects (run_model, March runs and here alike); with our inputs it is near identity (fit R² 1.000).
 - **Loss-grid instance (`scripts/experiments/composite_loss/krakencoder/`, a sibling of the E1 instances; not launched):**
   grid v1 (16 cells) + Krakencoder's paper-default loss (`correye + neidist`, weight 1) as a reference cell = 17 cells;
-  E1 terms map to Krakencoder's (`varmatch → var`, same formula; `correye`, `neidist`); fixed in every cell:
+  E1 terms map to Krakencoder's (`varmatch → var`, same formula; `correye`, `neidist`; Krakencoder's native `correye`
+  acts in its mean-centred PCA space, so it is closest to our `correye_dm`, not plain `correye`; grid stays v1); fixed in every cell:
   `mse.w1000 + enceye.w10 + encdist.w10 + latentsimloss.w10000`; weights are Krakencoder-native (its terms act in its
   PCA-256 space), not E1's scaled-term footing. Paper-default architecture / optimiser (no Stage 1); batch 64 (D4);
   trained on all 4 flavors, evaluated on Glasser in both directions. Sets: `pilot` (mse_only, ce_0.5, nd_0.5,

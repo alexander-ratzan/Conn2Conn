@@ -14,6 +14,9 @@ model: Krakencoder
 base_config: models/configs/Krakencoder.yml
 grid_file: scripts/experiments/composite_loss/grid.yml        # v1: 16 cells, shared with the other instances
 term_map: {varmatch: var, correye: correye, neidist: neidist}  # grid term -> Krakencoder loss name (same formulas)
+# Comparability: Krakencoder's native terms act in its mean-centred PCA-256 space, so its `correye` is closest to our
+# `correye_dm` (demeaned correye; E1 grid v2/v3) restricted to the top 256 PCs, not to plain `correye`. `neidist`
+# (distances) and `var` (relative variance across subjects) are unaffected by demeaning. Grid stays v1 (user decision).
 fixed_loss: "mse.w1000+enceye.w10+encdist.w10+latentsimloss.w10000"   # in every cell (MSE anchor + latent terms)
 reference_cells:
   # Krakencoder paper default: correye + neidist at weight 1 (with the fixed terms above)
