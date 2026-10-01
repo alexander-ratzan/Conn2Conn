@@ -1,6 +1,6 @@
 # Composite-loss protocol
 
-**Status:** running grid v2 on both instances (spec v2 E1) · **Owner:** agent:modeling · **Grid:** [`grid_v2.yml`](grid_v2.yml) (current; v1 in [`grid.yml`](grid.yml), frozen)
+**Status:** grid v2 complete on both instances (spec v2 E1) · **Owner:** agent:modeling · **Grid:** [`grid_v2.yml`](grid_v2.yml) (current; v1 in [`grid.yml`](grid.yml), frozen)
 
 ## Question
 
@@ -260,9 +260,36 @@ the trade-off E1 maps: `neidist` buys rank by sacrificing edge-level deviation f
 
 | Instance | Role | Status |
 |---|---|---|
-| [`linear_backbone`](linear_backbone/linear_backbone.md) | primary | grid v2 running (Stage 1 reused from v1) |
-| [`pca_pls_learnable`](pca_pls_learnable/pca_pls_learnable.md) | replicability | Stage 1 (32 trials) → grid v2 running |
+| [`linear_backbone`](linear_backbone/linear_backbone.md) | primary | grid v2 complete (160 runs; Stage 1 reused from v1) |
+| [`pca_pls_learnable`](pca_pls_learnable/pca_pls_learnable.md) | replicability | grid v2 complete (Stage 1 32 trials + 160 runs) |
 
 ## Cross-model comparison
 
-Pending: concatenates the instances' `seed_records.csv` / `epoch_history.csv` on `combo_id`.
+Paired effects (Δ vs MSE-only on the same split, mean over seeds 0–4) on identical combination ids. Per-instance
+tables: `<instance>/tables/combo_summary.csv`.
+
+| Combination | linear_backbone Δ dm-r | Δ avg_rank | pca_pls_learnable Δ dm-r | Δ avg_rank |
+|---|---|---|---|---|
+| neidist 0.1 | −0.010 | +0.050 | −0.000 | +0.005 |
+| neidist 1.0 | −0.025 | +0.038 | −0.002 | +0.010 |
+| correye_dm 0.1 | −0.017 | +0.092 | −0.000 | +0.008 |
+| correye_dm 0.5 | −0.038 | +0.098 | −0.002 | +0.016 |
+| correye_dm 50 | −0.048 | +0.067 | −0.004 | +0.015 |
+| correye 1.0 | −0.001 | +0.001 | +0.000 | +0.001 |
+| correye 10 | −0.040 | −0.183 | −0.001 | +0.009 |
+| varmatch 1.0 | −0.040 | −0.189 | −0.001 | +0.009 |
+| MSE-only (absolute) | 0.103 | 0.782 | 0.094 | 0.699 |
+
+- **What replicates:** each identity term trades demeaned r for avg_rank. `correye_dm` is the strongest identity
+  term in both models (about 1.7–1.8× neidist), and raw `correye` is inert up to w ≈ 1–5. Across the 31
+  non-baseline combinations, the two models' Δ demeaned r correlate at 0.90; Δ avg_rank correlates at 0.43 because
+  of the collapse regime below.
+- **What does not:** effect sizes are 5–10× smaller on `pca_pls_learnable`, and the collapse that strong varmatch /
+  correye cause on the linear backbone (avg_rank −0.18) does not occur there.
+- **Most likely cause:** `pca_pls_learnable`'s consensus fit barely trains. It uses a rank-4 latent map and a
+  step budget (`lr` × epochs) about 20× smaller, so its train MSE is nearly its test MSE. The gradient ratios
+  (term ÷ MSE on `W_mid`) have the same ordering in both models, so the scaling is consistent; how far the optimizer
+  can move is what differs. A replication on a well-trained second model needs a larger fixed training budget
+  (spec v2 E3 / a v3 consensus rule).
+- **Gradient strength note:** value-matched weights are not comparable across terms. At w = 1, `correye_dm` and
+  `neidist` push 6–13× harder than MSE, while raw `correye` pushes at 0.05–0.09×.

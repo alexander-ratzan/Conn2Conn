@@ -10,7 +10,7 @@ Figures (<instance>/figures/, PNG 300 dpi, figure-making skill style):
     term_trajectories.png        val raw value of each term over epochs (factorial combinations)
     loss_composition.png         each active term's share of the weighted training loss over epochs
     val_trajectories.png         val demeaned r over epochs (factorial combinations)
-    dose_response.png            weight -> test demeaned_pearson / avg_rank per term (single terms + three-term mixtures; symlog)
+    dose_response.png            weight -> paired Δ test demeaned_pearson / avg_rank vs MSE-only (single terms + three-term mixtures; symlog)
     grad_cosine.png              per-term gradient cosines on the latent map over epochs (if recorded)
 """
 import html
@@ -39,6 +39,7 @@ RC = {"font.family": ["DejaVu Sans", "Helvetica", "Arial", "sans-serif"], "font.
       "axes.spines.top": False, "axes.linewidth": 2, "legend.frameon": False, "svg.fonttype": "none"}
 DPI = 300
 TEST_METRICS = ("demeaned_pearson", "avg_rank", "pearson", "mse", "top1_acc")
+PAIRED_METRICS = ("demeaned_pearson", "avg_rank", "mse")
 
 
 def _terms(df):
@@ -78,6 +79,14 @@ def build_tables(cfg, records, epochs):
         agg[f"{m}_se"] = (col, lambda s: s.std(ddof=1) / np.sqrt(len(s)) if len(s) > 1 else np.nan)
     summary = grid.groupby(["combo_id", "block"] + [f"w_{t}" for t in lg.TERMS], sort=False).agg(
         n_seeds=("seed", "nunique"), loss_signature=("loss_signature", "first"), **agg).reset_index()
+    # Paired effects: every combination runs on the same seeds (= splits) as mse_only, so Δ per seed removes the
+    # split-to-split variance that dominates the unpaired SE.
+    base = grid[grid["combo_id"] == "mse_only"].set_index("seed")
+    for m in PAIRED_METRICS:
+        d = grid.assign(_d=grid[f"test_{m}"] - grid["seed"].map(base[f"test_{m}"]))
+        g = d.groupby("combo_id")["_d"]
+        summary[f"d_{m}_mean"] = summary["combo_id"].map(g.mean())
+        summary[f"d_{m}_se"] = summary["combo_id"].map(g.std(ddof=1) / np.sqrt(g.count()))
     order = {c: i for i, c in enumerate(combos)}
     summary = summary.sort_values("combo_id", key=lambda s: s.map(order)).reset_index(drop=True)
     return rec, summary
@@ -93,17 +102,37 @@ def fig_tradeoff(summary, path):
         ax.errorbar(r["avg_rank_mean"], r["demeaned_pearson_mean"], xerr=r["avg_rank_se"], yerr=r["demeaned_pearson_se"],
                     fmt="o", ms=12 if is_base else 8, color=color, ecolor=color, elinewidth=1.2, capsize=3,
                     mec="black" if is_base else color, mew=2 if is_base else 0.5, zorder=3 if is_base else 2)
-        ax.annotate(r["combo_id"], (r["avg_rank_mean"], r["demeaned_pearson_mean"]), xytext=(5, 4),
-                    textcoords="offset points", fontsize=8, color=PALETTE["grey"])
     handles = [plt.Line2D([], [], marker="o", ls="", color=c, ms=8, label=l) for l, c in
                [("MSE only", PALETTE["blue_main"]), ("+ varmatch", TERM_COLOR["varmatch"]), ("+ correye", TERM_COLOR["correye"]),
                 ("+ correye_dm", TERM_COLOR["correye_dm"]), ("+ neidist", TERM_COLOR["neidist"]),
                 ("two terms", PALETTE["green_3"]), ("three terms", PALETTE["grey"])]]
     ax.legend(handles=handles, loc="best", fontsize=10)
+    _place_labels(ax, summary)
     ax.set_xlabel("Average rank (test, max)")
     ax.set_ylabel("Demeaned corr. (test, max)")
     ax.grid(alpha=0.25, ls="--")
     _save(fig, path)
+
+
+def _place_labels(ax, summary):
+    """Greedy, deterministic label placement: try a few offsets per point and skip a label that would overlap one
+    already placed (every point stays identifiable in the interactive HTML)."""
+    fig = ax.figure
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    placed = [ax.get_legend().get_window_extent(renderer)] if ax.get_legend() else []
+    offsets = [(6, 0), (-6, 0), (6, 8), (6, -8), (-6, 8), (-6, -8)]
+    rows = summary.sort_values(["demeaned_pearson_mean", "avg_rank_mean"], ascending=False)
+    for _, r in rows.iterrows():
+        for dx, dy in offsets:
+            txt = ax.annotate(r["combo_id"], (r["avg_rank_mean"], r["demeaned_pearson_mean"]), xytext=(dx, dy),
+                              textcoords="offset points", fontsize=8, color=PALETTE["grey"],
+                              ha="left" if dx > 0 else "right", va="center")
+            bb = txt.get_window_extent(renderer).expanded(1.05, 1.15)
+            if not any(bb.overlaps(o) for o in placed) and ax.bbox.contains(bb.x0, bb.y0) and ax.bbox.contains(bb.x1, bb.y1):
+                placed.append(bb)
+                break
+            txt.remove()
 
 
 def fig_interactive(summary, records, path, title):
@@ -253,24 +282,27 @@ def fig_dose_response(summary, path):
         if sel.any():
             lines[f"three terms ({variant})"] = summary[sel]
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.8))
-    for ax, metric, label in zip(axes, ("demeaned_pearson", "avg_rank"), ("Demeaned corr. (test, max)", "Average rank (test, max)")):
+    for ax, metric, label in zip(axes, ("demeaned_pearson", "avg_rank"),
+                                 ("Δ demeaned corr. vs MSE-only (test, max)", "Δ average rank vs MSE-only (test, max)")):
         for name, g in lines.items():
             if g.empty:
                 continue
             wcol = f"w_{name}" if name in terms else f"w_{terms[0]}"
             xs = np.r_[0.0, g[wcol].to_numpy()]
             order = np.argsort(xs)
-            ys = np.r_[base[f"{metric}_mean"], g[f"{metric}_mean"].to_numpy()][order]
-            es = np.r_[base[f"{metric}_se"], g[f"{metric}_se"].to_numpy()][order]
+            ys = np.r_[0.0, g[f"d_{metric}_mean"].to_numpy()][order]
+            es = np.r_[0.0, g[f"d_{metric}_se"].to_numpy()][order]
             three = name.startswith("three terms")
             color = PALETTE["grey"] if three else TERM_COLOR[name]
             ax.errorbar(xs[order], ys, yerr=es, marker="o", lw=2, capsize=3, color=color, label=name,
                         ls="--" if three and name.endswith("_dm)") else "-")
-        ax.axhline(base[f"{metric}_mean"], color=PALETTE["blue_main"], ls=":", lw=1.5)
+        ax.axhline(0, color=PALETTE["blue_main"], ls=":", lw=1.5)
         ax.set_xscale("symlog", linthresh=0.1, linscale=0.5)
+        ax.set_xlim(-0.03, float(summary[[f"w_{u}" for u in terms]].to_numpy().max()) * 1.4)
         ax.set_xlabel("Term weight (scaled; MSE = 1; symlog)")
         ax.set_ylabel(label)
     axes[0].legend(fontsize=9)
+    fig.suptitle("Mean ± SE of the per-seed difference from MSE-only (paired by seed / split)", fontsize=11, color=PALETTE["grey"])
     _save(fig, path)
 
 
