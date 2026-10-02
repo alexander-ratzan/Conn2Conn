@@ -1,0 +1,50 @@
+# E1.9 model config (spec v2 E1.9), hand-selected, no Stage 1 tune (user 2026-10-01).
+# The E1.7 backbone (CrossModal_PCA_PLS_learnable consensus: 256 / 16 / 256, W_mid learnable, lr 5.4e-4, 150 epochs,
+# dropout 0.25, l2 1.6e-4) plus the covariate branch with every covariate: FreeSurfer fs_all + age, sex, race/ethnicity,
+# mid-size projectors and MLP fusion. The only difference from E1.7 is the covariates.
+# Replaces the 2026-10-01 frozen-backbone tune (model default; fallback consensus), whose runs remain in W&B.
+# max_epochs is overridden to 30 in config.yml (fixed_consensus), from the 150-epoch runs' validation curves.
+# MSE-only here; the grid adds the composite terms. Monitors: varmatch / correye / correye_dm / neidist. Batch 64 (D4).
+learned: true
+
+default:
+  data:
+    source: FC
+    target: SC
+  model:
+    name: CrossModal_PCA_PLS_CovProjector
+    n_components_pca_source: 256
+    n_components_pca_target: 256
+    n_components_pls: 16
+    learn_encoder: false
+    learn_mid: true
+    learn_decoder: false
+    random_init: false
+    l1_reg: 0.0
+    l2_reg: 0.00015742358297361208
+    dropout: 0.24941012763487663
+    cov_sources: [fs_all, age, sex, race_eth]
+    cov_projectors:
+      fs_all:   {type: linear, out_dim: 64}
+      age:      {type: linear, out_dim: 4}
+      sex:      {type: linear, out_dim: 4}
+      race_eth: {type: linear, out_dim: 8}
+    cov_fusion:
+      type: mlp
+      hidden_dims: [64]
+      dropout: 0.1
+      layer_norm: true
+    use_target_scores_in_projector: false
+    device: null
+  trainer:
+    lr: 0.0005425048849011945
+    loss_type: composite
+    loss_terms:
+      - {name: mse, weight: 1.0}
+    loss_normalize: auto            # one active term -> none: exactly plain MSE
+    loss_monitor_terms: [varmatch, correye, correye_dm, neidist]
+    max_epochs: 150
+    batch_size: 64                  # protocol batch size (D4)
+    log_every: 5
+
+search_space: {}

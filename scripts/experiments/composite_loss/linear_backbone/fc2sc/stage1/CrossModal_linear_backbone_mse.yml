@@ -1,0 +1,48 @@
+# E1.2 Stage 1 (spec v2 E1): CrossModal_linear_backbone.yml, MSE-only. The loss-weight and EMA keys are removed
+# from the search; varmatch / correye / neidist are logged as monitor-only terms (never optimized; spec v2 E1.1)
+# so every trial records their trajectories and E1.3 can read the reference scales from the same logs.
+learned: true
+
+default:
+  data:
+    source: FC
+    target: SC
+  model:
+    name: CrossModal_linear_backbone
+    n_components_pca_source: 128   # target latent size is tied to this
+    zscore_pca_scores: false
+    l1_reg: 0.0
+    l2_reg: 1.0e-6
+    device: null
+  trainer:
+    lr: 3.0e-4
+    loss_type: composite
+    loss_terms:
+      - {name: mse, weight: 1.0}
+    loss_normalize: auto            # one active term -> none: exactly plain MSE
+    loss_monitor_terms: [varmatch, correye, neidist]
+    max_epochs: 150
+    batch_size: 64                  # protocol batch size (D4): correye / neidist compare subjects within a batch
+    log_every: 5
+
+search_space:
+  n_components_pca_source:
+    type: choice
+    values: [64, 128, 256]
+  zscore_pca_scores:
+    type: choice
+    values: [false, true]
+  l2_reg:
+    type: loguniform
+    lower: 1.0e-7
+    upper: 1.0e-3
+  l1_reg:
+    type: choice
+    values: [0.0, 1.0e-7, 1.0e-6, 1.0e-5]
+  lr:
+    type: loguniform
+    lower: 1.0e-4
+    upper: 3.0e-3
+  max_epochs:
+    type: choice
+    values: [100, 150, 250]

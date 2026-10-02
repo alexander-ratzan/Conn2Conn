@@ -112,7 +112,10 @@ def find_stage1_runs(cfg, log_dir=LOG_DIR):
     """{seed: ray_tune_id} from the Stage 1 task logs (latest finished tune per seed)."""
     job = _launcher_job_name(cfg["stage1"]["launcher"])
     found = {}
-    for path in sorted(glob.glob(os.path.join(str(log_dir), f"{job}_*_*.out")), key=os.path.getmtime):
+    # <job>_<numeric job id>_<task>.out only: `<job>_*` would also match a sibling direction's `<job>_fc2sc_...` logs
+    paths = [p for p in glob.glob(os.path.join(str(log_dir), f"{job}_*_*.out"))
+             if re.fullmatch(rf"{re.escape(job)}_\d+_\d+\.out", os.path.basename(p))]
+    for path in sorted(paths, key=os.path.getmtime):
         text = Path(path).read_text(errors="replace")
         seed, tune, done = re.search(r"Seed=(\d+)", text), re.search(r"Tune run: \S+_tune_(\d+)", text), "Tune finished" in text
         if seed and tune and done:

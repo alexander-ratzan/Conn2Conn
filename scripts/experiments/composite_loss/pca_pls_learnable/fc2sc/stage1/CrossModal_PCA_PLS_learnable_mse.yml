@@ -1,0 +1,51 @@
+# Composite-loss protocol, replicability instance (spec v2 E1, D4): CrossModal_PCA_PLS_learnable.yml, MSE-only.
+# Same protocol as composite_loss/linear_backbone: loss_type fixed to composite (no latent losses), loss-weight and
+# EMA keys removed from the search, batch 64, varmatch / correye / correye_dm / neidist logged as monitor-only terms.
+# Architecture hand-selected and fixed (256 / 16 / 256, only W_mid learnable); Stage 1 tunes the optimizer only.
+learned: true
+
+default:
+  data:
+    source: FC
+    target: SC
+  model:
+    name: CrossModal_PCA_PLS_learnable
+    n_components_pca_source: 256    # fixed (hand-selected, not searched): 256x256 W_mid, ~65k parameters
+    n_components_pca_target: 256    # fixed
+    n_components_pls: 16            # fixed: rank of the PLS initialization of W_mid
+    learn_encoder: false            # fixed
+    learn_mid: true                 # fixed: W_mid is the model's main learnable component (not searched)
+    learn_decoder: false            # fixed
+    random_init: false              # fixed
+    l1_reg: 0.0                     # fixed
+    l2_reg: 0.0001
+    dropout: 0.2
+    device: null
+  trainer:
+    lr: 1.0e-4
+    loss_type: composite
+    loss_terms:
+      - {name: mse, weight: 1.0}
+    loss_normalize: auto            # one active term -> none: exactly plain MSE
+    loss_monitor_terms: [varmatch, correye, correye_dm, neidist]
+    max_epochs: 200
+    batch_size: 64                  # protocol batch size (D4)
+    log_every: 5
+
+search_space:
+  l2_reg:
+    type: loguniform
+    lower: 1.0e-6
+    upper: 1.0e-2
+  dropout:
+    type: uniform
+    lower: 0.0
+    upper: 0.4
+  lr:
+    type: loguniform
+    lower: 3.0e-5          # floor: the 2026-10-01 tuned consensus (lr 3.8e-5 x 50 epochs) barely trained
+    upper: 3.0e-3
+  max_epochs:
+    type: choice
+    values: [100, 150, 200, 250]
+    consensus: median      # ordered: median of the per-seed bests (snapped), not a majority vote

@@ -1,0 +1,83 @@
+# FC -> SC instance (spec v2 E3 Phase D), scaffolded from sc2fc/.
+# Composite-loss protocol, replicability instance: CrossModal_PCA_PLS_learnable (spec v2 E1).
+# Same protocol as composite_loss/linear_backbone (shared grid file, batch 64, fixed reference scales); only the model,
+# its Stage 1 config and its stop threshold differ.
+# Write-up: scripts/experiments/composite_loss/pca_pls_learnable/pca_pls_learnable.md
+#
+# Stages: E1.2 Stage 1 MSE-only tune -> E1.3 consensus runs + reference scales -> E1.4 Stage 2 weight grid
+# -> E1.5 tables and figures (scripts/experiments/composite_loss/protocol.py). Generated values (Stage 1 tune ids,
+# consensus config, reference scales, checks) go to state.yml next to this file; fields below marked `null` are
+# documentation only.
+
+model: CrossModal_PCA_PLS_learnable
+source: FC
+target: SC
+seeds: [0, 1, 2, 3, 4]
+batch_size: 64                   # protocol batch size (D4), fixed in every stage
+
+selection:                       # never select on test
+  metric: val_demeaned_r
+  mode: max
+
+# --- Stage 1 (E1.2): MSE-only tune -----------------------------------------------------------------------
+stage1:
+  config: scripts/experiments/composite_loss/pca_pls_learnable/fc2sc/stage1/CrossModal_PCA_PLS_learnable_mse.yml
+  launcher: scripts/experiments/composite_loss/pca_pls_learnable/fc2sc/stage1/tune_stage1_seeds.sh
+  trials_per_seed: 16             # 4-key search (lr, l2_reg, dropout, max_epochs); architecture fixed 256/16/256
+  packing: {max_concurrent_trials: 4, tune_gpus_per_trial: 0.25, reuse_actors: true}
+  monitor_terms: [varmatch, correye, correye_dm, neidist]
+  # Consensus rule: each seed's best trial; categorical keys by majority, lr / l2_reg by geometric median.
+  # Accept the consensus if its mean val_demeaned_r over seeds is within 1 SE of the mean of the per-seed
+  # bests; otherwise use the per-seed best config with the highest mean over seeds.
+  ray_tune_ids: null             # filled after submission (one per seed)
+  consensus: null                # filled by E1.3: the Stage 1 keys of CrossModal_PCA_PLS_learnable
+
+# --- E1.3: reference scales --------------------------------------------------------------------------------
+# s_t = mean |raw_t| over training batches (batch 64, eval mode) of the Stage 1 consensus model, averaged over
+# seeds. MSE stays raw (scale 1); every other term is divided by c_t = s_t / s_mse, so weight w_t means
+# "w x MSE's size at a good MSE-only solution".
+reference_scales: null           # filled by E1.3: {varmatch: c, correye: c, neidist: c, spread: {...}}
+
+# --- Stage 2 (E1.4): weight grid -----------------------------------------------------------------------------
+# The grid is the shared protocol file (v3: demeaned corr-eye in every mixture, raw corr-eye as a single-term ladder; 29), so every
+# model instance uses identical combination ids. Weights on the scaled terms; MSE = 1; loss_normalize: none.
+# All four terms are logged in every run (inactive ones as monitor-only terms).
+grid_file: scripts/experiments/composite_loss/grid_v3.yml
+grid_version: v3
+stage2:
+  wandb_tags: [CrossModal_PCA_PLS_learnable, "loss_grid:v3", "composite_loss:stage2"]   # plus combo:<id>, set by the runner
+  epoch_history: tables/epoch_history.csv                # per run × epoch: raw / weighted / monitor terms, reg, val metrics
+
+# --- Compute envelope (spec v2 D3, same per-stage limits as the linear-backbone instance) --------------------------------------------------------------------------
+# Autonomous execution within these limits; stop and report if a stage exceeds its share or a gate fails.
+compute:
+  stage1_gpu_h: 4
+  e13_gpu_h: 1
+  stage2_gpu_h: 10
+  stop_if:
+    - any Stage 1 seed's best val_demeaned_r < 0.09 (linear-family best-per-sweep median is 0.11; spec v2 E2 audit)
+    - the E1.3 consensus MSE-only run misses its seed's Stage 1 best by more than 1 SE
+    - any Stage 2 run is non-finite, or its loss_signature does not match its combination
+    - a stage's GPU-h exceeds its budget
+
+# --- Stop conditions and runtime (read by protocol.py) ------------------------------------------------------
+stop:
+  stage1_min_best_val: 0.13     # FC -> SC (E3 Phase D): SC -> FC value x 1.607 (closed-form CrossModal_PCA_PLS val demeaned r, FC->SC 0.143 / SC->FC 0.089, seeds 0-4; checks/direction_baselines.json), rounded down
+                                 # 2026-10-01 (user decision): seed 1, the hardest split for every model, reached 0.0898.
+runtime:
+  parallel: 5                    # (combination, seed) runs sharing one GPU as separate processes
+  grid_tasks: 8                  # launch_grid.sh array size (145 runs -> 18-19 per task)
+  grad_cosine: {param: W_mid, every: 5}   # per-term gradient cosines on the latent map (needs extra_callbacks)
+
+# --- Outputs (E1.5) -----------------------------------------------------------------------------------------
+metrics: [demeaned_pearson, avg_rank, pearson, mse, top1_acc]   # test split; selection on val
+figures:
+  - tradeoff scatter: test demeaned_pearson vs avg_rank, one point per combination (mean ± SE over seeds), PNG + self-contained HTML
+  - term trajectories: raw value of each of the four terms over epochs, per combination
+  - loss composition: each term's share of the total loss over epochs
+  - validation trajectories: val demeaned_r / avg_rank over epochs
+  - single-term response curves: weight -> each test metric
+  - gradient cosine between terms on the latent map W over training
+output_dir: .
+formats: [png]
+dpi: 300
