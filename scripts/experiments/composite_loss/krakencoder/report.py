@@ -8,7 +8,10 @@ Inputs:  tables/<set>_seed_records.csv, tables/<set>_epoch_history.csv (and tabl
 Outputs: tables/summary.{csv,md}  per cell x direction: test metrics mean +- SD over seeds, and the paired-by-seed
                                    difference from mse_only (mean +- SE)
          tables/noise.md           retrain variability: init-seed SD (fixed split) vs split-seed SD, kraken_default
-         figures/dose_response.png, val_trajectories.png, tradeoff_scatter.png
+         E1 schema (grid set): tables/seed_records.csv (both directions, `direction` column; read by ../compare.py),
+         combo_summary.csv, epoch_history.csv.gz; figures from ../report.py: tradeoff_scatter.png,
+         tradeoff_interactive.html, term_trajectories.png, val_trajectories.png, dose_response.png (SC -> FC) and the
+         same with suffix __fc2sc (FC -> SC)
 Missing cells or seeds are skipped (the report also runs on the pilot set).
 """
 
@@ -120,101 +123,6 @@ def write_noise(grid_rows: list[dict], noise_rows: list[dict], tables: Path) -> 
     (tables / "noise.md").write_text("\n".join(lines) + "\n")
 
 
-def dose_figure(rows: list[dict], out: Path) -> None:
-    fig, axes = plt.subplots(2, 2, figsize=(11, 8.5), sharex=True)
-    levels_of = lambda r, t: float(r[f"w_{t}"])  # noqa: E731
-    for i, d in enumerate(DIRECTIONS):
-        sub = {r["combo_id"]: r for r in rows if r["direction"] == d}
-        base = sub.get("mse_only")
-        for j, m in enumerate(("test_demeaned_pearson", "test_avg_rank")):
-            ax = axes[i, j]
-            for term in ("varmatch", "correye", "neidist", "all"):
-                pts = []
-                for r in sub.values():
-                    w = {t: levels_of(r, t) for t in ("varmatch", "correye", "neidist")}
-                    active = [t for t, v in w.items() if v > 0]
-                    if r["block"] == "reference":
-                        continue
-                    if term == "all" and len(active) == 3 and len(set(w.values())) == 1:
-                        pts.append((w["varmatch"], r))
-                    elif term != "all" and active == [term]:
-                        pts.append((w[term], r))
-                if base is not None:
-                    pts.append((0.0, base))
-                pts.sort(key=lambda p: p[0])
-                if len(pts) < 2:
-                    continue
-                x = [p[0] for p in pts]
-                y = [p[1][f"{m}_mean"] for p in pts]
-                e = [p[1][f"{m}_sd"] / math.sqrt(max(p[1]["n_seeds"], 1)) for p in pts]
-                ax.errorbar(x, y, yerr=e, marker="o", lw=2, ms=5, capsize=3, color=TERM_COLORS[term],
-                            label=TERM_LABELS[term])
-            ref = sub.get("kraken_default")
-            if ref is not None:
-                ax.axhline(ref[f"{m}_mean"], color=PALETTE["neutral"], lw=2, ls="--", label="paper default")
-            ax.set_xscale("symlog", linthresh=0.1)
-            ax.set_xticks([0, 0.1, 0.5, 1, 2])
-            ax.set_xticklabels(["0", "0.1", "0.5", "1", "2"])
-            ax.set_title(f"{d}", fontsize=13)
-            ax.set_ylabel(METRICS[m])
-            if i == 1:
-                ax.set_xlabel("grid level (× anchor)")
-    handles, labels = axes[0, 0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center", ncol=5, bbox_to_anchor=(0.5, -0.01))
-    fig.tight_layout(rect=(0, 0.05, 1, 1))
-    fig.savefig(out, dpi=300, bbox_inches="tight")
-    plt.close(fig)
-
-
-def trajectory_figure(history: list[dict], out: Path) -> None:
-    cells = ["mse_only", "ce_1.0", "nd_1.0", "vm_1.0", "all_1.0", "kraken_default"]
-    colors = [PALETTE["neutral"], PALETTE["blue_main"], PALETTE["red_strong"], PALETTE["teal"], PALETTE["violet"], "black"]
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4.6))
-    for ax, d in zip(axes, DIRECTIONS):
-        for cell, color in zip(cells, colors):
-            by_epoch = defaultdict(dict)
-            for r in history:
-                if r["combo_id"] == cell and r["direction"] == d and int(r.get("random_seed", 0) or 0) == 0:
-                    by_epoch[int(r["epoch"])][int(r["seed"])] = float(r["val_demeaned_pearson"])
-            if not by_epoch:
-                continue
-            # only epochs every seed was scored at (reused pilot fits have denser checkpoints than the grid)
-            n_seeds = max(len(v) for v in by_epoch.values())
-            ep = sorted(e for e, v in by_epoch.items() if len(v) == n_seeds)
-            by_epoch = {e: list(by_epoch[e].values()) for e in ep}
-            ax.plot(ep, [np.mean(by_epoch[e]) for e in ep], lw=2, color=color, label=cell)
-        ax.set_title(d, fontsize=13)
-        ax.set_xlabel("epoch")
-        ax.set_ylabel("val demeaned r (mean over seeds)")
-    handles, labels = axes[0].get_legend_handles_labels()
-    if handles:
-        fig.legend(handles, labels, loc="lower center", ncol=6, bbox_to_anchor=(0.5, -0.04))
-    fig.tight_layout(rect=(0, 0.06, 1, 1))
-    fig.savefig(out, dpi=300, bbox_inches="tight")
-    plt.close(fig)
-
-
-def tradeoff_figure(rows: list[dict], out: Path) -> None:
-    block_colors = {"factorial": PALETTE["blue_main"], "dose": PALETTE["teal"], "extension": PALETTE["violet"],
-                    "reference": "black"}
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-    for ax, d in zip(axes, DIRECTIONS):
-        for r in [r for r in rows if r["direction"] == d]:
-            ax.scatter(r["test_avg_rank_mean"], r["test_demeaned_pearson_mean"], s=55,
-                       color=block_colors.get(r["block"], PALETTE["neutral"]), zorder=3)
-            ax.annotate(r["combo_id"], (r["test_avg_rank_mean"], r["test_demeaned_pearson_mean"]), fontsize=8,
-                        xytext=(4, 3), textcoords="offset points")
-        ax.set_title(d, fontsize=13)
-        ax.set_xlabel("test avg rank")
-        ax.set_ylabel("test demeaned r")
-    for block, c in block_colors.items():
-        axes[1].scatter([], [], color=c, label=block)
-    axes[1].legend(loc="lower right")
-    fig.tight_layout()
-    fig.savefig(out, dpi=300, bbox_inches="tight")
-    plt.close(fig)
-
-
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--set", dest="set_name", default="grid")
@@ -229,10 +137,91 @@ def main():
     rows = summary(seed_rows)
     write_summary(rows, tables)
     write_noise(seed_rows, read(tables / "noise_seed_records.csv"), tables)
-    dose_figure(rows, figures / "dose_response.png")
-    trajectory_figure(history, figures / "val_trajectories.png")
-    tradeoff_figure(rows, figures / "tradeoff_scatter.png")
-    print(f"wrote {tables}/summary.(csv|md), noise.md and {figures}/*.png ({len(rows)} cell x direction rows)")
+    print(f"wrote {tables}/summary.(csv|md), noise.md ({len(rows)} cell x direction rows)")
+    if args.set_name == "grid":
+        e1_export(args.set_name)   # E1-schema tables + figures (E1 functions); compare.py reads tables/seed_records.csv
+
+
+
+# --------------------------------------------------------------------------------------------- E1-schema export
+# The shared composite-loss tooling reads <instance>/tables/seed_records.csv (compare.py picks every instance up) and
+# draws instance figures with ../report.py. This section writes Krakencoder's grid in that schema and renders the
+# figures with the E1 functions themselves (imported, not copied), so the figure set matches the other instances.
+# SC -> FC uses the E1 file names; FC -> SC gets a `__fc2sc` suffix until the per-direction layout exists.
+E1_NAMES = {"val_demeaned_pearson": "val_demeaned_r"}
+DIR_SUFFIX = {"SC->FC": "", "FC->SC": "__fc2sc"}
+
+
+def _load_e1_report():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("composite_loss_report", HERE.parent / "report.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def e1_tables(set_name: str = "grid"):
+    import pandas as pd
+    import yaml
+    cfg = yaml.safe_load((HERE / "config.yml").read_text())
+    tables = HERE / "tables"
+    seeds = pd.read_csv(tables / f"{set_name}_seed_records.csv")
+    hist = pd.read_csv(tables / f"{set_name}_epoch_history.csv").rename(columns=E1_NAMES)
+    sys_path = str(HERE)
+    import sys
+    if sys_path not in sys.path:
+        sys.path.insert(0, sys_path)
+    import grid_runner
+    cells = {c["id"]: c for c in grid_runner.cells(cfg)}
+    sig = {cid: grid_runner.loss_string(cfg, c) for cid, c in cells.items()}
+    for df in (seeds, hist):
+        df["stage"] = "stage2"
+        df["instance"] = "krakencoder"
+        df["loss_signature"] = df["combo_id"].map(sig)
+        df["w_correye_dm"] = 0.0      # Krakencoder's native correye is kept as w_correye (compare.py notes ≈ demeaned, D5)
+    seeds = seeds.rename(columns=E1_NAMES)
+    seeds["val_demeaned_r_last"] = seeds["val_demeaned_r"]
+    return cfg, cells, seeds, hist
+
+
+def e1_export(set_name: str = "grid") -> None:
+    import pandas as pd
+    rep = _load_e1_report()
+    cfg, cells, seeds, hist = e1_tables(set_name)
+    tables, figures = HERE / "tables", HERE / "figures"
+    seeds.to_csv(tables / "seed_records.csv", index=False, float_format="%.6g")
+    hist.to_csv(tables / "epoch_history.csv.gz", index=False, float_format="%.6g")
+    combos = [{**c, "block": c.get("block", "")} for c in cells.values()]
+    orig_save = rep._save
+
+    def save_relabel(fig, path):  # E1 axis text assumes E1's scaled weights; Krakencoder levels are paper-anchored
+        for ax in fig.axes:
+            if "scaled; MSE = 1" in ax.get_xlabel():
+                ax.set_xlabel("Grid level × anchor (paper = 1; symlog)")
+            if Path(path).name.startswith("tradeoff_scatter") and ax.get_legend() is not None:
+                ax.get_legend().set_loc("lower left")   # Krakencoder's points fill E1's default legend corner
+        orig_save(fig, path)
+
+    rep._save = save_relabel
+    summaries = []
+    for d, suffix in DIR_SUFFIX.items():
+        rec = seeds[(seeds["direction"] == d) & (seeds["random_seed"] == 0)].drop(columns=["direction"]).copy()
+        ep = hist[(hist["direction"] == d) & (hist["random_seed"] == 0)].copy()
+        # grid fits are scored every recipe.checkpoint_every epochs; the reused pilot fits more often: keep shared ones
+        ep = ep[ep["epoch"] % int(cfg["recipe"]["checkpoint_every"]) == 0]
+        rec_in = rec.drop(columns=["block"] + [c for c in rec if c.startswith("w_")])
+        _, summary = rep.build_tables({"grid": {"combos": combos}}, rec_in, None)
+        summary.insert(0, "direction", d)
+        summaries.append(summary)
+        title = f"Krakencoder {d}: composite-loss trade-off (grid v1 + paper default + level 2)"
+        rep.fig_tradeoff(summary, figures / f"tradeoff_scatter{suffix}.png")
+        rep.fig_interactive(summary, rec, figures / f"tradeoff_interactive{suffix}.html", title)
+        rep.fig_term_trajectories(ep, combos, figures / f"term_trajectories{suffix}.png")
+        rep.fig_val_trajectories(ep, combos, figures / f"val_trajectories{suffix}.png")
+        rep.fig_dose_response(summary, figures / f"dose_response{suffix}.png")
+    rep._save = orig_save
+    pd.concat(summaries, ignore_index=True).to_csv(tables / "combo_summary.csv", index=False, float_format="%.6g")
+    print(f"E1-schema tables + figures written for {list(DIR_SUFFIX)}")
 
 
 if __name__ == "__main__":
