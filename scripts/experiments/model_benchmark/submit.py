@@ -41,7 +41,8 @@ def plan(cfg, direction, stage, models, seeds_override, samples_override):
         seeds = list(cfg["seeds"])
         samples = bench["num_samples"]
         if stage == "pilot":
-            seeds = list(gate["seeds"]) if m in gate.get("models", []) else seeds[:1]
+            gated = m in gate.get("models", []) or m == gate.get("reference")  # the gate compares on the same seeds
+            seeds = list(gate["seeds"]) if gated else seeds[:1]
             if m in gate.get("models", []):
                 samples = gate["trials"]
         if seeds_override is not None:
