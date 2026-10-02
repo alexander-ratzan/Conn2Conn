@@ -17,7 +17,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 |---|---|---|---|---|
 | E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | closed 2026-09-30 | — | agent:infra |
 | E1 | Composite-loss dynamics and trade-off across models, SC → FC (`composite_loss`, grid v3) | in progress (E1.6, E1.7, E1.9 done; E1.10 built, test-retest ceiling in; E1.8 Krakencoder running under E2.1) | D3, D4, D5 | agent:modeling |
-| E2 | Cross-model benchmark, SC → FC (`model_benchmark`, working name): E2.2 MSE-only, E2.3 composite-loss tuned | outline (E2.0 done; E2.1 Krakencoder retrain at near parity) | C2, E1 | — |
+| E2 | Cross-model benchmark (`model_benchmark`, working name) | outline (E2.0 done; E2.1 Krakencoder retrain + loss grid complete) | C2 | — |
 | E3 | Replicate E1 and E2 for FC → SC | outline | E1, E2, E2.0 | — |
 | I1 | HCP1200 timeseries and connectome-similarity views | in progress (I1.1) | — | agent:infra (I1.1) |
 | C1 | `torch_geometric` missing from `kraken_env` | done 2026-09-30 (via C6) | — | agent:infra |
@@ -366,7 +366,7 @@ line rather than a computed row.
 with our SC 0.915), already on our SC scale (same mean 0.0533; linear fit slope 1.006, intercept 0.000), test demeaned
 r ≈ 0.116. The `mydata_kraken_demeaned*` files are other variants, not the per-seed benchmark files.
 
-#### E2.1 — Retrainable Krakencoder baseline · built 2026-10-01; near parity; loss-grid instance ready (not launched)
+#### E2.1 — Retrainable Krakencoder baseline · built 2026-10-01; near parity; loss grid complete 2026-10-02
 Krakencoder becomes a refittable benchmark model instead of only cached predictions (Option A: tracked wrapper around
 the upstream trainer; a native adapter of `krakencoder.model.Krakencoder` into our Lightning loop is a later option).
 - **Code:** one package, `models/architectures/krakencoder/`: vendored upstream `vendor/` at `b57e39c` (unmodified; byte-identical to the overlay's
@@ -413,6 +413,12 @@ the upstream trainer; a native adapter of `krakencoder.model.Krakencoder` into o
   passed end to end. Pilot (`18973935`) and noise check (`18973936`) submitted 2026-10-01; then autonomous per the
   instance `config.yml` `autonomy:` block (pilot gate, epochs rule, 40 GPU-h grid budget, stop conditions). **Budget:** ≈ 48 min per fit unpacked at 2000 epochs / batch 41; the pilot measures packed
   throughput and the batch-64 plateau, then the grid's `epochs` is fixed in `config.yml` before launch.
+- **Loss-grid result (2026-10-02; write-up `scripts/experiments/composite_loss/krakencoder/krakencoder.md`):** pilot
+  gate stopped autonomy once (batch-64 FC → SC gap −0.017 vs parity; budget 54 GPU-h) — user accepted the gap and set
+  checkpoints every 500; grid `19000122` used 40.7 GPU-h, 105/105 fits (tasks 9, 24 SIGTERM'd during CPU scoring,
+  re-scored in CPU jobs). `correye` (≈ our `correye_dm`) drives everything: SC → FC avg rank +0.12 at the paper weight
+  for −0.006 demeaned r; FC → SC −0.030 demeaned r with no rank gain. The paper loss ≈ `correye` alone (`neidist`
+  inert at 0.1–2×). `var` nudges demeaned r up and avg rank down. Init-seed noise is 5–25× below split-seed noise.
 - **Variants:** a copy of `Krakencoder.yml` with a new `tag` and `retrain:` block (e.g. MSE-only `losstype`, Glasser-only
   `parcellations` for equal-data comparison, E1/E3-informed weights). Not Tune-searchable (each fit is a full run).
 - **Pattern for other external baselines:** vendor upstream unmodified; adapt only in a wrapper; build inputs from
@@ -495,6 +501,7 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-10-01 | E2.1: retrainable Krakencoder (vendored upstream `b57e39c`, wrapper, `Krakencoder` model, launcher); loader serves both directions; local copy renamed `krakencoder_experimental/`; smoke check passed, parity run started. |
 | 2026-10-01 | E2.1 restructured: vendored upstream, retrain wrapper and loader moved into one package `models/architectures/krakencoder/` (no root `third_party/`, no `scripts/krakencoder/`); launcher stays in `scripts/sbatch/Krakencoder/`. |
 | 2026-10-01 | E2.1: near parity with the March fit (seed 0); epoch pilot at batch 41; `checkpoint_eval.py`; Krakencoder loss-grid instance (17 cells incl. paper default, packed runner) built and smoke-checked, not launched. |
+| 2026-10-02 | E2.1 Krakencoder loss grid complete (21 cells × 5 seeds, 40.7 GPU-h): correye-driven, direction-specific trade-off; paper loss ≈ correye alone; neidist inert. |
 | 2026-09-30 | E1 prereqs done: slug → `composite_loss/linear_backbone`; E1.1 (fixed scales + monitor-only terms) built and verified on local branch `e1-loss-scale-monitor`, merges when E0 closes; Stage 1 config and packed launcher added; E1.3/E1.4 runner design and dynamics figures specified; D3 (compute envelope, autonomous execution). |
 | 2026-09-30 | E1.1 merged (`75b7c11`) after E0 closed; regression 45/45 and E1.1 checks 23/23 on `main`; checks tracked as `scripts/sbatch/checks/loss_regression.py` and `composite_loss/checks/check_e1_loss.py`. |
 | 2026-09-30 | E1 becomes composite-loss protocol v1: shared versioned grid `composite_loss/grid.yml` (8-cell factorial at w = 0.5 + 8 dose points), batch 64 (D4), Stage 1 at 24 trials; replicability instance `composite_loss/pca_pls_learnable` added; E3 (magnitude tuning) outlined. |

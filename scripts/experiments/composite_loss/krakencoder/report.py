@@ -172,13 +172,16 @@ def trajectory_figure(history: list[dict], out: Path) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.6))
     for ax, d in zip(axes, DIRECTIONS):
         for cell, color in zip(cells, colors):
-            by_epoch = defaultdict(list)
+            by_epoch = defaultdict(dict)
             for r in history:
                 if r["combo_id"] == cell and r["direction"] == d and int(r.get("random_seed", 0) or 0) == 0:
-                    by_epoch[int(r["epoch"])].append(float(r["val_demeaned_pearson"]))
+                    by_epoch[int(r["epoch"])][int(r["seed"])] = float(r["val_demeaned_pearson"])
             if not by_epoch:
                 continue
-            ep = sorted(by_epoch)
+            # only epochs every seed was scored at (reused pilot fits have denser checkpoints than the grid)
+            n_seeds = max(len(v) for v in by_epoch.values())
+            ep = sorted(e for e, v in by_epoch.items() if len(v) == n_seeds)
+            by_epoch = {e: list(by_epoch[e].values()) for e in ep}
             ax.plot(ep, [np.mean(by_epoch[e]) for e in ep], lw=2, color=color, label=cell)
         ax.set_title(d, fontsize=13)
         ax.set_xlabel("epoch")
