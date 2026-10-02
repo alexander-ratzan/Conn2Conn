@@ -2,8 +2,8 @@
 
 **Code:** this folder: `config.yml` (cells, anchors, recipe, autonomy gates), `grid_runner.py` (plan / packed run / collect),
 `launch_grid.sh`, `report.py`, `checks/` (`term_magnitudes.py`, `pilot_gate.py`). Model code: `models/architectures/krakencoder/`.
-**Tables (tracked):** `tables/seed_records.csv`, `combo_summary.csv`, `epoch_history.csv.gz`, `tables/summary.{csv,md}`, `tables/noise.md`, `tables/{grid,pilot,noise}_{seed_records,epoch_history}.csv`, `tables/pilot_gate.json`
-**Figures (drawn with the shared `../report.py` functions, as for the E1 instances):** `figures/tradeoff_scatter.png`, `tradeoff_interactive.html`, `term_trajectories.png`, `val_trajectories.png`, `dose_response.png` (SC → FC); the same with suffix `__fc2sc` (FC → SC). Not yet: `grad_cosine.png` (needs a gradient re-score), `loss_composition.png` (deferred). E1-schema tables `tables/seed_records.csv` (both directions), `combo_summary.csv`, `epoch_history.csv.gz` put Krakencoder on `../figures/cross_model_interactive.html` (SC → FC).
+**Tables (tracked):** per direction `{sc2fc,fc2sc}/tables/{seed_records.csv, combo_summary.csv, epoch_history.csv.gz}` (E1 instance schema); shared across directions `tables/summary.{csv,md}`, `tables/noise.md`, `tables/{grid,pilot,noise}_{seed_records,epoch_history}.csv`, `tables/pilot_gate.json`; transitional `tables/seed_records.csv` (both directions) for the current `compare.py`
+**Figures (shared `../report.py` functions, as for the E1 instances), per direction in `sc2fc/figures/` and `fc2sc/figures/`:** `tradeoff_scatter.png`, `tradeoff_interactive.html`, `term_trajectories.png`, `val_trajectories.png`, `dose_response.png`. Not yet: `grad_cosine.png` (needs a gradient re-score), `loss_composition.png` (deferred). Layout: training is model-level (one fit serves both directions); the direction folders hold views — the template for the bidirectional layout (spec v2 E3).
 **Fits:** `results/krakencoder/cl_kraken_v1_<cell>/seed<S>/` (not tracked). Grid job `19000122` (27 tasks), pilot `18973935`, noise `18973936`.
 **Status:** complete 2026-10-02 · spec v2 E2.1 · sibling of the E1 instances (`../composite_loss.md`)
 
@@ -64,7 +64,7 @@ smaller than the split-seed SD (0.0025 / 0.0036; 0.014 / 0.012), so paired cell 
    fit in FC → SC val demeaned r (SC → FC unchanged); accepted as a finding, not re-run.
 6. **Training dynamics:** FC → SC val demeaned r plateaus by ≈ epoch 1000; SC → FC is flat from 500 for every cell
    except MSE-only and the paper default, whose seed-0 pilot curves oscillate between checkpoints
-   ([`figures/val_trajectories.png`](figures/val_trajectories.png); 4 checkpoints per fit; term curves are our edge-space definitions, not the terms Krakencoder optimises in its PCA space, and lack `correye_dm`).
+   ([`sc2fc/figures/val_trajectories.png`](sc2fc/figures/val_trajectories.png), [`fc2sc/…`](fc2sc/figures/val_trajectories.png); 4 checkpoints per fit; term curves are our edge-space definitions, not the terms Krakencoder optimises in its PCA space, and lack `correye_dm`).
 
 ## 5. Caveats
 

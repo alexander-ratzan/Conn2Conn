@@ -8,10 +8,9 @@ Inputs:  tables/<set>_seed_records.csv, tables/<set>_epoch_history.csv (and tabl
 Outputs: tables/summary.{csv,md}  per cell x direction: test metrics mean +- SD over seeds, and the paired-by-seed
                                    difference from mse_only (mean +- SE)
          tables/noise.md           retrain variability: init-seed SD (fixed split) vs split-seed SD, kraken_default
-         E1 schema (grid set): tables/seed_records.csv (both directions, `direction` column; read by ../compare.py),
-         combo_summary.csv, epoch_history.csv.gz; figures from ../report.py: tradeoff_scatter.png,
-         tradeoff_interactive.html, term_trajectories.png, val_trajectories.png, dose_response.png (SC -> FC) and the
-         same with suffix __fc2sc (FC -> SC)
+         per direction (grid set), E1 instance schema: {sc2fc,fc2sc}/tables/{seed_records.csv, combo_summary.csv,
+         epoch_history.csv.gz} and {sc2fc,fc2sc}/figures/ from ../report.py: tradeoff_scatter.png,
+         tradeoff_interactive.html, term_trajectories.png, val_trajectories.png, dose_response.png
 Missing cells or seeds are skipped (the report also runs on the pilot set).
 """
 
@@ -139,17 +138,19 @@ def main():
     write_noise(seed_rows, read(tables / "noise_seed_records.csv"), tables)
     print(f"wrote {tables}/summary.(csv|md), noise.md ({len(rows)} cell x direction rows)")
     if args.set_name == "grid":
-        e1_export(args.set_name)   # E1-schema tables + figures (E1 functions); compare.py reads tables/seed_records.csv
+        e1_export(args.set_name)   # per-direction E1-schema tables + figures (shared ../report.py functions)
 
 
 
-# --------------------------------------------------------------------------------------------- E1-schema export
-# The shared composite-loss tooling reads <instance>/tables/seed_records.csv (compare.py picks every instance up) and
-# draws instance figures with ../report.py. This section writes Krakencoder's grid in that schema and renders the
-# figures with the E1 functions themselves (imported, not copied), so the figure set matches the other instances.
-# SC -> FC uses the E1 file names; FC -> SC gets a `__fc2sc` suffix until the per-direction layout exists.
+# --------------------------------------------------------------------------------------------- per-direction export
+# Bidirectional layout (spec v2 E3 template): krakencoder/<direction>/{tables,figures}/ in the E1 instance schema, one
+# folder per direction, written from the shared fits (one Krakencoder fit serves both directions, so the direction
+# folders hold views, not runs). Figures use the shared ../report.py functions (imported, not copied).
+# TRANSITION: until compare.py reads <model>/<direction>/ (Phase B), the flat tables/seed_records.csv (both directions)
+# is also written; drop it when Phase B merges.
 E1_NAMES = {"val_demeaned_pearson": "val_demeaned_r"}
-DIR_SUFFIX = {"SC->FC": "", "FC->SC": "__fc2sc"}
+DIRECTIONS_DIR = {"SC->FC": "sc2fc", "FC->SC": "fc2sc"}
+FLAT_SEED_RECORDS_FOR_COMPARE = True
 
 
 def _load_e1_report():
@@ -161,24 +162,23 @@ def _load_e1_report():
 
 
 def e1_tables(set_name: str = "grid"):
+    import sys
     import pandas as pd
     import yaml
     cfg = yaml.safe_load((HERE / "config.yml").read_text())
     tables = HERE / "tables"
     seeds = pd.read_csv(tables / f"{set_name}_seed_records.csv")
     hist = pd.read_csv(tables / f"{set_name}_epoch_history.csv").rename(columns=E1_NAMES)
-    sys_path = str(HERE)
-    import sys
-    if sys_path not in sys.path:
-        sys.path.insert(0, sys_path)
+    if str(HERE) not in sys.path:
+        sys.path.insert(0, str(HERE))
     import grid_runner
     cells = {c["id"]: c for c in grid_runner.cells(cfg)}
     sig = {cid: grid_runner.loss_string(cfg, c) for cid, c in cells.items()}
     for df in (seeds, hist):
         df["stage"] = "stage2"
-        df["instance"] = "krakencoder"
+        df["instance"] = "krakencoder/" + df["direction"].map(DIRECTIONS_DIR)
         df["loss_signature"] = df["combo_id"].map(sig)
-        df["w_correye_dm"] = 0.0      # Krakencoder's native correye is kept as w_correye (compare.py notes ≈ demeaned, D5)
+        df["w_correye_dm"] = 0.0      # Krakencoder's native correye is kept as w_correye (≈ demeaned, D5)
     seeds = seeds.rename(columns=E1_NAMES)
     seeds["val_demeaned_r_last"] = seeds["val_demeaned_r"]
     return cfg, cells, seeds, hist
@@ -188,9 +188,6 @@ def e1_export(set_name: str = "grid") -> None:
     import pandas as pd
     rep = _load_e1_report()
     cfg, cells, seeds, hist = e1_tables(set_name)
-    tables, figures = HERE / "tables", HERE / "figures"
-    seeds.to_csv(tables / "seed_records.csv", index=False, float_format="%.6g")
-    hist.to_csv(tables / "epoch_history.csv.gz", index=False, float_format="%.6g")
     combos = [{**c, "block": c.get("block", "")} for c in cells.values()]
     orig_save = rep._save
 
@@ -203,25 +200,35 @@ def e1_export(set_name: str = "grid") -> None:
         orig_save(fig, path)
 
     rep._save = save_relabel
-    summaries = []
-    for d, suffix in DIR_SUFFIX.items():
-        rec = seeds[(seeds["direction"] == d) & (seeds["random_seed"] == 0)].drop(columns=["direction"]).copy()
-        ep = hist[(hist["direction"] == d) & (hist["random_seed"] == 0)].copy()
-        # grid fits are scored every recipe.checkpoint_every epochs; the reused pilot fits more often: keep shared ones
-        ep = ep[ep["epoch"] % int(cfg["recipe"]["checkpoint_every"]) == 0]
-        rec_in = rec.drop(columns=["block"] + [c for c in rec if c.startswith("w_")])
-        _, summary = rep.build_tables({"grid": {"combos": combos}}, rec_in, None)
-        summary.insert(0, "direction", d)
-        summaries.append(summary)
-        title = f"Krakencoder {d}: composite-loss trade-off (grid v1 + paper default + level 2)"
-        rep.fig_tradeoff(summary, figures / f"tradeoff_scatter{suffix}.png")
-        rep.fig_interactive(summary, rec, figures / f"tradeoff_interactive{suffix}.html", title)
-        rep.fig_term_trajectories(ep, combos, figures / f"term_trajectories{suffix}.png")
-        rep.fig_val_trajectories(ep, combos, figures / f"val_trajectories{suffix}.png")
-        rep.fig_dose_response(summary, figures / f"dose_response{suffix}.png")
-    rep._save = orig_save
-    pd.concat(summaries, ignore_index=True).to_csv(tables / "combo_summary.csv", index=False, float_format="%.6g")
-    print(f"E1-schema tables + figures written for {list(DIR_SUFFIX)}")
+    try:
+        for d, name in DIRECTIONS_DIR.items():
+            out = HERE / name
+            tables, figures = out / "tables", out / "figures"
+            tables.mkdir(parents=True, exist_ok=True)
+            figures.mkdir(parents=True, exist_ok=True)
+            all_rec = seeds[seeds["direction"] == d]
+            all_rec.to_csv(tables / "seed_records.csv", index=False, float_format="%.6g")
+            ep_all = hist[hist["direction"] == d]
+            ep_all.to_csv(tables / "epoch_history.csv.gz", index=False, float_format="%.6g")
+            rec = all_rec[all_rec["random_seed"] == 0].drop(columns=["direction"]).copy()
+            ep = ep_all[ep_all["random_seed"] == 0].copy()
+            # grid fits are scored every recipe.checkpoint_every epochs; the reused pilot fits more often: keep shared ones
+            ep = ep[ep["epoch"] % int(cfg["recipe"]["checkpoint_every"]) == 0]
+            rec_in = rec.drop(columns=["block"] + [c for c in rec if c.startswith("w_")])
+            _, summary = rep.build_tables({"grid": {"combos": combos}}, rec_in, None)
+            summary.insert(0, "direction", d)
+            summary.to_csv(tables / "combo_summary.csv", index=False, float_format="%.6g")
+            title = f"Krakencoder {d}: composite-loss trade-off (grid v1 + paper default + level 2)"
+            rep.fig_tradeoff(summary, figures / "tradeoff_scatter.png")
+            rep.fig_interactive(summary, rec, figures / "tradeoff_interactive.html", title)
+            rep.fig_term_trajectories(ep, combos, figures / "term_trajectories.png")
+            rep.fig_val_trajectories(ep, combos, figures / "val_trajectories.png")
+            rep.fig_dose_response(summary, figures / "dose_response.png")
+            print(f"{d}: wrote {out.relative_to(HERE.parent)}/tables + figures")
+    finally:
+        rep._save = orig_save
+    if FLAT_SEED_RECORDS_FOR_COMPARE:   # TRANSITION (see above)
+        seeds.to_csv(HERE / "tables" / "seed_records.csv", index=False, float_format="%.6g")
 
 
 if __name__ == "__main__":
