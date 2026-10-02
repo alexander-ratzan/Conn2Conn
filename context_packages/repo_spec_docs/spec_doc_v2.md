@@ -20,6 +20,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 | E2 | Cross-model benchmark (`model_benchmark`, working name) | in progress (E2.0, E2.1 done; E2.2 MSE-only benchmark: spec written, build in progress) | C2 | agent:modeling (E2.2) |
 | E3 | Replicate E1 and E2 for FC → SC | outline (E3.0 bidirectional layout + tooling done 2026-10-02) | E1, E2, E2.0 | — |
 | I1 | HCP1200 timeseries and connectome-similarity views | in progress (I1.1) | — | agent:infra (I1.1) |
+| I2 | Repo organisation: experiment folders, config layout, launchers | in progress (I2.1–I2.2 done; I2.3 on branch `i2-config-layout`, merges when no job runs) | — | agent:modeling |
 | C1 | `torch_geometric` missing from `kraken_env` | done 2026-09-30 (via C6) | — | agent:infra |
 | C2 | Re-tune the M5b-affected sweeps | planned (within E2) | E2 | — |
 | C3 | Confirm `loss_signature` in Tune-trial W&B configs | done | — | agent:infra |
@@ -602,6 +603,38 @@ Absorbs the former E3 outline (composite-loss magnitude tuning, never started).
   - This is the starting point for timeseries modeling, with room for spatial analyses.
   - **Depends on:** I1.1, E2, E3 (the FC → SC path).
 
+### I2 — Repo organisation: experiment folders, config layout, launchers   · status: in progress · owner: agent:modeling
+
+**Goal:** a layout that scales to more models, both directions and the E2.3 / final benchmarks without copied files.
+Started from user review 2026-10-02.
+
+- **I2.1 — One cross-model benchmark folder** · done (`43c9174`).
+  - `multimodel_scfc/audit/` moved into `model_benchmark/audit/`; `multimodel_scfc/` removed.
+  - Results land in `model_benchmark/<campaign>/<direction>/` (`mse/` for E2.2; E2.3 adds `composite/`; the final
+    benchmark `final/`).
+- **I2.2 — ConditionalGaussian search** · done (`43c9174`). The benchmark config fixes `fit_domain: pca`; the model
+  rejects `raw_edges` with shrinkage estimators, and 168 of the pilot's trials errored.
+- **I2.3 — Config family folders** · built on branch `i2-config-layout` (`a2a7f99`, worktree `../Conn2Conn_wt_i2`).
+  - **Layout:** `models/configs/{null_ceiling,linear,latent,graph_nodal,deep}/<Model>.yml`;
+    `variants/<family>/<Model>_<variant>.yml`; `benchmark/<campaign>/` reached by path only.
+  - **Lookup:** `models/registry.py` finds a config by name. Old flat paths (`models/configs/<name>.yml`, used by the
+    legacy launchers and other experiments' configs) fall back to the new location with a notice.
+  - **Model file:** `CrossModal_ConditionalGaussian` moves from `latent_attention/` to
+    `models/architectures/crossmodal_conditional_gaussian.py` (linear family).
+  - **Checks:** loss regression 45/45 bit-identical; E1.1 checks pass; benchmark configs regenerate identically.
+  - **Merge rule:** merge only when no job is queued or running (it touches `models/`).
+- **I2.4 — One tune launcher** · planned.
+  - A generic `scripts/sbatch/launch_tune.sh` + roster `submit.py` (the `model_benchmark` pattern, generalised).
+  - The ~60 per-model sbatch scripts move to `scripts/sbatch/legacy/`, after checking no other agent still submits
+    them (Krakencoder's launcher stays).
+- **I2.5 — Variants as overrides** · planned. Source and covariate variants (`_SC_r2t`, `_SC+SC_r2t`, `_demo`,
+  `_fs_*`) become short `data:` / `model:` overrides in experiment rosters instead of near-copy files.
+- **I2.6 — Hydra evaluation** · outline. Config groups (`model=`, `data=`, `loss=`, `search=`, `launcher=slurm`) +
+  submitit launcher + multirun seeds would replace I2.4 / I2.5. It changes `main.py`'s CLI, so it is a migration
+  decision after I2.3–I2.5.
+- **Found while testing:** `composite_loss/checks/check_protocol.py` fails on `main`: it still reads
+  `composite_loss/linear_backbone/config.yml`, moved to `<model>/sc2fc/` in E3.0 Phase C. Left to the E3 owner.
+
 ## 6. Backlog (not scheduled)
 
 From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
@@ -651,5 +684,6 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-10-02 | E3 Phase D started: fc2sc scaffolds, FC → SC thresholds (×1.607), two chains submitted; CovProjector held; E2.2 ∥ Phase D rules. |
 | 2026-10-02 | E2.2 specified: roster by class (latent pick `MaskedMLPPretrainer`, nonlinear variant, pilot-gated; `LatentAttnMasked`, `MaskedLatentPretrainer`, `CrossModalVAE` excluded), MSE-only protocol with budget rule and the audit's narrowed searches, one tagged campaign per model, reuse / rerun list, steps E2.2.1–E2.2.4. |
 | 2026-10-02 | E2.2.1 built: benchmark configs in `models/configs/benchmark/mse/`, roster / submit / launcher / runner / checks in `scripts/experiments/model_benchmark/`; latent entry switched to the nonlinear `MaskedMLPPretrainer`. |
+| 2026-10-02 | I2 added (repo organisation): I2.1 benchmark folder consolidation and campaign results level, I2.2 ConditionalGaussian search fix (both done); I2.3 config family folders + name lookup built on branch `i2-config-layout`, merge when no job runs; I2.4–I2.6 planned / outline. |
 
 Last updated at: 2026-10-02 EDT
