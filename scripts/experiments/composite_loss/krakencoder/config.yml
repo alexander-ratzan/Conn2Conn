@@ -67,7 +67,7 @@ autonomy:
   pilot_gate:
     - all pilot fits finish (no OOM, no underutilisation kill); packed GPU use is logged (results/logs/cl_kraken_*.gpu.csv)
     - kraken_default (batch 64) final val demeaned r within 0.01 of the batch-41 parity fit, both directions
-      (2026-10-01 pilot: FC->SC -0.017; user accepted the batch-64 gap as a finding)
+      # 2026-10-01 pilot - FC->SC gap -0.017; user accepted the batch-64 gap as a finding
   epochs_rule: >-
     smallest checkpoint epoch at which, for both directions, the mean over pilot cells of val demeaned r is >= 98% of
     its maximum over checkpoints and val avg rank is >= its maximum - 0.005; add 20% and round up to a multiple of
