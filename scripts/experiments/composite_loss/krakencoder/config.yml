@@ -37,7 +37,7 @@ extension_cells:            # option B: one dose level above the paper default (
 recipe:                     # overrides of base_config `retrain:` for every fit
   batch_size: 64            # protocol batch size (D4); Krakencoder default is 41
   epochs: 2000              # pilot measures where val plateaus at batch 64; set the grid value from it
-  checkpoint_every: 100     # checkpoints feed epoch_history.csv (checkpoint_eval.py)
+  checkpoint_every: 500     # grid (user 2026-10-01; pilot used 100): 4 scored checkpoints per fit
   infer_parcellations: [Glasser]
 
 eval:
@@ -67,11 +67,12 @@ autonomy:
   pilot_gate:
     - all pilot fits finish (no OOM, no underutilisation kill); packed GPU use is logged (results/logs/cl_kraken_*.gpu.csv)
     - kraken_default (batch 64) final val demeaned r within 0.01 of the batch-41 parity fit, both directions
+      (2026-10-01 pilot: FC->SC -0.017; user accepted the batch-64 gap as a finding)
   epochs_rule: >-
     smallest checkpoint epoch at which, for both directions, the mean over pilot cells of val demeaned r is >= 98% of
     its maximum over checkpoints and val avg rank is >= its maximum - 0.005; add 20% and round up to a multiple of
     100 (cap 2000). Written to recipe.epochs before the grid starts.
-  grid_budget_gpu_h: 40      # projected = 27 jobs x measured packed job wall (scaled to the chosen epochs); above -> stop
+  grid_budget_gpu_h: 43      # user 2026-10-01: ~42 GPU-h accepted with checkpoint_every 500 (was 40); projected = 27 jobs x measured packed job wall (scaled to the chosen epochs); above -> stop
   stop_if:
     - any grid job fails twice (after its automatic requeue)
     - a cell's fits are all non-finite or worse than mse_only by > 0.05 val demeaned r in both directions (diverged)
