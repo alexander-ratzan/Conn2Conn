@@ -1,6 +1,6 @@
 # Composite-loss protocol
 
-**Status:** grid v3 complete on both instances (spec v2 E1) · **Owner:** agent:modeling · **Grid:** [`grid_v3.yml`](grid_v3.yml) (current; v1 [`grid.yml`](grid.yml) and v2 [`grid_v2.yml`](grid_v2.yml) frozen)
+**Status:** closed 2026-10-02, four instances (spec v2 E1; conclusions below and in the spec) · **Owner:** agent:modeling · **Grid:** [`grid_v3.yml`](grid_v3.yml) (current; v1 [`grid.yml`](grid.yml) and v2 [`grid_v2.yml`](grid_v2.yml) frozen)
 
 ## Question
 
@@ -323,7 +323,7 @@ the trade-off E1 maps: `neidist` buys rank by sacrificing edge-level deviation f
 | [`linear_backbone`](linear_backbone/linear_backbone.md) | primary | grid v3 complete (145 runs; Stage 1 reused from v1) |
 | [`pca_pls_learnable`](pca_pls_learnable/pca_pls_learnable.md) | replicability | grid v3 complete (256 / 16 / 256; Stage 1 16 trials + 145 runs) |
 | [`pca_pls_covprojector`](pca_pls_covprojector/pca_pls_covprojector.md) | covariate model (E1.9) | grid v3 complete (E1.7 backbone + all covariates, hand-selected, 30 epochs) |
-| [`krakencoder`](krakencoder/) | external model (E1.8) | run under spec v2 E2.1; joins the cross-model page when its grid tables land |
+| [`krakencoder`](krakencoder/krakencoder.md) | external model (E1.8) | complete (spec v2 E2.1): 21 cells × 5 seeds, Krakencoder-native weights, both directions |
 
 ## Cross-model comparison
 
@@ -372,3 +372,28 @@ Var-match 1 −0.034 / −0.084; Corr-eye 10 −0.097 / −0.032. MSE-only 0.110
   architecture and a real training budget (`lr` 5.4e-4 × 150 epochs), the effects match the linear backbone in size.
 - **Gradient strength:** value-matched weights are not comparable across terms. At w = 1, Demeaned corr-eye and
   Neighbor dist push 6–13× harder than MSE in both models, while raw Corr-eye pushes at 0.04–0.05×.
+
+**Krakencoder** (E1.8; native weights, so compare directions, not numbers; SC → FC; write-up
+[`krakencoder/krakencoder.md`](krakencoder/krakencoder.md)): its native `correye` (≈ Demeaned corr-eye) at the paper
+weight gives −0.006 / +0.119 (top-1 0.046 → 0.092), and +0.158 avg_rank at 2×. Neighbor dist is inert at 0.1–2×.
+Var-match is +0.001 / −0.014 at 1×. MSE-only 0.086 / 0.683. The corr-eye direction matches the linear models;
+Neighbor dist's does not.
+
+## Conclusions (E1 closed 2026-10-02)
+
+1. **Identity terms trade demeaned r for avg_rank / top-1, with test MSE nearly unchanged, in every model.** Effects
+   correlate across the linear-family instances at 0.61–0.92 (Δ demeaned r) and 0.80–0.98 (Δ avg_rank).
+2. **Demeaned corr-eye is the identity term to carry forward** (D5): the strongest and most consistent. Neighbor dist
+   helps our models but is inert in Krakencoder. Var-match and raw Corr-eye collapse predictions at high weight.
+3. **Fixed reference scales balance values, not gradients** (spec v2 D6). Ranges must be set per term from gradient
+   strength; the useful range is about 0.1–1 for Demeaned corr-eye and Neighbor dist.
+4. **Low weights are nearly free.** Demeaned corr-eye 0.1, or all three terms at 0.1, keeps most of the avg_rank gain
+   at little or no demeaned-r cost. On the covariate model Demeaned corr-eye 0.1 improves both metrics (demeaned r
+   0.119, the best cell overall).
+5. **Compare models at their own validated budgets.** The covariate model overfit at E1.7's budget, which inflated its
+   identity gains.
+6. **Covariates raise demeaned r and lower identifiability.**
+7. **All models are far from the test-retest ceiling** (0.49 / 0.987 / top-1 0.93 vs about 0.12 / 0.88 / 0.13).
+8. **Next: spec v2 E2.3** tunes the weights per model and must choose a selection metric, since no weighting maximizes
+   both demeaned r and avg_rank. E3 repeats E1 for FC → SC; Krakencoder already shows the FC → SC trade-off is
+   different there.

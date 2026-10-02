@@ -16,7 +16,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
 | E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | closed 2026-09-30 | — | agent:infra |
-| E1 | Composite-loss dynamics and trade-off across models, SC → FC (`composite_loss`, grid v3) | in progress (E1.6, E1.7, E1.9 done; E1.10 built, test-retest ceiling in; E1.8 Krakencoder running under E2.1) | D3, D4, D5 | agent:modeling |
+| E1 | Composite-loss dynamics and trade-off across models, SC → FC (`composite_loss`, grid v3) | done 2026-10-02 (E1.6–E1.10; conclusions → E2.3) | D3, D4, D5, D6 | agent:modeling |
 | E2 | Cross-model benchmark (`model_benchmark`, working name) | outline (E2.0 done; E2.1 Krakencoder retrain + loss grid complete) | C2 | — |
 | E3 | Replicate E1 and E2 for FC → SC | outline | E1, E2, E2.0 | — |
 | I1 | HCP1200 timeseries and connectome-similarity views | in progress (I1.1) | — | agent:infra (I1.1) |
@@ -35,6 +35,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 | D3 | E1 compute envelope and autonomous execution | decided | — | user |
 | D4 | Composite-loss protocol batch size 64 | decided | — | user |
 | D5 | Demeaned corr-eye is the corr-eye variant in composite-loss mixtures | decided | — | user |
+| D6 | Fixed reference scales are the default way to balance composite-loss terms | decided | — | user |
 
 ---
 
@@ -54,7 +55,7 @@ the table below lists only what is specific to v2.
 | Experiment home | `scripts/experiments/<slug>/`: `<slug>.md` (question, design, how to run, W&B ids, results, caveats), `config.yml`, `run.py`, `tables/`, `figures/`, `manifest.json`, following the `sc_type_benchmark` / `cov_projector_benchmark` runner pattern. Add a row to `scripts/experiments/experiments_index.md`. |
 | Reported metrics | Test-split `demeaned_pearson` and `avg_rank` (the `metric_scatter` axes), plus `pearson`, `mse`, `top1_acc` in tables. Selection is always on `val_demeaned_r`; never select on test. |
 | Seeds | `shuffle_seed` 0–9 for benchmark-grade results; smaller seed sets are allowed for staged studies and stated per experiment. E1, E2 and E3 use seeds 0–4 (five family-preserving splits; seed 0 = the original split). |
-| Loss normalization | **Fixed reference scales** are the go-forward way to balance composite terms: per-term constants, `loss_normalize: none`, no EMA (E1.1). `auto`/`ema` stay available; whether fixed scales become the repo default is decided after E1 (§5). |
+| Loss normalization | **Fixed reference scales** balance composite terms: per-term constants measured on the model's MSE-only fit, `loss_normalize: none`, no EMA (E1.1; D6). `auto`/`ema` stay available. |
 | Figures | Canonical figures are PNG, 300 dpi, per the scientific-figure-making skill, tracked. An experiment may add a **self-contained interactive HTML** (inline SVG + small script, no CDN or package dependency; `plotly` is not in `kraken_env`), tracked next to the PNG. |
 | Compute | Training and sweeps go through `sbatch` (array templates in `scripts/sbatch/`). Each compute stage is approved before submission. The local L40S node is used only for short checks, and only inside a compute allocation, never on a login node. |
 | W&B | Runs tagged with the experiment slug; group by `loss_signature`. Staged-experiment runs carry the stage in their tags (`<slug>:stage1`). |
@@ -128,6 +129,7 @@ the table below lists only what is specific to v2.
 | D3 | **E1 runs autonomously within a fixed envelope, per instance:** Stage 1 ≤ 4 GPU-h (packed), E1.3 ≤ 1 GPU-h, Stage 2 ≤ 10 GPU-h (8 until 2026-10-01); defaults approved (seeds 0–4, the current grid version, test metrics with selection on val, gradient-cosine panel). The agent stops and reports on any stop condition in the instance `config.yml` (weak Stage 1, wrong Stage 1 trial count, failed / non-finite / mismatched runs, budget overrun). A consensus-gate miss runs the re-check instead of stopping (E1.2). Relaxing a stop threshold needs the user and is recorded in the instance write-up. | Lets E1 proceed without per-stage approval, with explicit exits. |
 | D4 | **The composite-loss protocol trains at `batch_size` 64 in both stages, for every model.** Models that cannot train at 64 skip the batch-dependent terms (`correye`, `neidist`) rather than change the batch. The envelope in D3 applies per instance. | `correye` / `neidist` compare subjects within a batch, so cross-model comparisons need one batch size; 64 fits the linear family and most learned models in the packed setup. |
 | D5 | **Demeaned corr-eye (`correye_dm`) is the corr-eye variant in composite-loss mixtures** (grid v3; user 2026-10-01). Raw `correye` stays only as a single-term reference and is never combined with `correye_dm`. | Raw `correye` is inert until its gradient reaches Var-match's strength, then collapses predictions the same way; `correye_dm` acts on subject-specific deviations (E1 gradient-strength analysis, both instances). |
+| D6 | **Fixed reference scales are the default way to balance composite-loss terms** in experiments and benchmarks (user 2026-10-02, closing E1): each term divided by $c_t$ measured on the model's own MSE-only fit, `loss_normalize: none`. The code default (`loss_normalize: auto`, which is plain MSE for a single term) is unchanged. Weights are then fractions of the MSE value, **not** of its gradient (E1: gradient ratios differ 100×+ across terms), so weight ranges are set per term. | Stable across seeds (cv ≤ 4% in every instance), reproducible, and comparable across models; EMA scales drift during training and were the source of v1:M1b. |
 
 ## 4. Experiments
 
@@ -217,7 +219,7 @@ E1. Closes out the never-run `scripts/notebooks/results_scrape/nodal_decoder_imp
     NodalGNN pilot rows not added to the tables (no best-trial report; the pilot is reported from its trial logs).
 - **Depends on:** —
 
-### E1 — Composite-loss dynamics and trade-off across models   (slug: `composite_loss`) · status: in progress · owner: agent:modeling
+### E1 — Composite-loss dynamics and trade-off across models   (slug: `composite_loss`) · status: done 2026-10-02 · owner: agent:modeling
 
 Experiment home `scripts/experiments/composite_loss/`: protocol write-up `composite_loss.md` (protocol, loss math,
 gradient-strength analysis, cross-model comparison), grids `grid.yml` (v1), `grid_v2.yml`, `grid_v3.yml` (current;
@@ -277,10 +279,15 @@ Stage 1 tunes the optimizer only: 16 trials over `lr` 3e-5 to 3e-3, `l2_reg`, `d
 
 Write-up `composite_loss/pca_pls_learnable/pca_pls_learnable.md`; `876f50a`.
 
-#### E1.8 — Instance `krakencoder` · in progress (run under E2.1 by its owner)
-Krakencoder's own loss grid, `composite_loss/krakencoder/`; design, weights and autonomy are in E2.1. Its native
-`correye` acts in a mean-centred PCA space, so it corresponds to our Demeaned corr-eye (D5). The results join the
-E1 cross-model comparison.
+#### E1.8 — Instance `krakencoder` · done 2026-10-02 (run under E2.1)
+Krakencoder's own loss grid (`composite_loss/krakencoder/`, write-up `krakencoder.md`): 21 cells × seeds 0–4, paper
+architecture, Krakencoder-native weights (not E1's scaled footing; compare directions, not numbers). Its native
+`correye` acts in a mean-centred PCA space, so it corresponds to our Demeaned corr-eye (D5).
+- **SC → FC:** `correye` raises avg_rank +0.12 at the paper weight (+0.16 at 2×; top-1 0.046 → 0.092) for −0.006
+  demeaned r.
+- **Neighbor dist is inert** at 0.1–2×, so the paper loss behaves as `correye` alone. Var-match slightly raises
+  demeaned r and lowers avg_rank.
+- **FC → SC** (for E3): `correye` costs demeaned r steeply (−0.030 at 1×) with no avg_rank gain.
 
 #### E1.9 — Instance `pca_pls_covprojector` (all covariates) · done 2026-10-02 · owner: agent:modeling
 `CrossModal_PCA_PLS_CovProjector` = the E1.7 model plus a covariate branch: FreeSurfer `fs_all` + age, sex,
@@ -294,7 +301,7 @@ frozen-backbone model default matched the March benchmark, and the 150-epoch run
 
 Write-up `composite_loss/pca_pls_covprojector/pca_pls_covprojector.md`.
 
-#### E1.10 — Cross-model interactive comparison · built 2026-10-01 (updates as instances land) · owner: agent:modeling
+#### E1.10 — Cross-model interactive comparison · done 2026-10-02 (four instances + ceiling) · owner: agent:modeling
 - **Changes:** one self-contained HTML tool in `composite_loss/` built from every instance's `tables/`. It shows test
   demeaned r vs avg_rank on **fixed axes** shared by all models, with per-model toggles and the same hover / click
   panel as the instance plots.
@@ -305,6 +312,28 @@ Write-up `composite_loss/pca_pls_covprojector/pca_pls_covprojector.md`.
   rebuilt by every instance report (`b11fcb3`, zoom toggle `0b6a768`). Ceiling `ceiling/test_retest.py` (CPU): test
   demeaned r 0.49, avg_rank 0.987, top-1 0.93 (195 subjects with both sessions per split), about 5× the best model's
   demeaned r.
+
+#### E1 conclusions (closed 2026-10-02; carried into E2.3)
+- **The trade-off is real and shared across models.** Identity terms raise avg_rank / top-1 and cost demeaned r; test
+  MSE barely moves. Effects correlate across the linear-family instances at 0.61–0.92 (Δ demeaned r) and 0.80–0.98
+  (Δ avg_rank); Krakencoder shows the same direction for its native (de-meaned) corr-eye.
+- **Term set for E2.3:**
+  - Demeaned corr-eye (D5) is the strongest and most consistent identity term: top-1 about ×2–3, MSE unchanged.
+  - Neighbor dist is strong on our models but inert in Krakencoder.
+  - Var-match and raw Corr-eye are references only: both collapse predictions at high weight.
+- **Weights:** scale by fixed reference scales (D6), but set each term's range from its gradient strength (scaled
+  gradient ÷ MSE's: Demeaned corr-eye 3–11, Neighbor dist 7–13, Var-match 0.3–0.6, raw Corr-eye ≈ 0.05). Useful
+  ranges are about 0.1–1 for Demeaned corr-eye and Neighbor dist.
+- **Cheapest good settings:**
+  - Demeaned corr-eye 0.1, or all three terms at 0.1, keeps most of the avg_rank gain at little or no demeaned-r cost.
+  - On the covariate model, Demeaned corr-eye 0.1 improves both metrics (demeaned r 0.119, the best cell overall).
+- **Selection metric is a decision for E2.3:** no single weighting maximizes both demeaned r and avg_rank. E2.3 must
+  choose val demeaned r, val avg_rank, or a combination per model.
+- **Each model at its own validated budget:** E1.9's 150-epoch run (E1.7's budget) overfit and inflated the identity
+  gains. Composite-loss comparisons need each model's own MSE-validated training length.
+- **Covariates** (E1.9) raise demeaned r and lower identifiability vs the same model without them.
+- **Far from the ceiling:** test-retest is demeaned r 0.49 / avg_rank 0.987 / top-1 0.93; the best cells reach about
+  0.12 / 0.88 / 0.13.
 
 ### E2 — Cross-model benchmark, SC → FC   (slug: `model_benchmark`, working name) · status: outline · owner: —
 
@@ -479,7 +508,7 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 - **Untracked reference code** in `context_packages/modeling/*_context/`.
 - **Latent-space terms inside composite** (`latent_mse` / `latent_weighted_mse` as mixable terms).
 - **EMA diagnostics:** `*_loss_ref_*` behavior after warmup, and batch-size sensitivity of `correye` / `neidist` (64 vs 128).
-- **Default normalization:** after E1, decide whether fixed reference scales replace `auto`/`ema` as the repo default.
+- ~~**Default normalization:**~~ decided by D6 (2026-10-02): fixed reference scales for composite-loss runs; code default unchanged.
 
 ## 7. Change log
 
@@ -510,5 +539,6 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-10-01 | E1 aligned to the user's plan: protocol v3 (grid v3, 29 combinations; D5 Demeaned corr-eye in mixtures; consensus re-check; Stage 2 cap 10 GPU-h in D3); instances E1.6 linear backbone and E1.7 PCA/PLS learnable done (replicate: effects correlate 0.92 / 0.98); E1.8 Krakencoder (= E2.1 loss grid), E1.9 CovProjector (all covariates), E1.10 cross-model HTML with the test-retest ceiling added. E2 narrowed to SC → FC with E2.2 (MSE-only) and E2.3 (composite-loss tuned; absorbs the former E3 outline). E3 redefined as FC → SC replication of E1 and E2 (the former E3 outline was never started; its content moved to E2.3). I1 added (HCP1200 timeseries merge, connectome-similarity views, behavioral FC → SC). |
 | 2026-10-01 | E1.9 CovProjector (all covariates) done on a recorded fallback consensus (rerun with a hand-selected config open); E1.10 cross-model page built with the test-retest ceiling (demeaned r 0.49, avg_rank 0.987). |
 | 2026-10-02 | E1.9 rerun on the E1.7 backbone + covariates (hand-selected, `fixed_consensus`), replacing the frozen-backbone fallback run. The 150-epoch run overfit (its avg_rank 0.890 was confounded); rerun at the validation-chosen 30 epochs: covariates raise demeaned r (0.110 MSE-only; 0.119 with Demeaned corr-eye 0.1) but lower identifiability vs E1.7. |
+| 2026-10-02 | **E1 closed.** E1.8 Krakencoder done (via E2.1); E1.10 done with four instances + ceiling; E1 conclusions recorded and carried into E2.3; D6 added (fixed reference scales are the default composite-term balancing; resolves the backlog item). |
 
 Last updated at: 2026-10-02 EDT
