@@ -38,7 +38,13 @@ METRICS = ("demeaned_pearson", "avg_rank", "pearson", "mse", "top1_acc", "r2")
 
 # --------------------------------------------------------------------------------------------- instance I/O
 def instance_dir(instance):
+    """`<model>` (flat, pre-E3) or `<model>/<direction>` (direction folders `sc2fc` / `fc2sc`)."""
     return EXPERIMENT_DIR / instance
+
+
+def direction_of(source, target):
+    """('SC', 'FC') -> 'sc2fc'; used in W&B tags / run names so the two directions of one combination never collide."""
+    return f"{str(source).lower()}2{str(target).lower()}"
 
 
 def load_instance(instance):
@@ -46,6 +52,10 @@ def load_instance(instance):
     d = instance_dir(instance)
     cfg = yaml.safe_load((d / "config.yml").read_text())
     cfg["instance"] = instance
+    cfg["direction"] = direction_of(cfg["source"], cfg["target"])
+    folder = Path(instance).name
+    if folder in ("sc2fc", "fc2sc") and folder != cfg["direction"]:
+        raise ValueError(f"{instance}: folder says {folder} but config source/target is {cfg['source']}->{cfg['target']}")
     cfg["grid"] = yaml.safe_load((REPO_ROOT / cfg["grid_file"]).read_text())
     if cfg["grid"]["version"] != cfg["grid_version"]:
         raise ValueError(f"{instance}: config grid_version {cfg['grid_version']} != grid file {cfg['grid']['version']}")
@@ -370,9 +380,10 @@ def run_one(instance, stage, combo_id, seed, trainer_overrides, grad_cosine=None
     override["trainer"] = {**override["trainer"], **trainer_overrides}
     sim = Sim(model_name=cfg["model"], config_path=str(REPO_ROOT / cfg["stage1"]["config"]), source=cfg["source"],
               target=cfg["target"], shuffle_seed=int(seed), data_load_mode="precomputed", batch_size=batch)
-    tags = [cfg["model"], f"loss_grid:{cfg['grid_version']}", f"composite_loss:{stage}", f"combo:{combo_id}"]
+    tags = [cfg["model"], f"loss_grid:{cfg['grid_version']}", f"composite_loss:{stage}", f"combo:{combo_id}",
+            f"direction:{cfg['direction']}"]
     kwargs = dict(mode=mode, save_checkpoint=False, config_override=override, wandb_tags=tags,
-                  wandb_name=f"{cfg['model']}_{stage}_{combo_id}_s{seed}", run_eval=True)
+                  wandb_name=f"{cfg['model']}_{cfg['direction']}_{stage}_{combo_id}_s{seed}", run_eval=True)
     cb = None
     if grad_cosine:
         if "extra_callbacks" in inspect.signature(Sim._run_learned_single).parameters:
@@ -391,7 +402,7 @@ def run_one(instance, stage, combo_id, seed, trainer_overrides, grad_cosine=None
         pass
     tr = run_out["train_result"]
     hist = tr.history_df.copy()
-    rec = {"model": cfg["model"], "instance": instance, "grid_version": cfg["grid_version"], "stage": stage,
+    rec = {"model": cfg["model"], "instance": instance, "direction": cfg["direction"], "grid_version": cfg["grid_version"], "stage": stage,
            "combo_id": combo_id, "seed": int(seed), "batch_size": batch, "hparams": hparams,
            "loss_signature": dict(tr.pl_module.hparams).get("loss_signature"),
            "val_demeaned_r_last": float(hist["val_demeaned_r"].dropna().iloc[-1]) if "val_demeaned_r" in hist else None,

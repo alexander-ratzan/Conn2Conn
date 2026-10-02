@@ -5,6 +5,11 @@
     python scripts/experiments/composite_loss/protocol.py rebaseline --instance linear_backbone  # GPU: after a failed consensus check
     python scripts/experiments/composite_loss/protocol.py grid      --instance linear_backbone --task-index 0 --tasks 4
     python scripts/experiments/composite_loss/protocol.py report    --instance linear_backbone   # CPU: E1.5 tables/figures
+    python scripts/experiments/composite_loss/protocol.py scaffold  --instance linear_backbone/sc2fc --to fc2sc
+        # new direction folder <model>/fc2sc/ from an existing instance: hand-written files only (config.yml, stage1/),
+        # source/target swapped, paths rewritten; no state, runs, tables or figures. Review thresholds before running.
+
+An instance is `<model>` (flat, pre-E3) or `<model>/<direction>` (direction folders sc2fc / fc2sc, spec v2 E3).
 
 GPU steps go through launch_consensus.sh / launch_grid.sh. Several (combination, seed) runs share one GPU as separate
 processes (`runtime.parallel` in the instance config). Exit code 2 = a stop condition from the instance config
@@ -212,6 +217,50 @@ def cmd_grid(args):
 
 
 # ------------------------------------------------------------------------------------------ report (CPU)
+SCAFFOLD_FILES = ("config.yml",)          # plus everything under stage1/ (hand-written Stage 1 search config + launcher)
+GENERATED = ("state.yml", "runs", "tables", "figures")
+
+
+def cmd_scaffold(args):
+    """Copy an instance's hand-written files into a new direction folder with source/target swapped."""
+    import re
+    src_rel = args.instance.strip("/")
+    src = lg.instance_dir(src_rel)
+    cfg = lg.load_instance(src_rel)
+    model_rel = src_rel if Path(src_rel).name not in ("sc2fc", "fc2sc") else str(Path(src_rel).parent)
+    dst_rel = f"{model_rel}/{args.to}"
+    dst = lg.instance_dir(dst_rel)
+    if dst.exists():
+        print(f"{dst_rel} exists; not overwriting")
+        return 1
+    new_source, new_target = {"sc2fc": ("SC", "FC"), "fc2sc": ("FC", "SC")}[args.to]
+    old = f"composite_loss/{src_rel}/"
+    new = f"composite_loss/{dst_rel}/"
+    files = [src / f for f in SCAFFOLD_FILES if (src / f).exists()] + sorted(p for p in (src / "stage1").rglob("*") if p.is_file())
+    for f in files:
+        rel = f.relative_to(src)
+        text = f.read_text().replace(old, new)
+        # config keys (top level and nested data: blocks) and CLI flags
+        text = re.sub(r"(?m)^(\s*)source:\s*\S+", rf"\g<1>source: {new_source}", text)
+        text = re.sub(r"(?m)^(\s*)target:\s*\S+", rf"\g<1>target: {new_target}", text)
+        text = re.sub(r"--source\s+\S+", f"--source {new_source}", text)
+        text = re.sub(r"--target\s+\S+", f"--target {new_target}", text)
+        model_name = Path(model_rel).name
+        text = text.replace(f"composite_loss/{dst_rel}/{model_name}.md", f"composite_loss/{model_rel}/{model_name}.md")
+        text = re.sub(rf"e1_stage1_{re.escape(model_name)}(?:_(?:sc2fc|fc2sc))?(?![A-Za-z0-9])", f"e1_stage1_{model_name}_{args.to}", text)
+        out = dst / rel
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text)
+        if f.stat().st_mode & 0o111:
+            out.chmod(f.stat().st_mode)
+        print(f"wrote {dst_rel}/{rel}")
+    check = lg.load_instance(dst_rel)
+    assert (check["source"], check["target"]) == (new_source, new_target) and check["direction"] == args.to
+    print(f"{dst_rel}: {cfg['direction']} -> {args.to}. Review before running: Stage 1 search space, "
+          f"stop.stage1_min_best_val and compute.stop_if thresholds (calibrated for {cfg['direction']}), grid_tasks.")
+    return 0
+
+
 def cmd_report(args):
     import importlib.util
     spec = importlib.util.spec_from_file_location("composite_loss_report", Path(__file__).with_name("report.py"))
@@ -223,9 +272,11 @@ def cmd_report(args):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("stage1", "consensus", "rebaseline", "grid", "report"):
+    for name in ("stage1", "consensus", "rebaseline", "grid", "report", "scaffold"):
         p = sub.add_parser(name)
         p.add_argument("--instance", required=True)
+        if name == "scaffold":
+            p.add_argument("--to", required=True, choices=["sc2fc", "fc2sc"])
         if name in ("consensus", "rebaseline", "grid"):
             p.add_argument("--seeds", type=int, nargs="*")
             p.add_argument("--parallel", type=int)
@@ -234,7 +285,8 @@ def main():
             p.add_argument("--task-index", type=int, default=0)
             p.add_argument("--tasks", type=int)
     args = ap.parse_args()
-    return {"stage1": cmd_stage1, "consensus": cmd_consensus, "rebaseline": cmd_rebaseline, "grid": cmd_grid, "report": cmd_report}[args.cmd](args)
+    return {"stage1": cmd_stage1, "consensus": cmd_consensus, "rebaseline": cmd_rebaseline, "grid": cmd_grid, "report": cmd_report,
+            "scaffold": cmd_scaffold}[args.cmd](args)
 
 
 if __name__ == "__main__":
