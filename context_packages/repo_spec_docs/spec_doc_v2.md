@@ -620,13 +620,13 @@ Absorbs the former E3 outline (composite-loss magnitude tuning, never started).
 **Goal:** a layout that scales to more models, both directions and the E2.3 / final benchmarks without copied files.
 Started from user review 2026-10-02.
 
-- **I2.1 — One cross-model benchmark folder** · done (`43c9174`).
+- **I2.1 — One cross-model benchmark folder** · done (`43c9174`, `4e93dd7`).
   - `multimodel_scfc/audit/` moved into `model_benchmark/audit/`; `multimodel_scfc/` removed.
   - Results land in `model_benchmark/<campaign>/<direction>/` (`mse/` for E2.2; E2.3 adds `composite/`; the final
     benchmark `final/`).
-- **I2.2 — ConditionalGaussian search** · done (`43c9174`). The benchmark config fixes `fit_domain: pca`; the model
+- **I2.2 — ConditionalGaussian search** · done (`43c9174`, `4e93dd7`). The benchmark config fixes `fit_domain: pca`; the model
   rejects `raw_edges` with shrinkage estimators, and 168 of the pilot's trials errored.
-- **I2.3 — Config family folders** · built on branch `i2-config-layout` (`a2a7f99`, worktree `../Conn2Conn_wt_i2`).
+- **I2.3 — Config family folders** · built on branch `i2-config-layout` (`7501e94`, rebased on `main`; worktree `../Conn2Conn_wt_i2`).
   - **Layout:** `models/configs/{null_ceiling,linear,latent,graph_nodal,deep}/<Model>.yml`;
     `variants/<family>/<Model>_<variant>.yml`; `benchmark/<campaign>/` reached by path only.
   - **Lookup:** `models/registry.py` finds a config by name. Old flat paths (`models/configs/<name>.yml`, used by the
