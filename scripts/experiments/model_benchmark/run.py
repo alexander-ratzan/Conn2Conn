@@ -1,14 +1,14 @@
 """E2.2 benchmark runner (spec v2 E2.2): collect records, write tables and figures for one direction.
 
     python scripts/experiments/model_benchmark/run.py --direction sc2fc            # scrape logs -> records -> outputs
-    python scripts/experiments/model_benchmark/run.py --direction sc2fc --cached   # re-render from <direction>/records.json
+    python scripts/experiments/model_benchmark/run.py --direction sc2fc --cached   # re-render from records.json
 
 Records come from this campaign's task logs only (job names `e2_mse_<Model>_<direction>_<job>_<seed>.out`): each task
 prints the best-trial report's JSON summary ("Best Tune trial comprehensive summary:"), which holds the best config and
 train / val / test metrics. The latest finished task per (model, seed) wins. Reused rows (Krakencoder, test-retest) are
 read from their experiments' tables (config.yml `reuse`).
 
-Outputs (<direction>/):
+Outputs (<results_dir>/<direction>/, e.g. mse/sc2fc/):
     records.json                     per (model, seed): config, val / test metrics, log path, ray_tune_id (tracked)
     tables/seed_records.csv          one row per model x seed
     tables/summary.csv, summary.md   per model: mean, SE, n seeds, per metric; model type
@@ -230,7 +230,7 @@ def figures(cfg, summary, seed_df, out):
 # ------------------------------------------------------------------------------------------- entry
 def build(direction, cached=False, cfg=None, out_root=None, log_dir=LOG_DIR):
     cfg = cfg or yaml.safe_load((HERE / "config.yml").read_text())
-    d = Path(out_root or HERE) / direction
+    d = Path(out_root or HERE) / cfg.get("results_dir", "") / direction
     d.mkdir(parents=True, exist_ok=True)
     if cached:
         records = json.loads((d / "records.json").read_text())

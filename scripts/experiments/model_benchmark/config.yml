@@ -3,6 +3,7 @@
 # FC -> SC when it exists. Runs: launch_model.sh <Model> <direction>; results: run.py -> <direction>/{records,tables,figures}.
 
 campaign: e2_mse
+results_dir: mse                 # results land in model_benchmark/<results_dir>/<direction>/ (E2.3: composite, final: final)
 seeds: [0, 1, 2, 3, 4]
 selection: {metric: val_demeaned_r, mode: max}          # never select on test
 metrics: [pearson, demeaned_pearson, avg_rank, top1_acc]  # the four figure metrics (mse kept in tables)

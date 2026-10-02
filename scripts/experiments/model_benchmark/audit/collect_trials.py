@@ -4,7 +4,7 @@ Reads results/ray_checkpoints/<Model>_tune_<id>/<trial>/{params.json, result.jso
 W&B config (data.source, data.shuffle_seed). One row per trial.
 
 Run (kraken_env, CPU):
-    python scripts/experiments/multimodel_scfc/audit/collect_trials.py \
+    python scripts/experiments/model_benchmark/audit/collect_trials.py \
         --models Sarwar2020MLP Chen2024GCN NodalGNN NodalMLP CrossModal_PCA_PLS_learnable CrossModal_PCA_PLS
 """
 import argparse

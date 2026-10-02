@@ -37,8 +37,10 @@ SPECS = {
         source="CrossModal_PCA_PLS", why="closed-form; full 150-cell grid (cheap)",
         grid=True),
     "CrossModal_ConditionalGaussian": dict(
-        source="CrossModal_ConditionalGaussian", why="closed-form; model search space, budget rule (5 keys -> 40)",
-        trials=40),
+        source="CrossModal_ConditionalGaussian",
+        why="closed-form ridge-form conditional mean in PCA space; fit_domain fixed to pca because the model rejects "
+            "raw_edges with any shrinkage estimator (168 of the pilot's trials errored); 4 keys -> 32",
+        fixed={"model": {"fit_domain": "pca"}}),
     "CrossModal_PCA_PLS_learnable": dict(
         source="CrossModal_PCA_PLS_learnable", why="model search space minus loss keys (12 keys -> 64)",
         trials=64),

@@ -20,7 +20,10 @@ scripts/experiments/model_benchmark/
 ├── launch_model.sh       # one seed per array task: Tune + best-trial report
 ├── run.py                # task logs -> records.json -> tables + figures, per direction
 ├── checks/check_benchmark.py
-└── sc2fc/ , fc2sc/       # records.json, tables/, figures/ (generated)
+├── audit/                # 2026-09-30 tuning-history audit (collect_trials.py, analyze_search_spaces.py)
+└── mse/                  # E2.2 campaign results; E2.3 adds composite/, the final benchmark final/
+    ├── sc2fc/            #   records.json, tables/, figures/ (generated)
+    └── fc2sc/            #   E3
 ```
 
 ## How to run
@@ -33,7 +36,7 @@ scripts/experiments/model_benchmark/
 | Collect + figures | `python scripts/experiments/model_benchmark/run.py --direction sc2fc` (`--cached` re-renders) |
 | Checks (CPU) | `python scripts/experiments/model_benchmark/checks/check_benchmark.py` |
 
-## Figures (`<direction>/figures/`)
+## Figures (`mse/<direction>/figures/`)
 
 `bars_<metric>.png` for Pearson r, demeaned r, average rank and top-1 accuracy, plus `bars_all_metrics.png` (2 × 2):
 bars grouped and coloured by model type, groups sorted by their mean on the metric and models within a group by their

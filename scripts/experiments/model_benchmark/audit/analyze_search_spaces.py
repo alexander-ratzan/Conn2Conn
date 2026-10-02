@@ -7,12 +7,12 @@ Input: the table written by collect_trials.py. Output (tracked, small CSVs) in a
                          Spearman rho and where the top-10% trials sit in the sampled range
     reference.csv        best-per-sweep val for reference models (e.g. the linear family)
 
-Scope and caveats (also in multimodel_scfc.md): SC source only for the effect tables; val = last reported
+Scope and caveats (2026-09-30 audit; summary in spec v2 E2.2): SC source only for the effect tables; val = last reported
 `val_demeaned_r` of each trial (ASHA-stopped trials report fewer epochs); TPE-sampled trials are not uniform,
 so effects are marginal and optimistic; for a model whose search space changed, only the dominant schema is used.
 
 Run (kraken_env, CPU):
-    python scripts/experiments/multimodel_scfc/audit/analyze_search_spaces.py \
+    python scripts/experiments/model_benchmark/audit/analyze_search_spaces.py \
         --models Sarwar2020MLP Chen2024GCN NodalGNN NodalMLP --reference CrossModal_PCA_PLS_learnable CrossModal_PCA_PLS
 """
 import argparse

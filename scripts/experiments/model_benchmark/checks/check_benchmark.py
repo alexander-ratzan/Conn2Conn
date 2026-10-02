@@ -71,7 +71,7 @@ def main():
     os.utime(logs / "e2_mse_CrossModal_PCA_PLS_sc2fc_050_0.out", (time.time() - 1e5, time.time() - 1e5))
     fake_log(logs / "e2_mse_CrossModal_PCA_PLS_sc2fc_200_0.out", "CrossModal_PCA_PLS", 0, 0.9, finished=False)
     rc = run.build("sc2fc", cfg=cfg, out_root=tmp / "out", log_dir=logs)
-    d = tmp / "out" / "sc2fc"
+    d = tmp / "out" / cfg.get("results_dir", "") / "sc2fc"
     recs = json.loads((d / "records.json").read_text())
     camp = [r for r in recs if r["source"] == "campaign"]
     check("runner: one record per model x seed from logs", rc == 0 and len(camp) == 12 * 5, f"{len(camp)}")
