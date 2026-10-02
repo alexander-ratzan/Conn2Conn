@@ -629,9 +629,7 @@ Started from user review 2026-10-02.
     them (Krakencoder's launcher stays).
 - **I2.5 — Variants as overrides** · planned. Source and covariate variants (`_SC_r2t`, `_SC+SC_r2t`, `_demo`,
   `_fs_*`) become short `data:` / `model:` overrides in experiment rosters instead of near-copy files.
-- **I2.6 — Hydra evaluation** · outline. Config groups (`model=`, `data=`, `loss=`, `search=`, `launcher=slurm`) +
-  submitit launcher + multirun seeds would replace I2.4 / I2.5. It changes `main.py`'s CLI, so it is a migration
-  decision after I2.3–I2.5.
+- **I2.6 — Hydra** · deferred (user 2026-10-02): too large a refactor for the benefit; I2.3–I2.5 cover the need.
 - **Found while testing:** `composite_loss/checks/check_protocol.py` fails on `main`: it still reads
   `composite_loss/linear_backbone/config.yml`, moved to `<model>/sc2fc/` in E3.0 Phase C. Left to the E3 owner.
 
@@ -684,6 +682,6 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-10-02 | E3 Phase D started: fc2sc scaffolds, FC → SC thresholds (×1.607), two chains submitted; CovProjector held; E2.2 ∥ Phase D rules. |
 | 2026-10-02 | E2.2 specified: roster by class (latent pick `MaskedMLPPretrainer`, nonlinear variant, pilot-gated; `LatentAttnMasked`, `MaskedLatentPretrainer`, `CrossModalVAE` excluded), MSE-only protocol with budget rule and the audit's narrowed searches, one tagged campaign per model, reuse / rerun list, steps E2.2.1–E2.2.4. |
 | 2026-10-02 | E2.2.1 built: benchmark configs in `models/configs/benchmark/mse/`, roster / submit / launcher / runner / checks in `scripts/experiments/model_benchmark/`; latent entry switched to the nonlinear `MaskedMLPPretrainer`. |
-| 2026-10-02 | I2 added (repo organisation): I2.1 benchmark folder consolidation and campaign results level, I2.2 ConditionalGaussian search fix (both done); I2.3 config family folders + name lookup built on branch `i2-config-layout`, merge when no job runs; I2.4–I2.6 planned / outline. |
+| 2026-10-02 | I2 added (repo organisation): I2.1 benchmark folder consolidation and campaign results level, I2.2 ConditionalGaussian search fix (both done); I2.3 config family folders + name lookup built on branch `i2-config-layout`, merge when no job runs; I2.4–I2.5 planned; I2.6 (Hydra) deferred. |
 
 Last updated at: 2026-10-02 EDT
