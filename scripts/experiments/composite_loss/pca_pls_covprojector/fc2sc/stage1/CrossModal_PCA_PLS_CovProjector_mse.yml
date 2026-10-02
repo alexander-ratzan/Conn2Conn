@@ -1,9 +1,10 @@
-# E1.9 model config (spec v2 E1.9), hand-selected, no Stage 1 tune (user 2026-10-01).
-# The E1.7 backbone (CrossModal_PCA_PLS_learnable consensus: 256 / 16 / 256, W_mid learnable, lr 5.4e-4, 150 epochs,
-# dropout 0.25, l2 1.6e-4) plus the covariate branch with every covariate: FreeSurfer fs_all + age, sex, race/ethnicity,
-# mid-size projectors and MLP fusion. The only difference from E1.7 is the covariates.
-# Replaces the 2026-10-01 frozen-backbone tune (model default; fallback consensus), whose runs remain in W&B.
-# max_epochs is overridden to 30 in config.yml (fixed_consensus), from the 150-epoch runs' validation curves.
+# E3 Phase D (FC -> SC) Stage 1 PILOT for CrossModal_PCA_PLS_CovProjector with all covariates (user 2026-10-02).
+# SC -> FC (E1.9) was hand-selected (E1.7 backbone + covariates, max_epochs 30 from the covariate val curves); here the
+# same 4 optimiser keys as pca_pls_learnable are searched instead, with an epoch range centred on that short schedule
+# (covariates overfit within ~30 epochs in SC -> FC). Architecture and covariate branch fixed as in E1.9 (defaults below
+# are the SC -> FC values, used only as the starting point). 12 trials x seeds 0-4, packed 4 per GPU.
+# Pilot gate (config.yml `pilot_gate`): continue to consensus -> grid only if the per-seed bests clear the stop threshold
+# and the chosen lr / max_epochs are not at a search-space edge; otherwise widen the space and re-pilot.
 # MSE-only here; the grid adds the composite terms. Monitors: varmatch / correye / correye_dm / neidist. Batch 64 (D4).
 learned: true
 
@@ -47,4 +48,20 @@ default:
     batch_size: 64                  # protocol batch size (D4)
     log_every: 5
 
-search_space: {}
+search_space:
+  l2_reg:
+    type: loguniform
+    lower: 1.0e-6
+    upper: 1.0e-2
+  dropout:
+    type: uniform
+    lower: 0.0
+    upper: 0.4
+  lr:
+    type: loguniform
+    lower: 1.0e-4          # short schedules: the E1.7 floor (3e-5) barely trains in 20-80 epochs
+    upper: 3.0e-3
+  max_epochs:
+    type: choice
+    values: [20, 30, 50, 80, 120]
+    consensus: median      # ordered: median of the per-seed bests (snapped), not a majority vote

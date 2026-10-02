@@ -1,6 +1,6 @@
 # FC -> SC instance (spec v2 E3 Phase D), scaffolded from sc2fc/.
 # Composite-loss protocol, instance E1.9: CrossModal_PCA_PLS_CovProjector with all covariates (spec v2 E1).
-# Hand-selected config (user 2026-10-01): the E1.7 backbone + the covariate branch; no Stage 1 tune (fixed_consensus).
+# FC -> SC: Stage 1 PILOT search (user 2026-10-02) instead of SC -> FC's hand-selected config (fixed_consensus).
 # Same protocol as composite_loss/linear_backbone (shared grid file, batch 64, fixed reference scales); only the model,
 # its Stage 1 config and its stop threshold differ.
 # Write-up: scripts/experiments/composite_loss/pca_pls_covprojector/pca_pls_covprojector.md
@@ -23,15 +23,17 @@ selection:                       # never select on test
 # --- Stage 1 (E1.2): MSE-only tune -----------------------------------------------------------------------
 stage1:
   config: scripts/experiments/composite_loss/pca_pls_covprojector/fc2sc/stage1/CrossModal_PCA_PLS_CovProjector_mse.yml
-  launcher: null                 # no Stage 1 tune: the config is hand-selected
-  trials_per_seed: null
+  launcher: scripts/experiments/composite_loss/pca_pls_covprojector/fc2sc/stage1/tune_stage1_seeds.sh
+  trials_per_seed: 12            # pilot (D2): 4-key optimiser search, architecture + covariates fixed
+  packing: {max_concurrent_trials: 4, tune_gpus_per_trial: 0.25, reuse_actors: true}
   monitor_terms: [varmatch, correye, correye_dm, neidist]
 
-# Hand-selected config: protocol.py uses it as the consensus and skips the consensus gate (basis: hand_selected).
-# Keys here override the model config above; the architecture and covariate branch live in that file.
-fixed_consensus:
-  max_epochs: 30                 # from the validation curves of the 150-epoch MSE-only runs (2026-10-02): per-seed peaks
-                                 # at epochs 20-33, mean curve peak about 28; E1.7's 150 epochs overfit with covariates
+# Pilot gate (read by the agent before launching consensus -> grid; not by protocol.py):
+pilot_gate:
+  - every seed's Stage 1 best val_demeaned_r >= stop.stage1_min_best_val
+  - the consensus lr is inside the search range (not within 10% of an edge on the log scale)
+  - the consensus max_epochs is not the largest or smallest choice
+  - otherwise: widen that key's range, re-run the pilot, and report
 
 # --- E1.3: reference scales --------------------------------------------------------------------------------
 # s_t = mean |raw_t| over training batches (batch 64, eval mode) of the Stage 1 consensus model, averaged over
