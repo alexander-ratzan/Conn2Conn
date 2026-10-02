@@ -519,6 +519,18 @@ those are then reoptimized for the final benchmark, and E3 repeats it for FC →
 - **Budget:** about 10–20 GPU-h for the cheap set plus about 30–40 GPU-h for the narrowed expensive set (5 seeds),
   plus pilots. Each stage is approved before launch.
 
+- **Parallel with E3 Phase D (user 2026-10-02):** E2.2 (owner: other agent) and E3 Phase D (agent:infra) run at the
+  same time. Rules for both:
+  - **`models/` is frozen while either has jobs queued or running** (jobs import it live): no edits to model code or to
+    any `models/configs/*.yml` a queued job reads. Config changes go into **new** files (e.g. `Sarwar2020MLP_fc2sc.yml`).
+  - **Separate folders:** E2.2 lives in its own experiment folder and does not touch `scripts/experiments/composite_loss/`
+    or `scripts/results_utils/loss_grid.py`; Phase D only adds `composite_loss/<model>/fc2sc/` and `ceiling/` files.
+  - **Spec:** each edits only its own section (E2.2 / E3) plus its change-log row.
+  - **GPUs:** both share the per-user QOS cap; Phase D uses up to ~10 concurrent GPUs while its Stage 1 and grids run
+    (two chains), E2.2 the rest. Pack small models (D2) on both sides.
+  - **Direction-aware from the start:** build the E2.2 runner on the `sc2fc` / `fc2sc` folder convention (E3.0), so
+    E3's FC → SC replication of E2 is configuration, not new code.
+
 #### E2.3 — Composite-loss benchmark (tuned weights) · outline
 Absorbs the former E3 outline (composite-loss magnitude tuning, never started).
 - **Design:** the E2 roster where the model trains at batch 64 (D4). Composite weights are tuned per model: Optuna over
@@ -545,9 +557,18 @@ Absorbs the former E3 outline (composite-loss magnitude tuning, never started).
     `protocol.py scaffold --instance <model>/sc2fc --to fc2sc` (hand-written files, source/target, paths, job names).
   - Phase C: the three E1 instances moved to `<model>/sc2fc/` (480 run records' `instance` rewritten); every table
     (minus `instance` / `direction`), figure (21/21 byte-identical) and the cross-model summary re-render identically.
-  - **Next — Phase D (needs compute approval):** scaffold `fc2sc` for each E1 model, recalibrate the Stage 1 stop
-    threshold and budgets for FC → SC, then Stage 1 + consensus + pilot (D2) per model before any grid. Krakencoder's
-    FC → SC is already complete. FC → SC ceiling: literature value as `ceiling/<name>.json` with `direction: FC->SC`.
+  - **Phase D (FC → SC runs; approved 2026-10-02, autonomous within D3 per instance):**
+    - Scaffolded `linear_backbone/fc2sc`, `pca_pls_learnable/fc2sc`, `pca_pls_covprojector/fc2sc`.
+    - Calibration (`checks/direction_baselines.json`, val demeaned r, seeds 0–4): null 0.009 (SC → FC) / 0.008
+      (FC → SC); closed-form `CrossModal_PCA_PLS` 0.089 / 0.143. Stage 1 stop thresholds transferred by that ratio
+      (1.607), rounded down: 0.14 (linear_backbone, was 0.09), 0.13 (PCA/PLS models, was 0.085).
+    - Chains submitted (Stage 1 → consensus → grid → report, `afterok`): linear_backbone `19053917`→`19053918`→
+      `19053919`→`19053920`; pca_pls_learnable `19053921`→`19053922`→`19053923`→`19053924`.
+    - `pca_pls_covprojector/fc2sc` held: its SC → FC config was hand-selected (E1.7 backbone + covariates, 30 epochs
+      from the covariate val curves); the FC → SC backbone comes from `pca_pls_learnable/fc2sc`'s consensus, then the
+      epoch cap needs the same check — proposed to the user when that consensus exists.
+    - FC → SC ceiling: literature value as `ceiling/<name>.json` with `direction: FC->SC` (source to pick).
+    - Parallel with E2.2: rules in E2.2.
 - **Depends on:** E1, E2, E2.0.
 
 ## 5. Infrastructure
@@ -613,6 +634,7 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-10-02 | E1.9 rerun on the E1.7 backbone + covariates (hand-selected, `fixed_consensus`), replacing the frozen-backbone fallback run. The 150-epoch run overfit (its avg_rank 0.890 was confounded); rerun at the validation-chosen 30 epochs: covariates raise demeaned r (0.110 MSE-only; 0.119 with Demeaned corr-eye 0.1) but lower identifiability vs E1.7. |
 | 2026-10-02 | **E1 closed.** E1.8 Krakencoder done (via E2.1); E1.10 done with four instances + ceiling; E1 conclusions recorded and carried into E2.3; D6 added (fixed reference scales are the default composite-term balancing; resolves the backlog item). |
 | 2026-10-02 | E3.0: bidirectional composite-loss layout `<model>/{sc2fc,fc2sc}`, direction-aware tooling (loss_grid, compare.py switch, protocol scaffold); E1 instances migrated to `sc2fc/` with identical re-render. |
+| 2026-10-02 | E3 Phase D started: fc2sc scaffolds, FC → SC thresholds (×1.607), two chains submitted; CovProjector held; E2.2 ∥ Phase D rules. |
 | 2026-10-02 | E2.2 specified: roster by class (latent pick `MaskedMLPPretrainer` linear, pilot-gated; `LatentAttnMasked`, `MaskedLatentPretrainer`, `CrossModalVAE` excluded), MSE-only protocol with budget rule and the audit's narrowed searches, one tagged campaign per model, reuse / rerun list, steps E2.2.1–E2.2.4. |
 
 Last updated at: 2026-10-02 EDT
