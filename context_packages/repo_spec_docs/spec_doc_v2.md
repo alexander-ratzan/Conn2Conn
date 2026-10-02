@@ -17,7 +17,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 |---|---|---|---|---|
 | E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | closed 2026-09-30 | — | agent:infra |
 | E1 | Composite-loss dynamics and trade-off across models, SC → FC (`composite_loss`, grid v3) | done 2026-10-02 (E1.6–E1.10; conclusions → E2.3) | D3, D4, D5, D6 | agent:modeling |
-| E2 | Cross-model benchmark (`model_benchmark`, working name) | outline (E2.0 done; E2.1 Krakencoder retrain + loss grid complete) | C2 | — |
+| E2 | Cross-model benchmark (`model_benchmark`, working name) | in progress (E2.0, E2.1 done; E2.2 MSE-only benchmark: spec written, build in progress) | C2 | agent:modeling (E2.2) |
 | E3 | Replicate E1 and E2 for FC → SC | outline (E3.0 bidirectional layout + tooling done 2026-10-02) | E1, E2, E2.0 | — |
 | I1 | HCP1200 timeseries and connectome-similarity views | in progress (I1.1) | — | agent:infra (I1.1) |
 | C1 | `torch_geometric` missing from `kraken_env` | done 2026-09-30 (via C6) | — | agent:infra |
@@ -452,11 +452,72 @@ the upstream trainer; a native adapter of `krakencoder.model.Krakencoder` into o
   `HCP_Base` and its splits; serve predictions through a loader so evaluation is shared; gate on parity with published or
   cached results. `Sarwar2020MLP` and `Chen2024GCN` are already native reimplementations trained in our loop.
 
-#### E2.2 — MSE-only benchmark · outline
-- **Design:** the E2 roster, MSE-only loss, seeds 0–4. The goal is the distribution of scores across model types on
-  identical splits.
-- **Accept:** one best-trial report per model × seed, verified MSE-only from the run configs (as in E0); tables and
-  figures render deterministically from the tracked records.
+#### E2.2 — MSE-only benchmark, SC → FC · in progress (build) · owner: agent:modeling
+**Question:** with every model tuned on the same splits under MSE only, how are test demeaned r, avg_rank and top-1
+distributed across model types? E2.2 picks the models that go on to E2.3 (composite loss, tuned weights). The best of
+those are then reoptimized for the final benchmark, and E3 repeats it for FC → SC.
+
+**Roster** (from the 2026-09-30 audit, updated 2026-10-02):
+
+| Class | Model | Entry |
+|---|---|---|
+| Null / ceiling | `CrossModalPCA` (null); `TestRetestPrecomputed` (ceiling) | grid / reuse E1.10 |
+| Linear, closed-form | `CrossModal_PLS_SVD`, `CrossModal_PCA_PLS`, `CrossModal_ConditionalGaussian` | full grid or budget rule |
+| Linear, learned | `CrossModal_PCA_PLS_learnable`, `CrossModal_linear_backbone`, `CrossModal_PCA_PLS_CovProjector` (all covariates) | budget rule |
+| Deep-learning baselines | `Sarwar2020MLP`, `Chen2024GCN` (narrowed searches); `Krakencoder` | narrowed / reuse E2.1 |
+| Pairwise nodal | `NodalMLP`, `NodalGNN` (at the null in E0; narrowed reruns, so every row is from one campaign) | narrowed |
+| Latent / pretrained | `MaskedMLPPretrainer`, linear / low-rank variant | **pilot first (D2)** |
+| Excluded | `LatentAttnMasked` (never tuned; attention adds nothing over its linear backbone in the dev runs; C!2), `MaskedLatentPretrainer` (test 0.068, below the linear family), `CrossModalVAE` (in development) | — |
+
+- **Latent pick.** `MaskedMLPPretrainer` (linear variant) is the only tuned latent model with a held-out result:
+  2026-04-27, one seed, test demeaned r 0.089 / avg_rank 0.692 (`results/logs/tune_model_parallel_maskedmlp_*`).
+  - **Objective:** it trains on its own masked latent reconstruction loss (`latent_mse`), not edge MSE. It enters with
+    its native objective, as Krakencoder enters with its own fixed losses, and is labelled as such.
+  - **Gate (D2):** seeds 0–1, about 12 trials. It enters the full run if its best val demeaned r ≥ the MSE-only
+    `_learnable` val on the same seeds minus 0.01.
+
+**Protocol:**
+- Seeds 0–4, SC → FC, selection on val demeaned r, test metrics reported.
+- **MSE only:** loss-weight and EMA keys removed from every search; Sarwar's correlation term off.
+- **Each model keeps its own batch size and training budget.** D4's batch 64 is a composite-loss rule.
+- **Trials:** `clamp(8 × free keys, 16, 64)` with ASHA; closed-form models take their full grid when it is smaller.
+  For example, `_learnable` 64, `linear_backbone` 48, `ConditionalGaussian` 40, `PCA_PLS` 24 (150-cell grid).
+- **Narrowed searches** (audit, 3,592 past trials: extra trials bought less than seed noise):
+  - **Chen:** identity nodes, 2 layers, 500 epochs; `conv_dim` {128, 256}, `dnn_dim` {32, 64}, `lr`, `l2_reg`; 12 trials.
+  - **NodalGNN:** 2 layers, decoder 32, 500 epochs; `hidden_dim` {32, 96}, `lr`, `l2_reg`; 10 trials.
+  - **Sarwar:** leaky_relu, 300 epochs, plain MSE; layers {3, 5}, hidden {512, 1024}, dropout, `lr`, `l2_reg`; 16 trials.
+  - **NodalMLP:** about 3 keys from E0's importance table; about 12 trials.
+- **One tagged campaign per model:** results come only from runs tagged with the E2.2 campaign, never the best over
+  older sweeps. Older runs carry C!1 / C!4 and differ in budget.
+
+**What exists and what reruns:**
+- **Reuse:** Krakencoder (E2.1 `mse_only` and paper default, seeds 0–4) and the test-retest ceiling (E1.10).
+- **Rerun everything else.**
+  - `_learnable`, CovProjector, Sarwar, Chen and NodalGNN: their March 2026 benchmark rows carry C!1 / C!4, and
+    Sarwar's used its correlation loss.
+  - The closed-form March rows were selected best-over-sweeps; they are cheap to redo.
+  - `ConditionalGaussian` has never been benchmarked.
+  - E1's MSE-only fits are consensus configs, not per-seed tuning.
+- **This resolves C2** (re-tune the M5b-affected sweeps) and the C!4 re-runs for these models.
+
+**Steps:**
+- **E2.2.1 Build (no GPU).**
+  - Experiment folder `scripts/experiments/model_benchmark/`: MSE-pinned, budget-scaled config per model, launchers
+    and runner.
+  - Campaign tag: a `--wandb_tags` flag in `main.py`, and run selection scoped to the tag. This waits until no running
+    job reads `main.py`.
+  - Checks: configs resolve to plain MSE; search spaces round-trip; `sbatch --test-only`.
+- **E2.2.2 Pilot:** one seed per model (wall time, ASHA convergence), plus the `MaskedMLPPretrainer` gate.
+- **E2.2.3 Full run:** seeds 0–4, staged by cost: cheap set first, then the narrowed expensive set.
+- **E2.2.4 Report:** per-metric distributions by model type with per-seed points; the demeaned r vs avg_rank
+  scatter; paired per-seed differences against the best linear model; the test-retest line.
+
+- **Accept:**
+  - every row is one tagged campaign × seeds 0–4, verified MSE-only (or native objective, labelled) from run configs;
+  - deterministic rendering from tracked records;
+  - write-up `scripts/experiments/model_benchmark/model_benchmark.md`.
+- **Budget:** about 10–20 GPU-h for the cheap set plus about 30–40 GPU-h for the narrowed expensive set (5 seeds),
+  plus pilots. Each stage is approved before launch.
 
 #### E2.3 — Composite-loss benchmark (tuned weights) · outline
 Absorbs the former E3 outline (composite-loss magnitude tuning, never started).
@@ -552,5 +613,6 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-10-02 | E1.9 rerun on the E1.7 backbone + covariates (hand-selected, `fixed_consensus`), replacing the frozen-backbone fallback run. The 150-epoch run overfit (its avg_rank 0.890 was confounded); rerun at the validation-chosen 30 epochs: covariates raise demeaned r (0.110 MSE-only; 0.119 with Demeaned corr-eye 0.1) but lower identifiability vs E1.7. |
 | 2026-10-02 | **E1 closed.** E1.8 Krakencoder done (via E2.1); E1.10 done with four instances + ceiling; E1 conclusions recorded and carried into E2.3; D6 added (fixed reference scales are the default composite-term balancing; resolves the backlog item). |
 | 2026-10-02 | E3.0: bidirectional composite-loss layout `<model>/{sc2fc,fc2sc}`, direction-aware tooling (loss_grid, compare.py switch, protocol scaffold); E1 instances migrated to `sc2fc/` with identical re-render. |
+| 2026-10-02 | E2.2 specified: roster by class (latent pick `MaskedMLPPretrainer` linear, pilot-gated; `LatentAttnMasked`, `MaskedLatentPretrainer`, `CrossModalVAE` excluded), MSE-only protocol with budget rule and the audit's narrowed searches, one tagged campaign per model, reuse / rerun list, steps E2.2.1–E2.2.4. |
 
 Last updated at: 2026-10-02 EDT
