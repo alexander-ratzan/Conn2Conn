@@ -18,7 +18,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 | E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | closed 2026-09-30 | — | agent:infra |
 | E1 | Composite-loss dynamics and trade-off across models, SC → FC (`composite_loss`, grid v3) | done 2026-10-02 (E1.6–E1.10; conclusions → E2.3) | D3, D4, D5, D6 | agent:modeling |
 | E2 | Cross-model benchmark (`model_benchmark`) | in progress (E2.0, E2.1 done; E2.2 built, SC → FC pilot running; E2.3 outline) | C2 | agent:modeling (E2.2) |
-| E3 | Replicate E1 and E2 for FC → SC | in progress (E3.0 done; Phase D FC → SC runs) | E1, E2, E2.0 | agent:infra |
+| E3 | Replicate E1 and E2 for FC → SC | in progress (E3.0 + Phase D (E1 FC → SC) done 2026-10-02; E2 FC → SC with E2.2) | E1, E2, E2.0 | agent:infra |
 | I1 | HCP1200 timeseries and connectome-similarity views | in progress (I1.1, I1.4 done; I1.5 built on branch `fc-conditions`, awaiting user review; I1.2–I1.3 planned) | — | agent:infra (I1.1, I1.4, I1.5) |
 | I2 | Repo organisation: experiment folders, config layout, launchers | in progress (I2.1–I2.2 done; I2.3 on branch `i2-config-layout`, merges when no job runs) | — | agent:modeling |
 | C1 | `torch_geometric` missing from `kraken_env` | done 2026-09-30 (via C6) | — | agent:infra |
@@ -389,7 +389,7 @@ Absorbs the former E3 outline (composite-loss magnitude tuning, never started).
   trade-off makes the choice of selection metric (demeaned r vs avg_rank, or a combination) a decision to make here.
 - **Depends on:** E1, E2.2.
 
-### E3 — FC → SC: replicate E1 and E2   (slug: tbd) · status: outline · owner: —
+### E3 — FC → SC: replicate E1 and E2   (slug: `composite_loss/<model>/fc2sc` for E1) · status: in progress · owner: agent:infra
 
 - **Question:** do the E1 loss landscape and the E2 model comparison hold in the reverse direction (FC → SC)?
 - **Design:** the E1 protocol and the E2.2 / E2.3 benchmark with `--source FC --target SC`, same seeds and grid.
@@ -405,17 +405,21 @@ Absorbs the former E3 outline (composite-loss magnitude tuning, never started).
     `protocol.py scaffold --instance <model>/sc2fc --to fc2sc` (hand-written files, source/target, paths, job names).
   - Phase C: the three E1 instances moved to `<model>/sc2fc/` (480 run records' `instance` rewritten); every table
     (minus `instance` / `direction`), figure (21/21 byte-identical) and the cross-model summary re-render identically.
-  - **Phase D (FC → SC runs; approved 2026-10-02, autonomous within D3 per instance):**
-    - Scaffolded `linear_backbone/fc2sc`, `pca_pls_learnable/fc2sc`, `pca_pls_covprojector/fc2sc`.
-    - Calibration (`checks/direction_baselines.json`, val demeaned r, seeds 0–4): null 0.009 (SC → FC) / 0.008
-      (FC → SC); closed-form `CrossModal_PCA_PLS` 0.089 / 0.143. Stage 1 stop thresholds transferred by that ratio
-      (1.607), rounded down: 0.14 (linear_backbone, was 0.09), 0.13 (PCA/PLS models, was 0.085).
-    - Chains submitted (Stage 1 → consensus → grid → report, `afterok`): linear_backbone `19053917`→`19053918`→
-      `19053919`→`19053920`; pca_pls_learnable `19053921`→`19053922`→`19053923`→`19053924`.
-    - `pca_pls_covprojector/fc2sc` held: its SC → FC config was hand-selected (E1.7 backbone + covariates, 30 epochs
-      from the covariate val curves); the FC → SC backbone comes from `pca_pls_learnable/fc2sc`'s consensus, then the
-      epoch cap needs the same check — proposed to the user when that consensus exists.
-    - FC → SC ceiling: literature value as `ceiling/<name>.json` with `direction: FC->SC` (source to pick).
+  - **Phase D — E1 protocol FC → SC · done 2026-10-02** (agent:infra; 12.0 GPU-h, inside D3 for every instance).
+    Write-ups: `composite_loss/composite_loss.md` § FC → SC and the `fc2sc` sections of each model write-up.
+    - Calibration: closed-form `CrossModal_PCA_PLS` val demeaned r 0.089 (SC → FC) vs 0.143 (FC → SC), null 0.009 /
+      0.008 (`checks/direction_baselines.json`); Stage 1 stop thresholds × 1.607, rounded down: 0.14 / 0.13.
+    - Runs: `linear_backbone/fc2sc` and `pca_pls_learnable/fc2sc` full protocol (Stage 1 → consensus → grid 145 →
+      report); `pca_pls_covprojector/fc2sc` with a Stage 1 **pilot** (user 2026-10-02: 4 optimiser keys, 12 trials ×
+      5 seeds, epochs 20–120; pilot gate passed) instead of SC → FC's hand-selected config.
+    - **Result:** FC → SC is easier (MSE-only demeaned r 0.14–0.21, avg_rank 0.89–0.98) and the SC → FC trade-off does
+      not carry over: Demeaned corr-eye 1 costs −0.03 to −0.09 demeaned r and *lowers* avg_rank in every model
+      (Krakencoder too); MSE-only is the FC → SC choice. CovProjector (top-1 0.48) most likely exploits `fs_all`
+      volumes predicting the `invnodevol` SC normalisation — anatomy, not FC; needs a no-volume ablation.
+    - **Open flags (not re-run):** `linear_backbone` consensus 256 PCs = top of its range; `pca_pls_learnable` lr near
+      the 3e-5 floor with epochs near the top; composite runs reuse the MSE-tuned schedule (early peak then decline in
+      `pca_pls_learnable`). Carry into E2.3 (tune epochs with the weights, widen these ranges).
+    - FC → SC ceiling: skipped (user 2026-10-02; no SC test-retest in the data).
     - Parallel with E2.2: rules in E2.2.
 - **Depends on:** E1, E2, E2.0.
 
@@ -549,5 +553,6 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-10-02 | E2.2 flight plan recorded (infrastructure → validate both directions → compute budgets → full runs → report → E2.3). SC → FC pilot launched; latent gate passed. |
 | 2026-10-02 | Spec audit: status table synced (E2, E3, I1, C2, C!4); closed items shrunk to outcomes (C1, C3, C6 + C6 plan, C7, E0, E1.10, E2.1); E2 head and E2.0 updated (Krakencoder both directions, FC → SC exercised); E2.2 campaign wording, trial budgets, gate result and steps updated; I1.1 done; backlog items covered by I2 / D6 removed. |
 | 2026-10-02 | I1.4 done (task FC caches, bit-identical rest rebuild, damaged-source exclusions, ACL handling); I1.5 built on branch `fc-conditions` (condition loaders, partition-index fix, condition EDA views + notebook; checks pass), awaiting user review. |
+| 2026-10-02 | E3 Phase D done: E1 protocol FC → SC for linear_backbone, pca_pls_learnable, pca_pls_covprojector (12.0 GPU-h); trade-off does not carry over (MSE-only best); CovProjector anatomy caveat; search-edge flags to E2.3. |
 
 Last updated at: 2026-10-02 EDT

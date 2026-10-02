@@ -1,6 +1,6 @@
 # Composite-loss dynamics: replicability instance (`CrossModal_PCA_PLS_learnable`)
 
-**Status:** complete, grid v3 (spec v2 E1) · **Owner:** agent:modeling · **Config:** [`config.yml`](config.yml) ·
+**Status:** complete, grid v3, both directions (spec v2 E1 SC → FC; E3 Phase D FC → SC) · **Owner:** agent:modeling · **Config:** [`config.yml`](config.yml) ·
 **Protocol:** [`../composite_loss.md`](../composite_loss.md)
 
 ## Question
@@ -102,6 +102,23 @@ Test MSE changes by at most +0.0003 in every Demeaned-corr-eye and Neighbor-dist
 
 Generated: `state.yml`, `sc2fc/runs/`, `sc2fc/tables/`, `sc2fc/figures/`. W&B tags: `CrossModal_PCA_PLS_learnable`, `loss_grid:v3`,
 `composite_loss:<stage>`, `combo:<id>`.
+
+## FC → SC (spec v2 E3 Phase D, 2026-10-02)
+
+Same protocol and grid v3 in the reverse direction (`fc2sc/`; Stage 1 stop threshold 0.13 = SC → FC 0.085 × 1.607, the
+closed-form PCA/PLS ratio). Stage 1 per-seed bests 0.145–0.170; consensus lr 5.2e-5, dropout 0.30, l2 2.1e-5, 200
+epochs; gate passed (gap 0.004, SE 0.005). Compute: Stage 1 1.4, consensus 0.1, grid 2.9 GPU-h.
+
+| test, 5 seeds | MSE-only | Var-match 1 | Demeaned corr-eye 1 | Neighbor dist 1 | all three 1 | best avg_rank cell |
+|---|---|---|---|---|---|---|
+| SC → FC (Δ dr / Δ rank) | 0.102 / 0.768 | −0.024 / −0.154 | −0.045 / **+0.098** | −0.016 / +0.069 | −0.020 / +0.076 | `vm_cedm_0.5` 0.881 (Δ dr −0.039) |
+| FC → SC (Δ dr / Δ rank) | **0.141 / 0.910** | −0.025 / −0.078 | **−0.028 / −0.007** | −0.025 / −0.023 | −0.030 / −0.034 | `ce_0.5` 0.911 (Δ dr −0.000) |
+
+- MSE-only is (within noise) the best cell on both metrics in FC → SC; every identity term lowers both.
+- **Schedule caveat:** in `fc2sc/figures/val_trajectories.png` every composite combination peaks at epochs 25–60 and
+  declines, while MSE-only plateaus near 120 under the shared 200-epoch consensus, so part of the composite penalty is
+  the MSE-tuned schedule. **Search-edge caveat:** all five per-seed best lr are 3.7e-5–6.6e-5 (floor 3e-5) and epochs
+  cluster at 200–250 (top 250): the model wants slower, longer training than the range allowed.
 
 ## Caveats
 

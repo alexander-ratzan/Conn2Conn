@@ -1,6 +1,6 @@
 # Composite-loss dynamics: CovProjector with all covariates (`CrossModal_PCA_PLS_CovProjector`)
 
-**Status:** complete, grid v3 (spec v2 E1.9) · **Owner:** agent:modeling · **Config:** [`config.yml`](config.yml) ·
+**Status:** complete, grid v3, both directions (spec v2 E1.9 SC → FC; E3 Phase D FC → SC) · **Owner:** agent:modeling · **Config:** [`config.yml`](config.yml) ·
 **Protocol:** [`../composite_loss.md`](../composite_loss.md)
 
 ## Question
@@ -81,6 +81,24 @@ No Stage 1: the config is hand-selected (`fixed_consensus`).
 | Consensus + scales | `sbatch scripts/experiments/composite_loss/launch_consensus.sh pca_pls_covprojector/sc2fc` |
 | Grid | `sbatch --dependency=afterok:<consensus> scripts/experiments/composite_loss/launch_grid.sh pca_pls_covprojector/sc2fc` |
 | Report (+ cross-model page) | `sbatch --dependency=afterok:<grid> scripts/experiments/composite_loss/launch_report.sh pca_pls_covprojector` |
+
+## FC → SC (spec v2 E3 Phase D, 2026-10-02)
+
+FC → SC is a **Stage 1 pilot** (user 2026-10-02) rather than the hand-selected SC → FC config: 4 optimiser keys, 12
+trials × 5 seeds, epochs 20–120, architecture + all covariates fixed (stop threshold 0.13). Per-seed bests 0.208–0.225;
+pilot gate passed (lr 7.5e-4 and 50 epochs both interior). Compute: pilot 1.0, consensus 0.05, grid 1.9 GPU-h.
+
+| test, 5 seeds | MSE-only | Var-match 1 | Demeaned corr-eye 1 | Neighbor dist 1 | all three 1 | best avg_rank cell |
+|---|---|---|---|---|---|---|
+| SC → FC (Δ dr / Δ rank) | 0.110 / 0.685 | −0.034 / −0.084 | −0.023 / **+0.134** | −0.018 / +0.115 | −0.022 / +0.132 | `cedm_1.0` 0.819 (Δ dr −0.023) |
+| FC → SC (Δ dr / Δ rank) | **0.209 / 0.977** | +0.002 / −0.017 | −0.072 / −0.016 | −0.032 / −0.016 | −0.048 / −0.027 | `mse_only` 0.977 |
+
+- **Covariates dominate FC → SC**: demeaned r 0.209 (learnable 0.141), avg_rank 0.977, **top-1 0.48** (learnable 0.17).
+- **Likely mechanism, not FC:** the SC target is `sift_invnodevol` (streamline counts divided by node volumes) and
+  `fs_all` includes regional volumes, so the covariate branch partly predicts SC's volume normalisation from
+  morphometry. FC → SC CovProjector results are therefore *anatomy + FC → SC*; an ablation without volume features (or
+  demographics only) is needed before attributing the gain to FC.
+- No composite term helps; MSE-only is the best cell on avg_rank and within 0.003 of the best demeaned r (Var-match 1).
 
 ## Caveats
 

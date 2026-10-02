@@ -1,6 +1,6 @@
 # Composite-loss dynamics on the linear backbone
 
-**Status:** complete, grid v3 (spec v2 E1) · **Owner:** agent:modeling · **Config:** [`config.yml`](config.yml) ·
+**Status:** complete, grid v3, both directions (spec v2 E1 SC → FC; E3 Phase D FC → SC) · **Owner:** agent:modeling · **Config:** [`config.yml`](config.yml) ·
 **Protocol:** [`../composite_loss.md`](../composite_loss.md)
 
 ## Question
@@ -102,6 +102,24 @@ different direction, which fits its leaving MSE untouched.
 
 Generated: `state.yml`, `sc2fc/runs/`, `sc2fc/tables/`, `sc2fc/figures/`. W&B tags: `CrossModal_linear_backbone`, `loss_grid:v3` (and `loss_grid:v2` for the carried-over runs),
 `composite_loss:<stage>`, `combo:<id>`. The v1 runs remain in W&B under `loss_grid:v1`.
+
+## FC → SC (spec v2 E3 Phase D, 2026-10-02)
+
+Same protocol and grid v3 in the reverse direction (`fc2sc/`, scaffolded from `sc2fc/`; Stage 1 stop threshold 0.14,
+the SC → FC 0.09 scaled by the closed-form PCA/PLS ratio 0.143 / 0.089). Stage 1 per-seed bests 0.166–0.191; consensus
+256 PCs (4/5 seeds; **the top of the 64/128/256 choices**), z-scored, lr 5.4e-4, 150 epochs; gate passed (gap −0.001,
+SE 0.004). Compute: Stage 1 1.6, consensus 0.1, grid 2.9 GPU-h.
+
+| test, 5 seeds | MSE-only | Var-match 1 | Demeaned corr-eye 1 | Neighbor dist 1 | all three 1 | best avg_rank cell |
+|---|---|---|---|---|---|---|
+| SC → FC (Δ dr / Δ rank) | 0.103 / 0.782 | −0.040 / −0.189 | −0.043 / **+0.092** | −0.025 / +0.038 | −0.029 / +0.030 | `vm_cedm_0.5` 0.884 (Δ dr −0.035) |
+| FC → SC (Δ dr / Δ rank) | **0.167 / 0.888** | −0.008 / −0.111 | **−0.091 / −0.003** | −0.038 / −0.034 | −0.039 / −0.040 | `alldm_0.1` 0.897 (Δ dr −0.016) |
+
+- **FC → SC is easier and nearly saturated on identifiability**: MSE-only already reaches avg_rank 0.888 (top-1 0.10).
+- **The identity terms no longer buy avg_rank.** Demeaned corr-eye costs twice the demeaned r it costs in SC → FC and
+  gives no rank; the best rank gain anywhere is +0.009 (`alldm_0.1`, at −0.016 demeaned r, top-1 +0.04).
+- Raw Corr-eye is inert up to 10 and collapses at 20–50, as in SC → FC; Var-match is free only at 0.1.
+- Figures: `fc2sc/figures/` (same set as `sc2fc/`). Caveat: the PC count may be limited by the search range (256 = max).
 
 ## Caveats
 

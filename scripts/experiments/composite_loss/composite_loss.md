@@ -325,12 +325,15 @@ the trade-off E1 maps: `neidist` buys rank by sacrificing edge-level deviation f
 
 ## Instances
 
-| Instance | Role | Status |
-|---|---|---|
-| [`linear_backbone`](linear_backbone/linear_backbone.md) | primary | grid v3 complete (145 runs; Stage 1 reused from v1) |
-| [`pca_pls_learnable`](pca_pls_learnable/pca_pls_learnable.md) | replicability | grid v3 complete (256 / 16 / 256; Stage 1 16 trials + 145 runs) |
-| [`pca_pls_covprojector`](pca_pls_covprojector/pca_pls_covprojector.md) | covariate model (E1.9) | grid v3 complete (E1.7 backbone + all covariates, hand-selected, 30 epochs) |
-| [`krakencoder`](krakencoder/krakencoder.md) | external model (E1.8) | complete (spec v2 E2.1): 21 cells × 5 seeds, Krakencoder-native weights, both directions |
+| Instance | Role | SC → FC (`sc2fc/`, E1) | FC → SC (`fc2sc/`, E3 Phase D) |
+|---|---|---|---|
+| [`linear_backbone`](linear_backbone/linear_backbone.md) | primary | grid v3 complete (145 runs; Stage 1 reused from v1) | complete 2026-10-02 (Stage 1 24 trials + 145 runs) |
+| [`pca_pls_learnable`](pca_pls_learnable/pca_pls_learnable.md) | replicability | grid v3 complete (256 / 16 / 256; Stage 1 16 trials + 145 runs) | complete 2026-10-02 (Stage 1 16 trials + 145 runs) |
+| [`pca_pls_covprojector`](pca_pls_covprojector/pca_pls_covprojector.md) | covariate model (E1.9) | grid v3 complete (E1.7 backbone + all covariates, hand-selected, 30 epochs) | complete 2026-10-02 (Stage 1 pilot 12 trials + 145 runs) |
+| [`krakencoder`](krakencoder/krakencoder.md) | external model (E1.8) | complete (spec v2 E2.1): 21 cells × 5 seeds, native weights | same fits (one Krakencoder fit serves both directions) |
+
+FC → SC Stage 1 stop thresholds = the SC → FC values × 1.607, the ratio of closed-form `CrossModal_PCA_PLS` val demeaned
+r (0.143 / 0.089; `checks/direction_baselines.json`), rounded down. Phase D compute: 12.0 GPU-h for three instances.
 
 ## Cross-model comparison
 
@@ -404,3 +407,33 @@ Neighbor dist's does not.
 8. **Next: spec v2 E2.3** tunes the weights per model and must choose a selection metric, since no weighting maximizes
    both demeaned r and avg_rank. E3 repeats E1 for FC → SC; Krakencoder already shows the FC → SC trade-off is
    different there.
+
+## FC → SC (spec v2 E3 Phase D, 2026-10-02)
+
+Test, mean over seeds 0–4; Δ = paired difference from the model's MSE-only fit. Details per model in the write-ups;
+interactive: the direction switch on [`figures/cross_model_interactive.html`](figures/cross_model_interactive.html)
+(no FC → SC ceiling line: user decision, no SC test-retest in the data).
+
+| Model | MSE-only demeaned r / avg_rank / top-1 | Demeaned corr-eye 1 (Δ dr / Δ rank) | best avg_rank cell |
+|---|---|---|---|
+| linear_backbone | 0.167 / 0.888 / 0.10 | −0.091 / −0.003 | `alldm_0.1` 0.897 (Δ dr −0.016) |
+| pca_pls_learnable | 0.141 / 0.910 / 0.17 | −0.028 / −0.007 | `ce_0.5` 0.911 (Δ dr −0.000) |
+| pca_pls_covprojector | 0.209 / 0.977 / 0.48 | −0.072 / −0.016 | `mse_only` 0.977 |
+| Krakencoder (native Corr-eye ≈ Demeaned corr-eye, at 1) | 0.134 / 0.902 / 0.14 | −0.030 / −0.004 | — |
+
+1. **FC → SC is easier than SC → FC, and identifiability is already near saturation under MSE alone** (avg_rank
+   0.89–0.98 vs 0.68–0.78), so the identity terms have little left to buy.
+2. **The SC → FC trade-off does not carry over.** In SC → FC, Demeaned corr-eye 1 bought +0.09 to +0.13 avg_rank for
+   −0.02 to −0.05 demeaned r; in FC → SC it costs −0.03 to −0.09 demeaned r and *lowers* avg_rank in every model,
+   Krakencoder included. Neighbor dist and the three-term mixtures also lower both metrics. Effect shapes still
+   correlate across combinations (dominated by the high-weight collapse cells), but the sign of the rank effect flips.
+3. **MSE-only is the FC → SC choice** for all four models: it is the best or within noise of the best on both metrics.
+   Raw Corr-eye is inert to weight 10 and collapses at 20–50 in both directions.
+4. **Covariates matter far more in FC → SC** (CovProjector demeaned r 0.209 vs 0.141, top-1 0.48 vs 0.17), most
+   likely because `fs_all` regional volumes predict the volume normalisation of the `sift_invnodevol` SC target, i.e.
+   anatomy rather than FC. Needs a no-volume (or demographics-only) ablation before it is read as an FC effect.
+5. **Caveats:** composite runs reuse the MSE-tuned schedule, and in `pca_pls_learnable` they peak early and decline
+   (part of the penalty is schedule); two FC → SC searches hit their edges (`linear_backbone` 256 PCs = max;
+   `pca_pls_learnable` lr near the 3e-5 floor with epochs near the top). E2.3 (tuned weights) should re-tune epochs
+   jointly with the weights and widen those ranges.
+
