@@ -67,7 +67,7 @@ without covariates.
 6. **Replication of directions:** effects correlate with the linear backbone at 0.81 (Δ demeaned r) / 0.80 (Δ
    avg_rank), and with E1.7 at 0.61 / 0.89.
 
-## Figures (`figures/`)
+## Figures (`sc2fc/figures/`)
 
 As the other instances: `tradeoff_scatter.png` + `tradeoff_interactive.html`, `dose_response.png`, `term_trajectories.png`,
 `loss_composition.png`, `val_trajectories.png`, `grad_cosine.png`. Cross-model: `../figures/cross_model_interactive.html`.
@@ -78,8 +78,8 @@ No Stage 1: the config is hand-selected (`fixed_consensus`).
 
 | Step | Command |
 |---|---|
-| Consensus + scales | `sbatch scripts/experiments/composite_loss/launch_consensus.sh pca_pls_covprojector` |
-| Grid | `sbatch --dependency=afterok:<consensus> scripts/experiments/composite_loss/launch_grid.sh pca_pls_covprojector` |
+| Consensus + scales | `sbatch scripts/experiments/composite_loss/launch_consensus.sh pca_pls_covprojector/sc2fc` |
+| Grid | `sbatch --dependency=afterok:<consensus> scripts/experiments/composite_loss/launch_grid.sh pca_pls_covprojector/sc2fc` |
 | Report (+ cross-model page) | `sbatch --dependency=afterok:<grid> scripts/experiments/composite_loss/launch_report.sh pca_pls_covprojector` |
 
 ## Caveats

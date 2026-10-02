@@ -1,6 +1,6 @@
 #!/bin/bash
 # Composite-loss protocol (spec v2 E1). E1.4: the grid combinations x 5 seeds, interleaved over 8 array tasks, 5 runs in parallel per GPU.
-#   sbatch scripts/experiments/composite_loss/launch_grid.sh <instance> [combo_id ...]   (instance = folder under scripts/experiments/composite_loss/;
+#   sbatch scripts/experiments/composite_loss/launch_grid.sh <instance> [combo_id ...]   (instance = <model>/<direction>, e.g. linear_backbone/sc2fc;
 #   combo ids restrict the run, e.g. sbatch --array=0 ... launch_grid.sh linear_backbone alldm_0.1 alldm_1.0)
 # Exit code 2 from protocol.py = a D3 stop condition tripped (see the job log and the instance state.yml).
 #SBATCH --nodes=1

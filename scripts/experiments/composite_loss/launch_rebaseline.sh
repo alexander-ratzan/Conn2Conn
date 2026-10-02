@@ -2,7 +2,7 @@
 # Composite-loss protocol (spec v2 E1). E1.3 re-check after a failed consensus check: each seed's own best Stage 1
 # config retrained on its seed (parallel on one GPU); the consensus is re-checked against those retrained values
 # (if it still misses: accepted as a fallback, recorded in state.yml consensus_check). Chain grid + report afterok.
-#   sbatch scripts/experiments/composite_loss/launch_rebaseline.sh <instance>      (instance = folder under scripts/experiments/composite_loss/)
+#   sbatch scripts/experiments/composite_loss/launch_rebaseline.sh <instance>      (instance = <model>/<direction>, e.g. linear_backbone/sc2fc)
 # Exit code 2 from protocol.py = a D3 stop condition tripped (see the job log and the instance state.yml).
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced

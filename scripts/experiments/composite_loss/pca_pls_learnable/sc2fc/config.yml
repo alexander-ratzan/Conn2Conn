@@ -1,12 +1,14 @@
-# Composite-loss dynamics and trade-off on the linear backbone (spec v2 E1).
-# Write-up: scripts/experiments/composite_loss/linear_backbone/linear_backbone.md
+# Composite-loss protocol, replicability instance: CrossModal_PCA_PLS_learnable (spec v2 E1).
+# Same protocol as composite_loss/linear_backbone (shared grid file, batch 64, fixed reference scales); only the model,
+# its Stage 1 config and its stop threshold differ.
+# Write-up: scripts/experiments/composite_loss/pca_pls_learnable/pca_pls_learnable.md
 #
 # Stages: E1.2 Stage 1 MSE-only tune -> E1.3 consensus runs + reference scales -> E1.4 Stage 2 weight grid
 # -> E1.5 tables and figures (scripts/experiments/composite_loss/protocol.py). Generated values (Stage 1 tune ids,
 # consensus config, reference scales, checks) go to state.yml next to this file; fields below marked `null` are
 # documentation only.
 
-model: CrossModal_linear_backbone
+model: CrossModal_PCA_PLS_learnable
 source: SC
 target: FC
 seeds: [0, 1, 2, 3, 4]
@@ -18,16 +20,16 @@ selection:                       # never select on test
 
 # --- Stage 1 (E1.2): MSE-only tune -----------------------------------------------------------------------
 stage1:
-  config: scripts/experiments/composite_loss/linear_backbone/stage1/CrossModal_linear_backbone_mse.yml
-  launcher: scripts/experiments/composite_loss/linear_backbone/stage1/tune_stage1_seeds.sh
-  trials_per_seed: 24
+  config: scripts/experiments/composite_loss/pca_pls_learnable/sc2fc/stage1/CrossModal_PCA_PLS_learnable_mse.yml
+  launcher: scripts/experiments/composite_loss/pca_pls_learnable/sc2fc/stage1/tune_stage1_seeds.sh
+  trials_per_seed: 16             # 4-key search (lr, l2_reg, dropout, max_epochs); architecture fixed 256/16/256
   packing: {max_concurrent_trials: 4, tune_gpus_per_trial: 0.25, reuse_actors: true}
-  monitor_terms: [varmatch, correye, neidist]
+  monitor_terms: [varmatch, correye, correye_dm, neidist]
   # Consensus rule: each seed's best trial; categorical keys by majority, lr / l2_reg by geometric median.
   # Accept the consensus if its mean val_demeaned_r over seeds is within 1 SE of the mean of the per-seed
   # bests; otherwise use the per-seed best config with the highest mean over seeds.
   ray_tune_ids: null             # filled after submission (one per seed)
-  consensus: null                # filled by E1.3: {n_components_pca_source, zscore_pca_scores, l1_reg, l2_reg, lr, max_epochs}
+  consensus: null                # filled by E1.3: the Stage 1 keys of CrossModal_PCA_PLS_learnable
 
 # --- E1.3: reference scales --------------------------------------------------------------------------------
 # s_t = mean |raw_t| over training batches (batch 64, eval mode) of the Stage 1 consensus model, averaged over
@@ -42,10 +44,10 @@ reference_scales: null           # filled by E1.3: {varmatch: c, correye: c, nei
 grid_file: scripts/experiments/composite_loss/grid_v3.yml
 grid_version: v3
 stage2:
-  wandb_tags: [CrossModal_linear_backbone, "loss_grid:v3", "composite_loss:stage2"]   # plus combo:<id>, set by the runner
+  wandb_tags: [CrossModal_PCA_PLS_learnable, "loss_grid:v3", "composite_loss:stage2"]   # plus combo:<id>, set by the runner
   epoch_history: tables/epoch_history.csv                # per run × epoch: raw / weighted / monitor terms, reg, val metrics
 
-# --- Compute envelope (spec v2 D3) --------------------------------------------------------------------------
+# --- Compute envelope (spec v2 D3, same per-stage limits as the linear-backbone instance) --------------------------------------------------------------------------
 # Autonomous execution within these limits; stop and report if a stage exceeds its share or a gate fails.
 compute:
   stage1_gpu_h: 4
@@ -59,7 +61,8 @@ compute:
 
 # --- Stop conditions and runtime (read by protocol.py) ------------------------------------------------------
 stop:
-  stage1_min_best_val: 0.09      # any seed's Stage 1 best val_demeaned_r below this -> stop
+  stage1_min_best_val: 0.085     # any seed's Stage 1 best val_demeaned_r below this -> stop. Lowered from 0.09 on
+                                 # 2026-10-01 (user decision): seed 1, the hardest split for every model, reached 0.0898.
 runtime:
   parallel: 5                    # (combination, seed) runs sharing one GPU as separate processes
   grid_tasks: 8                  # launch_grid.sh array size (145 runs -> 18-19 per task)

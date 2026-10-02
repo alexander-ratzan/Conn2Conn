@@ -18,7 +18,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 | E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | closed 2026-09-30 | — | agent:infra |
 | E1 | Composite-loss dynamics and trade-off across models, SC → FC (`composite_loss`, grid v3) | done 2026-10-02 (E1.6–E1.10; conclusions → E2.3) | D3, D4, D5, D6 | agent:modeling |
 | E2 | Cross-model benchmark (`model_benchmark`, working name) | outline (E2.0 done; E2.1 Krakencoder retrain + loss grid complete) | C2 | — |
-| E3 | Replicate E1 and E2 for FC → SC | outline | E1, E2, E2.0 | — |
+| E3 | Replicate E1 and E2 for FC → SC | outline (E3.0 bidirectional layout + tooling done 2026-10-02) | E1, E2, E2.0 | — |
 | I1 | HCP1200 timeseries and connectome-similarity views | in progress (I1.1) | — | agent:infra (I1.1) |
 | C1 | `torch_geometric` missing from `kraken_env` | done 2026-09-30 (via C6) | — | agent:infra |
 | C2 | Re-tune the M5b-affected sweeps | planned (within E2) | E2 | — |
@@ -476,6 +476,17 @@ Absorbs the former E3 outline (composite-loss magnitude tuning, never started).
   Krakencoder's loader already serves both directions (E2.1); graph and nodal models need the reverse variants
   (not built).
 - **Ceiling:** none in the data (no SC retest). A literature value is used as a reference line (E2.0).
+- **E3.0 — Bidirectional layout and tooling** · done 2026-10-02 (owner agent:infra). `composite_loss/<model>/<direction>/`
+  (`sc2fc` / `fc2sc`), each a protocol instance (`--instance <model>/<direction>`); model write-up at `<model>/<model>.md`.
+  - Phase A: Krakencoder as the template (one fit, direction folders hold `tables/` + `figures/` views).
+  - Phase B: `loss_grid` direction from source/target (checked against the folder; in W&B tags `direction:<d>`, run
+    names and records); `compare.py` direction switch with per-direction axes and ceilings (`ceiling/*.json`);
+    `protocol.py scaffold --instance <model>/sc2fc --to fc2sc` (hand-written files, source/target, paths, job names).
+  - Phase C: the three E1 instances moved to `<model>/sc2fc/` (480 run records' `instance` rewritten); every table
+    (minus `instance` / `direction`), figure (21/21 byte-identical) and the cross-model summary re-render identically.
+  - **Next — Phase D (needs compute approval):** scaffold `fc2sc` for each E1 model, recalibrate the Stage 1 stop
+    threshold and budgets for FC → SC, then Stage 1 + consensus + pilot (D2) per model before any grid. Krakencoder's
+    FC → SC is already complete. FC → SC ceiling: literature value as `ceiling/<name>.json` with `direction: FC->SC`.
 - **Depends on:** E1, E2, E2.0.
 
 ## 5. Infrastructure
@@ -540,5 +551,6 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-10-01 | E1.9 CovProjector (all covariates) done on a recorded fallback consensus (rerun with a hand-selected config open); E1.10 cross-model page built with the test-retest ceiling (demeaned r 0.49, avg_rank 0.987). |
 | 2026-10-02 | E1.9 rerun on the E1.7 backbone + covariates (hand-selected, `fixed_consensus`), replacing the frozen-backbone fallback run. The 150-epoch run overfit (its avg_rank 0.890 was confounded); rerun at the validation-chosen 30 epochs: covariates raise demeaned r (0.110 MSE-only; 0.119 with Demeaned corr-eye 0.1) but lower identifiability vs E1.7. |
 | 2026-10-02 | **E1 closed.** E1.8 Krakencoder done (via E2.1); E1.10 done with four instances + ceiling; E1 conclusions recorded and carried into E2.3; D6 added (fixed reference scales are the default composite-term balancing; resolves the backlog item). |
+| 2026-10-02 | E3.0: bidirectional composite-loss layout `<model>/{sc2fc,fc2sc}`, direction-aware tooling (loss_grid, compare.py switch, protocol scaffold); E1 instances migrated to `sc2fc/` with identical re-render. |
 
 Last updated at: 2026-10-02 EDT

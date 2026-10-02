@@ -1,10 +1,10 @@
 """Composite-loss protocol CLI (spec v2 E1). One entry point for every instance and stage.
 
-    python scripts/experiments/composite_loss/protocol.py stage1    --instance linear_backbone   # CPU: summary + consensus
-    python scripts/experiments/composite_loss/protocol.py consensus --instance linear_backbone   # GPU: E1.3 runs + scales
-    python scripts/experiments/composite_loss/protocol.py rebaseline --instance linear_backbone  # GPU: after a failed consensus check
-    python scripts/experiments/composite_loss/protocol.py grid      --instance linear_backbone --task-index 0 --tasks 4
-    python scripts/experiments/composite_loss/protocol.py report    --instance linear_backbone   # CPU: E1.5 tables/figures
+    python scripts/experiments/composite_loss/protocol.py stage1    --instance linear_backbone/sc2fc   # CPU: summary + consensus
+    python scripts/experiments/composite_loss/protocol.py consensus --instance linear_backbone/sc2fc   # GPU: E1.3 runs + scales
+    python scripts/experiments/composite_loss/protocol.py rebaseline --instance linear_backbone/sc2fc  # GPU: after a failed consensus check
+    python scripts/experiments/composite_loss/protocol.py grid      --instance linear_backbone/sc2fc --task-index 0 --tasks 4
+    python scripts/experiments/composite_loss/protocol.py report    --instance linear_backbone/sc2fc   # CPU: E1.5 tables/figures
     python scripts/experiments/composite_loss/protocol.py scaffold  --instance linear_backbone/sc2fc --to fc2sc
         # new direction folder <model>/fc2sc/ from an existing instance: hand-written files only (config.yml, stage1/),
         # source/target swapped, paths rewritten; no state, runs, tables or figures. Review thresholds before running.

@@ -18,12 +18,12 @@ strong linear probe (`CrossModal_linear_backbone`, SC → FC), and how do they t
   components, no z-scoring, `l2_reg` 7.2e-5, `l1_reg` 1e-7, `lr` 4.1e-4, 100 epochs.
 - **Consensus gate:** missed against the Stage 1 bests (0.0992 vs 0.1046, best-of-24 selection bias). Passed the
   re-check against the retrained per-seed best configs: 0.0992 vs 0.1004, gap 0.0013 < SE 0.0046
-  (`tables/consensus_note.txt`).
+  (`sc2fc/tables/consensus_note.txt`).
 - **Reference scales** $c_t$ (term ÷ MSE at the consensus fit; spread across seeds in brackets): Var-match 79.3 (0.6%),
   Corr-eye 4342 (0.6%), Demeaned corr-eye 705 (1.6%), Neighbor dist 103 (4.9%).
 - **Grid v3:** 29 combinations × 5 seeds = 145 runs ([`../grid_v3.yml`](../grid_v3.yml)). 143 of them carried over
   from the v2 run on the same Stage 1 and splits; the two new three-term doses (0.1, 1) ran for v3. The five v2-only
-  raw-Corr-eye mixtures stay in `runs/` and W&B (`loss_grid:v2`) but are excluded from the v3 tables and figures.
+  raw-Corr-eye mixtures stay in `sc2fc/runs/` and W&B (`loss_grid:v2`) but are excluded from the v3 tables and figures.
 
 ## Results
 
@@ -52,7 +52,7 @@ removes split-to-split variance. MSE-only: test demeaned r 0.1034, avg_rank 0.78
 | Var-match 1 | −0.040 ± 0.003 | **−0.189** ± 0.009 | +0.0027 | 0.036 |
 
 "All three" = Var-match + Demeaned corr-eye + Neighbor dist at equal weights. MSE-only top-1 is 0.062.
-Every combination is in `tables/combo_summary.csv`; per-seed values are in `tables/seed_records.csv`.
+Every combination is in `sc2fc/tables/combo_summary.csv`; per-seed values are in `sc2fc/tables/seed_records.csv`.
 
 **Findings**
 
@@ -80,7 +80,7 @@ gradient): Var-match 0.40 (cos 0.33), Corr-eye 0.05 (0.29), **Demeaned corr-eye 
 Demeaned corr-eye is nearly orthogonal to MSE, to Var-match (−0.07) and to raw Corr-eye (−0.02). It is a genuinely
 different direction, which fits its leaving MSE untouched.
 
-## Figures (`figures/`)
+## Figures (`sc2fc/figures/`)
 
 | File | Shows |
 |---|---|
@@ -95,12 +95,12 @@ different direction, which fits its leaving MSE untouched.
 
 | Step | Command |
 |---|---|
-| Stage 1 | `sbatch scripts/experiments/composite_loss/linear_backbone/stage1/tune_stage1_seeds.sh` |
-| Consensus + scales (+ automatic re-check) | `sbatch scripts/experiments/composite_loss/launch_consensus.sh linear_backbone` |
-| Grid | `sbatch --dependency=afterok:<consensus> scripts/experiments/composite_loss/launch_grid.sh linear_backbone` |
+| Stage 1 | `sbatch scripts/experiments/composite_loss/linear_backbone/sc2fc/stage1/tune_stage1_seeds.sh` |
+| Consensus + scales (+ automatic re-check) | `sbatch scripts/experiments/composite_loss/launch_consensus.sh linear_backbone/sc2fc` |
+| Grid | `sbatch --dependency=afterok:<consensus> scripts/experiments/composite_loss/launch_grid.sh linear_backbone/sc2fc` |
 | Report | `sbatch --dependency=afterok:<grid> scripts/experiments/composite_loss/launch_report.sh linear_backbone` |
 
-Generated: `state.yml`, `runs/`, `tables/`, `figures/`. W&B tags: `CrossModal_linear_backbone`, `loss_grid:v3` (and `loss_grid:v2` for the carried-over runs),
+Generated: `state.yml`, `sc2fc/runs/`, `sc2fc/tables/`, `sc2fc/figures/`. W&B tags: `CrossModal_linear_backbone`, `loss_grid:v3` (and `loss_grid:v2` for the carried-over runs),
 `composite_loss:<stage>`, `combo:<id>`. The v1 runs remain in W&B under `loss_grid:v1`.
 
 ## Caveats

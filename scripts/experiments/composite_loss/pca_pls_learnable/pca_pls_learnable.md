@@ -58,7 +58,7 @@ test demeaned r 0.1023, avg_rank 0.768, top-1 0.048, MSE 0.0135. The linear back
 | Corr-eye 50 | −0.059 ± 0.003 | −0.206 ± 0.008 | 0.006 | −0.087 / −0.255 |
 
 Test MSE changes by at most +0.0003 in every Demeaned-corr-eye and Neighbor-dist combination. All values are in
-`tables/combo_summary.csv` (`d_*` columns).
+`sc2fc/tables/combo_summary.csv` (`d_*` columns).
 
 **Findings**
 
@@ -80,7 +80,7 @@ Test MSE changes by at most +0.0003 in every Demeaned-corr-eye and Neighbor-dist
    brackets): Var-match 0.27 (0.44), Corr-eye 0.04 (0.35), Demeaned corr-eye 11.0 (0.14), Neighbor dist 8.7 (0.76).
    The ordering and orders of magnitude match the linear backbone.
 
-## Figures (`figures/`)
+## Figures (`sc2fc/figures/`)
 
 | File | Shows |
 |---|---|
@@ -95,12 +95,12 @@ Test MSE changes by at most +0.0003 in every Demeaned-corr-eye and Neighbor-dist
 
 | Step | Command |
 |---|---|
-| Stage 1 | `sbatch scripts/experiments/composite_loss/pca_pls_learnable/stage1/tune_stage1_seeds.sh` |
-| Consensus + scales (+ automatic re-check) | `sbatch --dependency=afterok:<stage1> scripts/experiments/composite_loss/launch_consensus.sh pca_pls_learnable` |
-| Grid | `sbatch --dependency=afterok:<consensus> scripts/experiments/composite_loss/launch_grid.sh pca_pls_learnable` |
+| Stage 1 | `sbatch scripts/experiments/composite_loss/pca_pls_learnable/sc2fc/stage1/tune_stage1_seeds.sh` |
+| Consensus + scales (+ automatic re-check) | `sbatch --dependency=afterok:<stage1> scripts/experiments/composite_loss/launch_consensus.sh pca_pls_learnable/sc2fc` |
+| Grid | `sbatch --dependency=afterok:<consensus> scripts/experiments/composite_loss/launch_grid.sh pca_pls_learnable/sc2fc` |
 | Report | `sbatch --dependency=afterok:<grid> scripts/experiments/composite_loss/launch_report.sh pca_pls_learnable` |
 
-Generated: `state.yml`, `runs/`, `tables/`, `figures/`. W&B tags: `CrossModal_PCA_PLS_learnable`, `loss_grid:v3`,
+Generated: `state.yml`, `sc2fc/runs/`, `sc2fc/tables/`, `sc2fc/figures/`. W&B tags: `CrossModal_PCA_PLS_learnable`, `loss_grid:v3`,
 `composite_loss:<stage>`, `combo:<id>`.
 
 ## Caveats

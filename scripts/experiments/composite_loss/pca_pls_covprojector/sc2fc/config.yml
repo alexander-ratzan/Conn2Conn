@@ -21,7 +21,7 @@ selection:                       # never select on test
 
 # --- Stage 1 (E1.2): MSE-only tune -----------------------------------------------------------------------
 stage1:
-  config: scripts/experiments/composite_loss/pca_pls_covprojector/stage1/CrossModal_PCA_PLS_CovProjector_mse.yml
+  config: scripts/experiments/composite_loss/pca_pls_covprojector/sc2fc/stage1/CrossModal_PCA_PLS_CovProjector_mse.yml
   launcher: null                 # no Stage 1 tune: the config is hand-selected
   trials_per_seed: null
   monitor_terms: [varmatch, correye, correye_dm, neidist]

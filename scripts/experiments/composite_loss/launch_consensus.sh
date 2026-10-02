@@ -2,7 +2,7 @@
 # Composite-loss protocol (spec v2 E1). Stage 1 summary + stop check, then E1.3: consensus Stage 1 config retrained on
 # seeds 0-4 (parallel on one GPU) + fixed reference scales; if only the consensus gate misses (exit 3), the
 # rebaseline re-check runs in the same job. Chainable: sbatch --dependency=afterok:<stage1 job> ...
-#   sbatch scripts/experiments/composite_loss/launch_consensus.sh <instance>      (instance = folder under scripts/experiments/composite_loss/)
+#   sbatch scripts/experiments/composite_loss/launch_consensus.sh <instance>      (instance = <model>/<direction>, e.g. linear_backbone/sc2fc)
 # Exit code 2 from protocol.py = a D3 stop condition tripped (see the job log and the instance state.yml).
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced

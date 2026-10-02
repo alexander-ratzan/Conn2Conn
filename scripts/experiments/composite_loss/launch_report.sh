@@ -1,6 +1,6 @@
 #!/bin/bash
 # Composite-loss protocol (spec v2 E1). E1.5 report: tables + figures from the instance's runs (CPU only).
-#   sbatch scripts/experiments/composite_loss/launch_report.sh <instance>      (instance = folder under scripts/experiments/composite_loss/)
+#   sbatch scripts/experiments/composite_loss/launch_report.sh <instance>      (instance = <model>/<direction>, e.g. linear_backbone/sc2fc)
 # Exit code 2 from protocol.py = a D3 stop condition tripped (see the job log and the instance state.yml).
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced
