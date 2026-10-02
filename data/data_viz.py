@@ -35,6 +35,13 @@ __all__ = [
     "plot_subject_session_overview",
     "plot_subject_session_overview_demeaned",
     "session_diagnostics",
+    "condition_upper_triangles",
+    "get_condition_connectomes",
+    "plot_condition_connectomes",
+    "compute_condition_similarity",
+    "plot_condition_similarity",
+    "compute_subject_condition_correlations",
+    "plot_subject_condition_corrmap",
 ]
 
 
@@ -1742,3 +1749,527 @@ def make_data_matrix_gif(
         shutil.rmtree(tmpdir, ignore_errors=True)
 
     return Path(gif_path)
+
+
+# ---------------------------------------------------------------------------
+# Condition connectomes (rest, rest sessions, HCP tasks)
+# ---------------------------------------------------------------------------
+_CONDITION_DISPLAY = {
+    "rest": "Rest",
+    "rest_S1": "Rest S1",
+    "rest_S2": "Rest S2",
+    "emotion": "Emotion",
+    "gambling": "Gambling",
+    "language": "Language",
+    "motor": "Motor",
+    "relational": "Relational",
+    "social": "Social",
+    "wm": "WM",
+}
+_SIMILARITY_METRICS = ("pearson", "euclidean", "geodesic")
+_SIMILARITY_TITLES = {"pearson": "Edge correlation", "euclidean": "Euclidean distance", "geodesic": "Geodesic distance"}
+_SIMILARITY_CMAPS = {"pearson": "viridis", "euclidean": "viridis_r", "geodesic": "viridis_r"}
+
+
+def _condition_label(condition):
+    return _CONDITION_DISPLAY.get(condition, condition)
+
+
+def _n_rois_from_edges(n_edges):
+    n_rois = int(round((1 + np.sqrt(1 + 8 * n_edges)) / 2))
+    if n_rois * (n_rois - 1) // 2 != n_edges:
+        raise ValueError(f"{n_edges} is not an upper-triangle edge count")
+    return n_rois
+
+
+def _edges_to_square(vec, diag_value):
+    n_rois = _n_rois_from_edges(vec.shape[-1])
+    iu = np.triu_indices(n_rois, k=1)
+    mat = np.zeros((n_rois, n_rois), dtype=np.float64)
+    mat[iu] = vec
+    mat.T[iu] = vec
+    np.fill_diagonal(mat, diag_value)
+    return mat
+
+
+def condition_upper_triangles(base, conditions):
+    """Map each condition to its (n_canonical_subjects, n_edges) FC array, aligned to `base` subject order.
+
+    'rest' is the main FC; 'rest_S1' / 'rest_S2' need `HCP_Base(expose_fc_sessions=True)`; task names need
+    `HCP_Base(fc_conditions=[...])`.
+    """
+    out = {}
+    for condition in conditions:
+        if condition == "rest":
+            arr = base.fc_upper_triangles
+        elif condition in ("rest_S1", "rest_S2"):
+            if not getattr(base, "expose_fc_sessions", False):
+                raise ValueError(f"{condition!r} needs HCP_Base(expose_fc_sessions=True)")
+            arr = base.fc_session1_upper_triangles if condition == "rest_S1" else base.fc_session2_upper_triangles
+        else:
+            tri = getattr(base, "fc_condition_upper_triangles", {})
+            if condition not in tri:
+                raise ValueError(f"{condition!r} needs HCP_Base(fc_conditions=[..., {condition!r}])")
+            arr = tri[condition]
+        out[condition] = np.asarray(arr)
+    n_subjects = {arr.shape[0] for arr in out.values()}
+    if len(n_subjects) != 1:
+        raise ValueError(f"conditions are not subject-aligned: {n_subjects}")
+    return out
+
+
+def _aggregate_edges(edges, aggregate="mean", apply_fisher_z=False):
+    if apply_fisher_z:
+        return _fisher_aggregate_stack(edges, agg=aggregate)
+    return _aggregate_stack(edges, agg=aggregate)
+
+
+def _condition_selection(base, partition, position, subject_id):
+    """(global indices, subject_id or None) for a whole partition or one subject in it."""
+    if position is None and subject_id is None:
+        return _partition_indices(base, partition), None
+    global_idx = _resolve_partition_global_index(base, partition=partition, position=position, subject_id=subject_id)
+    return np.array([global_idx]), base.metadata_df["subject"].iloc[global_idx]
+
+
+# --- Figure 1: condition connectome grid -------------------------------------------------------------
+def get_condition_connectomes(
+    base,
+    conditions,
+    partition="val",
+    position=None,
+    subject_id=None,
+    aggregate="mean",
+    apply_fisher_z=False,
+    demean_partition=None,
+):
+    """Square FC matrix per condition for a partition aggregate or one subject.
+
+    With `demean_partition`, each matrix has that partition's mean of the *same condition* subtracted
+    (subject residual or partition-mean offset vs the reference mean).
+    """
+    edges = condition_upper_triangles(base, conditions)
+    indices, sid = _condition_selection(base, partition, position, subject_id)
+    ref_idx = _partition_indices(base, demean_partition) if demean_partition is not None else None
+
+    matrices = {}
+    for condition in conditions:
+        if sid is None:
+            vec = _aggregate_edges(edges[condition][indices], aggregate, apply_fisher_z)
+        else:
+            vec = np.asarray(edges[condition][indices[0]], dtype=np.float64)
+        if ref_idx is not None:
+            vec = vec - _aggregate_edges(edges[condition][ref_idx], aggregate, apply_fisher_z)
+        matrices[condition] = _edges_to_square(vec, diag_value=0.0 if ref_idx is not None else 1.0)
+
+    part_label = _PARTITION_DISPLAY.get(partition, partition)
+    if sid is None:
+        agg_label = ("Fisher-z " if apply_fisher_z else "") + aggregate
+        label = f"{part_label} population {agg_label} (n={len(indices)})"
+    else:
+        label = f"{part_label} subject {sid}"
+    if ref_idx is not None:
+        label += f" - {_PARTITION_DISPLAY.get(demean_partition, demean_partition)} mean"
+    return {
+        "matrices": matrices,
+        "conditions": list(conditions),
+        "partition": partition,
+        "subject_id": sid,
+        "demeaned": ref_idx is not None,
+        "label": label,
+    }
+
+
+def plot_condition_connectomes(
+    base,
+    conditions,
+    partition="val",
+    position=None,
+    subject_id=None,
+    aggregate="mean",
+    apply_fisher_z=False,
+    demean_partition=None,
+    vmax=None,
+    ncols=None,
+    figsize_per_panel=(2.8, 2.8),
+    dpi=150,
+    header_metadata=None,
+    show=True,
+):
+    """Grid of one FC matrix per condition (population aggregate or one subject), shared color scale.
+
+    Raw matrices default to [-1, 1]; demeaned ones to the shared 99.5th percentile of |residual|.
+    """
+    data = get_condition_connectomes(
+        base, conditions, partition=partition, position=position, subject_id=subject_id,
+        aggregate=aggregate, apply_fisher_z=apply_fisher_z, demean_partition=demean_partition,
+    )
+    if vmax is None:
+        if data["demeaned"]:
+            off = np.concatenate([np.abs(m[np.triu_indices(m.shape[0], 1)]) for m in data["matrices"].values()])
+            vmax = float(np.quantile(off, 0.995)) or 1.0
+        else:
+            vmax = 1.0
+    ncols = len(conditions) if ncols is None else int(ncols)
+    nrows = int(np.ceil(len(conditions) / ncols))
+    fig, axes = plt.subplots(
+        nrows, ncols, figsize=(figsize_per_panel[0] * ncols, figsize_per_panel[1] * nrows + 0.5),
+        dpi=dpi, squeeze=False,
+    )
+    for ax in axes.ravel()[len(conditions):]:
+        ax.axis("off")
+    for ax, condition in zip(axes.ravel(), conditions):
+        im = _fc_panel(ax, data["matrices"][condition], vmax, _condition_label(condition))
+        _add_small_colorbar(fig, ax, im, ticks=[-vmax, 0.0, vmax])
+    data["vmax"] = vmax
+    fig.suptitle(_format_subject_header(base, data, header_metadata=header_metadata), fontsize=12)
+    fig.tight_layout()
+    if show:
+        plt.show()
+    return fig, axes, data
+
+
+# --- Figure 2: condition x condition similarity --------------------------------------------------------
+def _shrink(mat, shrinkage):
+    if not shrinkage:
+        return mat
+    return (1.0 - shrinkage) * mat + shrinkage * np.eye(mat.shape[0])
+
+
+def _condition_similarity_one(edge_rows, metrics, geodesic, shrinkage, eps):
+    """K x K similarity/distance matrices for one set of K condition edge vectors (K, E)."""
+    from models.eval.fc_distance import pairwise_affine_invariant_distance_within, pairwise_log_euclidean_distance
+
+    edge_rows = np.asarray(edge_rows, dtype=np.float64)
+    out = {}
+    if "pearson" in metrics:
+        out["pearson"] = np.corrcoef(edge_rows)
+    if "euclidean" in metrics:
+        sq = np.sum(edge_rows ** 2, axis=1)
+        out["euclidean"] = np.sqrt(np.maximum(sq[:, None] + sq[None, :] - 2.0 * edge_rows @ edge_rows.T, 0.0))
+        np.fill_diagonal(out["euclidean"], 0.0)
+    if "geodesic" in metrics:
+        mats = np.stack([_shrink(_edges_to_square(v, 1.0), shrinkage) for v in edge_rows])
+        if geodesic == "affine_invariant":
+            out["geodesic"] = pairwise_affine_invariant_distance_within(mats, eps=eps)
+        elif geodesic == "log_euclidean":
+            out["geodesic"] = pairwise_log_euclidean_distance(mats, mats, eps=eps)
+            np.fill_diagonal(out["geodesic"], 0.0)
+        else:
+            raise ValueError(f"geodesic must be 'affine_invariant' or 'log_euclidean'; got {geodesic!r}")
+    return out
+
+
+def compute_condition_similarity(
+    base,
+    conditions,
+    partition="val",
+    mode="population",
+    position=None,
+    subject_id=None,
+    aggregate="mean",
+    apply_fisher_z=False,
+    metrics=_SIMILARITY_METRICS,
+    geodesic="affine_invariant",
+    shrinkage=None,
+    max_subjects=None,
+    eps=1e-6,
+):
+    """Condition x condition similarity (edge Pearson r) and distances (Euclidean on edges, geodesic on matrices).
+
+    mode:
+        'population': between the partition's condition aggregates (mean / Fisher-z mean)
+        'subject':    between one subject's conditions (`position` / `subject_id`)
+        'subjects':   per subject in the partition (first `max_subjects`), returned as mean and std
+    shrinkage: λ in (1-λ)C + λI before the geodesic (task scans have fewer TRs than parcels, so single-subject
+        task FC is singular). None -> 0 for 'population', 0.1 otherwise.
+    """
+    metrics = tuple(metrics)
+    unknown = set(metrics) - set(_SIMILARITY_METRICS)
+    if unknown:
+        raise ValueError(f"unknown metrics {sorted(unknown)}; choose from {_SIMILARITY_METRICS}")
+    if mode not in ("population", "subject", "subjects"):
+        raise ValueError("mode must be 'population', 'subject', or 'subjects'")
+    if shrinkage is None:
+        shrinkage = 0.0 if mode == "population" else 0.1
+    edges = condition_upper_triangles(base, conditions)
+    part_label = _PARTITION_DISPLAY.get(partition, partition)
+
+    if mode == "population":
+        indices = _partition_indices(base, partition)
+        rows = np.stack([_aggregate_edges(edges[c][indices], aggregate, apply_fisher_z) for c in conditions])
+        sims = _condition_similarity_one(rows, metrics, geodesic, shrinkage, eps)
+        result = {m: {"mean": v, "std": None} for m, v in sims.items()}
+        agg_label = ("Fisher-z " if apply_fisher_z else "") + aggregate
+        label, n_subjects, subject = f"{part_label} population {agg_label} (n={len(indices)})", len(indices), None
+    elif mode == "subject":
+        gidx = _resolve_partition_global_index(base, partition=partition, position=position, subject_id=subject_id)
+        rows = np.stack([edges[c][gidx] for c in conditions])
+        sims = _condition_similarity_one(rows, metrics, geodesic, shrinkage, eps)
+        result = {m: {"mean": v, "std": None} for m, v in sims.items()}
+        subject = base.metadata_df["subject"].iloc[gidx]
+        label, n_subjects = f"{part_label} subject {subject}", 1
+    else:
+        indices = _partition_indices(base, partition)
+        if max_subjects is not None:
+            indices = indices[: int(max_subjects)]
+        per_subject = [
+            _condition_similarity_one(np.stack([edges[c][i] for c in conditions]), metrics, geodesic, shrinkage, eps)
+            for i in indices
+        ]
+        result = {
+            m: {
+                "mean": np.mean([s[m] for s in per_subject], axis=0),
+                "std": np.std([s[m] for s in per_subject], axis=0),
+                "per_subject": np.stack([s[m] for s in per_subject]),
+            }
+            for m in metrics
+        }
+        label, n_subjects, subject = f"{part_label} per-subject mean (n={len(indices)})", len(indices), None
+
+    return {
+        "metrics": result,
+        "conditions": list(conditions),
+        "mode": mode,
+        "partition": partition,
+        "subject_id": subject,
+        "n_subjects": n_subjects,
+        "geodesic": geodesic,
+        "shrinkage": float(shrinkage),
+        "label": label,
+    }
+
+
+def plot_condition_similarity(
+    base,
+    similarity,
+    annotate=True,
+    show_std=False,
+    figsize_per_panel=(4.4, 3.9),
+    dpi=150,
+    show=True,
+):
+    """Heatmap per metric from `compute_condition_similarity` (values annotated; ± std in 'subjects' mode)."""
+    metrics = list(similarity["metrics"])
+    labels = [_condition_label(c) for c in similarity["conditions"]]
+    k = len(labels)
+    fig, axes = plt.subplots(1, len(metrics), figsize=(figsize_per_panel[0] * len(metrics), figsize_per_panel[1]),
+                             dpi=dpi, squeeze=False)
+    for ax, metric in zip(axes[0], metrics):
+        mat = similarity["metrics"][metric]["mean"]
+        std = similarity["metrics"][metric].get("std")
+        off = mat[~np.eye(k, dtype=bool)]
+        vmin, vmax = float(np.nanmin(off)), float(np.nanmax(off))
+        if np.isclose(vmin, vmax):
+            vmin, vmax = vmin - 1e-6, vmax + 1e-6
+        im = ax.imshow(mat, cmap=_SIMILARITY_CMAPS[metric], vmin=vmin, vmax=vmax, interpolation="nearest")
+        ax.set_xticks(range(k))
+        ax.set_yticks(range(k))
+        ax.set_xticklabels(labels, rotation=60, ha="right", fontsize=8)
+        ax.set_yticklabels(labels, fontsize=8)
+        title = _SIMILARITY_TITLES[metric]
+        if metric == "geodesic":
+            title += f"\n({similarity['geodesic'].replace('_', '-')}, λ={similarity['shrinkage']:g})"
+        ax.set_title(title, fontsize=10, pad=6)
+        if annotate:
+            norm = (mat - vmin) / (vmax - vmin)
+            for i in range(k):
+                for j in range(k):
+                    if i == j:
+                        continue
+                    txt = f"{mat[i, j]:.2f}" if metric == "pearson" else f"{mat[i, j]:.3g}"
+                    if show_std and std is not None:
+                        txt += f"\n±{std[i, j]:.2f}"
+                    dark = norm[i, j] > 0.5 if _SIMILARITY_CMAPS[metric] == "viridis" else norm[i, j] < 0.5
+                    ax.text(j, i, txt, ha="center", va="center", fontsize=5.5 if k > 8 else 7,
+                            color="black" if dark else "white")
+        _add_small_colorbar(fig, ax, im, ticks=[vmin, vmax])
+    fig.suptitle(f"{base.parcellation} | condition similarity | {similarity['label']}", fontsize=12)
+    fig.tight_layout()
+    if show:
+        plt.show()
+    return fig, axes
+
+
+# --- Figure 3: subject x condition correlation structure --------------------------------------------------
+def _row_normalize(x):
+    x = x - x.mean(axis=1, keepdims=True)
+    return x / np.linalg.norm(x, axis=1, keepdims=True)
+
+
+def compute_subject_condition_correlations(
+    base,
+    conditions,
+    partition="val",
+    demean=None,
+    demean_partition="train",
+    order_by="original",
+    block_by="subject",
+    max_subjects=None,
+):
+    """Pearson r between every (subject, condition) edge vector in a partition.
+
+    demean: None (raw), 'condition' (subtract each condition's `demean_partition` mean), or 'pooled' (subtract
+        one mean over all conditions, keeping condition offsets).
+    order_by: subject ordering (`HCP_Base.subject_order`); block_by: 'subject' (rows = subject-major blocks of
+        conditions) or 'condition' (condition-major blocks of subjects).
+    Returns corr (SK x SK in display order), the within/between-subject K x K condition-pair means, and a summary.
+    """
+    if demean not in (None, "condition", "pooled"):
+        raise ValueError("demean must be None, 'condition', or 'pooled'")
+    if block_by not in ("subject", "condition"):
+        raise ValueError("block_by must be 'subject' or 'condition'")
+    edges = condition_upper_triangles(base, conditions)
+    indices = _partition_indices(base, partition)
+    if max_subjects is not None:
+        indices = indices[: int(max_subjects)]
+    indices = indices[base.subject_order(indices, order_by)]
+    n_s, n_k = len(indices), len(conditions)
+
+    stack = np.stack([np.asarray(edges[c][indices], dtype=np.float32) for c in conditions], axis=1)  # (S, K, E)
+    if demean == "condition":
+        ref = _partition_indices(base, demean_partition)
+        stack = stack - np.stack([edges[c][ref].mean(axis=0) for c in conditions])[None].astype(np.float32)
+    elif demean == "pooled":
+        ref = _partition_indices(base, demean_partition)
+        stack = stack - np.mean([edges[c][ref].mean(axis=0) for c in conditions], axis=0)[None, None].astype(np.float32)
+
+    flat = _row_normalize(stack.reshape(n_s * n_k, -1).astype(np.float64))
+    corr_sk = (flat @ flat.T).reshape(n_s, n_k, n_s, n_k)
+    within = np.einsum("ikil->kl", corr_sk) / n_s
+    total = corr_sk.sum(axis=(0, 2))
+    between = (total - np.einsum("ikil->kl", corr_sk)) / (n_s * (n_s - 1))
+    off = ~np.eye(n_k, dtype=bool)
+    summary = pd.Series({
+        "within-subject, cross-condition": float(within[off].mean()) if n_k > 1 else np.nan,
+        "between-subject, same condition": float(np.diag(between).mean()),
+        "between-subject, cross-condition": float(between[off].mean()) if n_k > 1 else np.nan,
+    })
+    summary["within - between (cross-condition)"] = summary.iloc[0] - summary.iloc[2]
+
+    if block_by == "subject":
+        corr = corr_sk.reshape(n_s * n_k, n_s * n_k)
+    else:
+        corr = corr_sk.transpose(1, 0, 3, 2).reshape(n_k * n_s, n_k * n_s)
+    return {
+        "corr": corr,
+        "within": within,
+        "between": between,
+        "summary": summary,
+        "conditions": list(conditions),
+        "subject_ids": base.metadata_df["subject"].iloc[indices].tolist(),
+        "partition": partition,
+        "order_by": order_by,
+        "block_by": block_by,
+        "demean": demean,
+        "demean_partition": demean_partition if demean else None,
+    }
+
+
+def _corrmap_limits(corr):
+    vals = corr[~np.eye(corr.shape[0], dtype=bool)]
+    absmax = float(np.nanmax(np.abs(vals)))
+    return (-absmax, absmax) if np.isfinite(absmax) and absmax > 0 else (-1.0, 1.0)
+
+
+def _draw_corrmap(fig, ax, res, scale_mode):
+    corr = res["corr"]
+    vmin, vmax = (-1.0, 1.0) if scale_mode == "fixed" else _corrmap_limits(corr)
+    im = ax.imshow(corr, cmap="RdBu_r", vmin=vmin, vmax=vmax, interpolation="nearest")
+    n_s, n_k = len(res["subject_ids"]), len(res["conditions"])
+    block, n_blocks = (n_k, n_s) if res["block_by"] == "subject" else (n_s, n_k)
+    if n_blocks <= 60:
+        for b in range(1, n_blocks):
+            ax.axhline(b * block - 0.5, color="k", lw=0.3, alpha=0.5)
+            ax.axvline(b * block - 0.5, color="k", lw=0.3, alpha=0.5)
+    if res["block_by"] == "condition":
+        ticks = [(b + 0.5) * n_s - 0.5 for b in range(n_k)]
+        ax.set_xticks(ticks)
+        ax.set_yticks(ticks)
+        ax.set_xticklabels([_condition_label(c) for c in res["conditions"]], rotation=60, ha="right", fontsize=7)
+        ax.set_yticklabels([_condition_label(c) for c in res["conditions"]], fontsize=7)
+    else:
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xlabel(f"subject × condition ({n_s} × {n_k})", fontsize=9)
+    s = res["summary"]
+    demean_label = "raw" if res["demean"] is None else f"demeaned ({res['demean']}, {res['demean_partition']} mean)"
+    ax.set_title(
+        f"{demean_label}\nwithin-subj x-cond r={s.iloc[0]:.3f} | between-subj same-cond r={s.iloc[1]:.3f}\n"
+        f"between-subj x-cond r={s.iloc[2]:.3f}",
+        fontsize=8.5, pad=5,
+    )
+    _add_small_colorbar(fig, ax, im, ticks=[vmin, 0.0, vmax])
+
+
+def plot_subject_condition_corrmap(
+    base,
+    conditions,
+    partition="val",
+    order_by="original",
+    block_by="subject",
+    demean="condition",
+    demean_partition="train",
+    max_subjects=None,
+    scale_mode="per_plot",
+    show_pair_matrices=True,
+    figsize=(13, 6.5),
+    dpi=150,
+    show=True,
+):
+    """Raw and demeaned subject x condition correlation maps side by side, plus within/between-subject
+    condition-pair matrices (second figure) when `show_pair_matrices`.
+
+    scale_mode: 'per_plot' (symmetric off-diagonal max per panel) or 'fixed' ([-1, 1]).
+    """
+    common = dict(partition=partition, order_by=order_by, block_by=block_by, max_subjects=max_subjects,
+                  demean_partition=demean_partition)
+    raw = compute_subject_condition_correlations(base, conditions, demean=None, **common)
+    dem = compute_subject_condition_correlations(base, conditions, demean=demean, **common)
+
+    fig, axes = plt.subplots(1, 2, figsize=figsize, dpi=dpi)
+    for ax, res in zip(axes, (raw, dem)):
+        _draw_corrmap(fig, ax, res, scale_mode)
+    part_label = _PARTITION_DISPLAY.get(partition, partition)
+    fig.suptitle(
+        f"{base.parcellation} | {part_label} (n={len(raw['subject_ids'])}) | subject × condition FC correlation | "
+        f"order={order_by}, blocks={block_by}",
+        fontsize=11,
+    )
+    fig.tight_layout()
+
+    pair_fig = None
+    if show_pair_matrices:
+        labels = [_condition_label(c) for c in conditions]
+        k = len(labels)
+        pair_fig, pair_axes = plt.subplots(1, 4, figsize=(18, 4.4), dpi=dpi)
+        panels = [
+            (raw["within"], "within-subject (raw)"), (raw["between"], "between-subject (raw)"),
+            (dem["within"], "within-subject (demeaned)"), (dem["between"], "between-subject (demeaned)"),
+        ]
+        for ax, (mat, title) in zip(pair_axes, panels):
+            m = mat.copy()
+            if title.startswith("within"):
+                np.fill_diagonal(m, np.nan)  # same subject, same condition = 1 by construction
+            vals = m[np.isfinite(m)]
+            vmin, vmax = float(vals.min()), float(vals.max())
+            im = ax.imshow(m, cmap="viridis", vmin=vmin, vmax=vmax, interpolation="nearest")
+            ax.set_xticks(range(k))
+            ax.set_yticks(range(k))
+            ax.set_xticklabels(labels, rotation=60, ha="right", fontsize=7)
+            ax.set_yticklabels(labels, fontsize=7)
+            ax.set_title(f"mean r, {title}", fontsize=9)
+            for i in range(k):
+                for j in range(k):
+                    if np.isfinite(m[i, j]):
+                        dark = (m[i, j] - vmin) / (vmax - vmin + 1e-12) > 0.5
+                        ax.text(j, i, f"{m[i, j]:.2f}", ha="center", va="center", fontsize=5 if k > 8 else 6.5,
+                                color="black" if dark else "white")
+            _add_small_colorbar(pair_fig, ax, im, ticks=[vmin, vmax])
+        pair_fig.suptitle(f"{base.parcellation} | {part_label} | condition-pair mean correlations", fontsize=11)
+        pair_fig.tight_layout()
+
+    if show:
+        plt.show()
+    summary = pd.DataFrame({"raw": raw["summary"], f"demeaned ({demean})": dem["summary"]})
+    return fig, pair_fig, {"raw": raw, "demeaned": dem, "summary": summary}

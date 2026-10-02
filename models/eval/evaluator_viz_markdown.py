@@ -896,52 +896,17 @@ class EvaluatorVizMarkdownMixin:
     def _compute_subject_order(self, order_by='original'):
         """
         Return reordered subject indices for visualization.
-        
+
         Args:
-            order_by: str, one of:
-                - 'original': keep original order
-                - 'family': group by Family_ID from dataset.metadata_df
-                - 'demographic': group by unique (sex × race_eth) categories
-                - 'age': sort by z-scored age (youngest to oldest)
-        
+            order_by: str, one of 'original', 'family', 'demographic', 'age'
+                (see `HCP_Base.subject_order`).
+
         Returns:
             np.ndarray: indices for reordering subjects
         """
-        n_subjects = self.preds.shape[0]
-        
         if order_by == 'original':
-            return np.arange(n_subjects)
-        
-        elif order_by == 'family':
-            # Get Family_ID for subjects in this partition
-            metadata_df = self.dataset.metadata_df
-            partition_subject_ids = metadata_df.index[self.subject_indices]
-            family_ids = metadata_df.loc[partition_subject_ids, 'Family_ID'].values
-            
-            # Sort by Family_ID to group families together
-            sort_order = np.argsort(family_ids)
-            return sort_order
-        
-        elif order_by == 'demographic':
-            # Sort subjects by (sex, race_eth) demographic group.
-            # Concatenate sex and race_eth one-hot arrays, find unique rows, then sort.
-            base = self.dataset
-            sex_np      = np.asarray(base.sex_oh)[self.subject_indices]
-            race_eth_np = np.asarray(base.race_eth_oh)[self.subject_indices]
-            concat_covariates = np.concatenate([sex_np, race_eth_np], axis=1)
-            unique_rows, categories = np.unique(concat_covariates, axis=0, return_inverse=True)
-            print(f"Number of unique demographic categories: {len(unique_rows)}")
-            sort_order = np.argsort(categories)
-            return sort_order
-
-        elif order_by == 'age':
-            base = self.dataset
-            age_vals = np.asarray(base.age_z)[self.subject_indices].ravel()
-            sort_order = np.argsort(age_vals)
-            return sort_order
-
-        else:
-            raise ValueError(f"Unknown order_by: {order_by}. Use 'original', 'family', 'demographic', or 'age'.")
+            return np.arange(self.preds.shape[0])
+        return self.dataset.subject_order(self.subject_indices, order_by)
 
     def plot_identifiability_heatmaps(self, order_by='original', include_black_circles=True,
                                        include_blue_dots=True, demeaned=False,

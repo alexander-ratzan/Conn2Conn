@@ -185,6 +185,25 @@ def pairwise_affine_invariant_distance(mats_a, mats_b, eps=1e-6):
     return dist
 
 
+def pairwise_affine_invariant_distance_within(mats, eps=1e-6):
+    """Symmetric affine-invariant distances within one matrix set.
+
+    Same per-pair computation as `pairwise_affine_invariant_distance(mats, mats)` for i < j, but each
+    matrix's SPD projection and inverse square root are computed once, and the lower triangle mirrors.
+    """
+    mats = np.asarray(mats, dtype=np.float64)
+    spd = [project_to_spd(m, eps=eps) for m in mats]
+    inv_sqrt = [spd_inverse_sqrt(m, eps=eps) for m in spd]
+    n = len(spd)
+    dist = np.zeros((n, n), dtype=np.float64)
+    for i in range(n):
+        for j in range(i + 1, n):
+            mid = ensure_symmetric(inv_sqrt[i] @ spd[j] @ inv_sqrt[i])
+            eigvals = np.maximum(np.linalg.eigvalsh(mid), eps)
+            dist[i, j] = dist[j, i] = float(np.sqrt(np.sum(np.log(eigvals) ** 2)))
+    return dist
+
+
 def pairwise_frobenius_distance(mats_a, mats_b):
     """Pairwise Frobenius distances between two matrix sets (no SPD assumptions)."""
     mats_a = np.asarray(mats_a, dtype=np.float64)
