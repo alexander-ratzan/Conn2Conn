@@ -227,6 +227,61 @@ def figures(cfg, summary, seed_df, out):
     return written + ["bars_all_metrics.png"]
 
 
+def paired(cfg, seed_df, summary):
+    """Per-seed paired differences against the best linear model (by mean test demeaned r), on shared seeds.
+    Splits are shared across models, so paired differences remove split-to-split variance."""
+    lin = summary[summary["type"].str.startswith("linear") & (summary["role"] == "")]
+    if lin.empty:
+        return None, pd.DataFrame()
+    ref = lin.sort_values("demeaned_pearson_mean", ascending=False).iloc[0]["model"]
+    base = seed_df[seed_df["model"] == ref].set_index("seed")
+    rows = []
+    for model, g in seed_df[seed_df["role"] != "ceiling"].groupby("model", sort=False):
+        g = g.set_index("seed")
+        shared = sorted(set(g.index) & set(base.index))
+        r = {"model": model, "label": g["label"].iloc[0], "type": g["type"].iloc[0], "reference": ref,
+             "n_shared_seeds": len(shared)}
+        for m in ("pearson", "demeaned_pearson", "avg_rank", "top1_acc"):
+            d = (g.loc[shared, f"test_{m}"] - base.loc[shared, f"test_{m}"]).dropna()
+            r[f"d_{m}_mean"] = d.mean() if len(d) else np.nan
+            r[f"d_{m}_se"] = d.std(ddof=1) / math.sqrt(len(d)) if len(d) > 1 else np.nan
+        rows.append(r)
+    return ref, pd.DataFrame(rows).sort_values("d_demeaned_pearson_mean", ascending=False)
+
+
+def scatter(cfg, summary, out):
+    """Test demeaned r vs average rank, one point per model (mean ± SE), coloured by model type."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    s = summary[summary["role"] != "ceiling"]
+    fig, ax = plt.subplots(figsize=(8.5, 6.5))
+    for r in s.to_dict("records"):
+        col = cfg["types"].get(r["type"], {}).get("color", "#777777")
+        ax.errorbar(r["avg_rank_mean"], r["demeaned_pearson_mean"], xerr=r["avg_rank_se"], yerr=r["demeaned_pearson_se"],
+                    fmt="s" if r["objective"] else "o", ms=8, color=col, ecolor=col, capsize=3,
+                    mfc="white" if r["objective"] else col, mew=1.6)
+        ax.annotate(r["label"], (r["avg_rank_mean"], r["demeaned_pearson_mean"]), xytext=(6, 4),
+                    textcoords="offset points", fontsize=8, color="#444444")
+    ceil = summary[summary["role"] == "ceiling"]
+    note = ""
+    if len(ceil):
+        c = ceil.iloc[0]
+        note = f"test-retest ceiling: demeaned r {c['demeaned_pearson_mean']:.3g}, avg rank {c['avg_rank_mean']:.3g} (off scale)"
+    import matplotlib.patches as mpatches
+    present = [t for t in cfg["types"] if t in set(s["type"])]
+    ax.legend(handles=[mpatches.Patch(color=cfg["types"][t]["color"], label=cfg["types"][t]["label"]) for t in present],
+              fontsize=9, frameon=False, loc="lower right")
+    ax.set_xlabel("Average rank (test, max)")
+    ax.set_ylabel("Demeaned r (test, max)")
+    ax.grid(alpha=0.25, ls="--")
+    ax.set_title("Mean ± SE over seeds; open squares = native objective" + ("\n" + note if note else ""), fontsize=10)
+    fig.tight_layout()
+    fig.savefig(out / "scatter_demeaned_vs_rank.png", dpi=300, facecolor="white", bbox_inches="tight")
+    plt.close(fig)
+    return "scatter_demeaned_vs_rank.png"
+
+
 # ------------------------------------------------------------------------------------------- entry
 def build(direction, cached=False, cfg=None, out_root=None, log_dir=LOG_DIR):
     cfg = cfg or yaml.safe_load((HERE / "config.yml").read_text())
@@ -252,6 +307,17 @@ def build(direction, cached=False, cfg=None, out_root=None, log_dir=LOG_DIR):
         md.append(f"| {r['label']} | {cfg['types'].get(r['type'], {}).get('label', r['type'])} | {r['n_seeds']} | " + " | ".join(cells) + " |")
     (d / "tables" / "summary.md").write_text("\n".join(md) + "\n")
     written = figures(cfg, summary, seed_df, d / "figures")
+    written.append(scatter(cfg, summary, d / "figures"))
+    ref, pair = paired(cfg, seed_df, summary)
+    if ref is not None:
+        pair.to_csv(d / "tables" / "paired_vs_best_linear.csv", index=False, float_format="%.6g")
+        lines = [f"Paired per-seed differences vs `{ref}` (best linear model by mean test demeaned r; shared seeds).", "",
+                 "| Model | Seeds | Δ Pearson r | Δ demeaned r | Δ avg rank | Δ top-1 |", "|---|---|---|---|---|---|"]
+        for r in pair.to_dict("records"):
+            cell = lambda m: (f"{r[f'd_{m}_mean']:+.4f} ± {r[f'd_{m}_se']:.4f}" if not np.isnan(r[f"d_{m}_se"])
+                              else (f"{r[f'd_{m}_mean']:+.4f}" if not np.isnan(r[f"d_{m}_mean"]) else "–"))
+            lines.append(f"| {r['label']} | {r['n_shared_seeds']} | " + " | ".join(cell(m) for m in ("pearson", "demeaned_pearson", "avg_rank", "top1_acc")) + " |")
+        (d / "tables" / "paired_vs_best_linear.md").write_text("\n".join(lines) + "\n")
     missing = [(m, sorted(set(cfg["seeds"]) - set(seed_df.loc[seed_df["model"] == m, "seed"])))
                for m in cfg["directions"][direction]["models"]]
     missing = [(m, s) for m, s in missing if s]

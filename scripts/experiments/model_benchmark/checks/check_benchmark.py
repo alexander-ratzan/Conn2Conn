@@ -78,8 +78,9 @@ def main():
     pca0 = [r for r in camp if r["model"] == "CrossModal_PCA_PLS" and r["seed"] == 0][0]
     check("runner: latest *finished* task per seed wins", abs(pca0["test"]["demeaned_pearson"] - 0.095) < 0.02)
     reused = {r["model"] for r in recs if r["source"].startswith("reuse")}
-    check("runner: reused Krakencoder + test-retest rows", reused == {"Krakencoder", "TestRetest"}, str(reused))
-    expected = ["tables/seed_records.csv", "tables/summary.csv", "tables/summary.md"] + \
+    check("runner: reused Krakencoder (MSE + paper) + test-retest rows", reused == {"Krakencoder_mse", "Krakencoder_paper", "TestRetest"}, str(reused))
+    expected = ["tables/seed_records.csv", "tables/summary.csv", "tables/summary.md", "tables/paired_vs_best_linear.csv",
+                "tables/paired_vs_best_linear.md", "figures/scatter_demeaned_vs_rank.png"] + \
                [f"figures/bars_{m}.png" for m in cfg["metrics"]] + ["figures/bars_all_metrics.png"]
     missing = [e for e in expected if not (d / e).exists()]
     check("runner: every table and figure written", not missing, f"missing={missing}")
