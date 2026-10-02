@@ -1944,10 +1944,8 @@ def _condition_similarity_one(edge_rows, metrics, geodesic, shrinkage, eps):
     out = {}
     if "pearson" in metrics:
         out["pearson"] = np.corrcoef(edge_rows)
-    if "euclidean" in metrics:
-        sq = np.sum(edge_rows ** 2, axis=1)
-        out["euclidean"] = np.sqrt(np.maximum(sq[:, None] + sq[None, :] - 2.0 * edge_rows @ edge_rows.T, 0.0))
-        np.fill_diagonal(out["euclidean"], 0.0)
+    if "euclidean" in metrics:  # direct differences (K is small): exact 0 for identical conditions
+        out["euclidean"] = np.linalg.norm(edge_rows[:, None, :] - edge_rows[None, :, :], axis=-1)
     if "geodesic" in metrics:
         mats = np.stack([_shrink(_edges_to_square(v, 1.0), shrinkage) for v in edge_rows])
         if geodesic == "affine_invariant":

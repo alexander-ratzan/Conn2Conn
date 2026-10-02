@@ -151,9 +151,9 @@ pop = dv.compute_condition_similarity(base, conds + ["rest"], partition="val", m
 check("5.fig2_pearson_diag_1", np.allclose(np.diag(pop["metrics"]["pearson"]["mean"]), 1))
 check("5.fig2_distance_diag_0", all(np.allclose(np.diag(pop["metrics"][m]["mean"]), 0) for m in ("euclidean", "geodesic")))
 k = len(conds)
-check("5.fig2_rest_vs_rest_identical", np.isclose(pop["metrics"]["pearson"]["mean"][0, k], 1)
-      and np.isclose(pop["metrics"]["euclidean"]["mean"][0, k], 0, atol=1e-8)
-      and np.isclose(pop["metrics"]["geodesic"]["mean"][0, k], 0, atol=1e-6))
+rr = {m: float(pop["metrics"][m]["mean"][0, k]) for m in ("pearson", "euclidean", "geodesic")}
+check("5.fig2_rest_vs_rest_identical", np.isclose(rr["pearson"], 1) and rr["euclidean"] == 0.0
+      and np.isclose(rr["geodesic"], 0, atol=1e-6), str(rr))
 pop = dv.compute_condition_similarity(base, conds, partition="val", mode="population")
 fig, _ = dv.plot_condition_similarity(base, pop, show=False)
 fig.savefig(FIG_DIR / f"fig2_population_{PARC}.png", bbox_inches="tight"); plt.close(fig)
@@ -173,7 +173,7 @@ timings["fig2_subjects_per_subject"] = (time.time() - t0) / 10
 t0 = time.time()
 small = dv.compute_subject_condition_correlations(base, TASKS[:3], partition="val", max_subjects=4)
 e = dv.condition_upper_triangles(base, TASKS[:3])
-rows = {(s, c): e[c][val[s]] for s in range(4) for c in range(3)}
+rows = {(s, c): e[TASKS[c]][val[s]] for s in range(4) for c in range(3)}
 r = lambda a, b: np.corrcoef(rows[a], rows[b])[0, 1]
 w = np.array([[np.mean([r((s, a), (s, b)) for s in range(4)]) for b in range(3)] for a in range(3)])
 btw = np.array([[np.mean([r((s, a), (t, b)) for s in range(4) for t in range(4) if s != t]) for b in range(3)] for a in range(3)])
