@@ -3,6 +3,7 @@
 # dropout 0.25, l2 1.6e-4) plus the covariate branch with every covariate: FreeSurfer fs_all + age, sex, race/ethnicity,
 # mid-size projectors and MLP fusion. The only difference from E1.7 is the covariates.
 # Replaces the 2026-10-01 frozen-backbone tune (model default; fallback consensus), whose runs remain in W&B.
+# max_epochs is overridden to 30 in config.yml (fixed_consensus), from the 150-epoch runs' validation curves.
 # MSE-only here; the grid adds the composite terms. Monitors: varmatch / correye / correye_dm / neidist. Batch 64 (D4).
 learned: true
 

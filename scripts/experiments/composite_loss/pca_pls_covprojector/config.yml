@@ -28,7 +28,9 @@ stage1:
 
 # Hand-selected config: protocol.py uses it as the consensus and skips the consensus gate (basis: hand_selected).
 # Keys here override the model config above; the architecture and covariate branch live in that file.
-fixed_consensus: {}
+fixed_consensus:
+  max_epochs: 30                 # from the validation curves of the 150-epoch MSE-only runs (2026-10-02): per-seed peaks
+                                 # at epochs 20-33, mean curve peak about 28; E1.7's 150 epochs overfit with covariates
 
 # --- E1.3: reference scales --------------------------------------------------------------------------------
 # s_t = mean |raw_t| over training batches (batch 64, eval mode) of the Stage 1 consensus model, averaged over
