@@ -217,7 +217,8 @@ def cmd_launch(cfg, args):
             stop.append(f"{r['model']}: no pilot wall time yet")
             continue
         job = submit.plan(cfg, args.direction, "full", [r["model"]], r["missing"], None)[0]
-        hours = math.ceil(r["time_h"] * 4) / 4
+        retry = any(st["attempts"].get(s, 0) >= 1 for s in r["missing"])  # a seed that already ran and did not finish
+        hours = math.ceil(min(cfg["budget"]["time_cap_h"], r["time_h"] * (2 if retry else 1)) * 4) / 4
         cmd = ["sbatch", "--parsable", f"--job-name={job['name']}", f"--time={int(hours)}:{int(hours % 1 * 60):02d}:00",
                f"--array={','.join(str(s) for s in r['missing'])}", str(HERE / "launch_model.sh"), r["model"],
                args.direction, str(job["samples"]), job["alg"], str(job["gpus"]), str(job["conc"])]
