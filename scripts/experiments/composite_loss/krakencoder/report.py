@@ -150,7 +150,7 @@ def main():
 # is also written; drop it when Phase B merges.
 E1_NAMES = {"val_demeaned_pearson": "val_demeaned_r"}
 DIRECTIONS_DIR = {"SC->FC": "sc2fc", "FC->SC": "fc2sc"}
-FLAT_SEED_RECORDS_FOR_COMPARE = True
+FLAT_SEED_RECORDS_FOR_COMPARE = False   # Phase B: compare.py reads <model>/<direction>/
 
 
 def _load_e1_report():
