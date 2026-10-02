@@ -1,57 +1,62 @@
 # Composite-loss dynamics: CovProjector with all covariates (`CrossModal_PCA_PLS_CovProjector`)
 
-**Status:** complete, grid v3 (spec v2 E1.9); consensus accepted as a **recorded fallback** (see caveats) ·
-**Owner:** agent:modeling · **Config:** [`config.yml`](config.yml) · **Protocol:** [`../composite_loss.md`](../composite_loss.md)
+**Status:** complete, grid v3 (spec v2 E1.9) · **Owner:** agent:modeling · **Config:** [`config.yml`](config.yml) ·
+**Protocol:** [`../composite_loss.md`](../composite_loss.md)
 
 ## Question
 
-How does a covariate-conditioned linear model respond to the composite losses? The model adds a learned covariate
-branch (FreeSurfer `fs_all` + age, sex, race/ethnicity → projectors → fusion) to a PCA/PLS backbone, SC → FC.
+Do covariates change how a model responds to the composite losses? This instance is the PCA/PLS learnable model of
+E1.7 **plus a covariate branch** (FreeSurfer `fs_all` + age, sex, race/ethnicity → projectors → fusion, added to the
+latent prediction), SC → FC. Every other setting matches E1.7, so the two instances differ only in the covariates.
 
 ## Design
 
-- **Model default** (`models/configs/CrossModal_PCA_PLS_CovProjector_SC_fs_all_demo.yml`; user 2026-10-01): the
-  PCA/PLS backbone is **frozen** (`W_mid` at its PLS fit), so only the covariate projectors and the fusion network learn.
-  Every composite term therefore acts through the covariate path.
-- **Stage 1:** 24-trial MSE-only tune per seed over PCA / PLS sizes, projector sizes, fusion type, dropout, `lr`,
-  epochs (median consensus). Per-seed bests 0.106, 0.108, 0.113, 0.103, 0.122. Stop threshold 0.085, as E1.7.
-- **Consensus:** PCA 128 / 128, PLS 8, smallest projectors (fs_all 32), MLP fusion (64 hidden), dropout 0.08,
-  `lr` 1.3e-4, 150 epochs.
-- **Reference scales** $c_t$ (spread across seeds): Var-match 71.9 (0.7%), Corr-eye 4225 (0.5%), Demeaned corr-eye 1004
-  (2.6%), Neighbor dist 141 (2.0%).
-- **Gradient diagnostics** on the fusion network's output layer (`cov_fusion_net.4.weight`, since `W_mid` is frozen):
-  scaled gradient ÷ MSE's, Var-match 0.95, Corr-eye 0.12, Demeaned corr-eye 3.3, Neighbor dist 9.7.
-- **Grid v3:** 29 combinations × 5 seeds = 145 runs, about 2.2 GPU-h; Stage 1 about 1.6 GPU-h.
+- **Hand-selected config, no Stage 1** (user 2026-10-01; `fixed_consensus` in `config.yml`, consensus gate skipped):
+  - **Backbone:** E1.7's 256 / 16 / 256, `W_mid` learnable. E1.7 optimizer: `lr` 5.4e-4, 150 epochs, dropout 0.25,
+    `l2_reg` 1.6e-4.
+  - **Covariate branch:** projectors fs_all 64, age 4, sex 4, race/ethnicity 8; MLP fusion with 64 hidden units.
+- **Why hand-selected:** a first run used the model default (backbone frozen, Stage 1 tune, fallback consensus). Its
+  MSE-only test demeaned r (0.100) matched the March `cov_projector_benchmark` tuned bests on the same splits (0.098),
+  so tuning was not the limit; the frozen backbone was. That run is overwritten; its runs remain in W&B.
+- **Reference scales** $c_t$ (spread across seeds): Var-match 77.9 (0.5%), Corr-eye 4201 (0.5%), Demeaned corr-eye
+  1045 (3.9%), Neighbor dist 145 (3.0%). Gradient strength on `W_mid` (scaled gradient ÷ MSE's): 0.39 / 0.05 / 4.2 / 9.3.
+- **Grid v3:** 29 combinations × 5 seeds = 145 runs, about 2.5 GPU-h.
 
 ## Results
 
-Paired by seed (Δ vs MSE-only on the same split, mean ± SE). MSE-only: test demeaned r 0.0998, avg_rank 0.697,
-top-1 0.040, MSE 0.0136.
+Paired by seed (Δ vs this model's MSE-only on the same split, mean ± SE). MSE-only: test demeaned r 0.098, avg_rank
+0.694, top-1 0.054, MSE 0.0135. E1.7 without covariates: 0.102 / 0.768 / 0.048.
 
-| Training loss = MSE + | Δ demeaned r | Δ avg_rank | top-1 |
-|---|---|---|---|
-| Neighbor dist 0.1 / 0.5 / 1 | −0.004 / −0.013 / −0.025 | +0.013 / **+0.048** / +0.040 | 0.034 / 0.043 / 0.041 |
-| Demeaned corr-eye 0.1 / 0.5 / 1 | −0.002 / −0.009 / −0.018 | +0.022 / **+0.051** / +0.051 | 0.035 / 0.053 / 0.046 |
-| Demeaned corr-eye 50 | −0.060 ± 0.005 | **−0.098** ± 0.010 | 0.018 |
-| Demeaned corr-eye 0.5 + Neighbor dist 0.5 | −0.017 ± 0.004 | **+0.058** ± 0.006 | 0.050 |
-| All three 0.1 | **+0.000** ± 0.003 | +0.036 ± 0.007 | 0.042 |
-| All three 0.5 | −0.019 ± 0.004 | +0.052 ± 0.005 | **0.063** |
-| Var-match 0.5 / 1 | −0.027 / −0.022 | **−0.068 / −0.085** | 0.028 / 0.009 |
-| Var-match 0.5 + Demeaned corr-eye 0.5 | −0.021 ± 0.004 | +0.004 ± 0.005 | 0.022 |
-| Corr-eye 1 / 5 / 10 | −0.001 / −0.019 / −0.084 | −0.010 / −0.054 / −0.101 | 0.037 / 0.024 / 0.013 |
+| Training loss = MSE + | Δ demeaned r | Δ avg_rank | avg_rank | top-1 |
+|---|---|---|---|---|
+| Neighbor dist 0.1 / 0.5 / 1 | −0.001 / −0.006 / −0.008 | +0.027 / +0.033 / +0.020 | 0.72 / 0.73 / 0.71 | 0.064 / 0.060 / 0.055 |
+| Demeaned corr-eye 0.1 | −0.008 ± 0.006 | **+0.168** ± 0.002 | 0.862 | 0.106 |
+| Demeaned corr-eye 0.5 | −0.027 ± 0.007 | **+0.184** ± 0.005 | 0.879 | 0.111 |
+| Demeaned corr-eye 1 | −0.031 ± 0.007 | +0.182 ± 0.005 | 0.876 | 0.115 |
+| Demeaned corr-eye 50 | −0.048 ± 0.007 | +0.109 ± 0.006 | 0.804 | 0.055 |
+| Var-match 0.5 + Demeaned corr-eye 0.5 | −0.024 ± 0.007 | **+0.196** ± 0.004 | **0.890** | **0.140** |
+| Demeaned corr-eye 0.5 + Neighbor dist 0.5 | −0.011 ± 0.006 | +0.104 ± 0.004 | 0.798 | 0.081 |
+| All three 0.1 | **−0.001** ± 0.005 | **+0.128** ± 0.002 | 0.823 | 0.079 |
+| All three 0.5 / 1 | −0.003 / −0.014 | +0.096 / +0.030 | 0.79 / 0.72 | 0.077 / 0.053 |
+| Var-match 0.5 / 1 | −0.012 / −0.039 | −0.020 / −0.141 | 0.67 / 0.55 | 0.052 / 0.008 |
+| Corr-eye 1 / 10 / 50 | −0.005 / −0.087 / −0.083 | −0.006 / +0.017 / +0.078 | 0.69 / 0.71 / 0.77 | 0.057 / 0.021 / 0.039 |
 
 **Findings**
 
-1. **Direction replicates, size is smaller.** Demeaned corr-eye and Neighbor dist again buy avg_rank (+0.05 at 0.5,
-   about half the linear models' gain) at a small demeaned-r cost. Effects correlate with the linear backbone at 0.82
-   (Δ demeaned r) / 0.68 (Δ avg_rank), and with PCA/PLS learnable at 0.66 / 0.73.
-2. **The collapse regime starts earlier.** Var-match already hurts at 0.5 (−0.068 avg_rank; the linear models need 1).
-   Raw Corr-eye hurts from 5, and Demeaned corr-eye turns harmful at 50, which it never did on the linear models.
-   Through a small MLP covariate path, the strong "spread the predictions" gradients over-shoot.
-3. **All three terms at 0.1 is free:** +0.036 avg_rank at no demeaned-r cost (+0.000 ± 0.003). The most accurate
-   identity model here is all three at 0.5 (top-1 0.063, 1.6× MSE-only).
-4. **Var-match + Demeaned corr-eye cancels:** the pair's avg_rank gain (+0.004) is far below Demeaned corr-eye alone
-   (+0.051). On the linear models the same pair gained +0.10 to +0.11.
+1. **Covariates hurt MSE-only training at the E1.7 optimizer.** Demeaned r is −0.004 and avg_rank **−0.074** vs E1.7.
+   Validation demeaned r peaks at epoch 20 (0.104) and falls to 0.083 by epoch 150, and train avg_rank is 0.99. The
+   covariate branch overfits at a budget tuned for the backbone alone.
+2. **Demeaned corr-eye more than recovers it.** It adds +0.17 to +0.18 avg_rank (about 1.8× its effect on E1.7) and
+   +0.20 when paired with Var-match. Var-match 0.5 + Demeaned corr-eye 0.5 reaches **avg_rank 0.890 and top-1 0.140,
+   the most identifiable model of any instance** (linear backbone best 0.884 / 0.130), with test MSE unchanged.
+3. **All three terms at 0.1 is nearly free:** +0.128 avg_rank at −0.001 demeaned r.
+4. **With a composite loss, covariates now help demeaned r.** Compared with E1.7 at the same combination, Demeaned
+   corr-eye 0.1 gives 0.090 vs 0.077, and all three at 0.1 gives 0.097 vs 0.085. The identity term seems to stop the
+   covariate branch from collapsing predictions toward each other.
+5. **Neighbor dist is weak here** (+0.03 avg_rank) and overfits: train MSE 0.0087 vs test 0.0146 at w = 1.
+6. **Replication of directions:** effects correlate with the linear backbone at 0.85 (Δ demeaned r) / 0.54 (Δ
+   avg_rank), and with E1.7 at 0.70 / 0.59. The lower avg_rank correlation comes from the much larger Demeaned
+   corr-eye gain and the weaker Neighbor dist effect.
 
 ## Figures (`figures/`)
 
@@ -60,21 +65,17 @@ As the other instances: `tradeoff_scatter.png` + `tradeoff_interactive.html`, `d
 
 ## How to run
 
+No Stage 1: the config is hand-selected (`fixed_consensus`).
+
 | Step | Command |
 |---|---|
-| Stage 1 | `sbatch scripts/experiments/composite_loss/pca_pls_covprojector/stage1/tune_stage1_seeds.sh` |
-| Consensus + scales (+ automatic re-check) | `sbatch --dependency=afterok:<stage1> scripts/experiments/composite_loss/launch_consensus.sh pca_pls_covprojector` |
+| Consensus + scales | `sbatch scripts/experiments/composite_loss/launch_consensus.sh pca_pls_covprojector` |
 | Grid | `sbatch --dependency=afterok:<consensus> scripts/experiments/composite_loss/launch_grid.sh pca_pls_covprojector` |
 | Report (+ cross-model page) | `sbatch --dependency=afterok:<grid> scripts/experiments/composite_loss/launch_report.sh pca_pls_covprojector` |
 
 ## Caveats
 
-- **Consensus fallback.** The consensus mixes each key's majority value across seeds. For this 8-key, interacting search
-  that mix trains worse than any seed's own best: consensus mean val 0.080 vs the retrained per-seed bests 0.101 (gap
-  0.021 ≈ 2.7 SE; seed 3 0.054). It was accepted as a recorded fallback (`tables/consensus_note.txt`, `state.yml`), so
-  Stage 2 ran. Paired effects are valid comparisons against this model's own MSE-only fit, but they describe a
-  below-tuned CovProjector, and its absolute position on the cross-model page sits low. **Revisit:** rerun with one
-  hand-selected config (seed 4's best, val 0.122, or seed 2's, 0.113), as was done for E1.7.
-- **Backbone frozen** (model default): the composite terms act only through the covariate branch, so magnitudes are
-  not directly comparable with the instances that learn `W_mid`.
-- Test metrics at the last epoch; Stage 1 hyperparameters held fixed across the grid.
+- **Optimizer not tuned for this model.** The E1.7 budget (150 epochs at `lr` 5.4e-4) overfits with covariates
+  (validation peak at epoch 20). A shorter budget would likely give a stronger MSE-only baseline and a fairer covariate
+  comparison. Open follow-up: a narrow optimizer-only Stage 1 (as E1.7) or a hand-picked 30–50 epoch run.
+- Test metrics at the last epoch; the grid holds the hyperparameters fixed.

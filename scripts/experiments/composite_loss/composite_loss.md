@@ -322,7 +322,7 @@ the trade-off E1 maps: `neidist` buys rank by sacrificing edge-level deviation f
 |---|---|---|
 | [`linear_backbone`](linear_backbone/linear_backbone.md) | primary | grid v3 complete (145 runs; Stage 1 reused from v1) |
 | [`pca_pls_learnable`](pca_pls_learnable/pca_pls_learnable.md) | replicability | grid v3 complete (256 / 16 / 256; Stage 1 16 trials + 145 runs) |
-| [`pca_pls_covprojector`](pca_pls_covprojector/pca_pls_covprojector.md) | covariate model (E1.9) | grid v3 complete on a **fallback consensus** (backbone frozen; all covariates) |
+| [`pca_pls_covprojector`](pca_pls_covprojector/pca_pls_covprojector.md) | covariate model (E1.9) | grid v3 complete (E1.7 backbone + all covariates, hand-selected) |
 | [`krakencoder`](krakencoder/) | external model (E1.8) | run under spec v2 E2.1; joins the cross-model page when its grid tables land |
 
 ## Cross-model comparison
@@ -350,12 +350,13 @@ Per-instance tables: `<instance>/tables/combo_summary.csv`.
 | Var-match 1 | −0.040 | −0.189 | −0.024 | −0.154 |
 | MSE-only (absolute) | 0.103 | 0.782 | 0.102 | 0.768 |
 
-`pca_pls_covprojector` (backbone frozen, fallback consensus), same combinations: Neighbor dist 0.5 −0.013 / +0.048;
-Demeaned corr-eye 0.5 −0.009 / +0.051; Demeaned corr-eye 50 −0.060 / −0.098; Demeaned corr-eye 0.5 + Neighbor dist 0.5
-−0.017 / +0.058; all three 0.1 +0.000 / +0.036; Var-match 1 −0.022 / −0.085; Corr-eye 10 −0.084 / −0.101. MSE-only
-0.100 / 0.697. Its effects correlate with the linear backbone at 0.82 / 0.68 and with PCA/PLS learnable at 0.66 /
-0.73: same directions, about half the avg_rank gain, and collapse at lower weights (Var-match from 0.5, Demeaned
-corr-eye at 50).
+`pca_pls_covprojector` (the E1.7 model + all covariates), same combinations: Neighbor dist 0.5 −0.006 / +0.033;
+Demeaned corr-eye 0.5 −0.027 / +0.184; Demeaned corr-eye 0.5 + Neighbor dist 0.5 −0.011 / +0.104; all three 0.1
+−0.001 / +0.128; Var-match 1 −0.039 / −0.141; Corr-eye 10 −0.087 / +0.017. MSE-only 0.098 / 0.694.
+- **Under MSE alone, covariates cost about 0.07 avg_rank** vs E1.7; they overfit at E1.7's optimizer budget.
+- **Demeaned corr-eye gains about 1.8× more here than on E1.7.** With Var-match it gives the most identifiable model of
+  any instance (avg_rank 0.890, top-1 0.140).
+- **Correlation of effects:** 0.85 / 0.54 with the linear backbone.
 
 - **The landscape replicates.** Across the 28 non-baseline combinations, the two models' effects correlate at
   **0.92** (Δ demeaned r) and **0.98** (Δ avg_rank); signs agree in 86% and 93% of combinations. In both models:

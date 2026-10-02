@@ -16,7 +16,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
 | E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | closed 2026-09-30 | — | agent:infra |
-| E1 | Composite-loss dynamics and trade-off across models, SC → FC (`composite_loss`, grid v3) | in progress (E1.6, E1.7, E1.9 done (E1.9 on a fallback consensus); E1.10 built, test-retest ceiling in; E1.8 Krakencoder running under E2.1) | D3, D4, D5 | agent:modeling |
+| E1 | Composite-loss dynamics and trade-off across models, SC → FC (`composite_loss`, grid v3) | in progress (E1.6, E1.7, E1.9 done; E1.10 built, test-retest ceiling in; E1.8 Krakencoder running under E2.1) | D3, D4, D5 | agent:modeling |
 | E2 | Cross-model benchmark, SC → FC (`model_benchmark`, working name): E2.2 MSE-only, E2.3 composite-loss tuned | outline (E2.0 done; E2.1 Krakencoder retrain at near parity) | C2, E1 | — |
 | E3 | Replicate E1 and E2 for FC → SC | outline | E1, E2, E2.0 | — |
 | I1 | HCP1200 timeseries and connectome-similarity views | in progress (I1.1) | — | agent:infra (I1.1) |
@@ -282,14 +282,17 @@ Krakencoder's own loss grid, `composite_loss/krakencoder/`; design, weights and 
 `correye` acts in a mean-centred PCA space, so it corresponds to our Demeaned corr-eye (D5). The results join the
 E1 cross-model comparison.
 
-#### E1.9 — Instance `pca_pls_covprojector` (all covariates) · done 2026-10-01 (fallback consensus) · owner: agent:modeling
-`CrossModal_PCA_PLS_CovProjector` with FreeSurfer `fs_all` + age, sex, race/ethnicity, model default (backbone frozen,
-so only the covariate branch learns; user). Stage 1 24 trials (bests 0.103–0.122). **The consensus failed the re-check**
-(0.080 vs the retrained per-seed bests 0.101) and was accepted as a recorded fallback, so the grid ran (145 runs).
-- **Findings:** Demeaned corr-eye and Neighbor dist buy about +0.05 avg_rank at 0.5; Var-match hurts from 0.5 and
-  Demeaned corr-eye at 50; all three at 0.1 give +0.036 avg_rank at no demeaned-r cost.
-- **Replication:** effects correlate with the linear backbone at 0.82 (Δ demeaned r) / 0.68 (Δ avg_rank).
-- **Open:** rerun with one hand-selected config (seed 4's best) for a fair absolute position.
+#### E1.9 — Instance `pca_pls_covprojector` (all covariates) · done 2026-10-02 · owner: agent:modeling
+`CrossModal_PCA_PLS_CovProjector` = the E1.7 model plus a covariate branch: FreeSurfer `fs_all` + age, sex,
+race/ethnicity, mid-size projectors, MLP fusion. Hand-selected config with no Stage 1 (`fixed_consensus`; user), so it
+differs from E1.7 only in the covariates. A first run with the model default (backbone frozen; fallback consensus)
+matched the March `cov_projector_benchmark` (test demeaned r 0.100 vs 0.098) and was replaced.
+- **Covariates alone hurt** at E1.7's optimizer: avg_rank −0.074 vs E1.7. The covariate branch overfits (validation
+  peaks at epoch 20 of 150).
+- **Demeaned corr-eye recovers and exceeds it:** +0.17 to +0.20 avg_rank. Var-match 0.5 + Demeaned corr-eye 0.5 gives
+  avg_rank 0.890 and top-1 0.140, the most identifiable model of any instance. All three at 0.1 gives +0.128 at
+  −0.001 demeaned r.
+- **Open:** an optimizer budget for this model (shorter training).
 
 Write-up `composite_loss/pca_pls_covprojector/pca_pls_covprojector.md`.
 
@@ -501,5 +504,6 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-09-30 | E1 linear backbone runs autonomously as a SLURM `afterok` chain (Stage 1 → consensus (stage1 summary first) → grid → CPU report; `--kill-on-invalid-dep=yes`, so a D3 stop cancels the rest) with `scripts/sbatch/checks/watch_jobs.py` watching for Ray hangs / silent logs. Real-data Stage 1 check on seeds 0–3: best val 0.096–0.108 (≥ 0.09). |
 | 2026-10-01 | E1 aligned to the user's plan: protocol v3 (grid v3, 29 combinations; D5 Demeaned corr-eye in mixtures; consensus re-check; Stage 2 cap 10 GPU-h in D3); instances E1.6 linear backbone and E1.7 PCA/PLS learnable done (replicate: effects correlate 0.92 / 0.98); E1.8 Krakencoder (= E2.1 loss grid), E1.9 CovProjector (all covariates), E1.10 cross-model HTML with the test-retest ceiling added. E2 narrowed to SC → FC with E2.2 (MSE-only) and E2.3 (composite-loss tuned; absorbs the former E3 outline). E3 redefined as FC → SC replication of E1 and E2 (the former E3 outline was never started; its content moved to E2.3). I1 added (HCP1200 timeseries merge, connectome-similarity views, behavioral FC → SC). |
 | 2026-10-01 | E1.9 CovProjector (all covariates) done on a recorded fallback consensus (rerun with a hand-selected config open); E1.10 cross-model page built with the test-retest ceiling (demeaned r 0.49, avg_rank 0.987). |
+| 2026-10-02 | E1.9 rerun on the E1.7 backbone + covariates (hand-selected, `fixed_consensus`), replacing the frozen-backbone fallback run; covariates overfit under MSE but give the most identifiable model with Demeaned corr-eye (avg_rank 0.890). |
 
-Last updated at: 2026-10-01 EDT
+Last updated at: 2026-10-02 EDT
