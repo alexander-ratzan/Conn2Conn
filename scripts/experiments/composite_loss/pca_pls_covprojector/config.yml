@@ -1,4 +1,5 @@
 # Composite-loss protocol, instance E1.9: CrossModal_PCA_PLS_CovProjector with all covariates (spec v2 E1).
+# Hand-selected config (user 2026-10-01): the E1.7 backbone + the covariate branch; no Stage 1 tune (fixed_consensus).
 # Same protocol as composite_loss/linear_backbone (shared grid file, batch 64, fixed reference scales); only the model,
 # its Stage 1 config and its stop threshold differ.
 # Write-up: scripts/experiments/composite_loss/pca_pls_covprojector/pca_pls_covprojector.md
@@ -21,15 +22,13 @@ selection:                       # never select on test
 # --- Stage 1 (E1.2): MSE-only tune -----------------------------------------------------------------------
 stage1:
   config: scripts/experiments/composite_loss/pca_pls_covprojector/stage1/CrossModal_PCA_PLS_CovProjector_mse.yml
-  launcher: scripts/experiments/composite_loss/pca_pls_covprojector/stage1/tune_stage1_seeds.sh
-  trials_per_seed: 24             # 8-key search (PCA/PLS dims, covariate projectors, fusion, dropout, lr, epochs)
-  packing: {max_concurrent_trials: 4, tune_gpus_per_trial: 0.25, reuse_actors: true}
+  launcher: null                 # no Stage 1 tune: the config is hand-selected
+  trials_per_seed: null
   monitor_terms: [varmatch, correye, correye_dm, neidist]
-  # Consensus rule: each seed's best trial; categorical keys by majority, lr / l2_reg by geometric median.
-  # Accept the consensus if its mean val_demeaned_r over seeds is within 1 SE of the mean of the per-seed
-  # bests; otherwise use the per-seed best config with the highest mean over seeds.
-  ray_tune_ids: null             # filled after submission (one per seed)
-  consensus: null                # filled by E1.3: the Stage 1 keys of CrossModal_PCA_PLS_CovProjector
+
+# Hand-selected config: protocol.py uses it as the consensus and skips the consensus gate (basis: hand_selected).
+# Keys here override the model config above; the architecture and covariate branch live in that file.
+fixed_consensus: {}
 
 # --- E1.3: reference scales --------------------------------------------------------------------------------
 # s_t = mean |raw_t| over training batches (batch 64, eval mode) of the Stage 1 consensus model, averaged over
@@ -65,7 +64,7 @@ stop:
 runtime:
   parallel: 5                    # (combination, seed) runs sharing one GPU as separate processes
   grid_tasks: 8                  # launch_grid.sh array size (145 runs -> 18-19 per task)
-  grad_cosine: {param: cov_fusion_net.weight, every: 5}   # W_mid is frozen here; a missing name (MLP fusion) falls back to the last trainable 2-D weight
+  grad_cosine: {param: W_mid, every: 5}   # per-term gradient cosines on the latent map (W_mid learnable, as E1.7)
 
 # --- Outputs (E1.5) -----------------------------------------------------------------------------------------
 metrics: [demeaned_pearson, avg_rank, pearson, mse, top1_acc]   # test split; selection on val

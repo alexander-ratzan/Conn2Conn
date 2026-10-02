@@ -38,6 +38,12 @@ def _stop(instance, reasons, **extra):
 def cmd_stage1(args):
     import yaml
     cfg = lg.load_instance(args.instance)
+    if cfg.get("fixed_consensus") is not None:
+        # Hand-selected config (no Stage 1 tune): the consensus is the config itself; the gate is skipped.
+        lg.update_state(args.instance, consensus=lg._plain(cfg["fixed_consensus"]),
+                        consensus_detail={"basis": "hand_selected"})
+        print("hand-selected config, no Stage 1:", json.dumps(lg._plain(cfg["fixed_consensus"])))
+        return 0
     runs = lg.find_stage1_runs(cfg)
     seeds = [int(s) for s in cfg["seeds"]]
     missing = [s for s in seeds if s not in runs]
@@ -99,8 +105,13 @@ def cmd_consensus(args):
     if failed:
         _stop(args.instance, [f"consensus run failed for seeds {[r['seed'] for r in failed]}"])
     recs = {r["seed"]: r["record"] for r in results}
-    ok, stats = lg.consensus_accepted({s: recs[s]["val_demeaned_r_last"] for s in seeds},
-                                      {s: state["stage1_best_val"][s] for s in seeds})
+    if cfg.get("fixed_consensus") is not None:
+        vals = [recs[s]["val_demeaned_r_last"] for s in seeds]
+        ok, stats = True, {"basis": "hand_selected", "consensus_mean": float(sum(vals) / len(vals)),
+                           "note": "hand-selected config (no Stage 1 tune); consensus gate not applicable"}
+    else:
+        ok, stats = lg.consensus_accepted({s: recs[s]["val_demeaned_r_last"] for s in seeds},
+                                          {s: state["stage1_best_val"][s] for s in seeds})
     scales = lg.reference_scales({s: recs[s]["term_scales"] for s in seeds})
     lg.update_state(args.instance, consensus_check={"accepted": ok, **stats}, reference_scales=scales)
     print("consensus check:", json.dumps(lg._plain({"accepted": ok, **stats})))
