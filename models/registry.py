@@ -22,15 +22,51 @@ def is_trainer_key(key: str) -> bool:
 
 
 _CONFIGS_DIR = os.path.join(os.path.dirname(__file__), "configs")
+# Experiment-generated configs share model names with the defaults (e.g. benchmark/mse/<Model>.yml), so they are
+# reached only by explicit path, never by name.
+_NAME_LOOKUP_EXCLUDE = ("benchmark",)
+
+
+def _config_index() -> dict:
+    """{config stem: path} for every YAML under models/configs/ (family folders and variants/), excluding
+    experiment-generated folders. Stems must be unique."""
+    index = {}
+    for root, dirs, files in os.walk(_CONFIGS_DIR):
+        rel = os.path.relpath(root, _CONFIGS_DIR)
+        if rel.split(os.sep)[0] in _NAME_LOOKUP_EXCLUDE:
+            dirs[:] = []
+            continue
+        for f in files:
+            if f.endswith(".yml"):
+                stem = f[:-4]
+                if stem in index:
+                    raise ValueError(f"Duplicate config name {stem!r}: {index[stem]} and {os.path.join(root, f)}")
+                index[stem] = os.path.join(root, f)
+    return index
 
 
 def _config_path(model_name: str) -> str:
-    return os.path.join(_CONFIGS_DIR, f"{model_name}.yml")
+    """Default config of a model (or a named variant), found by name anywhere under models/configs/."""
+    p = _config_index().get(model_name)
+    return p or os.path.join(_CONFIGS_DIR, f"{model_name}.yml")
+
+
+def _resolve_config_path(path: str) -> str:
+    """Accept pre-reorganization paths (models/configs/<name>.yml) by falling back to a name lookup."""
+    if os.path.isfile(path):
+        return path
+    head, name = os.path.split(path)
+    if name.endswith(".yml") and os.path.basename(os.path.normpath(head)) == "configs":
+        moved = _config_index().get(name[:-4])
+        if moved:
+            print(f"[config] {path} moved to {os.path.relpath(moved)}; using the new location", flush=True)
+            return moved
+    return path
 
 
 def load_config(model_name: str, path: str = None) -> dict:
-    """Load full config from YAML."""
-    p = path or _config_path(model_name)
+    """Load full config from YAML (by explicit path, or by model / variant name under models/configs/)."""
+    p = _resolve_config_path(path) if path else _config_path(model_name)
     if not os.path.isfile(p):
         raise FileNotFoundError(f"Config not found: {p}")
     with open(p) as f:
@@ -174,7 +210,7 @@ def _model_class(name):
         from models.architectures.latent_attention.masked_mlp_pretrainer import MaskedMLPPretrainer
         return MaskedMLPPretrainer
     if name == "CrossModal_ConditionalGaussian":
-        from models.architectures.latent_attention.conditional_gaussian import CrossModal_ConditionalGaussian
+        from models.architectures.crossmodal_conditional_gaussian import CrossModal_ConditionalGaussian
         return CrossModal_ConditionalGaussian
     if name in ("Krakencoder_precomputed", "Krakencoder"):
         # Krakencoder = retrained runs by tag (models/architectures/krakencoder/retrain.py); same loader.

@@ -23,20 +23,20 @@ param_aliases: {reg: l2_reg}   # April trials logged `reg`; identical to `l2_reg
 # value is one of that config's search-space choices (or its default when the key is not searched).
 # `match` pins exact values; `require_missing` keys must be absent (older schema).
 variants:
-  - {name: dot, model: NodalMLP, config: models/configs/NodalMLP_dot.yml, created_after: "2026-04-27",
+  - {name: dot, model: NodalMLP, config: models/configs/variants/graph_nodal/NodalMLP_dot.yml, created_after: "2026-04-27",
      options_from_config: [encoder_type, decoder_type], importance: true}
-  - {name: bilinear, model: NodalMLP, config: models/configs/NodalMLP_bilinear.yml, created_after: "2026-04-27",
+  - {name: bilinear, model: NodalMLP, config: models/configs/variants/graph_nodal/NodalMLP_bilinear.yml, created_after: "2026-04-27",
      options_from_config: [encoder_type, decoder_type], importance: true}
-  - {name: linear_beta, model: NodalMLP, config: models/configs/NodalMLP_linear_beta.yml, created_after: "2026-04-27",
+  - {name: linear_beta, model: NodalMLP, config: models/configs/variants/graph_nodal/NodalMLP_linear_beta.yml, created_after: "2026-04-27",
      options_from_config: [encoder_type, decoder_type], importance: true}
-  - {name: spectral, model: NodalMLP, config: models/configs/NodalMLP_spectral.yml, created_after: "2026-04-27",
+  - {name: spectral, model: NodalMLP, config: models/configs/variants/graph_nodal/NodalMLP_spectral.yml, created_after: "2026-04-27",
      options_from_config: [encoder_type, decoder_type], importance: true}
   # NodalMLP with the default MLP decoder on SC rows (NodalMLP.yml, pre-schema runs): the flexible-decoder control
-  - {name: mlp_sc_rows, model: NodalMLP, config: models/configs/NodalMLP.yml, created_before: "2026-04-27",
+  - {name: mlp_sc_rows, model: NodalMLP, config: models/configs/graph_nodal/NodalMLP.yml, created_before: "2026-04-27",
      match: {use_sc_row: true, use_volume: false}, require_missing: [decoder_type], importance: false}
   # Linear reference, scraped here rather than taken from the sc_type snapshot: that snapshot keeps the best run
   # per seed across loss types (demeaned_mse wins on 3 of 4 seeds); this benchmark is MSE-only.
-  - {name: pca_pls_learnable, model: CrossModal_PCA_PLS_learnable, config: models/configs/CrossModal_PCA_PLS_learnable.yml,
+  - {name: pca_pls_learnable, model: CrossModal_PCA_PLS_learnable, config: models/configs/linear/CrossModal_PCA_PLS_learnable.yml,
      match: {source: SC, loss_type: mse}, importance: false}
 
 # --- references, from the tracked benchmark snapshots (no scrape) ------------------------------

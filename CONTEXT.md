@@ -28,7 +28,10 @@ The main evaluation axis is performance across `(model, source, shuffle_seed)` w
 
 When a task arrives, start in this order:
 1. `main.py` for orchestration and experiment mode behavior.
-2. `models/configs/<model>.yml` for ground-truth defaults/search space.
+2. `models/configs/<family>/<model>.yml` for ground-truth defaults/search space. Layout: family folders
+   (`null_ceiling/`, `linear/`, `latent/`, `graph_nodal/`, `deep/`), `variants/<family>/` for input / covariate /
+   decoder variants, `benchmark/<campaign>/` for experiment-generated configs (by path only). `models/registry.py`
+   finds a config by name; old flat paths (`models/configs/<name>.yml`) still resolve with a notice.
 3. `models/registry.py` for config resolution and model construction.
 4. `models/architectures/` for architecture details.
 5. `scripts/results_utils/` for results aggregation logic (`records.py` → `tables.py` → `plots.py`).
@@ -43,7 +46,7 @@ If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after 
   - single runs (closed-form vs learned)
   - Ray Tune sweeps (`--use_tune`)
   - best-trial rerun/report (`--report_best_after_tune`)
-- `models/configs/*.yml`
+- `models/configs/**/*.yml` (family folders + `variants/`; `benchmark/` is experiment-generated)
   - one YAML per model variant; includes `learned`, `default`, `search_space`
 - `models/registry.py`
   - `load_config`, `get_default_config`, `get_search_space`, `build_model`
@@ -146,7 +149,7 @@ Behavior:
 Prediction files (`krakencoder_prediction_path`):
 - `Krakencoder_precomputed` (no `tag`): `krakencoder_experimental/example_data/mydata_kraken_seed{seed}_source_{parc}.{SC|FC}.mat`
   (gitignored local Krakencoder copy = upstream + demeaned-MSE loss; kept as reference)
-- `Krakencoder` (`tag` in `models/configs/Krakencoder.yml`): `results/krakencoder/<tag>/seed{seed}/predictions_source_{parc}.{SC|FC}.mat`,
+- `Krakencoder` (`tag` in `models/configs/deep/Krakencoder.yml`): `results/krakencoder/<tag>/seed{seed}/predictions_source_{parc}.{SC|FC}.mat`,
   written by `python -m models.architectures.krakencoder.retrain` (vendored upstream `vendor/`, commit `b57e39c`,
   unmodified; `_vendor_entry.py` pins the import and accepts our non-upstream flavor names). Inputs are built from
   `HCP_Base` (canonical subject order = `metadata_df["subject"]`; `sc_/fc_subject_ids` keep raw load order) with the
@@ -156,7 +159,7 @@ Prediction files (`krakencoder_prediction_path`):
   Loss-weight grid instance: `scripts/experiments/composite_loss/krakencoder/` (`grid_runner.py`, packed fits).
 
 Naming note:
-- config file is `models/configs/Krakencoder_precomputed.yml`
+- config file is `models/configs/deep/Krakencoder_precomputed.yml`
 - YAML model name is `Krakencoder_precomputed`
 - class name is `KrakencoderPrecomputed`
 - `build_model()` resolves classes by exact attribute name
@@ -418,7 +421,7 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
 
 Add/modify model:
 1. edit or add a class under `models/architectures/`
-2. add/update YAML in `models/configs/`
+2. add/update YAML in `models/configs/<family>/` (variants in `variants/<family>/`)
 3. ensure `build_model()` can resolve class name
 4. run one dev/prod dry run with fixed seed
 
@@ -512,4 +515,4 @@ Earlier:
 - Model code now lives under `models/architectures/`, training code under `models/train/`, and evaluation/reporting code under `models/eval/`.
 - Backward-compatibility shims for old top-level model/train/eval files are intentionally removed.
 
-Last updated at: 2026-10-01 EDT
+Last updated at: 2026-10-02 EDT

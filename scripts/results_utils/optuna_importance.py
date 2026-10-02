@@ -51,8 +51,9 @@ REPO_ROOT = str(_REPO_ROOT)  # .../Conn2Conn
 # ---------------------------------------------------------------------------
 
 def load_search_space(config_stem: str, repo_root: str = REPO_ROOT) -> dict:
-    """Read the `search_space` block from `models/configs/<stem>.yml`."""
-    path = os.path.join(repo_root, "models", "configs", f"{config_stem}.yml")
+    """Read the `search_space` block of a model / variant config, found by name under `models/configs/`."""
+    from models.registry import _config_path
+    path = _config_path(config_stem)
     with open(path) as fp:
         cfg = yaml.safe_load(fp)
     return cfg.get("search_space", {}) or {}

@@ -70,7 +70,8 @@ def main():
         old_loss = _load_old(args.old_ref, "models/train/loss.py", "old_loss", tmp)
         old_lm = _load_old(args.old_ref, "models/train/lightning_module.py", "old_lightning", tmp)
         cases = []
-        for path in sorted(glob.glob("models/configs/*.yml")):
+        for path in sorted(p for p in glob.glob("models/configs/**/*.yml", recursive=True)
+                           if "/benchmark/" not in p):  # family folders + variants; not experiment-generated
             full = load_config(None, path=path)
             if not full.get("learned", True):
                 continue
