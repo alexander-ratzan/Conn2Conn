@@ -466,15 +466,25 @@ those are then reoptimized for the final benchmark, and E3 repeats it for FC →
 | Linear, learned | `CrossModal_PCA_PLS_learnable`, `CrossModal_linear_backbone`, `CrossModal_PCA_PLS_CovProjector` (all covariates) | budget rule |
 | Deep-learning baselines | `Sarwar2020MLP`, `Chen2024GCN` (narrowed searches); `Krakencoder` | narrowed / reuse E2.1 |
 | Pairwise nodal | `NodalMLP`, `NodalGNN` (at the null in E0; narrowed reruns, so every row is from one campaign) | narrowed |
-| Latent / pretrained | `MaskedMLPPretrainer`, linear / low-rank variant | **pilot first (D2)** |
+| Latent / pretrained | `MaskedMLPPretrainer`, **nonlinear** variant (PReLU MLP encoder, GELU MLP readout) | **pilot first (D2)** |
 | Excluded | `LatentAttnMasked` (never tuned; attention adds nothing over its linear backbone in the dev runs; C!2), `MaskedLatentPretrainer` (test 0.068, below the linear family), `CrossModalVAE` (in development) | — |
 
-- **Latent pick.** `MaskedMLPPretrainer` (linear variant) is the only tuned latent model with a held-out result:
-  2026-04-27, one seed, test demeaned r 0.089 / avg_rank 0.692 (`results/logs/tune_model_parallel_maskedmlp_*`).
-  - **Objective:** it trains on its own masked latent reconstruction loss (`latent_mse`), not edge MSE. It enters with
-    its native objective, as Krakencoder enters with its own fixed losses, and is labelled as such.
+- **Latent pick.** `MaskedMLPPretrainer`, the **nonlinear** variant (user 2026-10-02: the entry must have some
+  nonlinearity). It is the only tuned latent model with held-out results.
+  - **Linear variant** (fully linear, low-rank): seed 0, test 0.089 / 0.692.
+  - **Nonlinear variant:** tuned, val 0.107 and test 0.081 / 0.691; it overfits (train demeaned r 0.30). Its mask
+    grid (k = 128) reached val 0.113 at SC mask 0 / FC mask 0.05, which equals the linear variant's val (0.115).
+  - Evidence in `results/logs/tune_model_parallel_maskedmlp_*` (2026-04-27).
+  - **Narrowed search** (from `MaskedMLPPretrainer_nonlinear.yml`):
+    - fixed: k = 128, `nonlinear: true`, `readout_type: mlp`;
+    - searched: SC mask {0, 0.1, 0.2}, FC mask {0.05, 0.1, 0.2}, hidden {128, 256}, dropout and `l2_reg` (against
+      overfitting), `lr`, epochs.
+  - **Objective:** its native masked latent reconstruction loss (`latent_mse`), labelled as such, as Krakencoder
+    enters with its own fixed losses.
   - **Gate (D2):** seeds 0–1, about 12 trials. It enters the full run if its best val demeaned r ≥ the MSE-only
-    `_learnable` val on the same seeds minus 0.01.
+    `_learnable` val on the same seeds minus 0.01; otherwise it is recorded as a negative result.
+  - **Fallback if it fails** (never run): linear low-rank encoder + MLP readout (`nonlinear: false`,
+    `readout_type: mlp`).
 
 **Protocol:**
 - Seeds 0–4, SC → FC, selection on val demeaned r, test metrics reported.
@@ -635,6 +645,6 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-10-02 | **E1 closed.** E1.8 Krakencoder done (via E2.1); E1.10 done with four instances + ceiling; E1 conclusions recorded and carried into E2.3; D6 added (fixed reference scales are the default composite-term balancing; resolves the backlog item). |
 | 2026-10-02 | E3.0: bidirectional composite-loss layout `<model>/{sc2fc,fc2sc}`, direction-aware tooling (loss_grid, compare.py switch, protocol scaffold); E1 instances migrated to `sc2fc/` with identical re-render. |
 | 2026-10-02 | E3 Phase D started: fc2sc scaffolds, FC → SC thresholds (×1.607), two chains submitted; CovProjector held; E2.2 ∥ Phase D rules. |
-| 2026-10-02 | E2.2 specified: roster by class (latent pick `MaskedMLPPretrainer` linear, pilot-gated; `LatentAttnMasked`, `MaskedLatentPretrainer`, `CrossModalVAE` excluded), MSE-only protocol with budget rule and the audit's narrowed searches, one tagged campaign per model, reuse / rerun list, steps E2.2.1–E2.2.4. |
+| 2026-10-02 | E2.2 specified: roster by class (latent pick `MaskedMLPPretrainer`, nonlinear variant, pilot-gated; `LatentAttnMasked`, `MaskedLatentPretrainer`, `CrossModalVAE` excluded), MSE-only protocol with budget rule and the audit's narrowed searches, one tagged campaign per model, reuse / rerun list, steps E2.2.1–E2.2.4. |
 
 Last updated at: 2026-10-02 EDT
