@@ -21,7 +21,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 | E3 | Replicate E1 and E2 for FC → SC | in progress (E3.0 done; Phase D FC → SC runs) | E1, E2, E2.0 | agent:infra |
 | I1 | HCP1200 timeseries and connectome-similarity views | in progress (I1.1 done; I1.2–I1.3 planned) | — | — |
 | I2 | Repo organisation: experiment folders, config layout, launchers | in progress (I2.1–I2.2 done; I2.3 on branch `i2-config-layout`, merges when no job runs) | — | agent:modeling |
-| C1 | `torch_geometric` missing from the `kraken_env` overlay (`Chen2024GCN` / `NodalGNN` could not import) | — | **Done 2026-09-30** via C6 (`torch_geometric 2.8.0.post1` in the overlay; `dev_runs` `18880103`). |
+| C1 | `torch_geometric` missing from `kraken_env` | done 2026-09-30 (via C6) | — | agent:infra |
 | C2 | Re-tune the M5b-affected sweeps | in progress (E2.2 reruns) | E2.2 | agent:modeling |
 | C3 | Confirm `loss_signature` in Tune-trial W&B configs | done | — | agent:infra |
 | C4 | `latent_masked_test` notebook fixes | planned | — | — |
@@ -67,7 +67,7 @@ the table below lists only what is specific to v2.
 
 | ID | Item | Blocks | Next action |
 |---|---|---|---|
-| C1 | `torch_geometric` missing from the `kraken_env` overlay (torch 2.9.0); `Chen2024GCN` / `NodalGNN` cannot import, and their launchers fail. It was importable when those models ran (Mar/Apr 2026; both import it unconditionally) and has since disappeared; the overlay never had it. | E0.5, E2 (those two models) | **Done 2026-09-30** via C6: `torch_geometric 2.8.0.post1` (+ `xxhash`) in the overlay; post-C6 `dev_runs` `18880103` trains `Chen2024GCN` and `NodalGNN`. |
+| C1 | `torch_geometric` missing from the `kraken_env` overlay (`Chen2024GCN` / `NodalGNN` could not import) | — | **Done 2026-09-30** via C6 (`torch_geometric 2.8.0.post1` in the overlay; `dev_runs` `18880103`). |
 | C2 | Re-tune the sweeps affected by v1:M5b (`CrossModal_PCA_PLS_learnable`, `CrossModal_PCA_PLS_CovProjector`, `Sarwar2020MLP`) | E2 | Re-tune within E2; resolves C!1. |
 | C3 | Confirm Tune-trial W&B configs carry `loss_signature` (v1 8.7 check failed) | — | **Done 2026-09-29.** False negative: wandb 0.25 offline runs keep the config inside `run-*.wandb`, which contains `loss_signature`. `verify_modeling_track.py` should read `run-*.wandb`. |
 | C4 | `scripts/notebooks/model_testing/latent_masked_test.ipynb`: cell 6 reads `residual_linear.weight` (absent in `attention_only`); cell 4 sets `l2_reg` twice | — | Fix when that notebook is next used. |
