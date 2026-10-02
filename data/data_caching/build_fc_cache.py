@@ -13,10 +13,10 @@ exactly (same read_csv call, float64 -> float32), so a rebuilt rest cache is bit
 Standalone on purpose (no imports from data/): running jobs import data/dataset_utils.py live.
 
 Usage (inside kraken_env):
-    python data/build_fc_cache.py build --condition wm --parcellation Glasser --out-root <Conn2Conn_data> --workers 8
-    python data/build_fc_cache.py compare --a <cache_dir> --b <cache_dir>
-    python data/build_fc_cache.py spotcheck --cache-dir <cache_dir> --condition wm --parcellation Glasser --n 20
-    python data/build_fc_cache.py catalog --out-root <Conn2Conn_data>
+    python data/data_caching/build_fc_cache.py build --condition wm --parcellation Glasser --out-root <Conn2Conn_data> --workers 8
+    python data/data_caching/build_fc_cache.py compare --a <cache_dir> --b <cache_dir>
+    python data/data_caching/build_fc_cache.py spotcheck --cache-dir <cache_dir> --condition wm --parcellation Glasser --n 20
+    python data/data_caching/build_fc_cache.py catalog --out-root <Conn2Conn_data>
 """
 import argparse
 import datetime
@@ -34,9 +34,9 @@ import pandas as pd
 
 XCPD_DIR = "/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/HCP1200_fMRI/xcpd-0-9-1"
 DEFAULT_OUT_ROOT = "/scratch/asr655/neuroinformatics/Conn2Conn_data"
-REPO_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ATLAS_INFO_DIR = os.path.join(REPO_DIR, "data", "atlas_info")
-EXCLUSIONS_TSV = os.path.join(REPO_DIR, "data", "fc_cache_exclusions.tsv")
+EXCLUSIONS_TSV = os.path.join(REPO_DIR, "data", "data_caching", "fc_cache_exclusions.tsv")
 CONDITIONS = ("rest", "emotion", "gambling", "language", "motor", "relational", "social", "wm")
 PARCELLATIONS = ("4S456Parcels", "Glasser")
 HEMI = "both"

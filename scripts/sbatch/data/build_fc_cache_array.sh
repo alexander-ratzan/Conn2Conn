@@ -1,12 +1,12 @@
 #!/bin/bash
 # Build the compact FC npy caches (Conn2Conn_data/fc/) from the xcp-d combined-run relmats, one array task per
-# condition, both parcellations per task (data/build_fc_cache.py):
+# condition, both parcellations per task (data/data_caching/build_fc_cache.py):
 #   0 = rest reproducibility check: rebuild into SLURM_TMPDIR, bitwise-compare to the existing fc/parc-*_hemi-both
 #   1-7 = emotion gambling language motor relational social wm -> fc/parc-{P}_hemi-both_task-{T}/ (+ spotcheck)
 #   sbatch scripts/sbatch/data/build_fc_cache_array.sh
 #   sbatch --array=3 scripts/sbatch/data/build_fc_cache_array.sh          # one condition
 # The builder refuses to overwrite an existing cache folder. Afterwards (login node is fine):
-#   python data/build_fc_cache.py catalog     # fc/catalog.tsv + fc/availability.tsv
+#   python data/data_caching/build_fc_cache.py catalog     # fc/catalog.tsv + fc/availability.tsv
 # ~0.5 s per subject per worker -> ~2 min per cache folder at 8 workers.
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced
@@ -34,7 +34,7 @@ CONDITIONS=(rest emotion gambling language motor relational social wm)
 CONDITION=${CONDITIONS[$SLURM_ARRAY_TASK_ID]}
 WORKERS=${SLURM_CPUS_PER_TASK:-8}
 GIT_COMMIT=$(git -C "${CONN2CONN_DIR}" rev-parse HEAD)
-if ! git -C "${CONN2CONN_DIR}" diff --quiet HEAD -- data/build_fc_cache.py; then
+if ! git -C "${CONN2CONN_DIR}" diff --quiet HEAD -- data/data_caching/build_fc_cache.py; then
     GIT_COMMIT="${GIT_COMMIT}+dirty"
 fi
 if [[ "${CONDITION}" == "rest" ]]; then
@@ -56,13 +56,13 @@ singularity exec \
     export PYTHONUNBUFFERED=1
     cd ${CONN2CONN_DIR}
     for PARC in 4S456Parcels Glasser; do
-      python data/build_fc_cache.py build --condition ${CONDITION} --parcellation \${PARC} \
+      python data/data_caching/build_fc_cache.py build --condition ${CONDITION} --parcellation \${PARC} \
         --out-root ${OUT_ROOT} --workers ${WORKERS} --git-commit ${GIT_COMMIT}
       if [[ ${CONDITION} == rest ]]; then
-        python data/build_fc_cache.py compare --a ${OUT_ROOT}/fc/parc-\${PARC}_hemi-both --b ${CACHE_ROOT}/fc/parc-\${PARC}_hemi-both
+        python data/data_caching/build_fc_cache.py compare --a ${OUT_ROOT}/fc/parc-\${PARC}_hemi-both --b ${CACHE_ROOT}/fc/parc-\${PARC}_hemi-both
         cp ${OUT_ROOT}/fc/parc-\${PARC}_hemi-both/manifest.json ${CONN2CONN_DIR}/results/logs/build_fc_cache_${SLURM_JOB_ID}_rest_check_\${PARC}_manifest.json
       else
-        python data/build_fc_cache.py spotcheck --cache-dir ${CACHE_ROOT}/fc/parc-\${PARC}_hemi-both_task-${CONDITION} \
+        python data/data_caching/build_fc_cache.py spotcheck --cache-dir ${CACHE_ROOT}/fc/parc-\${PARC}_hemi-both_task-${CONDITION} \
           --condition ${CONDITION} --parcellation \${PARC} --n 25
       fi
     done

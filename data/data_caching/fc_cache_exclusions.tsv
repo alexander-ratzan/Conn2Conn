@@ -1,4 +1,4 @@
-# Known-bad xcp-d combined-run relmat TSVs left out of the fc/ caches by data/build_fc_cache.py.
+# Known-bad xcp-d combined-run relmat TSVs left out of the fc/ caches by data/data_caching/build_fc_cache.py.
 # Every load failure must be listed here (with evidence) or the build aborts. Damage predates the
 # Torch transfer: the same bytes are in xcpd-0-9-1.tar (copy onto the Mac drive, Sep 28 2026 11:07).
 subject	condition	parcellation	reason
