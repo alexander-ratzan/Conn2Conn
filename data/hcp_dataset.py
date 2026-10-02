@@ -320,11 +320,18 @@ class HCP_Base():
         tri_indices = np.triu_indices(self.sc_r2t_corr_matrices.shape[1], k=1)
         self.sc_r2t_corr_upper_triangles = self.sc_r2t_corr_matrices[:, tri_indices[0], tri_indices[1]]
         
-        # Build train/val/test split indices and ids
+        # Build train/val/test split indices and ids. Indices are positions in the canonical (post-intersection)
+        # metadata_df, which every modality array is aligned to; positions in the pre-intersection subject list
+        # would be shifted whenever the intersection drops subjects (it does with fc_conditions).
+        canonical_meta_subjects = self.metadata_df["subject"].tolist()
+        if canonical_meta_subjects != list(canonical_subject_ids):
+            raise ValueError("metadata_df rows are not in canonical (sorted) subject order")
         self.trainvaltest_partition_indices = {
-            "train": self.subject_indices_from_id(self.all_subject_ids, self.metadata_df[self.metadata_df["train_val_test"] == "train"]["subject"].tolist()),
-            "val": self.subject_indices_from_id(self.all_subject_ids, self.metadata_df[self.metadata_df["train_val_test"] == "val"]["subject"].tolist()),
-            "test": self.subject_indices_from_id(self.all_subject_ids, self.metadata_df[self.metadata_df["train_val_test"] == "test"]["subject"].tolist()),
+            part: self.subject_indices_from_id(
+                canonical_meta_subjects,
+                self.metadata_df[self.metadata_df["train_val_test"] == part]["subject"].tolist(),
+            )
+            for part in ("train", "val", "test")
         }
 
         self.trainvaltest_partition_ids = {

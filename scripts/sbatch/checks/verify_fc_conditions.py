@@ -105,6 +105,11 @@ for t in TASKS:
     pos = np.searchsorted(ids, np.asarray(canon))
     ok = np.array_equal(ids[pos], canon) and np.array_equal(np.asarray(tri[pos]), base.fc_condition_upper_triangles[t])
     check(f"2.condition_rows_match_cache.{t}", ok)
+md = base.metadata_df
+check("2.partitions_point_at_their_subjects", all(
+    (md["train_val_test"].values[np.asarray(base.trainvaltest_partition_indices[p])] == p).all()
+    and sorted(base.trainvaltest_partition_indices[p]) == list(np.where(md["train_val_test"].values == p)[0])
+    for p in ("train", "val", "test")), f"sizes={[len(base.trainvaltest_partition_indices[p]) for p in ('train', 'val', 'test')]}")
 check("2.rest_alias_is_main_fc", base.fc_condition_upper_triangles["rest"] is base.fc_upper_triangles)
 check("2.matrices_not_loaded_by_default", all(base.fc_condition_matrices_by_condition[t] is None for t in TASKS))
 print(f"  base with conditions {time.time() - t0:.0f}s, n={len(canon)}", flush=True)
