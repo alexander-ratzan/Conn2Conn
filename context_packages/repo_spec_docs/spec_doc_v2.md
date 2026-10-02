@@ -284,15 +284,13 @@ E1 cross-model comparison.
 
 #### E1.9 — Instance `pca_pls_covprojector` (all covariates) · done 2026-10-02 · owner: agent:modeling
 `CrossModal_PCA_PLS_CovProjector` = the E1.7 model plus a covariate branch: FreeSurfer `fs_all` + age, sex,
-race/ethnicity, mid-size projectors, MLP fusion. Hand-selected config with no Stage 1 (`fixed_consensus`; user), so it
-differs from E1.7 only in the covariates. A first run with the model default (backbone frozen; fallback consensus)
-matched the March `cov_projector_benchmark` (test demeaned r 0.100 vs 0.098) and was replaced.
-- **Covariates alone hurt** at E1.7's optimizer: avg_rank −0.074 vs E1.7. The covariate branch overfits (validation
-  peaks at epoch 20 of 150).
-- **Demeaned corr-eye recovers and exceeds it:** +0.17 to +0.20 avg_rank. Var-match 0.5 + Demeaned corr-eye 0.5 gives
-  avg_rank 0.890 and top-1 0.140, the most identifiable model of any instance. All three at 0.1 gives +0.128 at
-  −0.001 demeaned r.
-- **Open:** an optimizer budget for this model (shorter training).
+race/ethnicity, mid-size projectors, MLP fusion. Hand-selected config (`fixed_consensus`, no Stage 1; user) at its own
+validation-chosen budget of 30 epochs (E1.7's 150 overfit with covariates). Earlier runs are overwritten (W&B): the
+frozen-backbone model default matched the March benchmark, and the 150-epoch run was confounded by overfitting.
+- **Covariates trade identifiability for fidelity:** under MSE, demeaned r 0.110 (highest of any instance) but
+  avg_rank 0.685 (E1.7 0.768).
+- **Identity terms add +0.08 to +0.13 avg_rank,** short of E1.7's ceiling (best 0.819 / top-1 0.08 vs 0.88 / 0.13).
+- **Demeaned corr-eye 0.1 improves both metrics:** demeaned r 0.119 (best cell of any instance), avg_rank +0.084.
 
 Write-up `composite_loss/pca_pls_covprojector/pca_pls_covprojector.md`.
 
@@ -511,6 +509,6 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-09-30 | E1 linear backbone runs autonomously as a SLURM `afterok` chain (Stage 1 → consensus (stage1 summary first) → grid → CPU report; `--kill-on-invalid-dep=yes`, so a D3 stop cancels the rest) with `scripts/sbatch/checks/watch_jobs.py` watching for Ray hangs / silent logs. Real-data Stage 1 check on seeds 0–3: best val 0.096–0.108 (≥ 0.09). |
 | 2026-10-01 | E1 aligned to the user's plan: protocol v3 (grid v3, 29 combinations; D5 Demeaned corr-eye in mixtures; consensus re-check; Stage 2 cap 10 GPU-h in D3); instances E1.6 linear backbone and E1.7 PCA/PLS learnable done (replicate: effects correlate 0.92 / 0.98); E1.8 Krakencoder (= E2.1 loss grid), E1.9 CovProjector (all covariates), E1.10 cross-model HTML with the test-retest ceiling added. E2 narrowed to SC → FC with E2.2 (MSE-only) and E2.3 (composite-loss tuned; absorbs the former E3 outline). E3 redefined as FC → SC replication of E1 and E2 (the former E3 outline was never started; its content moved to E2.3). I1 added (HCP1200 timeseries merge, connectome-similarity views, behavioral FC → SC). |
 | 2026-10-01 | E1.9 CovProjector (all covariates) done on a recorded fallback consensus (rerun with a hand-selected config open); E1.10 cross-model page built with the test-retest ceiling (demeaned r 0.49, avg_rank 0.987). |
-| 2026-10-02 | E1.9 rerun on the E1.7 backbone + covariates (hand-selected, `fixed_consensus`), replacing the frozen-backbone fallback run; covariates overfit under MSE but give the most identifiable model with Demeaned corr-eye (avg_rank 0.890). |
+| 2026-10-02 | E1.9 rerun on the E1.7 backbone + covariates (hand-selected, `fixed_consensus`), replacing the frozen-backbone fallback run. The 150-epoch run overfit (its avg_rank 0.890 was confounded); rerun at the validation-chosen 30 epochs: covariates raise demeaned r (0.110 MSE-only; 0.119 with Demeaned corr-eye 0.1) but lower identifiability vs E1.7. |
 
 Last updated at: 2026-10-02 EDT
