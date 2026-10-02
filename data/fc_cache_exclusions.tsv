@@ -1,0 +1,5 @@
+# Known-bad xcp-d combined-run relmat TSVs left out of the fc/ caches by data/build_fc_cache.py.
+# Every load failure must be listed here (with evidence) or the build aborts. Damage predates the
+# Torch transfer: the same bytes are in xcpd-0-9-1.tar (copy onto the Mac drive, Sep 28 2026 11:07).
+subject	condition	parcellation	reason
+118831	emotion	4S456Parcels	truncated at 3145728 bytes (343/457 lines, no trailing newline); mtime 2026-09-28 11:07

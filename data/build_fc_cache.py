@@ -27,7 +27,7 @@ import random
 import shutil
 import socket
 import sys
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
 import numpy as np
 import pandas as pd
@@ -36,10 +36,40 @@ XCPD_DIR = "/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/HCP1200_fM
 DEFAULT_OUT_ROOT = "/scratch/asr655/neuroinformatics/Conn2Conn_data"
 REPO_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ATLAS_INFO_DIR = os.path.join(REPO_DIR, "data", "atlas_info")
+EXCLUSIONS_TSV = os.path.join(REPO_DIR, "data", "fc_cache_exclusions.tsv")
 CONDITIONS = ("rest", "emotion", "gambling", "language", "motor", "relational", "social", "wm")
 PARCELLATIONS = ("4S456Parcels", "Glasser")
 HEMI = "both"
 CACHE_FILES = ("subject_ids.npy", "matrices.npy", "upper_triangles.npy")
+ACL_XATTR = "system.nfs4_acl"
+
+
+def _get_acl(path):
+    try:
+        return os.getxattr(path, ACL_XATTR)
+    except OSError:  # local disk / no NFSv4 ACL support
+        return None
+
+
+def acl_refs(fc_root):
+    """(dir ACL, file ACL) to give new cache folders/files, copied from fc/ and an existing cache file.
+
+    On the /scratch VAST mount a new entry inherits only the inheritable ACEs of its parent (not OWNER@),
+    which leaves it inaccessible to its owner; so every created folder/file gets these ACLs explicitly.
+    """
+    dir_acl = _get_acl(fc_root)
+    file_acl = None
+    for d in sorted(os.listdir(fc_root)) if os.path.isdir(fc_root) else []:
+        f = os.path.join(fc_root, d, "matrices.npy")
+        if not d.endswith(".partial") and os.path.isfile(f) and os.lstat(f).st_mode & 0o400:
+            file_acl = _get_acl(f)
+            break
+    return dir_acl, file_acl
+
+
+def _set_acl(path, acl):
+    if acl is not None:
+        os.setxattr(path, ACL_XATTR, acl)
 
 
 def relmat_name(subj_folder, condition, parcellation):
@@ -83,9 +113,22 @@ def _load_one(args):
         return subj_folder, None, None, None
     try:
         labels, mat = _read_relmat(path)
+        if mat.ndim != 2 or mat.shape[0] != mat.shape[1] or mat.shape[0] != len(labels):
+            raise ValueError(f"matrix shape {mat.shape} does not match {len(labels)} labels")
+        if not np.isfinite(mat).all():
+            raise ValueError(f"{int((~np.isfinite(mat)).sum())} non-finite values")
         return subj_folder, labels, mat, None
-    except Exception as e:  # recorded in the manifest, never silently dropped
+    except Exception as e:  # never silently dropped: must be listed in the exclusions TSV
         return subj_folder, None, None, f"{type(e).__name__}: {e}"
+
+
+def load_exclusions(path, condition, parcellation):
+    """{sub-folder: reason} for this condition/parcellation from the tracked exclusions TSV."""
+    if not path or not os.path.exists(path) or os.path.getsize(path) == 0:
+        return {}
+    df = pd.read_csv(path, sep="\t", dtype=str, comment="#")
+    df = df[(df["condition"] == condition) & (df["parcellation"] == parcellation)]
+    return {f"sub-{s}": r for s, r in zip(df["subject"], df["reason"])}
 
 
 def validate(matrices, subject_ids):
@@ -134,8 +177,12 @@ def cmd_build(a):
     if os.path.exists(final_dir):
         sys.exit(f"ABORT: {final_dir} already exists; refusing to overwrite (build elsewhere and compare)")
     tmp_dir = final_dir + ".partial"
-    if os.path.exists(tmp_dir):
-        shutil.rmtree(tmp_dir)  # leftover from a crashed build of this same folder only
+    fc_root = os.path.join(a.out_root, "fc")
+    os.makedirs(fc_root, exist_ok=True)
+    dir_acl, file_acl = acl_refs(fc_root)
+    if os.path.exists(tmp_dir):  # leftover from a crashed build of this same folder only
+        _set_acl(tmp_dir, dir_acl)
+        shutil.rmtree(tmp_dir)
 
     folders = subject_folders(a.xcpd_dir)
     if a.subjects:
@@ -143,9 +190,13 @@ def cmd_build(a):
     args = [(relmat_path(a.xcpd_dir, f, a.condition, a.parcellation), f) for f in folders]
     print(f"[build] {name}: {len(folders)} subject folders, {a.workers} workers", flush=True)
 
-    ids, mats, missing, errors, label_ref = [], [], [], {}, None
+    exclusions = load_exclusions(a.exclusions, a.condition, a.parcellation)
+    ids, mats, missing, errors, excluded, label_ref = [], [], [], {}, {}, None
     with ProcessPoolExecutor(max_workers=a.workers) as ex:
         for subj_folder, labels, mat, err in ex.map(_load_one, args, chunksize=8):
+            if subj_folder in exclusions:  # listed bad source file: leave out, record why
+                excluded[subj_folder] = {"reason": exclusions[subj_folder], "load_result": err or "loaded OK"}
+                continue
             if err is not None:
                 errors[subj_folder] = err
                 continue
@@ -160,9 +211,9 @@ def cmd_build(a):
             ids.append(int(subj_folder.replace("sub-", "")))
             mats.append(mat)
     if errors:
-        for k, v in list(errors.items())[:20]:
+        for k, v in errors.items():
             print(f"  ERROR {k}: {v}")
-        sys.exit(f"ABORT: {len(errors)} subjects failed to load; nothing written")
+        sys.exit(f"ABORT: {len(errors)} subjects failed to load and are not in {a.exclusions}; nothing written")
     if not mats:
         sys.exit("ABORT: no subjects loaded")
 
@@ -174,9 +225,10 @@ def cmd_build(a):
     checks = validate(matrices, subject_ids)
 
     os.makedirs(tmp_dir)
-    np.save(os.path.join(tmp_dir, "subject_ids.npy"), subject_ids)
-    np.save(os.path.join(tmp_dir, "matrices.npy"), matrices)
-    np.save(os.path.join(tmp_dir, "upper_triangles.npy"), upper)
+    _set_acl(tmp_dir, dir_acl)
+    for fname, arr in (("subject_ids.npy", subject_ids), ("matrices.npy", matrices), ("upper_triangles.npy", upper)):
+        np.save(os.path.join(tmp_dir, fname), arr)
+        _set_acl(os.path.join(tmp_dir, fname), file_acl)
 
     manifest = {
         "cache_dir": name,
@@ -192,6 +244,8 @@ def cmd_build(a):
         "n_subject_folders": len(folders),
         "n_subjects": int(len(subject_ids)),
         "subjects_missing_file": [int(f.replace("sub-", "")) for f in missing],
+        "subjects_excluded": {f.replace("sub-", ""): v for f, v in excluded.items()},
+        "exclusions_file": os.path.relpath(a.exclusions, REPO_DIR) if a.exclusions else None,
         "node_labels": label_ref,
         "node_labels_match_atlas_info_column": atlas_label_match(a.parcellation, label_ref),
         "arrays": {
@@ -217,8 +271,9 @@ def cmd_build(a):
     }
     with open(os.path.join(tmp_dir, "manifest.json"), "w") as fh:
         json.dump(manifest, fh, indent=2)
+    _set_acl(os.path.join(tmp_dir, "manifest.json"), file_acl)
     os.rename(tmp_dir, final_dir)  # folder only appears once complete
-    print(f"[build] wrote {final_dir}: N={len(subject_ids)} missing={len(missing)} "
+    print(f"[build] wrote {final_dir}: N={len(subject_ids)} missing={len(missing)} excluded={len(excluded)} "
           f"shape={matrices.shape} ({(datetime.datetime.now() - t0).total_seconds():.0f}s)")
 
 
@@ -280,14 +335,24 @@ def cmd_catalog(a):
                              n_subjects=m["n_subjects"], n_nodes=m["validation"]["n_nodes"],
                              git_commit=m["build"]["git_commit"], built=m["build"]["finished"],
                              sha256_matrices=m["sha256"]["matrices.npy"], note=""))
+    _, file_acl = acl_refs(fc_root)
     pd.DataFrame(rows).to_csv(os.path.join(fc_root, "catalog.tsv"), sep="\t", index=False)
+    _set_acl(os.path.join(fc_root, "catalog.tsv"), file_acl)
 
     folders = subject_folders(a.xcpd_dir)
+
+    def present(f):  # one listdir per subject instead of one stat per file
+        func = os.path.join(a.xcpd_dir, f, "func")
+        names = set(os.listdir(func)) if os.path.isdir(func) else set()
+        return [int(relmat_name(f, c, p) in names) for c in CONDITIONS for p in PARCELLATIONS]
+
+    with ThreadPoolExecutor(max_workers=16) as tp:
+        flags = list(tp.map(present, folders))
+    cols = [f"{c}_{p}" for c in CONDITIONS for p in PARCELLATIONS]
     avail = {"subject": [int(f.replace("sub-", "")) for f in folders]}
-    for cond in CONDITIONS:
-        for parc in PARCELLATIONS:
-            avail[f"{cond}_{parc}"] = [int(os.path.exists(relmat_path(a.xcpd_dir, f, cond, parc))) for f in folders]
+    avail.update({col: [row[j] for row in flags] for j, col in enumerate(cols)})
     pd.DataFrame(avail).to_csv(os.path.join(fc_root, "availability.tsv"), sep="\t", index=False)
+    _set_acl(os.path.join(fc_root, "availability.tsv"), file_acl)
     print(f"[catalog] wrote {fc_root}/catalog.tsv ({len(rows)} rows) and availability.tsv ({len(folders)} subjects)")
 
 
@@ -303,6 +368,7 @@ def main():
     p.add_argument("--workers", type=int, default=os.cpu_count() or 4)
     p.add_argument("--subjects", nargs="*", help="restrict to these sub-* folders (testing)")
     p.add_argument("--git-commit", default=None)
+    p.add_argument("--exclusions", default=EXCLUSIONS_TSV, help="TSV of known-bad source files to leave out")
     p.set_defaults(func=cmd_build)
 
     p = sp.add_parser("compare")
