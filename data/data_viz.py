@@ -1923,7 +1923,9 @@ def plot_condition_connectomes(
         _add_small_colorbar(fig, ax, im, ticks=[-vmax, 0.0, vmax])
     data["vmax"] = vmax
     fig.suptitle(_format_subject_header(base, data, header_metadata=header_metadata), fontsize=12)
-    fig.tight_layout()
+    # leave room right of each panel for its inset colorbar, and between rows for titles
+    height = fig.get_size_inches()[1]
+    fig.subplots_adjust(left=0.01, right=0.95, bottom=0.02, top=1 - 0.55 / height, wspace=0.32, hspace=0.22)
     if show:
         plt.show()
     return fig, axes, data
@@ -2060,7 +2062,11 @@ def plot_condition_similarity(
         vmin, vmax = float(np.nanmin(off)), float(np.nanmax(off))
         if np.isclose(vmin, vmax):
             vmin, vmax = vmin - 1e-6, vmax + 1e-6
-        im = ax.imshow(mat, cmap=_SIMILARITY_CMAPS[metric], vmin=vmin, vmax=vmax, interpolation="nearest")
+        shown = mat.astype(float).copy()
+        np.fill_diagonal(shown, np.nan)  # self-similarity is 1 / 0 by construction; keep the color range for the rest
+        cmap = plt.get_cmap(_SIMILARITY_CMAPS[metric]).copy()
+        cmap.set_bad("0.85")
+        im = ax.imshow(shown, cmap=cmap, vmin=vmin, vmax=vmax, interpolation="nearest")
         ax.set_xticks(range(k))
         ax.set_yticks(range(k))
         ax.set_xticklabels(labels, rotation=60, ha="right", fontsize=8)
