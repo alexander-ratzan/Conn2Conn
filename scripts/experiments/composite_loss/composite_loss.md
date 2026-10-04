@@ -49,7 +49,7 @@ Moved to this layout 2026-10-02 (E1 instances → `<model>/sc2fc/`; re-rendered 
 - **Fixed across models:** `batch_size` 64 (D4), seeds, selection on `val_demeaned_r`, output schema
   (`seed_records.csv`, `epoch_history.csv`), W&B tags (`<model>`, `loss_grid:v1`, `combo:<id>`).
 - **Scope:** the grid maps the landscape with each model's Stage 1 hyperparameters held fixed; magnitude tuning for a
-  final model is spec v2 E2.3 (composite-loss benchmark with tuned weights).
+  final model is spec v2 E2.3, carried as spec v3 C1 (composite-loss benchmark with tuned weights).
 
 ## Protocol v2 (superseded by v3)
 
@@ -404,7 +404,7 @@ Neighbor dist's does not.
    identity gains.
 6. **Covariates raise demeaned r and lower identifiability.**
 7. **All models are far from the test-retest ceiling** (0.49 / 0.987 / top-1 0.93 vs about 0.12 / 0.88 / 0.13).
-8. **Next: spec v2 E2.3** tunes the weights per model and must choose a selection metric, since no weighting maximizes
+8. **Next: spec v2 E2.3 (now spec v3 C1)** tunes the weights per model and must choose a selection metric, since no weighting maximizes
    both demeaned r and avg_rank. E3 repeats E1 for FC → SC; Krakencoder already shows the FC → SC trade-off is
    different there.
 
@@ -431,9 +431,11 @@ interactive: the direction switch on [`figures/cross_model_interactive.html`](fi
    Raw Corr-eye is inert to weight 10 and collapses at 20–50 in both directions.
 4. **Covariates matter far more in FC → SC** (CovProjector demeaned r 0.209 vs 0.141, top-1 0.48 vs 0.17), most
    likely because `fs_all` regional volumes predict the volume normalisation of the `sift_invnodevol` SC target, i.e.
-   anatomy rather than FC. Needs a no-volume (or demographics-only) ablation before it is read as an FC effect.
+   anatomy rather than FC. Needs a no-volume (or demographics-only) ablation before it is read as an FC effect
+   (spec v3 C2 / C!3). The per-seed-tuned MSE benchmark reproduces the gap: test demeaned r 0.221, top-1 0.45 vs
+   0.162 / 0.13 for PCA-PLS learnable ([`../model_benchmark/model_benchmark.md`](../model_benchmark/model_benchmark.md)).
 5. **Caveats:** composite runs reuse the MSE-tuned schedule, and in `pca_pls_learnable` they peak early and decline
    (part of the penalty is schedule); two FC → SC searches hit their edges (`linear_backbone` 256 PCs = max;
-   `pca_pls_learnable` lr near the 3e-5 floor with epochs near the top). E2.3 (tuned weights) should re-tune epochs
+   `pca_pls_learnable` lr near the 3e-5 floor with epochs near the top). E2.3 (tuned weights; spec v3 C1) should re-tune epochs
    jointly with the weights and widen those ranges.
 

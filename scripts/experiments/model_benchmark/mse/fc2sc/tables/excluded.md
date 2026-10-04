@@ -1,0 +1,1 @@
+- `MaskedMLPPretrainer`: latent gate failed 2026-10-03: mean val 0.132 < threshold 0.169 (_learnable 0.179 - 0.01)

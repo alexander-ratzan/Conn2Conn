@@ -1,6 +1,6 @@
 # Composite-loss dynamics on the linear backbone
 
-**Status:** complete, grid v3, both directions (spec v2 E1 SC → FC; E3 Phase D FC → SC) · **Owner:** agent:modeling · **Config:** [`config.yml`](config.yml) ·
+**Status:** complete, grid v3, both directions (spec v2 E1 SC → FC; E3 Phase D FC → SC) · **Owner:** agent:modeling · **Config:** [`sc2fc/config.yml`](sc2fc/config.yml), [`fc2sc/config.yml`](fc2sc/config.yml) ·
 **Protocol:** [`../composite_loss.md`](../composite_loss.md)
 
 ## Question
@@ -126,5 +126,5 @@ SE 0.004). Compute: Stage 1 1.6, consensus 0.1, grid 2.9 GPU-h.
 - Test metrics are taken at the last epoch (no early stopping). Validation demeaned r peaks at or near the final epoch
   for every combination, so this does not penalize any term.
 - The grid holds the Stage 1 hyperparameters fixed. A composite-loss model might prefer different `lr` / `l2_reg`;
-  magnitude tuning is spec v2 E2.3.
+  magnitude tuning is spec v2 E2.3 (carried as spec v3 C1).
 - v2:C!3: Stage 1 searched `zscore_pca_scores` (consensus: off), so latent diagnostics are in PCA space.

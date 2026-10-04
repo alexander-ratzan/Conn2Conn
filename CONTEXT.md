@@ -362,7 +362,8 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
   does not cover the config.
 - **Specs.** Refactors and experiment plans are tracked in `context_packages/repo_spec_docs/`: `spec_doc_v1.md`
   (complete: the `scripts/` build-out and the composite-loss / regularization modeling track), `spec_doc_v2.md`
-  (active: experiments and carried-over items). Format and item IDs (`I` infrastructure, `M` modeling, `E` experiment,
+  (closed 2026-10-04: E0–E3 experiments, environment consolidation, task-FC caches, repo organisation), `spec_doc_v3.md`
+  (active: v2's carried items, starting with the composite-loss benchmark with tuned weights). Format and item IDs (`I` infrastructure, `M` modeling, `E` experiment,
   `C` carryover, `C!` caveat, `D` decision) follow `spec_conventions.md`; each spec's status table is the place to read
   its current state.
 
@@ -454,6 +455,21 @@ Debug missing results cell:
 
 ## Recent Changes
 
+2026-10-04 — spec v2 closed (E1, E2.2, E3, I1.4–I1.5; details in `spec_doc_v2.md` § Closure):
+- `scripts/experiments/composite_loss/` (E1 + E3): per-model instances in `<model>/{sc2fc,fc2sc}/` (`--instance
+  <model>/<direction>`); grid v3; fixed reference scales are the default composite balancing (spec v2 D6); cross-model
+  page `figures/cross_model_interactive.html` with a direction switch and the SC → FC test-retest ceiling.
+- `scripts/experiments/model_benchmark/` (E2.2): MSE-only benchmark, both directions. Configs generated into
+  `models/configs/benchmark/mse/` by `build_configs.py` (no `data:` block: `--source/--target` set the direction;
+  `<Model>_fc2sc.yml` only where needed); roster / packing / gate / budget in `config.yml`; `autopilot.py` (host python:
+  status, latent gate, GPU-h budget, launch of missing seeds) and `run.py` (task logs → `mse/<direction>/` records,
+  tables, figures). Packing note: tasks at 0.5 GPU × 2 trials were killed by the cluster after ~2 h (GPU-underuse
+  policy); 0.25 × 4 runs clean.
+- Retrainable Krakencoder (`models/architectures/krakencoder/`, spec v2 E2.1) serves both directions.
+- Task FC caches and loaders: `HCP_Base(fc_conditions=[...])`, `load_fc_precomputed(task=)` (spec v2 I1.4–I1.5).
+- Config family folders (`models/configs/<family>/`, name lookup) are built on branch `i2-config-layout`, not yet on
+  `main` (spec v3 C3).
+
 2026-09-30 — E0 closed and environment consolidated (spec v2 E0, C6, C1):
 - `scripts/experiments/nodal_models_benchmark/` (closed): every nodal model is at the null on SC→FC; follow-up
   "graph models on top of the mean" in spec v2 §5. `nodal_decoder_importance.ipynb` removed (superseded).
@@ -512,4 +528,4 @@ Earlier:
 - Model code now lives under `models/architectures/`, training code under `models/train/`, and evaluation/reporting code under `models/eval/`.
 - Backward-compatibility shims for old top-level model/train/eval files are intentionally removed.
 
-Last updated at: 2026-10-01 EDT
+Last updated at: 2026-10-04 EDT

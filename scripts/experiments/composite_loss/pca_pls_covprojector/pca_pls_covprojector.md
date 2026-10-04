@@ -1,6 +1,6 @@
 # Composite-loss dynamics: CovProjector with all covariates (`CrossModal_PCA_PLS_CovProjector`)
 
-**Status:** complete, grid v3, both directions (spec v2 E1.9 SC → FC; E3 Phase D FC → SC) · **Owner:** agent:modeling · **Config:** [`config.yml`](config.yml) ·
+**Status:** complete, grid v3, both directions (spec v2 E1.9 SC → FC; E3 Phase D FC → SC) · **Owner:** agent:modeling · **Config:** [`sc2fc/config.yml`](sc2fc/config.yml), [`fc2sc/config.yml`](fc2sc/config.yml) ·
 **Protocol:** [`../composite_loss.md`](../composite_loss.md)
 
 ## Question
@@ -97,7 +97,10 @@ pilot gate passed (lr 7.5e-4 and 50 epochs both interior). Compute: pilot 1.0, c
 - **Likely mechanism, not FC:** the SC target is `sift_invnodevol` (streamline counts divided by node volumes) and
   `fs_all` includes regional volumes, so the covariate branch partly predicts SC's volume normalisation from
   morphometry. FC → SC CovProjector results are therefore *anatomy + FC → SC*; an ablation without volume features (or
-  demographics only) is needed before attributing the gain to FC.
+  demographics only) is needed before attributing the gain to FC (spec v3 C2 / C!3). The per-seed-tuned MSE
+  benchmark (spec v2 E2.2) reproduces it: test demeaned r 0.221, avg_rank 0.973, top-1 0.45
+  ([`../../model_benchmark/model_benchmark.md`](../../model_benchmark/model_benchmark.md)); it is reported there as
+  not input-matched.
 - No composite term helps; MSE-only is the best cell on avg_rank and within 0.003 of the best demeaned r (Var-match 1).
 
 ## Caveats

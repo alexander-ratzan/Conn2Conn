@@ -9,7 +9,8 @@ Predicts one connectome modality from another on HCP-derived data (default `SC �
 ## Models
 
 Grouped by **model type** (what the model is) and **learning type** (how it is fit). Direction support
-(`SC → FC` vs `FC → SC`) is audited in `context_packages/repo_spec_docs/spec_doc_v2.md` (E2).
+(`SC → FC` vs `FC → SC`) is audited in `context_packages/repo_spec_docs/spec_doc_v2.md` (E2.0). How the models
+compare, tuned per seed under MSE in both directions: `scripts/experiments/model_benchmark/model_benchmark.md`.
 
 | Model | Model type | Learning type | Description |
 |---|---|---|---|
@@ -31,25 +32,6 @@ Grouped by **model type** (what the model is) and **learning type** (how it is f
 | `Krakencoder_precomputed` | Deep-learning baseline | Precomputed (trained externally) | Krakencoder predictions loaded per seed (class `KrakencoderPrecomputed`) |
 | `Krakencoder` | Deep-learning baseline | Supervised (upstream trainer, retrained per seed) | Krakencoder retrained in the repo from vendored upstream; one fit serves `SC → FC` and `FC → SC` |
 | `CrossModalVAE` | Experimental (in development) | Supervised (gradient) | Variational autoencoder cross-modal mapping |
-
----|---|---|
-| `CrossModalPCA` | Closed-form | PCA projection from source to target space |
-| `CrossModal_PLS_SVD` | Closed-form | PLS via SVD decomposition |
-| `CrossModal_PCA_PLS` | Closed-form | PCA whitening + PLS regression |
-| `CrossModal_PCA_PLS_learnable` | Learned | PCA/PLS-initialized linear map, fine-tuned end-to-end |
-| `CrossModal_linear_backbone` | Learned | Frozen PCA encoder/decoder around one learned affine latent map; fast probe for loss/regularization studies |
-| `CrossModal_PCA_PLS_CovProjector` | Learned | PCA+PLS + residual correction conditioned on subject covariates |
-| `CrossModal_ConditionalGaussian` | Closed-form | Conditional Gaussian mapping in latent space, with optional covariates |
-| `CrossModalVAE` | Learned | Variational autoencoder cross-modal mapping |
-| `LatentAttnMasked` | Learned | Latent PCA backbone (zero / PLS / learned linear) plus a masked FC attention residual |
-| `MaskedLatentPretrainer` | Experimental | Self-supervised latent-token reconstruction pretrainer for `LatentAttnMasked` |
-| `MaskedMLPPretrainer` | Experimental | Masked latent reconstruction pretrainer with linear/MLP backbone variants |
-| `Sarwar2020MLP` | Learned | Fully non-linear MLP baseline trained with MSE + inter-subject correlation penalty |
-| `Chen2024GCN` | Learned | Edge-level GCN baseline (`SC` graph message passing, FC edge regression) |
-| `NodalGNN` | Learned | SC-conditioned GNN using subject-specific parcel node features (volume, centroid, `SC_r2t`) |
-| `NodalMLP` | Learned | Graph-free node/edge baseline over anatomical features and/or subject SC-row features |
-| `TestRetestPrecomputed` | Precomputed | Test-retest oracle that loads session 1/2 cached connectomes as predictions |
-| `Krakencoder_precomputed` | Closed-form / Precomputed | Precomputed Krakencoder baseline (implemented by class `KrakencoderPrecomputed`) |
 
 ---
 
@@ -302,6 +284,16 @@ python scripts/experiments/cov_projector_benchmark/run.py        # covariate pro
 python scripts/experiments/nodal_models_benchmark/run.py         # nodal models (NodalMLP decoders, GNNs) vs null / linear
 ```
 
+Cross-model benchmark (`scripts/experiments/model_benchmark/`, spec v2 E2.2): every model tuned per seed under MSE, both
+directions, from one SLURM campaign per model (job names `e2_mse_<Model>_<direction>`); results are scraped from the task
+logs, not W&B.
+
+```bash
+python3 scripts/experiments/model_benchmark/autopilot.py status --direction sc2fc   # host python (needs squeue)
+python3 scripts/experiments/model_benchmark/autopilot.py launch --direction sc2fc --dry-run
+python scripts/experiments/model_benchmark/run.py --direction sc2fc                 # kraken env: records, tables, figures
+```
+
 Edit each experiment's `config.yml` to change models / conditions, seeds, the summary tables, or the list of figures. Outputs are written into the experiment folder and tracked in git: `tables/`, `figures/` (PNG,
 300 dpi), and `manifest.json`.
 
@@ -392,4 +384,4 @@ Conn2Conn/
 └── krakencoder_experimental/        # Local Krakencoder copy + data, cached predictions (gitignored)
 ```
 
-Last updated at: 2026-10-01 EDT
+Last updated at: 2026-10-04 EDT

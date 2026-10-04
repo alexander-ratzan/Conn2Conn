@@ -1,6 +1,6 @@
 # Composite-loss dynamics: replicability instance (`CrossModal_PCA_PLS_learnable`)
 
-**Status:** complete, grid v3, both directions (spec v2 E1 SC → FC; E3 Phase D FC → SC) · **Owner:** agent:modeling · **Config:** [`config.yml`](config.yml) ·
+**Status:** complete, grid v3, both directions (spec v2 E1 SC → FC; E3 Phase D FC → SC) · **Owner:** agent:modeling · **Config:** [`sc2fc/config.yml`](sc2fc/config.yml), [`fc2sc/config.yml`](fc2sc/config.yml) ·
 **Protocol:** [`../composite_loss.md`](../composite_loss.md)
 
 ## Question

@@ -1,0 +1,76 @@
+model,label,type,role,objective,seed,extra_inputs,test_pearson,test_demeaned_pearson,test_avg_rank,test_top1_acc,test_mse,val_demeaned_r
+Chen2024GCN,Chen GCN,deep_baseline,,,0,False,0.760912,0.0217866,0.586851,0.025641,0.0192211,0.0296945
+Chen2024GCN,Chen GCN,deep_baseline,,,1,False,0.751753,0.024091,0.590059,0.0153846,0.0195007,0.0346504
+Chen2024GCN,Chen GCN,deep_baseline,,,2,False,0.755998,0.0214678,0.592952,0.025641,0.0197879,0.0412059
+Chen2024GCN,Chen GCN,deep_baseline,,,3,False,0.757852,0.0266686,0.566391,0.0102564,0.0187148,0.0248341
+Chen2024GCN,Chen GCN,deep_baseline,,,4,False,0.763418,0.0138725,0.597002,0.00512821,0.0194126,0.0219266
+Krakencoder_mse,Krakencoder (MSE),deep_baseline,,MSE + its fixed latent losses,0,False,0.83545,0.0791491,0.679658,0.0512821,0.0136191,0.0538898
+Krakencoder_mse,Krakencoder (MSE),deep_baseline,,MSE + its fixed latent losses,1,False,0.82594,0.0776968,0.67311,0.0461538,0.014176,0.0812507
+Krakencoder_mse,Krakencoder (MSE),deep_baseline,,MSE + its fixed latent losses,2,False,0.833117,0.090035,0.683971,0.025641,0.0139273,0.0672613
+Krakencoder_mse,Krakencoder (MSE),deep_baseline,,MSE + its fixed latent losses,3,False,0.830582,0.0914554,0.6881,0.0410256,0.0136942,0.0796499
+Krakencoder_mse,Krakencoder (MSE),deep_baseline,,MSE + its fixed latent losses,4,False,0.835298,0.0917078,0.687837,0.0666667,0.0139909,0.0892864
+Krakencoder_paper,Krakencoder (paper loss),deep_baseline,,native (paper loss: + corr-eye + neighbor dist),0,False,0.836566,0.0806435,0.800868,0.0769231,0.0135073,0.0652485
+Krakencoder_paper,Krakencoder (paper loss),deep_baseline,,native (paper loss: + corr-eye + neighbor dist),1,False,0.82676,0.0776788,0.787561,0.0666667,0.0140802,0.0757306
+Krakencoder_paper,Krakencoder (paper loss),deep_baseline,,native (paper loss: + corr-eye + neighbor dist),2,False,0.832826,0.0772072,0.813228,0.0564103,0.0139375,0.0702512
+Krakencoder_paper,Krakencoder (paper loss),deep_baseline,,native (paper loss: + corr-eye + neighbor dist),3,False,0.830375,0.0821577,0.788744,0.0564103,0.0136799,0.0762407
+Krakencoder_paper,Krakencoder (paper loss),deep_baseline,,native (paper loss: + corr-eye + neighbor dist),4,False,0.835492,0.0827001,0.818304,0.0769231,0.0139662,0.0775264
+Sarwar2020MLP,Sarwar MLP,deep_baseline,,,0,False,0.8175,0.0657735,0.646417,0.0410256,0.0151586,0.0295654
+Sarwar2020MLP,Sarwar MLP,deep_baseline,,,1,False,0.815926,0.0776389,0.628481,0.0410256,0.0151134,0.0814849
+Sarwar2020MLP,Sarwar MLP,deep_baseline,,,2,False,0.823829,0.0664119,0.685128,0.0358974,0.0148616,0.07814
+Sarwar2020MLP,Sarwar MLP,deep_baseline,,,3,False,0.817139,0.0804915,0.66309,0.0205128,0.0147648,0.0732959
+Sarwar2020MLP,Sarwar MLP,deep_baseline,,,4,False,0.826432,0.0505972,0.601578,0.0153846,0.0148162,0.0661051
+MaskedMLPPretrainer,Masked MLP pretrainer,latent_pretrained,,native latent_mse,0,False,0.837525,0.0718558,0.685339,0.0307692,0.0134441,0.107765
+MaskedMLPPretrainer,Masked MLP pretrainer,latent_pretrained,,native latent_mse,1,False,0.828085,0.0957865,0.716082,0.0307692,0.0139723,0.100193
+MaskedMLPPretrainer,Masked MLP pretrainer,latent_pretrained,,native latent_mse,2,False,0.831096,0.092001,0.706772,0.025641,0.0140394,0.106076
+MaskedMLPPretrainer,Masked MLP pretrainer,latent_pretrained,,native latent_mse,3,False,0.829737,0.0868068,0.683655,0.0461538,0.0137453,0.108877
+MaskedMLPPretrainer,Masked MLP pretrainer,latent_pretrained,,native latent_mse,4,False,0.837091,0.103712,0.748008,0.0461538,0.0138446,0.114306
+CrossModal_ConditionalGaussian,Conditional Gaussian,linear_closed_form,,,0,False,0.839923,0.0697706,0.651782,0.025641,0.0132645,0.107291
+CrossModal_ConditionalGaussian,Conditional Gaussian,linear_closed_form,,,1,False,0.816327,0.0838731,0.729915,0.0717949,0.0149516,0.0905009
+CrossModal_ConditionalGaussian,Conditional Gaussian,linear_closed_form,,,2,False,0.836908,0.107505,0.790007,0.0512821,0.0136224,0.107989
+CrossModal_ConditionalGaussian,Conditional Gaussian,linear_closed_form,,,3,False,0.834145,0.0997047,0.764234,0.0923077,0.0133874,0.102652
+CrossModal_ConditionalGaussian,Conditional Gaussian,linear_closed_form,,,4,False,0.839361,0.106204,0.784168,0.0358974,0.0136865,0.112678
+CrossModal_PCA_PLS,PCA-PLS,linear_closed_form,,,0,False,0.83993,0.0824971,0.684313,0.025641,0.0132484,0.121757
+CrossModal_PCA_PLS,PCA-PLS,linear_closed_form,,,1,False,0.830986,0.104167,0.724839,0.0410256,0.0137574,0.103603
+CrossModal_PCA_PLS,PCA-PLS,linear_closed_form,,,2,False,0.83659,0.0901118,0.689283,0.0153846,0.0136562,0.110985
+CrossModal_PCA_PLS,PCA-PLS,linear_closed_form,,,3,False,0.829929,0.0798825,0.695569,0.0666667,0.0137279,0.0992504
+CrossModal_PCA_PLS,PCA-PLS,linear_closed_form,,,4,False,0.839369,0.104373,0.753268,0.0307692,0.013685,0.127069
+CrossModal_PLS_SVD,PLS-SVD,linear_closed_form,,,0,False,0.835398,0.04317,0.570519,0.0102564,0.0136462,0.0754282
+CrossModal_PLS_SVD,PLS-SVD,linear_closed_form,,,1,False,0.799513,0.0728746,0.674135,0.0512821,0.0164298,0.0888102
+CrossModal_PLS_SVD,PLS-SVD,linear_closed_form,,,2,False,0.828243,0.0838576,0.65549,0,0.0143115,0.0807858
+CrossModal_PLS_SVD,PLS-SVD,linear_closed_form,,,3,False,0.830517,0.0513645,0.603208,0.0358974,0.0137244,0.0931383
+CrossModal_PLS_SVD,PLS-SVD,linear_closed_form,,,4,False,0.82868,0.077822,0.672768,0.0461538,0.014549,0.0785124
+CrossModal_PCA_PLS_CovProjector,PCA-PLS + covariates †,linear_learned,,,0,True,0.840515,0.0947459,0.695227,0.0307692,0.0132199,0.130574
+CrossModal_PCA_PLS_CovProjector,PCA-PLS + covariates †,linear_learned,,,1,True,0.831688,0.107458,0.687127,0.0410256,0.013712,0.114474
+CrossModal_PCA_PLS_CovProjector,PCA-PLS + covariates †,linear_learned,,,2,True,0.835052,0.0718517,0.641578,0.0153846,0.0137858,0.126624
+CrossModal_PCA_PLS_CovProjector,PCA-PLS + covariates †,linear_learned,,,3,True,0.833998,0.0935145,0.706509,0.0461538,0.0133913,0.112568
+CrossModal_PCA_PLS_CovProjector,PCA-PLS + covariates †,linear_learned,,,4,True,0.840238,0.119572,0.750033,0.0615385,0.0136077,0.141472
+CrossModal_PCA_PLS_learnable,PCA-PLS learnable,linear_learned,,,0,False,0.839331,0.0713315,0.63545,0.0153846,0.0133023,0.103609
+CrossModal_PCA_PLS_learnable,PCA-PLS learnable,linear_learned,,,1,False,0.828806,0.0917364,0.729152,0.0512821,0.0139283,0.0880335
+CrossModal_PCA_PLS_learnable,PCA-PLS learnable,linear_learned,,,2,False,0.8353,0.0659223,0.597607,0,0.0137461,0.0996907
+CrossModal_PCA_PLS_learnable,PCA-PLS learnable,linear_learned,,,3,False,0.834774,0.103471,0.721473,0.0461538,0.013342,0.100845
+CrossModal_PCA_PLS_learnable,PCA-PLS learnable,linear_learned,,,4,False,0.838641,0.0975624,0.670664,0.0307692,0.0137434,0.131385
+CrossModal_linear_backbone,Linear backbone,linear_learned,,,0,False,0.83995,0.0831047,0.689599,0.0205128,0.0132562,0.112077
+CrossModal_linear_backbone,Linear backbone,linear_learned,,,1,False,0.831009,0.106188,0.761236,0.0512821,0.0137538,0.0920336
+CrossModal_linear_backbone,Linear backbone,linear_learned,,,2,False,0.836659,0.0947095,0.728836,0.0102564,0.0136427,0.108445
+CrossModal_linear_backbone,Linear backbone,linear_learned,,,3,False,0.834466,0.101444,0.748034,0.0564103,0.0133604,0.104154
+CrossModal_linear_backbone,Linear backbone,linear_learned,,,4,False,0.839108,0.106018,0.792032,0.025641,0.0137084,0.116959
+CrossModalPCA,PCA null,null_ceiling,floor,,0,False,0.82808,0.0158305,0.536384,0.0102564,0.0142331,0.0247085
+CrossModalPCA,PCA null,null_ceiling,floor,,1,False,0.822121,0.0277509,0.537751,0.025641,0.014488,-0.00286387
+CrossModalPCA,PCA null,null_ceiling,floor,,2,False,0.823352,0.00371376,0.498041,0,0.0147001,0.0211564
+CrossModalPCA,PCA null,null_ceiling,floor,,3,False,0.823509,0.002863,0.501328,0.0153846,0.0142362,0.0321162
+CrossModalPCA,PCA null,null_ceiling,floor,,4,False,0.828624,0.00463655,0.505562,0.0102564,0.0145127,0.0233372
+TestRetest,Test-retest ceiling,null_ceiling,ceiling,,0,False,0.821166,0.495621,0.991427,0.94359,0.0171831,
+TestRetest,Test-retest ceiling,null_ceiling,ceiling,,1,False,0.810844,0.491873,0.986903,0.897436,0.0181269,
+TestRetest,Test-retest ceiling,null_ceiling,ceiling,,2,False,0.813852,0.486111,0.986693,0.917949,0.0180095,
+TestRetest,Test-retest ceiling,null_ceiling,ceiling,,3,False,0.806593,0.482968,0.971519,0.907692,0.0180762,
+TestRetest,Test-retest ceiling,null_ceiling,ceiling,,4,False,0.823142,0.505644,0.996345,0.958974,0.0174068,
+NodalGNN,Nodal GNN,pairwise_nodal,,,0,False,0.775691,0.00513281,0.557528,0.0153846,0.0182655,0.00373655
+NodalGNN,Nodal GNN,pairwise_nodal,,,1,False,0.700779,0.0184988,0.54735,0.0102564,0.0231862,0.000959547
+NodalGNN,Nodal GNN,pairwise_nodal,,,2,False,0.75302,0.0159244,0.562893,0.0102564,0.0199708,0.0362539
+NodalGNN,Nodal GNN,pairwise_nodal,,,3,False,0.648466,0.0249952,0.528994,0,0.0254735,0.0127197
+NodalGNN,Nodal GNN,pairwise_nodal,,,4,False,0.716528,-0.00917786,0.546167,0.00512821,0.0226329,-0.00200069
+NodalMLP,Nodal MLP,pairwise_nodal,,,0,False,0.760728,0.00215129,0.558974,0.0102564,0.0192983,0.00534059
+NodalMLP,Nodal MLP,pairwise_nodal,,,1,False,0.740468,0.0189419,0.557186,0.00512821,0.0200629,0.00154359
+NodalMLP,Nodal MLP,pairwise_nodal,,,2,False,0.752813,0.0172788,0.56384,0.0102564,0.019812,0.032764
+NodalMLP,Nodal MLP,pairwise_nodal,,,3,False,0.744162,0.0245908,0.548455,0.00512821,0.0195205,0.0196874
+NodalMLP,Nodal MLP,pairwise_nodal,,,4,False,0.75591,-0.0031922,0.557581,0.0102564,0.0197597,-0.00204098

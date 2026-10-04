@@ -2,35 +2,63 @@
 
 **Purpose:** run structured experiments on the v1 composite-loss / regularization machinery, clear the items carried over
 from v1, and hold the repo backlog.
-**Status:** active · **Started:** 2026-09-29 · **Predecessor:** [`spec_doc_v1.md`](spec_doc_v1.md) (closed 2026-09-29) ·
+**Status:** closed 2026-10-04 · **Started:** 2026-09-29 · **Predecessor:** [`spec_doc_v1.md`](spec_doc_v1.md) (closed 2026-09-29) ·
+**Successor:** [`spec_doc_v3.md`](spec_doc_v3.md) (open items carried there; see [Closure](#closure)) ·
 **Format:** [`spec_conventions.md`](spec_conventions.md)
 
-**Contents:** [Status](#status) · [1. Purpose](#1-purpose) · [2. Conventions](#2-conventions) ·
+**Contents:** [Closure](#closure) · [Status](#status) · [1. Purpose](#1-purpose) · [2. Conventions](#2-conventions) ·
 [3. Carried over from v1](#3-carried-over-from-v1) · [4. Experiments](#4-experiments) · [5. Infrastructure](#5-infrastructure) ·
 [6. Backlog](#6-backlog-not-scheduled) · [7. Change log](#7-change-log)
 
-To add an experiment, append a section under §4 using the template in §4.0 and add a row to the status table.
+This spec is closed: only typo fixes and successor pointers change. New work goes into [`spec_doc_v3.md`](spec_doc_v3.md).
+
+## Closure
+
+Closed 2026-10-04. Outcomes:
+- **E1** (composite-loss dynamics, SC → FC) and its FC → SC replication (**E3 Phase D**): identity terms trade
+  demeaned r for avg_rank SC → FC; the trade-off does not carry over FC → SC, where MSE-only is best.
+- **E2.2** (MSE-only benchmark, both directions, 111.5 GPU-h): the linear family leads and is statistically tied SC → FC
+  (demeaned r 0.092–0.098); graph / nodal models are at the null; FC → SC is easier for every model, led by PCA-PLS
+  learnable and the linear backbone among input-matched models. Write-up `scripts/experiments/model_benchmark/model_benchmark.md`.
+- **Resolved:** C2, C!1, C!4 (E2.2 reruns), plus C1, C3, C6.1–C6.4, C7 earlier.
+
+Carried to v3 (IDs there):
+
+| v2 item | Carried as | What remains |
+|---|---|---|
+| E2.3 (+ E3's composite FC → SC) | v3:C1 | composite-loss benchmark with tuned weights, both directions, then the final reoptimized benchmark |
+| E2.2 / E3 Phase D caveat | v3:C2, v3:C!3 | covariate ablation for PCA-PLS + covariates (no-volume `fs_all`; demographics only) |
+| I2.3 | v3:C3 | merge branch `i2-config-layout` (`7501e94`) in a no-jobs window |
+| I2.4, I2.5 | v3:C4, v3:C5 | generic tune launcher; variants as overrides |
+| I1.2, I1.3, I1.5 follow-ups | v3:C6, v3:C7, v3:C8 | similarity views; behavioral FC → SC; cross-condition fingerprinting + network view |
+| E2.0 reverse variants | v3:C9 | FC → SC variants of Chen GCN, Nodal GNN, Nodal MLP |
+| I2 finding | v3:C10 | `composite_loss/checks/check_protocol.py` reads a pre-E3.0 path |
+| C4 | v3:C11 | `latent_masked_test` notebook fixes |
+| C6.5 | v3:C12 | align `activate_env.sh` / Jupyter kernels with `/ext3/env.sh`; delete the C6 archive (user) |
+| C!2, C!3 | v3:C!1, v3:C!2 | caveats unchanged |
+| D1–D6 | in force | v3 cites them as v2:D1–D6 |
+| §6 Backlog | v3 §6 | moved unchanged |
 
 ## Status
 
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
 | E0 | Nodal models benchmark and architecture check (`nodal_models_benchmark`) | closed 2026-09-30 | — | agent:infra |
-| E1 | Composite-loss dynamics and trade-off across models, SC → FC (`composite_loss`, grid v3) | done 2026-10-02 (E1.6–E1.10; conclusions → E2.3) | D3, D4, D5, D6 | agent:modeling |
-| E2 | Cross-model benchmark (`model_benchmark`) | in progress (E2.0, E2.1 done; E2.2 built, SC → FC pilot running; E2.3 outline) | C2 | agent:modeling (E2.2) |
-| E3 | Replicate E1 and E2 for FC → SC | in progress (E3.0 + Phase D (E1 FC → SC) done 2026-10-02; E2 FC → SC with E2.2) | E1, E2, E2.0 | agent:infra |
-| I1 | HCP1200 timeseries and connectome-similarity views | in progress (I1.1, I1.4, I1.5 done; I1.5 notebook in user review; I1.2–I1.3 planned) | — | agent:infra (I1.1, I1.4, I1.5) |
-| I2 | Repo organisation: experiment folders, config layout, launchers | in progress (I2.1–I2.2 done; I2.3 on branch `i2-config-layout`, merges when no job runs) | — | agent:modeling |
+| E1 | Composite-loss dynamics and trade-off across models, SC → FC (`composite_loss`, grid v3) | done 2026-10-02 (E1.6–E1.10; conclusions → E2.3, now v3:C1) | D3, D4, D5, D6 | agent:modeling |
+| E2 | Cross-model benchmark (`model_benchmark`) | done 2026-10-04 (E2.0–E2.2; E2.3 → v3:C1) | C2 | agent:modeling (E2.2) |
+| E3 | Replicate E1 and E2 for FC → SC | done 2026-10-04 (E3.0, Phase D = E1 FC → SC; E2.2 FC → SC; composite FC → SC → v3:C1) | E1, E2, E2.0 | agent:infra, agent:modeling (E2.2 FC → SC) |
+| I1 | HCP1200 timeseries and connectome-similarity views | closed (I1.1, I1.4, I1.5 done; I1.2, I1.3, I1.5 follow-ups → v3:C6–C8) | — | agent:infra (I1.1, I1.4, I1.5) |
+| I2 | Repo organisation: experiment folders, config layout, launchers | closed (I2.1–I2.2 done; I2.3 built, merge → v3:C3; I2.4–I2.5 → v3:C4–C5; I2.6 deferred) | — | agent:modeling |
 | C1 | `torch_geometric` missing from `kraken_env` | done 2026-09-30 (via C6) | — | agent:infra |
-| C2 | Re-tune the M5b-affected sweeps | in progress (E2.2 reruns) | E2.2 | agent:modeling |
+| C2 | Re-tune the M5b-affected sweeps | done 2026-10-04 (E2.2 reruns) | E2.2 | agent:modeling |
 | C3 | Confirm `loss_signature` in Tune-trial W&B configs | done | — | agent:infra |
-| C4 | `latent_masked_test` notebook fixes | planned | — | — |
-| C6 | Environment: two `kraken_env` stacks; jobs import from `~/.local` | done 2026-09-30 (C6.1–C6.4); C6.5 open; archive awaiting deletion | C6.5: user | agent:infra |
+| C4 | `latent_masked_test` notebook fixes | carried → v3:C11 | — | — |
+| C6 | Environment: two `kraken_env` stacks; jobs import from `~/.local` | done 2026-09-30 (C6.1–C6.4); C6.5 + archive deletion → v3:C12 | C6.5: user | agent:infra |
 | C7 | Merge the batch-size fix + `extra_callbacks` hook + Ray CPU cap | done 2026-09-30 (`cfc1c32`) | — | agent:modeling |
-| C!1 | v1:M5b — sampled L1/L2 not applied in past sweeps | open | resolved by C2 | — |
-| C!2 | v1:M1b — `ema` runs with `neidist` ≤ 0 during warmup | open | — | — |
-| C!3 | `CrossModal_linear_backbone` z-scored latents are PCA-space | open | — | — |
-| C!4 | Single runs trained at batch 128 regardless of the tuned `batch_size` | open | fixed by C7; re-runs in E2.2 | — |
+| C!1 | v1:M5b — sampled L1/L2 not applied in past sweeps | resolved 2026-10-04 (C2 / E2.2) | C2 | — |
+| C!2 | v1:M1b — `ema` runs with `neidist` ≤ 0 during warmup | open → v3:C!1 | — | — |
+| C!3 | `CrossModal_linear_backbone` z-scored latents are PCA-space | open → v3:C!2 | — | — |
+| C!4 | Single runs trained at batch 128 regardless of the tuned `batch_size` | resolved 2026-10-04 (C7 fix; E2.2 reruns) | C7, E2.2 | — |
 | D1 | One job environment for all experiments and runs | decided | — | user |
 | D2 | Tuning budget: pilot first, pack small models, scale on evidence | decided | — | user |
 | D3 | E1 compute envelope and autonomous execution | decided | — | user |
@@ -68,7 +96,7 @@ the table below lists only what is specific to v2.
 | ID | Item | Blocks | Next action |
 |---|---|---|---|
 | C1 | `torch_geometric` missing from the `kraken_env` overlay (`Chen2024GCN` / `NodalGNN` could not import) | — | **Done 2026-09-30** via C6 (`torch_geometric 2.8.0.post1` in the overlay; `dev_runs` `18880103`). |
-| C2 | Re-tune the sweeps affected by v1:M5b (`CrossModal_PCA_PLS_learnable`, `CrossModal_PCA_PLS_CovProjector`, `Sarwar2020MLP`) | E2 | Re-tune within E2; resolves C!1. |
+| C2 | Re-tune the sweeps affected by v1:M5b (`CrossModal_PCA_PLS_learnable`, `CrossModal_PCA_PLS_CovProjector`, `Sarwar2020MLP`) | E2 | **Done 2026-10-04:** re-tuned per seed in E2.2 (both directions); resolves C!1. Old benchmark rows stay valid only as default-regularization results. |
 | C3 | Confirm Tune-trial W&B configs carry `loss_signature` (v1 8.7 check failed) | — | **Done 2026-09-29.** False negative: wandb 0.25 offline runs keep the config inside `run-*.wandb`, which contains `loss_signature`. `verify_modeling_track.py` should read `run-*.wandb`. |
 | C4 | `scripts/notebooks/model_testing/latent_masked_test.ipynb`: cell 6 reads `residual_linear.weight` (absent in `attention_only`); cell 4 sets `l2_reg` twice | — | Fix when that notebook is next used. |
 | C6 | **Environment divergence** (found 2026-09-29): two `kraken_env` stacks, and jobs imported 38 packages from `~/.local`. Root cause: a non-writable overlay (root-owned skeleton dirs; `--fakeroot` unusable without subuid), so pip fell back to `~/.local`. | E0.5, E2, every run | **C6.1–C6.4 done 2026-09-30:** ownership fixed offline; `~/.local` packages + `torch_geometric` installed into the overlay; `/ext3/env.sh` sets `PYTHONNOUSERSITE=1`, `PIP_USER=0`; verified by `dev_runs` 11/11 (`18880103`). Snapshot `/scratch/asr655/envs/kraken_env/c6_snapshot_2026-09-30/`; backup in `/scratch/asr655/envs/archive/2026-09-30_c6/` (delete once jobs run clean). **Open: C6.5 (user)** — align `activate_env.sh` and Jupyter kernels with `/ext3/env.sh`. `~/.local` is kept as is (other projects may import from it). |
@@ -210,7 +238,7 @@ every instance report (`b11fcb3`, zoom toggle `0b6a768`): test demeaned r vs avg
 hover / click panel. Ceiling from `ceiling/test_retest.py`: demeaned r 0.49, avg_rank 0.987, top-1 0.93 (195 subjects
 with both sessions per split).
 
-#### E1 conclusions (closed 2026-10-02; carried into E2.3)
+#### E1 conclusions (closed 2026-10-02; carried into E2.3 → v3:C1)
 - **The trade-off is real and shared across models.** Identity terms raise avg_rank / top-1 and cost demeaned r; test
   MSE barely moves. Effects correlate across the linear-family instances at 0.61–0.92 (Δ demeaned r) and 0.80–0.98
   (Δ avg_rank); Krakencoder shows the same direction for its native (de-meaned) corr-eye.
@@ -232,14 +260,15 @@ with both sessions per split).
 - **Far from the ceiling:** test-retest is demeaned r 0.49 / avg_rank 0.987 / top-1 0.93; the best cells reach about
   0.12 / 0.88 / 0.13.
 
-### E2 — Cross-model benchmark   (slug: `model_benchmark`) · status: in progress · owner: agent:modeling (E2.2)
+### E2 — Cross-model benchmark   (slug: `model_benchmark`) · status: done 2026-10-04 (E2.3 → v3:C1) · owner: agent:modeling (E2.2)
 
 - **Question:** on equal footing, how are test Pearson r, demeaned r, avg_rank and top-1 distributed across model
-  types, first MSE-only (E2.2), then with composite losses tuned where possible (E2.3)? SC → FC here; FC → SC is E3.
+  types, first MSE-only (E2.2), then with composite losses tuned where possible (E2.3, carried to v3)? Both
+  directions (the FC → SC half is E3's E2 replication).
 - **Design:** each model tuned per seed (Optuna or full grid over its benchmark config, selection on val demeaned r,
   best-trial report), seeds 0–4, one campaign per model; models grouped by type as in the README "Models" table.
 - **Depends on:** C2 / C!1 and C!4 (resolved by the E2.2 reruns); E1 for E2.3.
-- **Open decision:** sources beyond SC (`SC_r2t`, `SC+SC_r2t`).
+- **Not decided in v2:** sources beyond SC (`SC_r2t`, `SC+SC_r2t`); open for v3:C1.
 
 #### E2.0 — Direction audit (`SC → FC` vs `FC → SC`) · done 2026-09-30
 The shared pipeline is direction-agnostic: dataset `x` / `y`, loss, evaluator (has a `target == "SC"` branch) and the
@@ -259,7 +288,7 @@ Exceptions are batch extras that are **always SC / anatomy regardless of directi
 | `NodalGNN` | ✓ | ✗ reverse variant | message passing uses the source edges as weights (negative FC breaks GCN degree normalization); `r2t` node features are SC-derived (leak) |
 | `Chen2024GCN` | ✓ | ✗ reverse variant | same negative-weight problem when the source graph is FC |
 
-**Reverse variants (`FC → SC`) for the graph / nodal models** (requirement, not built):
+**Reverse variants (`FC → SC`) for the graph / nodal models** (requirement, not built; carried as v3:C9):
 - Message-passing graph from the source FC, **thresholded**: keep edges with FC > τ, weights = FC; τ is a model hparam
   (e.g. `fc_graph_threshold`), default **0.5**, searchable. Applies to `Chen2024GCN` and `NodalGNN`.
 - No SC-derived node inputs: `NodalGNN` with `use_r2t: false` (volume / centroid only, or identity); `NodalMLP` reads
@@ -285,101 +314,35 @@ Krakencoder becomes a refittable benchmark model instead of cached predictions.
 - **Pattern for other external baselines:** vendor upstream unmodified, adapt only in a wrapper, build inputs from
   `HCP_Base`, serve predictions through a loader, gate on parity.
 
-#### E2.2 — MSE-only benchmark, SC → FC · in progress (build) · owner: agent:modeling
-**Question:** with every model tuned on the same splits under MSE only, how are test demeaned r, avg_rank and top-1
-distributed across model types? E2.2 picks the models that go on to E2.3 (composite loss, tuned weights). The best of
-those are then reoptimized for the final benchmark, and E3 repeats it for FC → SC.
+#### E2.2 — MSE-only benchmark, both directions · done 2026-10-04 · owner: agent:modeling
+Write-up `scripts/experiments/model_benchmark/model_benchmark.md` (design, per-model budgets, results, caveats);
+results `model_benchmark/mse/{sc2fc,fc2sc}/` (tracked records, tables, figures).
+- **Protocol:** seeds 0–4, each model tuned per seed and selected on val demeaned r, MSE only (two native-objective
+  rows labelled: Masked MLP `latent_mse`, Krakencoder); trials `clamp(8 × free keys, 16, 64)` or the full grid
+  (closed-form) or the audit-narrowed search (Sarwar, Chen, Nodal GNN, Nodal MLP, Masked MLP); each model at its own
+  batch size and budget; one campaign per model × direction (job names `e2_mse_<Model>_<direction>`).
+- **Roster:** null, PLS-SVD, PCA-PLS, Conditional Gaussian (first benchmark), PCA-PLS learnable, linear backbone,
+  PCA-PLS + covariates (`fs_all` + demographics), Masked MLP pretrainer (nonlinear; pilot-gated, D2), Sarwar, Chen,
+  Nodal GNN, Nodal MLP; reused Krakencoder (E2.1; MSE and paper-loss variants) and the test-retest ceiling (E1.10).
+  FC → SC drops Chen / Nodal GNN / Nodal MLP (no reverse variants, E2.0). Excluded: `LatentAttnMasked`,
+  `MaskedLatentPretrainer`, `CrossModalVAE`.
+- **Latent gate:** passed SC → FC (0.088 vs 0.096 − 0.01); **failed FC → SC** (0.132 vs 0.179 − 0.01): negative result.
+- **Execution:** pilot → budgets → full runs via `model_benchmark/autopilot.py` under the 130 GPU-h cap; **111.5
+  GPU-h** (SC → FC 80.4, FC → SC 31.1). Four tasks killed by the cluster at 0.5 GPU × 2 trials (GPU-underuse policy)
+  were rerun at 0.25 × 4. Code `da4ab95` (build), `8626b23` / `350a9b9` (autopilot, Krakencoder variants, paired table,
+  scatter), `1e53f20` (gate-failed exclusion, † marking, ceiling-bar panel).
+- **Result (test demeaned r / avg rank):**
+  - **SC → FC:** linear backbone 0.098 / 0.744, PCA-PLS + covariates 0.097 / 0.696, Conditional Gaussian 0.093 /
+    0.744, PCA-PLS 0.092 / 0.710 (all within 1 SE); Masked MLP 0.090; Krakencoder MSE 0.086 / 0.683, paper loss
+    0.080 / **0.802** (top-1 0.067); Sarwar 0.068; Chen, Nodal MLP, Nodal GNN 0.022–0.011 ≈ null 0.011; ceiling
+    0.49 / 0.987.
+  - **FC → SC:** PCA-PLS + covariates † 0.221 / 0.973 (top-1 0.45; not input-matched, v3:C!3); PCA-PLS learnable
+    0.162 / 0.889; linear backbone 0.158; PCA-PLS 0.147; Krakencoder MSE 0.134 / 0.902; Conditional Gaussian 0.132;
+    Sarwar 0.131; PLS-SVD 0.127; Krakencoder paper 0.105; null 0.007.
+- **To the composite benchmark (v3:C1):** SC → FC linear backbone, Conditional Gaussian, PCA-PLS learnable
+  (Krakencoder as the deep reference); FC → SC PCA-PLS learnable, linear backbone.
 
-**Roster** (from the 2026-09-30 audit, updated 2026-10-02):
-
-| Class | Model | Entry |
-|---|---|---|
-| Null / ceiling | `CrossModalPCA` (null); `TestRetestPrecomputed` (ceiling) | full grid / reuse E1.10 |
-| Linear, closed-form | `CrossModal_PLS_SVD`, `CrossModal_PCA_PLS`, `CrossModal_ConditionalGaussian` | full grid or budget rule |
-| Linear, learned | `CrossModal_PCA_PLS_learnable`, `CrossModal_linear_backbone`, `CrossModal_PCA_PLS_CovProjector` (all covariates) | budget rule |
-| Deep-learning baselines | `Sarwar2020MLP`, `Chen2024GCN` (narrowed searches); `Krakencoder` | narrowed / reuse E2.1 |
-| Pairwise nodal | `NodalMLP`, `NodalGNN` (at the null in E0; narrowed reruns, so every row is from one campaign) | narrowed |
-| Latent / pretrained | `MaskedMLPPretrainer`, **nonlinear** variant (PReLU MLP encoder, GELU MLP readout) | **pilot first (D2)** |
-| Excluded | `LatentAttnMasked` (never tuned; attention adds nothing over its linear backbone in the dev runs; C!2), `MaskedLatentPretrainer` (test 0.068, below the linear family), `CrossModalVAE` (in development) | — |
-
-- **Latent pick.** `MaskedMLPPretrainer`, the **nonlinear** variant (user 2026-10-02: the entry must have some
-  nonlinearity). It is the only tuned latent model with held-out results.
-  - **Linear variant** (fully linear, low-rank): seed 0, test 0.089 / 0.692.
-  - **Nonlinear variant:** tuned, val 0.107 and test 0.081 / 0.691; it overfits (train demeaned r 0.30). Its mask
-    grid (k = 128) reached val 0.113 at SC mask 0 / FC mask 0.05, which equals the linear variant's val (0.115).
-  - Evidence in `results/logs/tune_model_parallel_maskedmlp_*` (2026-04-27).
-  - **Narrowed search** (from `MaskedMLPPretrainer_nonlinear.yml`):
-    - fixed: k = 128, `nonlinear: true`, `readout_type: mlp`;
-    - searched: SC mask {0, 0.1, 0.2}, FC mask {0.05, 0.1, 0.2}, hidden {128, 256}, dropout and `l2_reg` (against
-      overfitting), `lr`, epochs.
-  - **Objective:** its native masked latent reconstruction loss (`latent_mse`), labelled as such, as Krakencoder
-    enters with its own fixed losses.
-  - **Gate (D2):** seeds 0–1, 12 trials; enters if its mean val ≥ the MSE-only `_learnable` mean val on the same seeds
-    − 0.01. **Passed 2026-10-02:** 0.088 vs 0.096 (test 0.088 / 0.109 vs `_learnable` 0.071 / 0.092).
-
-**Protocol:**
-- Seeds 0–4, SC → FC, selection on val demeaned r, test metrics reported.
-- **MSE only:** loss-weight and EMA keys removed from every search; Sarwar's correlation term off.
-- **Each model keeps its own batch size and training budget.** D4's batch 64 is a composite-loss rule.
-- **Trials:** `clamp(8 × free keys, 16, 64)` with ASHA (`_learnable` 64, `linear_backbone` 48, `ConditionalGaussian` 32
-  with `fit_domain: pca`, I2.2); `CrossModalPCA`, `PLS_SVD`, `PCA_PLS` take their full grid.
-- **Narrowed searches** (audit, 3,592 past trials: extra trials bought less than seed noise):
-  - **Chen:** identity nodes, 2 layers, 500 epochs; `conv_dim` {128, 256}, `dnn_dim` {32, 64}, `lr`, `l2_reg`; 12 trials.
-  - **NodalGNN:** 2 layers, decoder 32, 500 epochs; `hidden_dim` {32, 96}, `lr`, `l2_reg`; 10 trials.
-  - **Sarwar:** leaky_relu, 300 epochs, plain MSE; layers {3, 5}, hidden {512, 1024}, dropout, `lr`, `l2_reg`; 16 trials.
-  - **NodalMLP:** about 3 keys from E0's importance table; about 12 trials.
-- **One campaign per model:** results come only from this campaign's task logs (job names
-  `e2_mse_<Model>_<direction>`), never the best over older sweeps (which carry C!1 / C!4 and differ in budget).
-
-**What exists and what reruns:**
-- **Reuse:** Krakencoder (E2.1 `mse_only` and paper default, seeds 0–4) and the test-retest ceiling (E1.10).
-- **Rerun everything else.**
-  - `_learnable`, CovProjector, Sarwar, Chen and NodalGNN: their March 2026 benchmark rows carry C!1 / C!4, and
-    Sarwar's used its correlation loss.
-  - The closed-form March rows were selected best-over-sweeps; they are cheap to redo.
-  - `ConditionalGaussian` has never been benchmarked.
-  - E1's MSE-only fits are consensus configs, not per-seed tuning.
-- **This resolves C2** (re-tune the M5b-affected sweeps) and the C!4 re-runs for these models.
-
-**Flight plan (pre-E3 MSE benchmark, both directions; user 2026-10-02):**
-
-| Stage | What | Gate / output |
-|---|---|---|
-| 0. Infrastructure | Merge I2.3 (config family folders) in a no-jobs window; I2.4 generic launcher (new files) | regression 45/45 + benchmark checks on `main`; benchmark configs regenerate identically |
-| 1. Validate models | SC → FC pilot (1 seed per model + latent gate on seeds 0–1); FC → SC pilot (direction-valid roster: Sarwar `_fc2sc`, graph / nodal excluded until reverse variants exist; Krakencoder reused) | every model finishes with a parsed best-trial summary; errored trials explained or fixed; latent gate rechecked for FC → SC |
-| 2. Compute budgets | per model × direction wall time and trials per hour from the pilot logs → SLURM time and packing in `config.yml`; total GPU-h | budget table approved by the user |
-| 3. Full runs | seeds 0–4, full budgets, `mse/sc2fc` and `mse/fc2sc` campaigns under the shared GPU cap; watcher on; failed seeds resubmitted | 5 seeds per roster model per direction |
-| 4. Report | `run.py` per direction → records, tables, the four metric bar charts; write-up + spec results | top models per direction → E2.3 (composite, tuned weights) → final reoptimized benchmark |
-
-The FC → SC half of stage 3 is E3's "replicate E2 for FC → SC" (roster entries only, no new code).
-
-**Steps:**
-- **E2.2.1 Build** · done 2026-10-02 (`da4ab95`). Configs `models/configs/benchmark/mse/` (generated by
-  `model_benchmark/build_configs.py`; direction set by the launcher; `_fc2sc` only for Sarwar); roster `config.yml`,
-  `submit.py`, `launch_model.sh`, `run.py` (logs → records → tables + per-metric bars grouped by model type), checks.
-- **E2.2.2 Pilot** · SC → FC running (jobs `19061419`–`19061431`); latent gate passed; FC → SC pilot next.
-- **E2.2.3 Full runs** and **E2.2.4 Report:** stages 3–4 of the flight plan.
-
-- **Accept:**
-  - every row is one campaign × seeds 0–4, verified MSE-only (or native objective, labelled) from run configs;
-  - deterministic rendering from tracked records;
-  - write-up `scripts/experiments/model_benchmark/model_benchmark.md`.
-- **Budget:** about 10–20 GPU-h for the cheap set plus about 30–40 GPU-h for the narrowed expensive set (5 seeds),
-  plus pilots. Each stage is approved before launch.
-
-- **Parallel with E3 Phase D (user 2026-10-02):** E2.2 (agent:modeling) and E3 Phase D (agent:infra) run at the
-  same time. Rules for both:
-  - **`models/` is frozen while either has jobs queued or running** (jobs import it live): no edits to model code or to
-    any `models/configs/*.yml` a queued job reads. Config changes go into **new** files (e.g. `Sarwar2020MLP_fc2sc.yml`).
-  - **Separate folders:** E2.2 lives in its own experiment folder and does not touch `scripts/experiments/composite_loss/`
-    or `scripts/results_utils/loss_grid.py`; Phase D only adds `composite_loss/<model>/fc2sc/` and `ceiling/` files.
-  - **Spec:** each edits only its own section (E2.2 / E3) plus its change-log row.
-  - **GPUs:** both share the per-user QOS cap; Phase D uses up to ~10 concurrent GPUs while its Stage 1 and grids run
-    (two chains), E2.2 the rest. Pack small models (D2) on both sides.
-  - **Direction-aware from the start:** build the E2.2 runner on the `sc2fc` / `fc2sc` folder convention (E3.0), so
-    E3's FC → SC replication of E2 is configuration, not new code.
-
-#### E2.3 — Composite-loss benchmark (tuned weights) · outline
+#### E2.3 — Composite-loss benchmark (tuned weights) · carried → v3:C1
 Absorbs the former E3 outline (composite-loss magnitude tuning, never started).
 - **Design:** the E2 roster where the model trains at batch 64 (D4). Composite weights are tuned per model: Optuna over
   the scaled weights (`loss_weight_*` with each model's fixed scales, measured as in E1.2) jointly with `lr` /
@@ -389,7 +352,7 @@ Absorbs the former E3 outline (composite-loss magnitude tuning, never started).
   trade-off makes the choice of selection metric (demeaned r vs avg_rank, or a combination) a decision to make here.
 - **Depends on:** E1, E2.2.
 
-### E3 — FC → SC: replicate E1 and E2   (slug: `composite_loss/<model>/fc2sc` for E1) · status: in progress · owner: agent:infra
+### E3 — FC → SC: replicate E1 and E2   (slug: `composite_loss/<model>/fc2sc` for E1) · status: done 2026-10-04 · owner: agent:infra
 
 - **Question:** do the E1 loss landscape and the E2 model comparison hold in the reverse direction (FC → SC)?
 - **Design:** the E1 protocol and the E2.2 / E2.3 benchmark with `--source FC --target SC`, same seeds and grid.
@@ -418,24 +381,26 @@ Absorbs the former E3 outline (composite-loss magnitude tuning, never started).
       volumes predicting the `invnodevol` SC normalisation — anatomy, not FC; needs a no-volume ablation.
     - **Open flags (not re-run):** `linear_backbone` consensus 256 PCs = top of its range; `pca_pls_learnable` lr near
       the 3e-5 floor with epochs near the top; composite runs reuse the MSE-tuned schedule (early peak then decline in
-      `pca_pls_learnable`). Carry into E2.3 (tune epochs with the weights, widen these ranges).
+      `pca_pls_learnable`). Carried into v3:C1 (tune epochs with the weights, widen these ranges).
     - FC → SC ceiling: skipped (user 2026-10-02; no SC test-retest in the data).
-    - Parallel with E2.2: rules in E2.2.
+- **E2 FC → SC** · done 2026-10-04 with E2.2 (agent:modeling; roster entries only, no new code): 9 models + Krakencoder,
+  31.1 GPU-h; results in E2.2. Confirms Phase D: FC → SC is easier for every model and the covariate model's lead is
+  anatomy-driven (v3:C!3). The composite FC → SC benchmark is part of v3:C1.
 - **Depends on:** E1, E2, E2.0.
 
 ## 5. Infrastructure
 
-### I1 — HCP1200 timeseries and connectome-similarity views   · status: in progress · owner: —
+### I1 — HCP1200 timeseries and connectome-similarity views   · status: closed (I1.2, I1.3, I1.5 follow-ups → v3:C6–C8) · owner: —
 
 - **I1.1 — Move the HCP1200 timeseries into the data folders** · done 2026-10-01 (agent:infra). Add-only merge into
   `HCP1200/HCP1200_fMRI/xcpd-0-9-1` (job `18978259`, verify passed: 569,808 files moved, 0 errors; never overwrote
   existing files); staging cleaned, the `.tar` backup kept. Procedure: `context_packages/HCP1200_xcpd_transfer_merge_handoff.md`.
-- **I1.2 — Subject × subject connectome-similarity matrices** · planned · owner: —
+- **I1.2 — Subject × subject connectome-similarity matrices** · carried → v3:C6 · owner: —
   - A correlation matrix over all subjects' connectome comparisons (diagonal = same subject), in raw and **demeaned**
     form (training-set mean subtracted, as in Demeaned corr-eye).
   - Interactive per-subject matrix views of the full and the demeaned connectome.
   - Self-contained HTML per the figure convention (§2).
-- **I1.3 — Which behavioral FC best predicts SC** · planned · owner: —
+- **I1.3 — Which behavioral FC best predicts SC** · carried → v3:C7 · owner: —
   - With the best E2 model, test which behavioral FC (from the I1.1 timeseries) best predicts SC.
   - This is the starting point for timeseries modeling, with room for spatial analyses.
   - **Depends on:** I1.1, E2, E3 (the FC → SC path).
@@ -471,9 +436,9 @@ Absorbs the former E3 outline (composite-loss magnitude tuning, never started).
     0.06–0.16 vs rest S1–S2 0.50; emotion (352 TRs) is farthest from every condition.
   - **Merged** on user request (2026-10-04, no E1/E2 job queued); `verify_fc_conditions` re-run on `main` against
     `350a9b9`: passes on both parcellations (job `19178535`). Figures: `results/figures/fc_conditions{,_checks}/`.
-  - **Follow-ups (user):** cross-condition fingerprinting (top-1, differential identifiability); network-ordered view.
+  - **Follow-ups (user; carried → v3:C8):** cross-condition fingerprinting (top-1, differential identifiability); network-ordered view.
 
-### I2 — Repo organisation: experiment folders, config layout, launchers   · status: in progress · owner: agent:modeling
+### I2 — Repo organisation: experiment folders, config layout, launchers   · status: closed (open parts → v3:C3–C5) · owner: agent:modeling
 
 **Goal:** a layout that scales to more models, both directions and the E2.3 / final benchmarks without copied files.
 Started from user review 2026-10-02.
@@ -484,7 +449,7 @@ Started from user review 2026-10-02.
     benchmark `final/`).
 - **I2.2 — ConditionalGaussian search** · done (`43c9174`, `4e93dd7`). The benchmark config fixes `fit_domain: pca`; the model
   rejects `raw_edges` with shrinkage estimators, and 168 of the pilot's trials errored.
-- **I2.3 — Config family folders** · built on branch `i2-config-layout` (`7501e94`, rebased on `main`; worktree `../Conn2Conn_wt_i2`).
+- **I2.3 — Config family folders** · built on branch `i2-config-layout` (`7501e94`; worktree `../Conn2Conn_wt_i2`); merge carried → v3:C3.
   - **Layout:** `models/configs/{null_ceiling,linear,latent,graph_nodal,deep}/<Model>.yml`;
     `variants/<family>/<Model>_<variant>.yml`; `benchmark/<campaign>/` reached by path only.
   - **Lookup:** `models/registry.py` finds a config by name. Old flat paths (`models/configs/<name>.yml`, used by the
@@ -493,28 +458,20 @@ Started from user review 2026-10-02.
     `models/architectures/crossmodal_conditional_gaussian.py` (linear family).
   - **Checks:** loss regression 45/45 bit-identical; E1.1 checks pass; benchmark configs regenerate identically.
   - **Merge rule:** merge only when no job is queued or running (it touches `models/`).
-- **I2.4 — One tune launcher** · planned.
+- **I2.4 — One tune launcher** · carried → v3:C4.
   - A generic `scripts/sbatch/launch_tune.sh` + roster `submit.py` (the `model_benchmark` pattern, generalised).
   - The ~60 per-model sbatch scripts move to `scripts/sbatch/legacy/`, after checking no other agent still submits
     them (Krakencoder's launcher stays).
-- **I2.5 — Variants as overrides** · planned. Source and covariate variants (`_SC_r2t`, `_SC+SC_r2t`, `_demo`,
+- **I2.5 — Variants as overrides** · carried → v3:C5. Source and covariate variants (`_SC_r2t`, `_SC+SC_r2t`, `_demo`,
   `_fs_*`) become short `data:` / `model:` overrides in experiment rosters instead of near-copy files.
 - **I2.6 — Hydra** · deferred (user 2026-10-02): too large a refactor for the benefit; I2.3–I2.5 cover the need.
 - **Found while testing:** `composite_loss/checks/check_protocol.py` fails on `main`: it still reads
-  `composite_loss/linear_backbone/config.yml`, moved to `<model>/sc2fc/` in E3.0 Phase C. Left to the E3 owner.
+  `composite_loss/linear_backbone/config.yml`, moved to `<model>/sc2fc/` in E3.0 Phase C. Carried → v3:C10.
 
 ## 6. Backlog (not scheduled)
 
-From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
-- **Graph / nodal models on top of the mean** (from E0): train GNNs on the subject's deviation from the train-split
-  mean FC, or on PCA scores / low-rank factors, as the PCA family does, instead of on full FC edges; include an
-  SC-only (`use_r2t: false`) `NodalGNN`. Pilot per D2 against `PCA_PLS_learnable` on the same seeds.
-- **Editable install** (`pyproject.toml` + `pip install -e .`; the overlay now mounts `:rw` without `--fakeroot`, C6) and `conn2conn/` namespacing.
-- **Artifact cleanup:** `results/ray_results/` (118 GB) and a `results/logs/` retention policy.
-- **Shared constants** between `main.py` and `scripts/results_utils/records.py`.
-- **Untracked reference code** in `context_packages/modeling/*_context/`.
-- **Latent-space terms inside composite** (`latent_mse` / `latent_weighted_mse` as mixable terms).
-- **EMA diagnostics:** `*_loss_ref_*` behavior after warmup, and batch-size sensitivity of `correye` / `neidist` (64 vs 128).
+Moved unchanged to [v3 §6](spec_doc_v3.md#6-backlog-not-scheduled) at closure (v1 §6 / §8.6 items, unrun v1 M10
+parts, E0 / E1 follow-ups).
 
 ## 7. Change log
 
@@ -556,5 +513,7 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-10-02 | I1.4 done (task FC caches, bit-identical rest rebuild, damaged-source exclusions, ACL handling); I1.5 built on branch `fc-conditions` (condition loaders, partition-index fix, condition EDA views + notebook; checks pass), awaiting user review. |
 | 2026-10-02 | E3 Phase D done: E1 protocol FC → SC for linear_backbone, pca_pls_learnable, pca_pls_covprojector (12.0 GPU-h); trade-off does not carry over (MSE-only best); CovProjector anatomy caveat; search-edge flags to E2.3. |
 | 2026-10-04 | I1.5 merged into `main` (`5f5d238`); validation re-run on `main` passes on both parcellations; worktree removed. |
+| 2026-10-04 | E2.2 done, both directions (111.5 GPU-h): linear family leads SC → FC (tied), graph / nodal at the null; FC → SC easier, covariate model's lead anatomy-driven; latent gate failed FC → SC. E2, E3 done; C2, C!1, C!4 resolved. Write-up `model_benchmark/model_benchmark.md`. |
+| 2026-10-04 | **v2 closed.** Open items carried to [`spec_doc_v3.md`](spec_doc_v3.md) (Closure table); I1 and I2 closed with their open parts carried; backlog moved. |
 
 Last updated at: 2026-10-04 EDT
