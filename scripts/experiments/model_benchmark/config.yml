@@ -17,7 +17,11 @@ types:
   pairwise_nodal:     {label: "Pairwise nodal",       color: "#E3962B"}
   null_ceiling:       {label: "Null / ceiling",       color: "#8C8C8C"}
 
+# extra_inputs: the model sees more than the source modality (not input-matched: marked † and never the paired
+# reference). FC -> SC caveat: fs_all volumes ~ the SC target's invnodevol normalisation (spec v2 E3).
 # packing: tune_gpus_per_trial x max_concurrent_trials on one GPU (D2); time = SLURM limit per seed task.
+# Sarwar / NodalMLP repacked 0.5x2 -> 0.25x4 on 2026-10-03: their 0.5x2 tasks were killed (SIGTERM by root) after
+# ~2 h 10-25 min, consistent with the cluster's GPU-underutilisation policy; same trial budget.
 models:
   CrossModalPCA:                  {type: null_ceiling,       label: "PCA null",            packing: [0.25, 4], time: "1:00:00", role: floor}
   CrossModal_PLS_SVD:             {type: linear_closed_form, label: "PLS-SVD",             packing: [0.25, 4], time: "1:00:00"}
@@ -25,12 +29,13 @@ models:
   CrossModal_ConditionalGaussian: {type: linear_closed_form, label: "Conditional Gaussian", packing: [0.25, 4], time: "3:00:00"}
   CrossModal_PCA_PLS_learnable:   {type: linear_learned,     label: "PCA-PLS learnable",   packing: [0.25, 4], time: "4:00:00"}
   CrossModal_linear_backbone:     {type: linear_learned,     label: "Linear backbone",     packing: [0.25, 4], time: "3:00:00"}
-  CrossModal_PCA_PLS_CovProjector: {type: linear_learned,    label: "PCA-PLS + covariates", packing: [0.25, 4], time: "5:00:00"}
+  CrossModal_PCA_PLS_CovProjector: {type: linear_learned,    label: "PCA-PLS + covariates", packing: [0.25, 4], time: "5:00:00",
+                                   extra_inputs: "FreeSurfer fs_all + demographics"}
   MaskedMLPPretrainer:            {type: latent_pretrained,  label: "Masked MLP pretrainer", packing: [0.25, 4], time: "4:00:00", gate: true, objective: "native latent_mse"}
-  Sarwar2020MLP:                  {type: deep_baseline,      label: "Sarwar MLP",          packing: [0.5, 2],  time: "8:00:00"}
+  Sarwar2020MLP:                  {type: deep_baseline,      label: "Sarwar MLP",          packing: [0.25, 4],  time: "8:00:00"}
   Chen2024GCN:                    {type: deep_baseline,      label: "Chen GCN",            packing: [0.5, 2],  time: "8:00:00"}
   NodalGNN:                       {type: pairwise_nodal,     label: "Nodal GNN",           packing: [0.5, 2],  time: "8:00:00"}
-  NodalMLP:                       {type: pairwise_nodal,     label: "Nodal MLP",           packing: [0.5, 2],  time: "6:00:00"}
+  NodalMLP:                       {type: pairwise_nodal,     label: "Nodal MLP",           packing: [0.25, 4],  time: "6:00:00"}
 
 # Results reused from other experiments (no rerun), read per direction.
 reuse:
@@ -70,6 +75,7 @@ directions:
     models: [CrossModalPCA, CrossModal_PLS_SVD, CrossModal_PCA_PLS, CrossModal_ConditionalGaussian,
              CrossModal_PCA_PLS_learnable, CrossModal_linear_backbone, CrossModal_PCA_PLS_CovProjector,
              MaskedMLPPretrainer, Sarwar2020MLP]
+    gate_failed: {MaskedMLPPretrainer: "latent gate failed 2026-10-03: mean val 0.132 < threshold 0.169 (_learnable 0.179 - 0.01)"}
     excluded: {Chen2024GCN: "reverse variant not built (FC graph threshold)", NodalGNN: "reverse variant not built",
                NodalMLP: "reverse variant not built (SC-row input = target)"}
     reuse: [Krakencoder_mse, Krakencoder_paper]

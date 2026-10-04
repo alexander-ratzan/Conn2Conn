@@ -56,7 +56,8 @@ def parse_log(path):
 
 def scrape(cfg, direction, log_dir=LOG_DIR):
     records = []
-    for model in cfg["directions"][direction]["models"]:
+    gate_failed = cfg["directions"][direction].get("gate_failed") or {}
+    for model in [m for m in cfg["directions"][direction]["models"] if m not in gate_failed]:
         name = f"{cfg['campaign']}_{model}_{direction}"
         latest = {}
         for path in sorted(glob.glob(str(Path(log_dir) / f"{name}_*_*.out")), key=os.path.getmtime):
@@ -101,8 +102,9 @@ def tables(cfg, records):
     rows = []
     for r in records:
         info = model_info(cfg, r["model"])
-        row = {"model": r["model"], "label": info.get("label", r["model"]), "type": info.get("type", "other"),
-               "role": info.get("role") or "", "objective": info.get("objective") or "", "seed": r["seed"]}
+        row = {"model": r["model"], "label": info.get("label", r["model"]) + (" †" if info.get("extra_inputs") else ""), "type": info.get("type", "other"),
+               "role": info.get("role") or "", "objective": info.get("objective") or "", "seed": r["seed"],
+               "extra_inputs": bool(info.get("extra_inputs"))}
         row.update({f"test_{m}": (float(r["test"][m]) if r["test"].get(m) is not None else np.nan)
                     for m in ("pearson", "demeaned_pearson", "avg_rank", "top1_acc", "mse")})
         row["val_demeaned_r"] = r.get("selected_val") if r.get("selected_val") is not None else r["val"].get("demeaned_r")
@@ -123,9 +125,9 @@ def tables(cfg, records):
 
 
 # ------------------------------------------------------------------------------------------- figures
-def _order(summary, metric, types):
+def _order(summary, metric, types, with_ceiling=False):
     """Groups (model types) sorted by their mean on the metric, models within a group by their own mean."""
-    s = summary[summary["role"] != "ceiling"].dropna(subset=[f"{metric}_mean"])
+    s = (summary if with_ceiling else summary[summary["role"] != "ceiling"]).dropna(subset=[f"{metric}_mean"])
     sign = 1 if metric in LOWER_IS_BETTER else -1
     group_mean = s.groupby("type")[f"{metric}_mean"].mean()
     groups = sorted(group_mean.index, key=lambda t: sign * group_mean[t])
@@ -136,10 +138,11 @@ def _order(summary, metric, types):
     return groups, order
 
 
-def bar_axes(ax, cfg, summary, seed_df, metric, show_legend=True):
+def bar_axes(ax, cfg, summary, seed_df, metric, show_legend=True, with_ceiling=False):
+    """with_ceiling: the test-retest ceiling is drawn as its own bar (axis scaled to it) instead of a line / title note."""
     import matplotlib.pyplot as plt  # noqa: F401
     types = cfg["types"]
-    groups, order = _order(summary, metric, types)
+    groups, order = _order(summary, metric, types, with_ceiling)
     x, gap, xs, labels = 0.0, 0.7, [], []
     group_spans = []
     for t in groups:
@@ -162,8 +165,12 @@ def bar_axes(ax, cfg, summary, seed_df, metric, show_legend=True):
         group_spans.append((t, start, x - 1.0))
         x += gap
     ceiling = summary[summary["role"] == "ceiling"]
-    ymax = max([summary.loc[summary["role"] != "ceiling", f"{metric}_mean"].max() or 0,
-                np.nanmax(seed_df.loc[seed_df["role"] != "ceiling", f"test_{metric}"].to_numpy()) if len(seed_df) else 0])
+    shown = (summary["role"] != "ceiling") | with_ceiling
+    shown_seeds = (seed_df["role"] != "ceiling") | with_ceiling
+    ymax = max([summary.loc[shown, f"{metric}_mean"].max() or 0,
+                np.nanmax(seed_df.loc[shown_seeds, f"test_{metric}"].to_numpy()) if len(seed_df) else 0])
+    if with_ceiling:
+        ceiling = ceiling.iloc[0:0]  # drawn as a bar: no line / off-scale note
     null = summary[summary["role"] == "floor"]
     if len(null) and not np.isnan(null.iloc[0][f"{metric}_mean"]):
         ax.axhline(null.iloc[0][f"{metric}_mean"], color="#8C8C8C", ls=":", lw=1.4, zorder=1)
@@ -181,7 +188,7 @@ def bar_axes(ax, cfg, summary, seed_df, metric, show_legend=True):
     ax.set_title(METRIC_LABEL[metric] + title_note, fontsize=13)
     lo = 0.5 if metric == "avg_rank" else 0.0
     if metric == "pearson":
-        vals = summary.loc[summary["role"] != "ceiling", "pearson_mean"].dropna()
+        vals = summary.loc[shown, "pearson_mean"].dropna()
         lo = max(0.0, (vals.min() - 0.02) if len(vals) else 0.0)
     top = ymax * 1.08
     if len(ceiling) and not title_note:
@@ -196,14 +203,17 @@ def bar_axes(ax, cfg, summary, seed_df, metric, show_legend=True):
                   frameon=False, borderaxespad=0.0)
 
 
-def figures(cfg, summary, seed_df, out):
+def figures(cfg, summary, seed_df, out, direction):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     plt.rcParams.update({"font.family": ["DejaVu Sans", "sans-serif"], "font.size": 12, "axes.spines.right": False,
                          "axes.spines.top": False, "axes.linewidth": 1.6})
     out.mkdir(parents=True, exist_ok=True)
-    note = "Bars: mean ± SE over seeds (dots = seeds). * = native objective (not plain MSE)."
+    note = "Bars: mean ± SE over seeds (dots = seeds). * = native objective (not plain MSE). † = extra inputs (anatomy + demographics)."
+    dropped = {**(cfg["directions"][direction].get("excluded") or {}), **(cfg["directions"][direction].get("gate_failed") or {})}
+    if dropped:
+        note += " Not shown: " + ", ".join(model_info(cfg, m).get("label", m) for m in dropped) + " (see tables/excluded.md)."
     written = []
     for metric in cfg["metrics"]:
         fig, ax = plt.subplots(figsize=(max(8, 0.75 * len(summary) + 3), 5.2))
@@ -213,24 +223,31 @@ def figures(cfg, summary, seed_df, out):
         fig.savefig(out / f"bars_{metric}.png", dpi=300, facecolor="white", bbox_inches="tight")
         plt.close(fig)
         written.append(f"bars_{metric}.png")
-    fig, axes = plt.subplots(2, 2, figsize=(2 * max(8, 0.75 * len(summary) + 3), 11))
-    for ax, metric in zip(axes.flat, cfg["metrics"]):
-        bar_axes(ax, cfg, summary, seed_df, metric, show_legend=False)
     import matplotlib.patches as mpatches
     present = [t for t in cfg["types"] if t in set(summary["type"])]
-    fig.legend(handles=[mpatches.Patch(color=cfg["types"][t]["color"], label=cfg["types"][t]["label"]) for t in present],
-               loc="upper center", ncol=len(present), frameon=False, fontsize=11, bbox_to_anchor=(0.5, 1.0))
-    fig.text(0.01, 0.003, note, fontsize=9, color="#555555")
-    fig.tight_layout(pad=1.5, rect=(0, 0, 1, 0.97))
-    fig.savefig(out / "bars_all_metrics.png", dpi=300, facecolor="white", bbox_inches="tight")
-    plt.close(fig)
-    return written + ["bars_all_metrics.png"]
+    variants = [("bars_all_metrics.png", False)]
+    if (summary["role"] == "ceiling").any():
+        variants.append(("bars_all_metrics_ceiling.png", True))  # same panel with the test-retest ceiling as a bar
+    for name, with_ceiling in variants:
+        fig, axes = plt.subplots(2, 2, figsize=(2 * max(8, 0.75 * len(summary) + 3), 11))
+        for ax, metric in zip(axes.flat, cfg["metrics"]):
+            bar_axes(ax, cfg, summary, seed_df, metric, show_legend=False, with_ceiling=with_ceiling)
+        fig.legend(handles=[mpatches.Patch(color=cfg["types"][t]["color"], label=cfg["types"][t]["label"]) for t in present],
+                   loc="upper center", ncol=len(present), frameon=False, fontsize=11, bbox_to_anchor=(0.5, 1.0))
+        fig.text(0.01, 0.003, note, fontsize=9, color="#555555")
+        fig.tight_layout(pad=1.5, rect=(0, 0, 1, 0.97))
+        fig.savefig(out / name, dpi=300, facecolor="white", bbox_inches="tight")
+        plt.close(fig)
+        written.append(name)
+    return written
 
 
 def paired(cfg, seed_df, summary):
-    """Per-seed paired differences against the best linear model (by mean test demeaned r), on shared seeds.
+    """Per-seed paired differences against the best input-matched linear model (by mean test demeaned r; models with
+    `extra_inputs` are never the reference), on shared seeds.
     Splits are shared across models, so paired differences remove split-to-split variance."""
-    lin = summary[summary["type"].str.startswith("linear") & (summary["role"] == "")]
+    matched = {m for m in summary["model"] if not model_info(cfg, m).get("extra_inputs")}
+    lin = summary[summary["type"].str.startswith("linear") & (summary["role"] == "") & summary["model"].isin(matched)]
     if lin.empty:
         return None, pd.DataFrame()
     ref = lin.sort_values("demeaned_pearson_mean", ascending=False).iloc[0]["model"]
@@ -261,8 +278,21 @@ def scatter(cfg, summary, out):
         ax.errorbar(r["avg_rank_mean"], r["demeaned_pearson_mean"], xerr=r["avg_rank_se"], yerr=r["demeaned_pearson_se"],
                     fmt="s" if r["objective"] else "o", ms=8, color=col, ecolor=col, capsize=3,
                     mfc="white" if r["objective"] else col, mew=1.6)
-        ax.annotate(r["label"], (r["avg_rank_mean"], r["demeaned_pearson_mean"]), xytext=(6, 4),
-                    textcoords="offset points", fontsize=8, color="#444444")
+    # labels: nudge apart vertically when points crowd (greedy, bottom-up), with a leader line when moved
+    pts = sorted(((r["avg_rank_mean"], r["demeaned_pearson_mean"], r["label"]) for r in s.to_dict("records")),
+                 key=lambda t: t[1])
+    xr = np.ptp([t[0] for t in pts]) or 1.0
+    gap = 0.035 * (np.ptp([t[1] for t in pts]) or 1.0)
+    placed = []
+    for x, y, lab in pts:
+        ly = y
+        for px, py in placed:
+            if abs(px - x) < 0.25 * xr and ly - py < gap:
+                ly = py + gap
+        placed.append((x, ly))
+        moved = abs(ly - y) > 1e-12
+        ax.annotate(lab, (x, y), xytext=(x + 0.012 * xr, ly + 0.25 * gap), fontsize=8, color="#444444",
+                    arrowprops=dict(arrowstyle="-", color="#999999", lw=0.6) if moved else None)
     ceil = summary[summary["role"] == "ceiling"]
     note = ""
     if len(ceil):
@@ -306,20 +336,23 @@ def build(direction, cached=False, cfg=None, out_root=None, log_dir=LOG_DIR):
                  for m in cfg["metrics"]]
         md.append(f"| {r['label']} | {cfg['types'].get(r['type'], {}).get('label', r['type'])} | {r['n_seeds']} | " + " | ".join(cells) + " |")
     (d / "tables" / "summary.md").write_text("\n".join(md) + "\n")
-    written = figures(cfg, summary, seed_df, d / "figures")
+    written = figures(cfg, summary, seed_df, d / "figures", direction)
     written.append(scatter(cfg, summary, d / "figures"))
     ref, pair = paired(cfg, seed_df, summary)
     if ref is not None:
         pair.to_csv(d / "tables" / "paired_vs_best_linear.csv", index=False, float_format="%.6g")
-        lines = [f"Paired per-seed differences vs `{ref}` (best linear model by mean test demeaned r; shared seeds).", "",
+        lines = [f"Paired per-seed differences vs `{ref}` (best input-matched linear model by mean test demeaned r; shared seeds). † = extra inputs, not input-matched.", "",
                  "| Model | Seeds | Δ Pearson r | Δ demeaned r | Δ avg rank | Δ top-1 |", "|---|---|---|---|---|---|"]
         for r in pair.to_dict("records"):
             cell = lambda m: (f"{r[f'd_{m}_mean']:+.4f} ± {r[f'd_{m}_se']:.4f}" if not np.isnan(r[f"d_{m}_se"])
                               else (f"{r[f'd_{m}_mean']:+.4f}" if not np.isnan(r[f"d_{m}_mean"]) else "–"))
             lines.append(f"| {r['label']} | {r['n_shared_seeds']} | " + " | ".join(cell(m) for m in ("pearson", "demeaned_pearson", "avg_rank", "top1_acc")) + " |")
         (d / "tables" / "paired_vs_best_linear.md").write_text("\n".join(lines) + "\n")
+    gate_failed = cfg["directions"][direction].get("gate_failed") or {}
+    if gate_failed:
+        (d / "tables" / "excluded.md").write_text("".join(f"- `{m}`: {why}\n" for m, why in gate_failed.items()))
     missing = [(m, sorted(set(cfg["seeds"]) - set(seed_df.loc[seed_df["model"] == m, "seed"])))
-               for m in cfg["directions"][direction]["models"]]
+               for m in cfg["directions"][direction]["models"] if m not in gate_failed]
     missing = [(m, s) for m, s in missing if s]
     print(f"{direction}: {len(records)} records, {summary.shape[0]} models; figures {written}")
     if missing:
