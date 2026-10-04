@@ -19,7 +19,7 @@ To add an experiment, append a section under §4 using the template in §4.0 and
 | E1 | Composite-loss dynamics and trade-off across models, SC → FC (`composite_loss`, grid v3) | done 2026-10-02 (E1.6–E1.10; conclusions → E2.3) | D3, D4, D5, D6 | agent:modeling |
 | E2 | Cross-model benchmark (`model_benchmark`) | in progress (E2.0, E2.1 done; E2.2 built, SC → FC pilot running; E2.3 outline) | C2 | agent:modeling (E2.2) |
 | E3 | Replicate E1 and E2 for FC → SC | in progress (E3.0 + Phase D (E1 FC → SC) done 2026-10-02; E2 FC → SC with E2.2) | E1, E2, E2.0 | agent:infra |
-| I1 | HCP1200 timeseries and connectome-similarity views | in progress (I1.1, I1.4 done; I1.5 built on branch `fc-conditions`, awaiting user review; I1.2–I1.3 planned) | — | agent:infra (I1.1, I1.4, I1.5) |
+| I1 | HCP1200 timeseries and connectome-similarity views | in progress (I1.1, I1.4, I1.5 done; I1.5 notebook in user review; I1.2–I1.3 planned) | — | agent:infra (I1.1, I1.4, I1.5) |
 | I2 | Repo organisation: experiment folders, config layout, launchers | in progress (I2.1–I2.2 done; I2.3 on branch `i2-config-layout`, merges when no job runs) | — | agent:modeling |
 | C1 | `torch_geometric` missing from `kraken_env` | done 2026-09-30 (via C6) | — | agent:infra |
 | C2 | Re-tune the M5b-affected sweeps | in progress (E2.2 reruns) | E2.2 | agent:modeling |
@@ -451,8 +451,8 @@ Absorbs the former E3 outline (composite-loss magnitude tuning, never started).
     4S456 combined timeseries is truncated and matters for timeseries work.
   - New entries under `Conn2Conn_data/` and the HCP1200 tree inherit only a non-owner NFSv4 ACE and come out mode 000;
     the builder copies the existing caches' ACLs.
-- **I1.5 — Condition loaders and FC EDA notebook** · built on branch `fc-conditions` (worktree
-  `../Conn2Conn_wt_fc_conditions`, `deda4fa`), awaiting user review · owner: agent:infra
+- **I1.5 — Condition loaders and FC EDA notebook** · done 2026-10-04, merged `5f5d238` (branch `fc-conditions`
+  deleted); notebook in user review · owner: agent:infra
   - **Loaders:** `load_fc_precomputed(task=, load_matrices=)`; `HCP_Base(fc_conditions=[...])` joins the task caches to
     the canonical subject set (917 Glasser / 916 4S456 with all conditions; Glasser split 659/74/184);
     `HCP_Base.subject_order()` is shared with `Evaluator` (same orderings).
@@ -469,7 +469,8 @@ Absorbs the former E3 outline (composite-loss magnitude tuning, never started).
     within/between means). The notebook ran end to end headless (`run_notebook_cells.sh`, job `19069236`).
   - **First numbers (Glasser val, demeaned):** within-subject cross-condition r 0.16 vs between-subject 0.00; task–task
     0.06–0.16 vs rest S1–S2 0.50; emotion (352 TRs) is farthest from every condition.
-  - **Merge rule:** after user review, and when no job imports `data/` or `models/eval/` from `main`.
+  - **Merged** on user request (2026-10-04, no E1/E2 job queued); `verify_fc_conditions` re-run on `main` against
+    `350a9b9`: passes on both parcellations (job `19178535`). Figures: `results/figures/fc_conditions{,_checks}/`.
   - **Follow-ups (user):** cross-condition fingerprinting (top-1, differential identifiability); network-ordered view.
 
 ### I2 — Repo organisation: experiment folders, config layout, launchers   · status: in progress · owner: agent:modeling
@@ -554,5 +555,6 @@ From v1 §6, v1 §8.6, the unrun parts of v1 M10, and E0/E1 follow-ups:
 | 2026-10-02 | Spec audit: status table synced (E2, E3, I1, C2, C!4); closed items shrunk to outcomes (C1, C3, C6 + C6 plan, C7, E0, E1.10, E2.1); E2 head and E2.0 updated (Krakencoder both directions, FC → SC exercised); E2.2 campaign wording, trial budgets, gate result and steps updated; I1.1 done; backlog items covered by I2 / D6 removed. |
 | 2026-10-02 | I1.4 done (task FC caches, bit-identical rest rebuild, damaged-source exclusions, ACL handling); I1.5 built on branch `fc-conditions` (condition loaders, partition-index fix, condition EDA views + notebook; checks pass), awaiting user review. |
 | 2026-10-02 | E3 Phase D done: E1 protocol FC → SC for linear_backbone, pca_pls_learnable, pca_pls_covprojector (12.0 GPU-h); trade-off does not carry over (MSE-only best); CovProjector anatomy caveat; search-edge flags to E2.3. |
+| 2026-10-04 | I1.5 merged into `main` (`5f5d238`); validation re-run on `main` passes on both parcellations; worktree removed. |
 
-Last updated at: 2026-10-02 EDT
+Last updated at: 2026-10-04 EDT
