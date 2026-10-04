@@ -29,8 +29,24 @@ def _read_required_npy(path):
     return np.load(path)
 
 
-def _cache_dir_fc(cache_root, parcellation, hemi, session=None):
-    suffix = "" if session is None else f"_session{int(session)}"
+# Task conditions with a combined-run (LR+RL) FC cache built by data/data_caching/build_fc_cache.py.
+FC_TASK_CONDITIONS = ("emotion", "gambling", "language", "motor", "relational", "social", "wm")
+
+
+def _cache_dir_fc(cache_root, parcellation, hemi, session=None, task=None):
+    """FC cache folder: rest (default), rest per-session (`session`), or a task condition (`task`)."""
+    if task == "rest":
+        task = None
+    if session is not None and task is not None:
+        raise ValueError("Per-session caches exist for rest only; pass session or task, not both")
+    if task is not None and task not in FC_TASK_CONDITIONS:
+        raise ValueError(f"Unknown FC task condition {task!r}; choose from {FC_TASK_CONDITIONS} or 'rest'")
+    if session is not None:
+        suffix = f"_session{int(session)}"
+    elif task is not None:
+        suffix = f"_task-{_sanitize_token(task)}"
+    else:
+        suffix = ""
     return os.path.join(
         cache_root,
         "fc",
@@ -64,17 +80,28 @@ def load_fc_precomputed(
     parcellation='Glasser',
     hemi='both',
     cache_root=DEFAULT_CONN2CONN_CACHE_ROOT,
+    task=None,
+    load_matrices=True,
 ):
-    """Load FC arrays from precomputed npy cache."""
-    cache_dir = _cache_dir_fc(cache_root, parcellation, hemi)
+    """Load FC arrays from precomputed npy cache.
+
+    `task=None` (or 'rest') loads rest; a name from FC_TASK_CONDITIONS loads that task's combined-run cache.
+    `load_matrices=False` skips the dense (N, P, P) array and returns None in its place.
+    """
+    cache_dir = _cache_dir_fc(cache_root, parcellation, hemi, task=task)
     subject_ids = _read_required_npy(os.path.join(cache_dir, "subject_ids.npy")).astype(np.int64).tolist()
-    fc_matrices = _read_required_npy(os.path.join(cache_dir, "matrices.npy")).astype(np.float32)
     tri_path = os.path.join(cache_dir, "upper_triangles.npy")
+    if load_matrices or not os.path.exists(tri_path):
+        fc_matrices = _read_required_npy(os.path.join(cache_dir, "matrices.npy")).astype(np.float32)
+    else:
+        fc_matrices = None
     if os.path.exists(tri_path):
         fc_triangles = np.load(tri_path).astype(np.float32)
     else:
         tri_indices = np.triu_indices(fc_matrices.shape[1], k=1)
         fc_triangles = fc_matrices[:, tri_indices[0], tri_indices[1]].astype(np.float32)
+    if not load_matrices:
+        fc_matrices = None
     return subject_ids, fc_matrices, fc_triangles
 
 

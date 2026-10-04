@@ -71,6 +71,8 @@ class HCP_Base():
     expose_node_features=False,
     expose_sc_matrix=False,
     expose_fc_sessions=False,
+    fc_conditions=None,
+    fc_condition_matrices=False,
     cov_sources=None):
         """
         Load and cache all global HCP data for one fixed experiment data setup.
@@ -103,6 +105,10 @@ class HCP_Base():
         self.expose_node_features = bool(expose_node_features)
         self.expose_sc_matrix = bool(expose_sc_matrix)
         self.expose_fc_sessions = bool(expose_fc_sessions)
+        # Extra FC conditions (task names from FC_TASK_CONDITIONS; 'rest' aliases the main FC) read from the
+        # precomputed condition caches in either load mode. Their subjects join the canonical intersection.
+        self.fc_conditions = [] if fc_conditions is None else list(dict.fromkeys(fc_conditions))
+        self.fc_condition_matrices = bool(fc_condition_matrices)
         self.enable_partition_tensor_cache = (self.data_load_mode == "precomputed")
         self._tensor_cache = {} if self.enable_partition_tensor_cache else None
         self.cov_sources = list(cov_sources) if cov_sources is not None else ["fs_all"]
@@ -207,6 +213,26 @@ class HCP_Base():
                 cache_root=self.precompute_cache_root,
             )
 
+        # Optionally load task-condition FC caches (combined LR+RL runs). Upper triangles always;
+        # dense matrices only with fc_condition_matrices=True.
+        self.fc_condition_subject_ids = {}
+        self.fc_condition_upper_triangles = {}
+        self.fc_condition_matrices_by_condition = {}
+        for condition in self.fc_conditions:
+            if condition == "rest":
+                continue
+            (
+                self.fc_condition_subject_ids[condition],
+                self.fc_condition_matrices_by_condition[condition],
+                self.fc_condition_upper_triangles[condition],
+            ) = load_fc_precomputed(
+                parcellation=parcellation,
+                hemi=hemi,
+                cache_root=self.precompute_cache_root,
+                task=condition,
+                load_matrices=self.fc_condition_matrices,
+            )
+
         # Include subjects common to metadata, FC, SC, and freesurfer dataframes
         canonical_sets = [
             set(self.all_subject_ids),
@@ -218,6 +244,8 @@ class HCP_Base():
         if self.expose_fc_sessions:
             canonical_sets.append(set(self.fc_session1_subject_ids))
             canonical_sets.append(set(self.fc_session2_subject_ids))
+        for condition_ids in self.fc_condition_subject_ids.values():
+            canonical_sets.append(set(condition_ids))
         canonical_subject_ids = sorted(set.intersection(*canonical_sets))
         canonical_meta_indices = self.subject_indices_from_id(self.all_subject_ids, canonical_subject_ids)
         canonical_freesurfer_indices = self.subject_indices_from_id(self.freesurfer_df['subject'].tolist(), canonical_subject_ids)
@@ -252,6 +280,20 @@ class HCP_Base():
             self.fc_session1_subject_ids = list(canonical_subject_ids)
             self.fc_session2_subject_ids = list(canonical_subject_ids)
 
+        for condition, condition_ids in list(self.fc_condition_subject_ids.items()):
+            idx = self.subject_indices_from_id(condition_ids, canonical_subject_ids)
+            if [condition_ids[i] for i in idx] != list(canonical_subject_ids):
+                raise ValueError(f"FC condition {condition!r} cache is not in canonical (sorted) subject order")
+            self.fc_condition_upper_triangles[condition] = self.fc_condition_upper_triangles[condition][idx]
+            if self.fc_condition_matrices_by_condition[condition] is not None:
+                self.fc_condition_matrices_by_condition[condition] = self.fc_condition_matrices_by_condition[condition][idx]
+            self.fc_condition_subject_ids[condition] = list(canonical_subject_ids)
+        # 'rest' is the main FC, already canonical-aligned
+        if "rest" in self.fc_conditions:
+            self.fc_condition_subject_ids["rest"] = list(canonical_subject_ids)
+            self.fc_condition_upper_triangles["rest"] = self.fc_upper_triangles
+            self.fc_condition_matrices_by_condition["rest"] = self.fc_matrices if self.fc_condition_matrices else None
+
         # Augment per-node features with tract-to-region profiles (r2t) when available.
         # Channel order: [volume, centroid_xyz, r2t_tract_features...]
         if self.sc_r2t_matrices is not None:
@@ -278,11 +320,18 @@ class HCP_Base():
         tri_indices = np.triu_indices(self.sc_r2t_corr_matrices.shape[1], k=1)
         self.sc_r2t_corr_upper_triangles = self.sc_r2t_corr_matrices[:, tri_indices[0], tri_indices[1]]
         
-        # Build train/val/test split indices and ids
+        # Build train/val/test split indices and ids. Indices are positions in the canonical (post-intersection)
+        # metadata_df, which every modality array is aligned to; positions in the pre-intersection subject list
+        # would be shifted whenever the intersection drops subjects (it does with fc_conditions).
+        canonical_meta_subjects = self.metadata_df["subject"].tolist()
+        if canonical_meta_subjects != list(canonical_subject_ids):
+            raise ValueError("metadata_df rows are not in canonical (sorted) subject order")
         self.trainvaltest_partition_indices = {
-            "train": self.subject_indices_from_id(self.all_subject_ids, self.metadata_df[self.metadata_df["train_val_test"] == "train"]["subject"].tolist()),
-            "val": self.subject_indices_from_id(self.all_subject_ids, self.metadata_df[self.metadata_df["train_val_test"] == "val"]["subject"].tolist()),
-            "test": self.subject_indices_from_id(self.all_subject_ids, self.metadata_df[self.metadata_df["train_val_test"] == "test"]["subject"].tolist()),
+            part: self.subject_indices_from_id(
+                canonical_meta_subjects,
+                self.metadata_df[self.metadata_df["train_val_test"] == part]["subject"].tolist(),
+            )
+            for part in ("train", "val", "test")
         }
 
         self.trainvaltest_partition_ids = {
@@ -340,6 +389,29 @@ class HCP_Base():
     @staticmethod
     def subject_indices_from_id(subject_list, target_subjects):
         return [i for i, subj in enumerate(subject_list) if subj in target_subjects]
+
+    def subject_order(self, subject_indices, order_by='original'):
+        """Positions (into `subject_indices`) that reorder those subjects for visualization.
+
+        order_by: 'original' (as given), 'family' (group by Family_ID), 'demographic' (group by unique
+        sex x race_eth category), or 'age' (youngest to oldest by train-standardized age).
+        """
+        subject_indices = np.asarray(subject_indices)
+        if order_by == 'original':
+            return np.arange(len(subject_indices))
+        if order_by == 'family':
+            family_ids = self.metadata_df['Family_ID'].values[subject_indices]
+            return np.argsort(family_ids)
+        if order_by == 'demographic':
+            concat_covariates = np.concatenate(
+                [np.asarray(self.sex_oh)[subject_indices], np.asarray(self.race_eth_oh)[subject_indices]], axis=1
+            )
+            unique_rows, categories = np.unique(concat_covariates, axis=0, return_inverse=True)
+            print(f"Number of unique demographic categories: {len(unique_rows)}")
+            return np.argsort(categories)
+        if order_by == 'age':
+            return np.argsort(np.asarray(self.age_z)[subject_indices].ravel())
+        raise ValueError(f"Unknown order_by: {order_by}. Use 'original', 'family', 'demographic', or 'age'.")
 
     def get_cached_tensor(self, name, array, device, dtype=torch.float32):
         """
