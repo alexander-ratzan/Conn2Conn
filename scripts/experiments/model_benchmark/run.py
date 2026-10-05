@@ -54,9 +54,16 @@ def parse_log(path):
     return int(seed.group(1)), summary
 
 
+def gate_dropped(cfg, direction):
+    """Gate-failed models not overridden for this direction: {model: reason}."""
+    dcfg = cfg["directions"][direction]
+    override = dcfg.get("gate_override") or {}
+    return {m: why for m, why in (dcfg.get("gate_failed") or {}).items() if m not in override}
+
+
 def scrape(cfg, direction, log_dir=LOG_DIR):
     records = []
-    gate_failed = cfg["directions"][direction].get("gate_failed") or {}
+    gate_failed = gate_dropped(cfg, direction)
     for model in [m for m in cfg["directions"][direction]["models"] if m not in gate_failed]:
         name = f"{cfg['campaign']}_{model}_{direction}"
         latest = {}
@@ -98,11 +105,13 @@ def model_info(cfg, model):
     return cfg["models"].get(model) or cfg["reuse"].get(model) or {}
 
 
-def tables(cfg, records):
+def tables(cfg, records, direction=None):
     rows = []
     for r in records:
         info = model_info(cfg, r["model"])
-        row = {"model": r["model"], "label": info.get("label", r["model"]) + (" †" if info.get("extra_inputs") else ""), "type": info.get("type", "other"),
+        overridden = direction and r["model"] in (cfg["directions"][direction].get("gate_override") or {})
+        row = {"model": r["model"], "label": info.get("label", r["model"]) + (" †" if info.get("extra_inputs") else "")
+               + (" ‡" if overridden else ""), "type": info.get("type", "other"),
                "role": info.get("role") or "", "objective": info.get("objective") or "", "seed": r["seed"],
                "extra_inputs": bool(info.get("extra_inputs"))}
         row.update({f"test_{m}": (float(r["test"][m]) if r["test"].get(m) is not None else np.nan)
@@ -211,7 +220,9 @@ def figures(cfg, summary, seed_df, out, direction):
                          "axes.spines.top": False, "axes.linewidth": 1.6})
     out.mkdir(parents=True, exist_ok=True)
     note = "Bars: mean ± SE over seeds (dots = seeds). * = native objective (not plain MSE). † = extra inputs (anatomy + demographics)."
-    dropped = {**(cfg["directions"][direction].get("excluded") or {}), **(cfg["directions"][direction].get("gate_failed") or {})}
+    dropped = {**(cfg["directions"][direction].get("excluded") or {}), **gate_dropped(cfg, direction)}
+    if cfg["directions"][direction].get("gate_override"):
+        note += " ‡ = below the screening gate in this direction, included at full budget by decision."
     if dropped:
         note += " Not shown: " + ", ".join(model_info(cfg, m).get("label", m) for m in dropped) + " (see tables/excluded.md)."
     written = []
@@ -325,7 +336,7 @@ def build(direction, cached=False, cfg=None, out_root=None, log_dir=LOG_DIR):
     if not records:
         print(f"{direction}: no records yet")
         return 1
-    seed_df, summary = tables(cfg, records)
+    seed_df, summary = tables(cfg, records, direction)
     (d / "tables").mkdir(exist_ok=True)
     seed_df.to_csv(d / "tables" / "seed_records.csv", index=False, float_format="%.6g")
     summary.to_csv(d / "tables" / "summary.csv", index=False, float_format="%.6g")
@@ -348,9 +359,14 @@ def build(direction, cached=False, cfg=None, out_root=None, log_dir=LOG_DIR):
                               else (f"{r[f'd_{m}_mean']:+.4f}" if not np.isnan(r[f"d_{m}_mean"]) else "–"))
             lines.append(f"| {r['label']} | {r['n_shared_seeds']} | " + " | ".join(cell(m) for m in ("pearson", "demeaned_pearson", "avg_rank", "top1_acc")) + " |")
         (d / "tables" / "paired_vs_best_linear.md").write_text("\n".join(lines) + "\n")
-    gate_failed = cfg["directions"][direction].get("gate_failed") or {}
-    if gate_failed:
-        (d / "tables" / "excluded.md").write_text("".join(f"- `{m}`: {why}\n" for m, why in gate_failed.items()))
+    gate_failed = gate_dropped(cfg, direction)
+    dcfg = cfg["directions"][direction]
+    lines = [f"- `{m}`: not run ({why})\n" for m, why in (dcfg.get("excluded") or {}).items()]
+    lines += [f"- `{m}`: {why}\n" for m, why in gate_failed.items()]
+    lines += [f"- `{m}` (included, ‡): {dcfg['gate_failed'].get(m, 'gate failed')}; override: {why}\n"
+              for m, why in (dcfg.get("gate_override") or {}).items()]
+    if lines:
+        (d / "tables" / "excluded.md").write_text("".join(lines))
     missing = [(m, sorted(set(cfg["seeds"]) - set(seed_df.loc[seed_df["model"] == m, "seed"])))
                for m in cfg["directions"][direction]["models"] if m not in gate_failed]
     missing = [(m, s) for m, s in missing if s]

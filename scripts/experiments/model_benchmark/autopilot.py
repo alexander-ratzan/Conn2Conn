@@ -112,7 +112,9 @@ def model_status(cfg, model, direction):
     failed = sorted({l["seed"] for l in logs if not l["finished"] and l["wall_h"] is not None} - set(done))
     return dict(done=done, queued=sorted(queued(cfg, model, direction)), failed=failed,
                 wall_h=(max(walls) if walls else None), error_frac=(errs / trials if trials else 0.0),
-                attempts={s: sum(1 for l in logs if l["seed"] == s) for s in cfg["seeds"]})
+                # attempts at the full budget only: a short gate run is not a failed attempt of that seed
+                attempts={s: sum(1 for l in logs if l["seed"] == s and (l["samples"] is None or l["samples"] >= full))
+                          for s in cfg["seeds"]})
 
 
 def gate(cfg, direction):
@@ -145,7 +147,8 @@ def plan_direction(cfg, direction, pilot_walls=None):
             if passed is None:
                 rows.append(dict(model=model, missing=[], wall_h=None, note="gate pending"))
                 continue
-            if not passed.get(model):
+            override = (cfg["directions"][direction].get("gate_override") or {}).get(model)
+            if not passed.get(model) and not override:
                 rows.append(dict(model=model, missing=[], wall_h=None, note="gate failed: negative result"))
                 continue
         wall = st["wall_h"] or (pilot_walls or {}).get(model)

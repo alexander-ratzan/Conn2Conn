@@ -76,6 +76,8 @@ directions:
              CrossModal_PCA_PLS_learnable, CrossModal_linear_backbone, CrossModal_PCA_PLS_CovProjector,
              MaskedMLPPretrainer, Sarwar2020MLP]
     gate_failed: {MaskedMLPPretrainer: "latent gate failed 2026-10-03: mean val 0.132 < threshold 0.169 (_learnable 0.179 - 0.01)"}
+    # gate_override: run and report a gate-failed model anyway (marked ‡ in tables / figures); the gate result stays above
+    gate_override: {MaskedMLPPretrainer: "user 2026-10-05: include all 5 seeds at full budget (competitive nonlinear model)"}
     excluded: {Chen2024GCN: "reverse variant not built (FC graph threshold)", NodalGNN: "reverse variant not built",
                NodalMLP: "reverse variant not built (SC-row input = target)"}
     reuse: [Krakencoder_mse, Krakencoder_paper]

@@ -86,6 +86,21 @@ def main():
     check("runner: every table and figure written", not missing, f"missing={missing}")
     rc2 = run.build("sc2fc", cached=True, cfg=cfg, out_root=tmp / "out", log_dir=logs)
     check("runner: --cached re-render from records.json", rc2 == 0)
+    # gate: a gate-failed model is dropped, unless a gate_override includes it (marked ‡)
+    import copy
+    gcfg = copy.deepcopy(cfg)
+    gcfg["directions"]["sc2fc"]["gate_failed"] = {"MaskedMLPPretrainer": "test"}
+    gcfg["directions"]["sc2fc"].pop("gate_override", None)
+    run.build("sc2fc", cfg=gcfg, out_root=tmp / "gate_drop", log_dir=logs)
+    gd = json.loads((tmp / "gate_drop" / gcfg.get("results_dir", "") / "sc2fc" / "records.json").read_text())
+    check("runner: gate-failed model dropped", not any(r["model"] == "MaskedMLPPretrainer" for r in gd))
+    gcfg["directions"]["sc2fc"]["gate_override"] = {"MaskedMLPPretrainer": "test override"}
+    run.build("sc2fc", cfg=gcfg, out_root=tmp / "gate_keep", log_dir=logs)
+    gk_dir = tmp / "gate_keep" / gcfg.get("results_dir", "") / "sc2fc"
+    gk = json.loads((gk_dir / "records.json").read_text())
+    lab = set(__import__("pandas").read_csv(gk_dir / "tables" / "summary.csv").query("model == 'MaskedMLPPretrainer'")["label"])
+    check("runner: gate_override keeps it, labelled ‡", sum(r["model"] == "MaskedMLPPretrainer" for r in gk) == 5
+          and all(l.endswith("‡") for l in lab) and lab, str(lab))
     print("outputs in", d)
     print("benchmark check failures:", fails)
     return 1 if fails else 0
