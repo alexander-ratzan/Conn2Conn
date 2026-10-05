@@ -14,6 +14,11 @@ Sarwar2020MLP,Sarwar MLP,deep_baseline,,,1,False,0.914785,0.13072,0.881762,0.107
 Sarwar2020MLP,Sarwar MLP,deep_baseline,,,2,False,0.914983,0.114353,0.808705,0.025641,0.00538336,0.167891
 Sarwar2020MLP,Sarwar MLP,deep_baseline,,,3,False,0.914326,0.140449,0.880999,0.102564,0.00552879,0.150845
 Sarwar2020MLP,Sarwar MLP,deep_baseline,,,4,False,0.915599,0.145776,0.884786,0.117949,0.00534466,0.145169
+MaskedMLPPretrainer,Masked MLP pretrainer ‡,latent_pretrained,,native latent_mse,0,False,0.914553,0.12369,0.831558,0.102564,0.00545846,0.136809
+MaskedMLPPretrainer,Masked MLP pretrainer ‡,latent_pretrained,,native latent_mse,1,False,0.913246,0.125742,0.844576,0.0923077,0.00548434,0.138691
+MaskedMLPPretrainer,Masked MLP pretrainer ‡,latent_pretrained,,native latent_mse,2,False,0.91372,0.114022,0.8233,0.107692,0.00544579,0.148616
+MaskedMLPPretrainer,Masked MLP pretrainer ‡,latent_pretrained,,native latent_mse,3,False,0.914386,0.122872,0.828455,0.0923077,0.00547345,0.141596
+MaskedMLPPretrainer,Masked MLP pretrainer ‡,latent_pretrained,,native latent_mse,4,False,0.914573,0.122172,0.832005,0.0717949,0.00535459,0.14198
 CrossModal_ConditionalGaussian,Conditional Gaussian,linear_closed_form,,,0,False,0.914988,0.133858,0.883445,0.189744,0.00542195,0.135343
 CrossModal_ConditionalGaussian,Conditional Gaussian,linear_closed_form,,,1,False,0.912887,0.130876,0.896778,0.158974,0.00550396,0.139771
 CrossModal_ConditionalGaussian,Conditional Gaussian,linear_closed_form,,,2,False,0.915188,0.123975,0.866956,0.102564,0.00535585,0.152473

@@ -1,1 +1,4 @@
-- `MaskedMLPPretrainer`: latent gate failed 2026-10-03: mean val 0.132 < threshold 0.169 (_learnable 0.179 - 0.01)
+- `Chen2024GCN`: not run (reverse variant not built (FC graph threshold))
+- `NodalGNN`: not run (reverse variant not built)
+- `NodalMLP`: not run (reverse variant not built (SC-row input = target))
+- `MaskedMLPPretrainer` (included, ‡): latent gate failed 2026-10-03: mean val 0.132 < threshold 0.169 (_learnable 0.179 - 0.01); override: user 2026-10-05: include all 5 seeds at full budget (competitive nonlinear model)

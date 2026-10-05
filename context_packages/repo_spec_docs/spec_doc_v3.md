@@ -22,7 +22,7 @@ To add an experiment, append a section under §4 (template: v2 §4.0) and add a 
 | C5 | Task-FC follow-ups: cross-condition fingerprinting, network-ordered view (v2:I1.5) | planned | — | — |
 | C6 | FC → SC reverse variants for Chen GCN, Nodal GNN, Nodal MLP (v2:E2.0) | planned | — | — |
 | C7 | Environment alignment and C6 archive deletion (v2:C6.5) | planned | user | user |
-| C8 | E2.2 addendum: Masked MLP pretrainer FC → SC at full budget despite its failed gate (user 2026-10-05) | in progress (job `19248105`) | — | agent:modeling |
+| C8 | E2.2 addendum: Masked MLP pretrainer FC → SC at full budget despite its failed gate (user 2026-10-05) | done 2026-10-05 (job `19248105`) | — | agent:modeling |
 | C!1 | PCA-PLS + covariates FC → SC gain is likely anatomy, not FC | open | resolved by C2 | — |
 
 ---
@@ -55,7 +55,7 @@ experiment (same configs with `parcellation: 4S456Parcels`; caches exist) and is
 | C5 | Cross-condition fingerprinting (top-1, differential identifiability) and a network-ordered condition view. | User follow-ups from the v2:I1.5 notebook review. |
 | C6 | FC → SC variants: message passing on FC thresholded at τ (`fc_graph_threshold`, default 0.5) for Chen GCN / Nodal GNN; no SC-derived node inputs (`use_r2t: false`); Nodal MLP reads FC rows; guard refusing `target == "SC"` with SC-derived inputs (v2:E2.0). | Low priority: all three are at the null SC → FC (v2:E2.2). |
 | C7 | Align `activate_env.sh` and Jupyter kernels with `/ext3/env.sh`; delete `/scratch/asr655/envs/archive/2026-09-30_c6/` once jobs run clean (they have since 2026-09-30). | User. |
-| C8 | **Masked MLP pretrainer FC → SC, all 5 seeds at full budget** (56 trials, 0.25 × 4 packing; ~6.3 GPU-h). It failed the v2:E2.2 latent gate (val 0.132 < 0.169) but is a competitive nonlinear model, so it is reported anyway (`gate_override` in `model_benchmark/config.yml`; marked ‡ in tables and figures; the gate result stays recorded). | When `19248105` finishes: `run.py --direction fc2sc`, update `model_benchmark.md`. **Jobs read `main.py`, `data/` and `models/` live: no edits there (e.g. E0's `HCP_Base` change) until the array is done.** |
+| C8 | **Done 2026-10-05:** Masked MLP pretrainer FC → SC, all 5 seeds at full budget (56 trials, 0.25 × 4; job `19248105`, 3.0 GPU-h). It failed the v2:E2.2 latent gate (val 0.132 < 0.169) and is reported anyway (`gate_override`, ‡). Result: test demeaned r 0.122 ± 0.002, average rank 0.832, top-1 0.093; paired −0.040 ± 0.003 vs PCA-PLS learnable, so the full search did not close the gate gap. Write-up `model_benchmark/model_benchmark.md`; figures `mse/fc2sc/figures/`. | — |
 
 ### Caveats (`C!`)
 
@@ -127,6 +127,7 @@ Moved from v2 §6 (originally v1 §6, v1 §8.6, the unrun parts of v1 M10, and E
 | 2026-10-04 | v3 created at v2 closure: carried items C1–C12, caveats C!1–C!3, backlog moved; v2:D1–D6 in force. |
 | 2026-10-05 | E0 specified (task FC → SC with PCA-PLS learnable, matched 917-subject cohort); C7 promoted to E0. |
 | 2026-10-05 | C3: I2.3 merged (`5efe03a`), checks pass on `main`. C8 added: Masked MLP FC → SC full run (gate override), job `19248105`. |
+| 2026-10-05 | C8 done: Masked MLP FC → SC 0.122 demeaned r (−0.040 vs PCA-PLS learnable); E2.2 figures restyled per the figure skill, grouped / performance panels added. |
 | 2026-10-05 | Carry-over pruned to essentials (user): C4/C5 folded into C3; C7 → E0; C10, C11 and caveats on old ema runs / z-scored latents dropped; renumbered C1–C7, C!1. |
 | 2026-10-05 | E0 decisions: 16-trial tunes, `rest_S1` bar added (9 conditions), no null bar, FC → SC Glasser; §2 notes 4S456 replications as easy to-dos. |
 

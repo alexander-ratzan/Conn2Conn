@@ -2,6 +2,7 @@ model,label,type,role,objective,n_seeds,pearson_mean,pearson_se,demeaned_pearson
 Krakencoder_mse,Krakencoder (MSE),deep_baseline,,MSE + its fixed latent losses,5,0.915009,0.000227499,0.13415,0.00198157,0.901896,0.00503475,0.13641,0.00836391,0.00538575,2.93401e-05
 Krakencoder_paper,Krakencoder (paper loss),deep_baseline,,native (paper loss: + corr-eye + neighbor dist),5,0.914046,0.000237684,0.104774,0.00161011,0.897914,0.0053131,0.145641,0.00660733,0.0054643,3.07245e-05
 Sarwar2020MLP,Sarwar MLP,deep_baseline,,,5,0.914986,0.000213734,0.130934,0.00567005,0.864321,0.0143098,0.0882051,0.0164103,0.00545675,4.00227e-05
+MaskedMLPPretrainer,Masked MLP pretrainer ‡,latent_pretrained,,native latent_mse,5,0.914096,0.000262967,0.1217,0.00201067,0.831979,0.00351138,0.0933333,0.00615385,0.00544333,2.31287e-05
 CrossModal_ConditionalGaussian,Conditional Gaussian,linear_closed_form,,,5,0.914596,0.000451043,0.131868,0.00218428,0.884418,0.00815649,0.150769,0.0150912,0.00540915,3.60456e-05
 CrossModal_PCA_PLS,PCA-PLS,linear_closed_form,,,5,0.91433,0.000362982,0.147314,0.00383265,0.866945,0.00996431,0.0933333,0.0110465,0.00542128,3.09685e-05
 CrossModal_PLS_SVD,PLS-SVD,linear_closed_form,,,5,0.908697,0.00150513,0.127306,0.0016254,0.860986,0.00522066,0.117949,0.0137604,0.00576962,0.000104165

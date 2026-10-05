@@ -1,6 +1,6 @@
 # Cross-model benchmark (spec v2 E2.2: MSE-only, both directions)
 
-**Status:** complete 2026-10-04 (SC → FC and FC → SC, seeds 0–4) · **Owner:** agent:modeling ·
+**Status:** complete 2026-10-04 (SC → FC and FC → SC, seeds 0–4); Masked MLP FC → SC added 2026-10-05 (spec v3 C8) · **Owner:** agent:modeling ·
 **Spec:** `context_packages/repo_spec_docs/spec_doc_v2.md` E2.2 (closed); follow-ups carried to `spec_doc_v3.md`
 
 ## Question
@@ -32,7 +32,7 @@ benchmark with tuned weights (v2 E2.3, carried to v3). The FC → SC half is spe
 | PCA-PLS learnable | Linear, learned | 64 | Optuna | 1.10 · 0.91 h |
 | Linear backbone | Linear, learned | 48 | Optuna | 0.54 · 0.59 h |
 | PCA-PLS + covariates † | Linear, learned + covariates | 64 (`learn_mid` searched) | Optuna | 0.71 · 0.67 h |
-| Masked MLP pretrainer (nonlinear) | Latent / pretrained | 56 (12 in the gate) | Optuna | 1.42 · gate only |
+| Masked MLP pretrainer (nonlinear) | Latent / pretrained | 56 (12 in the gate) | Optuna | 1.42 · 0.65 h |
 | Sarwar MLP | Deep baseline | 16 (narrowed) | Optuna | 1.99 · 1.98 h |
 | Chen GCN | Deep baseline | 12 (narrowed) | Optuna | 6.16 h · — |
 | Nodal GNN | Pairwise nodal | 10 (narrowed) | Optuna | 3.07 h · — |
@@ -55,7 +55,7 @@ MSE-only PCA-PLS learnable on the same seeds − 0.01.
 | Direction | Masked MLP val | Learnable val | Threshold | Result |
 |---|---|---|---|---|
 | SC → FC | 0.088 | 0.096 | 0.086 | passed → full run |
-| FC → SC | 0.132 | 0.179 | 0.169 | **failed** → negative result, not in the FC → SC figures (`fc2sc/tables/excluded.md`) |
+| FC → SC | 0.132 | 0.179 | 0.169 | **failed**; run at full budget anyway (user 2026-10-05: competitive nonlinear model), marked ‡ |
 
 **Reused results** (no rerun):
 - **Krakencoder** (spec v2 E2.1 retrain, seeds 0–4, both directions), two variants (user 2026-10-02):
@@ -66,7 +66,7 @@ MSE-only PCA-PLS learnable on the same seeds − 0.01.
 
 **Execution.** Pilot (seed 0 per model, gate seeds 0–1) → budgets from pilot wall times → full runs, driven by
 [`autopilot.py`](autopilot.py) (time limit = 1.5 × pilot wall per seed, retries ×2, 130 GPU-h cap, stop on > 20 %
-errored trials or a second failure). **Compute: 111.5 GPU-h** (SC → FC 80.4, FC → SC 31.1, pilots included).
+errored trials or a second failure). **Compute: 114.5 GPU-h** (SC → FC 80.4, FC → SC 31.1 + 3.0 for the Masked MLP full run, job `19248105`; pilots included).
 Four tasks (Sarwar SC → FC seed 1 and FC → SC seeds 3–4, Nodal MLP SC → FC seed 4) were killed by the cluster
 about 2 h 10–25 min in at 0.5 GPU × 2 trials, consistent with its GPU-underutilisation policy; both models were
 repacked to 0.25 × 4 (same trial budget) and the seeds rerun once, successfully. Nodal MLP seed 4's rerun lost 3 of
@@ -115,12 +115,13 @@ the null about −0.08 to −0.09.
 | Conditional Gaussian | 0.915 | 0.132 ± 0.002 | 0.884 ± 0.008 | 0.151 |
 | Sarwar MLP | 0.915 | 0.131 ± 0.006 | 0.864 ± 0.014 | 0.088 |
 | PLS-SVD | 0.909 | 0.127 ± 0.002 | 0.861 ± 0.005 | 0.118 |
+| Masked MLP pretrainer ‡ * | 0.914 | 0.122 ± 0.002 | 0.832 ± 0.004 | 0.093 |
 | Krakencoder (paper loss) * | 0.914 | 0.105 ± 0.002 | 0.898 ± 0.005 | 0.146 |
 | PCA null | 0.863 | 0.007 ± 0.003 | 0.513 ± 0.006 | 0.009 |
 
 Paired vs PCA-PLS learnable, the best input-matched model (`fc2sc/tables/paired_vs_best_linear.md`): linear backbone
 −0.004, PCA-PLS −0.014, Krakencoder (MSE) −0.028, Conditional Gaussian −0.030, Sarwar −0.031, PLS-SVD −0.034,
-Krakencoder (paper loss) −0.057 demeaned r. PCA-PLS + covariates is +0.059 demeaned r and +0.32 top-1 (see caveat).
+Masked MLP −0.040 ± 0.003, Krakencoder (paper loss) −0.057 demeaned r. PCA-PLS + covariates is +0.059 demeaned r and +0.32 top-1 (see caveat).
 
 ### Findings
 
@@ -134,8 +135,10 @@ Krakencoder (paper loss) −0.057 demeaned r. PCA-PLS + covariates is +0.059 dem
 3. **FC → SC is easier for every model** (demeaned r ×1.4–1.9 per model; avg rank 0.86–0.90 vs 0.64–0.80; the
    null is about 0.01 in both directions), matching spec v2 E3 Phase D. PCA-PLS learnable and the linear backbone lead the input-matched models;
    Krakencoder's paper loss costs demeaned r with no avg-rank gain, as in E1.8.
-4. **The latent pretrainer helps in neither direction.** It ties the linear family SC → FC and fails the FC → SC
-   gate by 0.04.
+4. **The latent pretrainer is competitive SC → FC but not FC → SC.** SC → FC it is the best nonlinear model
+   (0.090, within 0.01 of the linear leaders). FC → SC it failed the screening gate by 0.04; at the full budget (5 seeds
+   × 56 trials, included by decision, ‡) it reaches 0.122, still 0.040 ± 0.003 below PCA-PLS learnable and lowest on
+   average rank (0.832) apart from the null. The full search did not close the gap the gate measured (gate-run test 0.128).
 5. **Far from the ceiling.** The best SC → FC model recovers about 20 % of the test-retest demeaned r (0.098 vs
    0.49) and 7 % of its top-1.
 
@@ -189,11 +192,18 @@ scripts/experiments/model_benchmark/
 
 ## Figures (`mse/<direction>/figures/`)
 
-- `bars_<metric>.png` for Pearson r, demeaned r, average rank and top-1, and `bars_all_metrics.png` (2 × 2): bars
-  grouped and coloured by model type, groups sorted by their mean and models by their own mean; mean ± SE with
-  per-seed points; native-objective models hatched (`*`), extra-input models marked †; PCA null as a dotted line;
-  test-retest ceiling as a dashed line, or noted in the title when off scale; footnote lists models not shown.
-- `bars_all_metrics_ceiling.png` (SC → FC): the same panel with the ceiling drawn as its own bar.
+Built by `run.py` in the style of the scientific-figure-making skill (Helvetica-like sans at print size, skill palette,
+no grid, black bar edges). Every figure uses one model order: type groups in config order, models within a group by
+test demeaned r, PCA null last. Markers: `*` native objective (hatched bars / open squares), † extra inputs (anatomy +
+demographics), ‡ below the screening gate in that direction but included by decision.
+
+- **`panel_grouped.png` (main figure):** one row per model, the four metrics side by side on a shared model axis; dot
+  and whisker (mean ± SE, faint dots = seeds); bold group headers; PCA null (dotted), chance for average rank, and the
+  test-retest ceiling (dashed when in range, otherwise its value in the panel title).
+- **`panel_performance.png`:** the same panel sorted by test demeaned r only.
+- `bars_<metric>.png` (Pearson r, demeaned r, average rank, top-1) and `bars_all_metrics.png` (2 × 2): bars = mean ±
+  SE, white dots = seeds, grouped and coloured by model type; footnote names models not shown.
+- `bars_all_metrics_ceiling.png` (SC → FC): the 2 × 2 panel with the ceiling drawn as its own bar.
 - `scatter_demeaned_vs_rank.png`: one point per model (mean ± SE), demeaned r against average rank.
 
-Last updated at: 2026-10-04 EDT
+Last updated at: 2026-10-05 EDT

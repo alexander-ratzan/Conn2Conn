@@ -134,44 +134,65 @@ def tables(cfg, records, direction=None):
 
 
 # ------------------------------------------------------------------------------------------- figures
-def _order(summary, metric, types, with_ceiling=False):
-    """Groups (model types) sorted by their mean on the metric, models within a group by their own mean."""
-    s = (summary if with_ceiling else summary[summary["role"] != "ceiling"]).dropna(subset=[f"{metric}_mean"])
-    sign = 1 if metric in LOWER_IS_BETTER else -1
-    group_mean = s.groupby("type")[f"{metric}_mean"].mean()
-    groups = sorted(group_mean.index, key=lambda t: sign * group_mean[t])
-    order = []
-    for t in groups:
-        g = s[s["type"] == t].sort_values(f"{metric}_mean", ascending=(sign == 1))
-        order += [(t, r) for r in g.to_dict("records")]
+FIG_RC = {"font.family": ["Arial", "Helvetica", "Nimbus Sans", "Liberation Sans", "DejaVu Sans"], "font.size": 14,
+          "axes.spines.right": False, "axes.spines.top": False, "axes.linewidth": 1.8, "xtick.major.width": 1.5,
+          "ytick.major.width": 1.5, "legend.frameon": False}  # scientific-figure-making skill preset, sized for print
+
+
+def _order(cfg, summary, with_ceiling=False):
+    """Fixed thematic order for every metric (as panel_grouped): type groups in config order, models within a group by
+    test demeaned r, PCA null last (the ceiling first in the null group when drawn as a bar)."""
+    s = summary if with_ceiling else summary[summary["role"] != "ceiling"]
+    body = s[s["role"] == ""].sort_values("demeaned_pearson_mean", ascending=False)
+    groups, order = [], []
+    for t in cfg["types"]:
+        g = body[body["type"] == t]
+        if len(g):
+            groups.append(t)
+            order += [(t, r) for r in g.to_dict("records")]
+    ref = pd.concat([s[s["role"] == "ceiling"], s[s["role"] == "floor"]])
+    if len(ref):
+        if "null_ceiling" not in groups:
+            groups.append("null_ceiling")
+        order += [("null_ceiling", r) for r in ref.to_dict("records")]
     return groups, order
 
 
-def bar_axes(ax, cfg, summary, seed_df, metric, show_legend=True, with_ceiling=False):
-    """with_ceiling: the test-retest ceiling is drawn as its own bar (axis scaled to it) instead of a line / title note."""
-    import matplotlib.pyplot as plt  # noqa: F401
+def _legend_handles(cfg, groups, with_null=True, with_ceiling_line=False):
+    import matplotlib.patches as mpatches
+    from matplotlib.lines import Line2D
     types = cfg["types"]
-    groups, order = _order(summary, metric, types, with_ceiling)
-    x, gap, xs, labels = 0.0, 0.7, [], []
-    group_spans = []
+    h = [mpatches.Patch(facecolor=types[t]["color"], edgecolor="black", label=types[t]["label"])
+         for t in groups if t in types and t != "null_ceiling"]
+    h.append(mpatches.Patch(facecolor="white", edgecolor="black", hatch="///", label="native objective (*)"))
+    if with_null:
+        h.append(Line2D([0], [0], color="#767676", ls=":", lw=1.8, label="PCA null"))
+    if with_ceiling_line:
+        h.append(Line2D([0], [0], color="black", ls="--", lw=1.6, label="test-retest ceiling"))
+    return h
+
+
+def bar_axes(ax, cfg, summary, seed_df, metric, show_legend=True, with_ceiling=False):
+    """Bars = mean ± SE, white dots = seeds, grouped and coloured by model type in a fixed thematic order.
+    with_ceiling: the test-retest ceiling is its own bar (axis scaled to it) instead of a line / title note."""
+    types = cfg["types"]
+    groups, order = _order(cfg, summary, with_ceiling)
+    x, gap, xs, labels = 0.0, 0.6, [], []
     for t in groups:
-        start = x
         for (tt, r) in [o for o in order if o[0] == t]:
-            col = types.get(t, {}).get("color", "#777777")
+            col = "#4D4D4D" if r["role"] == "ceiling" else types.get(t, {}).get("color", "#777777")
             m, se = r[f"{metric}_mean"], r[f"{metric}_se"]
-            hatch = "//" if r.get("objective") else None
-            ax.bar(x, m, width=0.8, color=col, alpha=0.85, edgecolor="black" if hatch else col, linewidth=0.6,
-                   hatch=hatch, zorder=2)
+            native = bool(r.get("objective"))
+            ax.bar(x, m, width=0.78, color=col, edgecolor="black", linewidth=1.0, hatch="///" if native else None, zorder=2)
             if not np.isnan(se):
-                ax.errorbar(x, m, yerr=se, fmt="none", ecolor="black", elinewidth=1.4, capsize=4, zorder=4)
+                ax.errorbar(x, m, yerr=se, fmt="none", ecolor="black", elinewidth=1.6, capsize=4, capthick=1.6, zorder=4)
             pts = seed_df[seed_df["model"] == r["model"]][f"test_{metric}"].dropna().to_numpy()
             if len(pts):
-                jitter = np.linspace(-0.22, 0.22, len(pts)) if len(pts) > 1 else np.zeros(1)
-                ax.scatter(x + jitter, pts, s=14, color="white", edgecolor="black", linewidth=0.7, zorder=5)
+                jitter = np.linspace(-0.2, 0.2, len(pts)) if len(pts) > 1 else np.zeros(1)
+                ax.scatter(x + jitter, pts, s=18, color="white", edgecolor="black", linewidth=0.8, zorder=5)
             xs.append(x)
-            labels.append(r["label"] + (" *" if r.get("objective") else ""))
+            labels.append(r["label"] + (" *" if native else ""))
             x += 1.0
-        group_spans.append((t, start, x - 1.0))
         x += gap
     ceiling = summary[summary["role"] == "ceiling"]
     shown = (summary["role"] != "ceiling") | with_ceiling
@@ -182,74 +203,89 @@ def bar_axes(ax, cfg, summary, seed_df, metric, show_legend=True, with_ceiling=F
         ceiling = ceiling.iloc[0:0]  # drawn as a bar: no line / off-scale note
     null = summary[summary["role"] == "floor"]
     if len(null) and not np.isnan(null.iloc[0][f"{metric}_mean"]):
-        ax.axhline(null.iloc[0][f"{metric}_mean"], color="#8C8C8C", ls=":", lw=1.4, zorder=1)
+        ax.axhline(null.iloc[0][f"{metric}_mean"], color="#767676", ls=":", lw=1.8, zorder=1)
     title_note = ""
     if len(ceiling) and not np.isnan(ceiling.iloc[0][f"{metric}_mean"]):
         c = ceiling.iloc[0][f"{metric}_mean"]
         if c <= ymax * 1.6:
-            ax.axhline(c, color="black", ls="--", lw=1.2, zorder=1)
-            ax.text(-0.7, c, "test-retest ceiling", va="bottom", ha="left", fontsize=9)
+            ax.axhline(c, color="black", ls="--", lw=1.6, zorder=1)
         else:
-            title_note = f"  (test-retest ceiling {c:.3g}, off scale)"
+            title_note = f"\n(test-retest ceiling {c:.2f}, off scale)"
     ax.set_xticks(xs)
-    ax.set_xticklabels(labels, rotation=40, ha="right", fontsize=10)
-    ax.set_ylabel(f"{METRIC_LABEL[metric]} (test{', min' if metric in LOWER_IS_BETTER else ', max'})")
-    ax.set_title(METRIC_LABEL[metric] + title_note, fontsize=13)
+    ax.set_xticklabels(labels, rotation=45, ha="right", rotation_mode="anchor", fontsize=12.5)
+    ax.tick_params(axis="x", length=0)
+    ax.tick_params(axis="y", labelsize=13)
+    ax.set_ylabel(METRIC_LABEL[metric], fontsize=15)
+    ax.set_title(METRIC_LABEL[metric] + title_note, fontsize=16)
     lo = 0.5 if metric == "avg_rank" else 0.0
-    if metric == "pearson":
-        vals = summary.loc[shown, "pearson_mean"].dropna()
-        lo = max(0.0, (vals.min() - 0.02) if len(vals) else 0.0)
-    top = ymax * 1.08
+    if metric == "pearson":  # skill: tighten the axis to the data range (values sit in a narrow band)
+        vals = np.r_[summary.loc[shown, "pearson_mean"].dropna().to_numpy(),
+                     seed_df.loc[shown_seeds, "test_pearson"].dropna().to_numpy()]
+        lo = max(0.0, np.floor((vals.min() - 0.01) * 50) / 50) if len(vals) else 0.0
+    top = ymax * 1.06 if metric != "pearson" else ymax + 0.01
     if len(ceiling) and not title_note:
         top = max(top, ceiling.iloc[0][f"{metric}_mean"] * 1.03)
     ax.set_ylim(lo, top)
-    ax.set_xlim(-0.8, xs[-1] + 0.8)
-    ax.grid(axis="y", alpha=0.25, ls="--", zorder=0)
+    ax.set_xlim(-0.7, xs[-1] + 0.7)
+    ax.locator_params(axis="y", nbins=5)
     if show_legend:
-        import matplotlib.patches as mpatches
-        handles = [mpatches.Patch(color=types[t]["color"], label=types[t]["label"]) for t in groups if t in types]
-        ax.legend(handles=handles, fontsize=9, loc="lower left", bbox_to_anchor=(0.0, 1.06), ncol=len(handles),
-                  frameon=False, borderaxespad=0.0)
+        ax.legend(handles=_legend_handles(cfg, groups, with_null=len(null) > 0,
+                                          with_ceiling_line=len(ceiling) > 0 and not title_note),
+                  fontsize=12, loc="lower left", bbox_to_anchor=(0.0, 1.10 if title_note else 1.03),
+                  ncol=4, borderaxespad=0.0, handlelength=1.6, columnspacing=1.2)
+
+
+def _figure_note(cfg, direction):
+    note = "Bars: mean ± SE over seeds (dots = seeds). * native objective (not plain MSE). † extra inputs (anatomy + demographics)."
+    if cfg["directions"][direction].get("gate_override"):
+        note += " ‡ below the screening gate in this direction, included at full budget by decision."
+    dropped = {**(cfg["directions"][direction].get("excluded") or {}), **gate_dropped(cfg, direction)}
+    if dropped:
+        note += " Not shown: " + ", ".join(model_info(cfg, m).get("label", m) for m in dropped) + " (tables/excluded.md)."
+    return note
 
 
 def figures(cfg, summary, seed_df, out, direction):
+    import textwrap
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    plt.rcParams.update({"font.family": ["DejaVu Sans", "sans-serif"], "font.size": 12, "axes.spines.right": False,
-                         "axes.spines.top": False, "axes.linewidth": 1.6})
     out.mkdir(parents=True, exist_ok=True)
-    note = "Bars: mean ± SE over seeds (dots = seeds). * = native objective (not plain MSE). † = extra inputs (anatomy + demographics)."
-    dropped = {**(cfg["directions"][direction].get("excluded") or {}), **gate_dropped(cfg, direction)}
-    if cfg["directions"][direction].get("gate_override"):
-        note += " ‡ = below the screening gate in this direction, included at full budget by decision."
-    if dropped:
-        note += " Not shown: " + ", ".join(model_info(cfg, m).get("label", m) for m in dropped) + " (see tables/excluded.md)."
+    note = _figure_note(cfg, direction)
+    n = len(summary)
+    w = max(9.0, 0.55 * n + 2.5)
     written = []
-    for metric in cfg["metrics"]:
-        fig, ax = plt.subplots(figsize=(max(8, 0.75 * len(summary) + 3), 5.2))
-        bar_axes(ax, cfg, summary, seed_df, metric)
-        fig.text(0.01, 0.005, note, fontsize=8, color="#555555")
-        fig.tight_layout(pad=1.2)
-        fig.savefig(out / f"bars_{metric}.png", dpi=300, facecolor="white", bbox_inches="tight")
-        plt.close(fig)
-        written.append(f"bars_{metric}.png")
-    import matplotlib.patches as mpatches
-    present = [t for t in cfg["types"] if t in set(summary["type"])]
-    variants = [("bars_all_metrics.png", False)]
-    if (summary["role"] == "ceiling").any():
-        variants.append(("bars_all_metrics_ceiling.png", True))  # same panel with the test-retest ceiling as a bar
-    for name, with_ceiling in variants:
-        fig, axes = plt.subplots(2, 2, figsize=(2 * max(8, 0.75 * len(summary) + 3), 11))
-        for ax, metric in zip(axes.flat, cfg["metrics"]):
-            bar_axes(ax, cfg, summary, seed_df, metric, show_legend=False, with_ceiling=with_ceiling)
-        fig.legend(handles=[mpatches.Patch(color=cfg["types"][t]["color"], label=cfg["types"][t]["label"]) for t in present],
-                   loc="upper center", ncol=len(present), frameon=False, fontsize=11, bbox_to_anchor=(0.5, 1.0))
-        fig.text(0.01, 0.003, note, fontsize=9, color="#555555")
-        fig.tight_layout(pad=1.5, rect=(0, 0, 1, 0.97))
-        fig.savefig(out / name, dpi=300, facecolor="white", bbox_inches="tight")
-        plt.close(fig)
-        written.append(name)
+    with plt.rc_context(FIG_RC):
+        for metric in cfg["metrics"]:
+            fig, ax = plt.subplots(figsize=(w, 6.8), layout="constrained")
+            bar_axes(ax, cfg, summary, seed_df, metric, show_legend=False)
+            groups, _ = _order(cfg, summary)
+            ceil_row = summary[summary["role"] == "ceiling"]
+            in_range = len(ceil_row) and ceil_row.iloc[0][f"{metric}_mean"] <= 1.6 * summary.loc[summary["role"] != "ceiling", f"{metric}_mean"].max()
+            fig.legend(handles=_legend_handles(cfg, groups, with_ceiling_line=bool(in_range)), loc="outside upper center",
+                       ncol=4, fontsize=12, handlelength=1.6, columnspacing=1.2)
+            fig.get_layout_engine().set(h_pad=0.15)
+            fig.supxlabel("\n".join(textwrap.wrap(note, width=int(w * 11))), fontsize=11, color="#4D4D4D",
+                          ha="left", x=0.01)
+            fig.savefig(out / f"bars_{metric}.png", dpi=300, facecolor="white")
+            plt.close(fig)
+            written.append(f"bars_{metric}.png")
+        variants = [("bars_all_metrics.png", False)]
+        if (summary["role"] == "ceiling").any():
+            variants.append(("bars_all_metrics_ceiling.png", True))  # same panel with the test-retest ceiling as a bar
+        for name, with_ceiling in variants:
+            fig, axes = plt.subplots(2, 2, figsize=(2 * w, 13), layout="constrained")
+            for ax, metric in zip(axes.flat, cfg["metrics"]):
+                bar_axes(ax, cfg, summary, seed_df, metric, show_legend=False, with_ceiling=with_ceiling)
+            groups, _ = _order(cfg, summary, with_ceiling)
+            has_ceiling_line = (summary["role"] == "ceiling").any() and not with_ceiling
+            fig.legend(handles=_legend_handles(cfg, groups, with_ceiling_line=has_ceiling_line), loc="outside upper center",
+                       ncol=5, fontsize=13, handlelength=1.6, columnspacing=1.4)
+            fig.supxlabel("\n".join(textwrap.wrap(note, width=int(2 * w * 10))), fontsize=12, color="#4D4D4D",
+                          ha="left", x=0.01)
+            fig.savefig(out / name, dpi=300, facecolor="white")
+            plt.close(fig)
+            written.append(name)
     return written
 
 
@@ -277,54 +313,91 @@ def paired(cfg, seed_df, summary):
     return ref, pd.DataFrame(rows).sort_values("d_demeaned_pearson_mean", ascending=False)
 
 
+def _place_labels(ax, points, fontsize=11.5):
+    """Label each point at the first free spot from a fixed candidate list (right, left, above, below, then farther
+    out), avoiding other labels and markers; boxes estimated in axes fractions. Leader line when placed away."""
+    fig = ax.figure
+    fig.canvas.draw()
+    to_ax = ax.transData + ax.transAxes.inverted()
+    bbox = ax.get_window_extent()
+    px_pt = fig.dpi / 72.0                      # bbox is in pixels, font size in points
+    cw = 0.58 * fontsize * px_pt / bbox.width   # approx. character width (axes fraction)
+    ch = 1.3 * fontsize * px_pt / bbox.height   # line height (axes fraction)
+    mk = [tuple(to_ax.transform((x, y))) for x, y, _ in points]
+    rm_x, rm_y = 8 * px_pt / bbox.width, 8 * px_pt / bbox.height   # marker radius
+    placed = []
+
+    def free(x0, y0, w):
+        if x0 < 0 or x0 + w > 1.0 or y0 < 0 or y0 + ch > 1.0:
+            return False
+        for (a0, b0, a1, b1) in placed:
+            if x0 < a1 and x0 + w > a0 and y0 < b1 and y0 + ch > b0:
+                return False
+        return all(not (x0 - rm_x < mx < x0 + w + rm_x and y0 - rm_y < my < y0 + ch + rm_y) for mx, my in mk)
+
+    order = sorted(range(len(points)), key=lambda i: -sum(abs(mk[i][0] - m[0]) < 0.15 and abs(mk[i][1] - m[1]) < 0.08 for m in mk))
+    for i in order:
+        x, y, lab = points[i]
+        px, py = mk[i]
+        w = cw * len(lab)
+        # candidates: beside (right / left) and centred above / below, at growing offsets; nearest free spot wins
+        cands = [(px + 0.015, py - ch / 2), (px - 0.015 - w, py - ch / 2), (px - w / 2, py + 0.02),
+                 (px - w / 2, py - 0.02 - ch)]
+        for k in range(1, 7):
+            d = 0.028 * k
+            cands += [(px + 0.015, py - ch / 2 + d), (px + 0.015, py - ch / 2 - d),
+                      (px - 0.015 - w, py - ch / 2 + d), (px - 0.015 - w, py - ch / 2 - d),
+                      (px - w / 2, py + 0.02 + d), (px - w / 2, py - 0.02 - ch - d)]
+        dist = lambda c: np.hypot(min(abs(c[0] - px), abs(c[0] + w - px)), c[1] + ch / 2 - py)
+        spot = min((c for c in cands if free(c[0], c[1], w)), key=dist, default=cands[0])
+        placed.append((spot[0], spot[1], spot[0] + w, spot[1] + ch))
+        far = abs(spot[1] + ch / 2 - py) > ch or not (spot[0] - 0.02 <= px <= spot[0] + w + 0.02 or abs(spot[0] - px) < 0.03)
+        ax.annotate(lab, (x, y), xytext=(spot[0], spot[1] + 0.15 * ch), textcoords="axes fraction", fontsize=fontsize,
+                    color="#272727", va="bottom",
+                    arrowprops=dict(arrowstyle="-", color="#999999", lw=0.7, shrinkA=2, shrinkB=6) if far else None)
+
+
 def scatter(cfg, summary, out):
     """Test demeaned r vs average rank, one point per model (mean ± SE), coloured by model type."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
     s = summary[summary["role"] != "ceiling"]
-    fig, ax = plt.subplots(figsize=(8.5, 6.5))
-    for r in s.to_dict("records"):
-        col = cfg["types"].get(r["type"], {}).get("color", "#777777")
-        ax.errorbar(r["avg_rank_mean"], r["demeaned_pearson_mean"], xerr=r["avg_rank_se"], yerr=r["demeaned_pearson_se"],
-                    fmt="s" if r["objective"] else "o", ms=8, color=col, ecolor=col, capsize=3,
-                    mfc="white" if r["objective"] else col, mew=1.6)
-    # labels: nudge apart vertically when points crowd (greedy, bottom-up), with a leader line when moved
-    pts = sorted(((r["avg_rank_mean"], r["demeaned_pearson_mean"], r["label"]) for r in s.to_dict("records")),
-                 key=lambda t: t[1])
-    xr = np.ptp([t[0] for t in pts]) or 1.0
-    gap = 0.035 * (np.ptp([t[1] for t in pts]) or 1.0)
-    placed = []
-    for x, y, lab in pts:
-        ly = y
-        for px, py in placed:
-            if abs(px - x) < 0.25 * xr and ly - py < gap:
-                ly = py + gap
-        placed.append((x, ly))
-        moved = abs(ly - y) > 1e-12
-        ax.annotate(lab, (x, y), xytext=(x + 0.012 * xr, ly + 0.25 * gap), fontsize=8, color="#444444",
-                    arrowprops=dict(arrowstyle="-", color="#999999", lw=0.6) if moved else None)
-    ceil = summary[summary["role"] == "ceiling"]
-    note = ""
-    if len(ceil):
-        c = ceil.iloc[0]
-        note = f"test-retest ceiling: demeaned r {c['demeaned_pearson_mean']:.3g}, avg rank {c['avg_rank_mean']:.3g} (off scale)"
-    import matplotlib.patches as mpatches
-    present = [t for t in cfg["types"] if t in set(s["type"])]
-    ax.legend(handles=[mpatches.Patch(color=cfg["types"][t]["color"], label=cfg["types"][t]["label"]) for t in present],
-              fontsize=9, frameon=False, loc="lower right")
-    ax.set_xlabel("Average rank (test, max)")
-    ax.set_ylabel("Demeaned r (test, max)")
-    ax.grid(alpha=0.25, ls="--")
-    ax.set_title("Mean ± SE over seeds; open squares = native objective" + ("\n" + note if note else ""), fontsize=10)
-    fig.tight_layout()
-    fig.savefig(out / "scatter_demeaned_vs_rank.png", dpi=300, facecolor="white", bbox_inches="tight")
-    plt.close(fig)
+    with plt.rc_context(FIG_RC):
+        fig, ax = plt.subplots(figsize=(9.5, 7.5), layout="constrained")
+        for r in s.to_dict("records"):
+            col = "#767676" if r["role"] == "floor" else cfg["types"].get(r["type"], {}).get("color", "#777777")
+            native = bool(r["objective"])
+            ax.errorbar(r["avg_rank_mean"], r["demeaned_pearson_mean"], xerr=r["avg_rank_se"], yerr=r["demeaned_pearson_se"],
+                        fmt="none", ecolor=col, elinewidth=1.8, capsize=3, zorder=2)
+            ax.scatter([r["avg_rank_mean"]], [r["demeaned_pearson_mean"]], s=110, marker="s" if native else "o", zorder=3,
+                       facecolor="white" if native else col, edgecolor=col if native else "black",
+                       linewidth=2.0 if native else 0.8)
+        _place_labels(ax, [(r["avg_rank_mean"], r["demeaned_pearson_mean"], r["label"]) for r in s.to_dict("records")])
+        ceil = summary[summary["role"] == "ceiling"]
+        note = ""
+        if len(ceil):
+            c = ceil.iloc[0]
+            note = f"test-retest ceiling: demeaned r {c['demeaned_pearson_mean']:.2f}, average rank {c['avg_rank_mean']:.2f} (off scale)"
+        present = [t for t in cfg["types"] if t != "null_ceiling" and t in set(s["type"])]
+        handles = [Line2D([0], [0], marker="o", ls="none", markersize=10, markerfacecolor=cfg["types"][t]["color"],
+                          markeredgecolor="black", label=cfg["types"][t]["label"]) for t in present]
+        handles += [Line2D([0], [0], marker="o", ls="none", markersize=10, markerfacecolor="#767676",
+                           markeredgecolor="black", label="PCA null"),
+                    Line2D([0], [0], marker="s", ls="none", markersize=10, markerfacecolor="white",
+                           markeredgecolor="#4D4D4D", markeredgewidth=2, label="native objective")]
+        ax.legend(handles=handles, fontsize=12, loc="lower right", handlelength=1.2)
+        ax.set_xlabel("Average rank (test)", fontsize=15)
+        ax.set_ylabel("Demeaned r (test)", fontsize=15)
+        ax.set_title("Mean ± SE over seeds" + ("\n" + note if note else ""), fontsize=14)
+        fig.savefig(out / "scatter_demeaned_vs_rank.png", dpi=300, facecolor="white")
+        plt.close(fig)
     return "scatter_demeaned_vs_rank.png"
 
 
 # ------------------------------------------------------------------------------------------- panel (main figure)
-PANEL_FONTS = ["Arial", "Helvetica", "Nimbus Sans", "Liberation Sans", "DejaVu Sans"]  # skill: Helvetica-like sans
+PANEL_FONTS = FIG_RC["font.family"]  # skill: Helvetica-like sans
 
 
 def _panel_slots(cfg, summary, order):
@@ -427,8 +500,8 @@ def panel(cfg, summary, seed_df, out, direction, order):
         src, tgt = cfg["directions"][direction]["source"], cfg["directions"][direction]["target"]
         how = "grouped by model type, sorted by demeaned r within group" if order == "grouped" else "sorted by demeaned r"
         marks = "; † extra inputs" + ("; ‡ below screening gate, included" if cfg["directions"][direction].get("gate_override") else "")
-        fig.suptitle(f"{src} → {tgt}: test set, mean ± SE over {len(cfg['seeds'])} seeds (faint dots = seeds), {how}{marks}",
-                     fontsize=15)
+        fig.suptitle(f"{src} → {tgt}: test set, mean ± SE over {len(cfg['seeds'])} seeds (faint dots = seeds)\n"
+                     f"{how}{marks}", fontsize=15)
         name = f"panel_{order}.png"
         fig.savefig(out / name, dpi=300, facecolor="white")
         plt.close(fig)

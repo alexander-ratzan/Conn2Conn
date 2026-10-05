@@ -470,6 +470,9 @@ Debug missing results cell:
   policy); 0.25 × 4 runs clean.
 - Retrainable Krakencoder (`models/architectures/krakencoder/`, spec v2 E2.1) serves both directions.
 - Task FC caches and loaders: `HCP_Base(fc_conditions=[...])`, `load_fc_precomputed(task=)` (spec v2 I1.4–I1.5).
+- `model_benchmark` figures (2026-10-05): `run.py` writes `panel_grouped.png` (main: one row per model, four metrics,
+  dot and whisker, type-group headers) and `panel_performance.png` next to the bar charts and scatter, all in the
+  scientific-figure-making skill style; a `gate_override` in `config.yml` reports a gate-failed model anyway (‡).
 - Config family folders merged 2026-10-05 (spec v2 I2.3 / v3 C3): `models/configs/{null_ceiling,linear,latent,graph_nodal,deep}/`,
   `variants/<family>/`, `benchmark/<campaign>/`; `models/registry.py` finds configs by name, old flat paths fall back.
 

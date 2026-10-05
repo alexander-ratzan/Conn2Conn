@@ -1403,6 +1403,201 @@
   "config": {
    "data": {},
    "model": {
+    "dropout": 0.3,
+    "fc_mask_ratio": 0.2,
+    "hidden_dim": 256,
+    "l2_reg": 1.0115309044987296e-05,
+    "name": "MaskedMLPPretrainer",
+    "sc_mask_ratio": 0.2
+   },
+   "trainer": {
+    "lr": 0.0005516897009909899,
+    "max_epochs": 200
+   }
+  },
+  "log": "results/logs/e2_mse_MaskedMLPPretrainer_fc2sc_19248105_0.out",
+  "model": "MaskedMLPPretrainer",
+  "ray_tune_id": "1791234353",
+  "seed": 0,
+  "selected_val": 0.13680922985076904,
+  "source": "campaign",
+  "test": {
+   "avg_rank": 0.8315581854043392,
+   "demeaned_pearson": 0.12369028478860855,
+   "mse": 0.00545845739543438,
+   "pearson": 0.9145527482032776,
+   "r2": -0.003780888393521309,
+   "top1_acc": 0.10256410256410256
+  },
+  "val": {
+   "avg_rank": 0.8296747316135235,
+   "demeaned_pearson": 0.11968990415334702,
+   "mse": 0.0052596875466406345,
+   "pearson": 0.9155464768409729,
+   "r2": -0.030021555721759796,
+   "top1_acc": 0.1518987341772152
+  }
+ },
+ {
+  "config": {
+   "data": {},
+   "model": {
+    "dropout": 0.3,
+    "fc_mask_ratio": 0.2,
+    "hidden_dim": 256,
+    "l2_reg": 9.670939764689563e-06,
+    "name": "MaskedMLPPretrainer",
+    "sc_mask_ratio": 0.1
+   },
+   "trainer": {
+    "lr": 0.0005031294287448873,
+    "max_epochs": 200
+   }
+  },
+  "log": "results/logs/e2_mse_MaskedMLPPretrainer_fc2sc_19248105_1.out",
+  "model": "MaskedMLPPretrainer",
+  "ray_tune_id": "1791234571",
+  "seed": 1,
+  "selected_val": 0.13869090378284454,
+  "source": "campaign",
+  "test": {
+   "avg_rank": 0.8445759368836292,
+   "demeaned_pearson": 0.1257423460483551,
+   "mse": 0.005484343972057104,
+   "pearson": 0.9132463335990906,
+   "r2": -0.003169872798025608,
+   "top1_acc": 0.09230769230769231
+  },
+  "val": {
+   "avg_rank": 0.8186188110879666,
+   "demeaned_pearson": 0.12472619861364365,
+   "mse": 0.005362016148865223,
+   "pearson": 0.9152644872665405,
+   "r2": -0.022153936326503754,
+   "top1_acc": 0.16455696202531644
+  }
+ },
+ {
+  "config": {
+   "data": {},
+   "model": {
+    "dropout": 0.3,
+    "fc_mask_ratio": 0.2,
+    "hidden_dim": 256,
+    "l2_reg": 2.4377428795837537e-06,
+    "name": "MaskedMLPPretrainer",
+    "sc_mask_ratio": 0.1
+   },
+   "trainer": {
+    "lr": 0.0004988099597803473,
+    "max_epochs": 200
+   }
+  },
+  "log": "results/logs/e2_mse_MaskedMLPPretrainer_fc2sc_19248105_2.out",
+  "model": "MaskedMLPPretrainer",
+  "ray_tune_id": "1791235080",
+  "seed": 2,
+  "selected_val": 0.14861571788787842,
+  "source": "campaign",
+  "test": {
+   "avg_rank": 0.8233004602235372,
+   "demeaned_pearson": 0.11402169615030289,
+   "mse": 0.005445788614451885,
+   "pearson": 0.9137203097343445,
+   "r2": -0.017044320702552795,
+   "top1_acc": 0.1076923076923077
+  },
+  "val": {
+   "avg_rank": 0.8839929498477808,
+   "demeaned_pearson": 0.14223505556583405,
+   "mse": 0.005651721730828285,
+   "pearson": 0.9151315093040466,
+   "r2": -0.009149083867669106,
+   "top1_acc": 0.16455696202531644
+  }
+ },
+ {
+  "config": {
+   "data": {},
+   "model": {
+    "dropout": 0.3,
+    "fc_mask_ratio": 0.2,
+    "hidden_dim": 256,
+    "l2_reg": 2.682159362523837e-06,
+    "name": "MaskedMLPPretrainer",
+    "sc_mask_ratio": 0.2
+   },
+   "trainer": {
+    "lr": 0.00036772056715002034,
+    "max_epochs": 200
+   }
+  },
+  "log": "results/logs/e2_mse_MaskedMLPPretrainer_fc2sc_19248105_3.out",
+  "model": "MaskedMLPPretrainer",
+  "ray_tune_id": "1791237137",
+  "seed": 3,
+  "selected_val": 0.14159633219242096,
+  "source": "campaign",
+  "test": {
+   "avg_rank": 0.8284549638395793,
+   "demeaned_pearson": 0.12287245690822601,
+   "mse": 0.005473446100950241,
+   "pearson": 0.914385974407196,
+   "r2": 0.007535257376730442,
+   "top1_acc": 0.09230769230769231
+  },
+  "val": {
+   "avg_rank": 0.8299951930780324,
+   "demeaned_pearson": 0.1264067441225052,
+   "mse": 0.0052765244618058205,
+   "pearson": 0.9149857759475708,
+   "r2": -0.014425956644117832,
+   "top1_acc": 0.189873417721519
+  }
+ },
+ {
+  "config": {
+   "data": {},
+   "model": {
+    "dropout": 0.3,
+    "fc_mask_ratio": 0.2,
+    "hidden_dim": 256,
+    "l2_reg": 1.1682655918824801e-05,
+    "name": "MaskedMLPPretrainer",
+    "sc_mask_ratio": 0.2
+   },
+   "trainer": {
+    "lr": 0.0006082004213354434,
+    "max_epochs": 200
+   }
+  },
+  "log": "results/logs/e2_mse_MaskedMLPPretrainer_fc2sc_19248105_4.out",
+  "model": "MaskedMLPPretrainer",
+  "ray_tune_id": "1791237336",
+  "seed": 4,
+  "selected_val": 0.1419796496629715,
+  "source": "campaign",
+  "test": {
+   "avg_rank": 0.8320052596975674,
+   "demeaned_pearson": 0.12217197567224503,
+   "mse": 0.005354590248316526,
+   "pearson": 0.9145727157592773,
+   "r2": -0.00465634698048234,
+   "top1_acc": 0.07179487179487179
+  },
+  "val": {
+   "avg_rank": 0.859637878545105,
+   "demeaned_pearson": 0.13300122320652008,
+   "mse": 0.005358943250030279,
+   "pearson": 0.9150207042694092,
+   "r2": -0.020905520766973495,
+   "top1_acc": 0.16455696202531644
+  }
+ },
+ {
+  "config": {
+   "data": {},
+   "model": {
     "dropout": 0.30599419487209556,
     "hidden_dim": 1024,
     "l2_reg": 2.3218759725097498e-06,

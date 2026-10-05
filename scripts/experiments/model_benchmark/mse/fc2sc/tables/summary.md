@@ -8,5 +8,6 @@
 | Conditional Gaussian | Linear (closed-form) | 5 | 0.9146 ± 0.0005 | 0.1319 ± 0.0022 | 0.8844 ± 0.0082 | 0.1508 ± 0.0151 |
 | Sarwar MLP | Deep-learning baseline | 5 | 0.9150 ± 0.0002 | 0.1309 ± 0.0057 | 0.8643 ± 0.0143 | 0.0882 ± 0.0164 |
 | PLS-SVD | Linear (closed-form) | 5 | 0.9087 ± 0.0015 | 0.1273 ± 0.0016 | 0.8610 ± 0.0052 | 0.1179 ± 0.0138 |
+| Masked MLP pretrainer ‡ | Latent / pretrained | 5 | 0.9141 ± 0.0003 | 0.1217 ± 0.0020 | 0.8320 ± 0.0035 | 0.0933 ± 0.0062 |
 | Krakencoder (paper loss) | Deep-learning baseline | 5 | 0.9140 ± 0.0002 | 0.1048 ± 0.0016 | 0.8979 ± 0.0053 | 0.1456 ± 0.0066 |
 | PCA null | Null / ceiling | 5 | 0.8627 ± 0.0034 | 0.0065 ± 0.0034 | 0.5129 ± 0.0057 | 0.0092 ± 0.0038 |

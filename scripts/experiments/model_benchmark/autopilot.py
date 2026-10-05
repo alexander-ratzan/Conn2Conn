@@ -125,6 +125,10 @@ def gate(cfg, direction):
         vals = {}
         for path in glob.glob(str(LOG_DIR / f"{cfg['campaign']}_{model}_{direction}_*_*.out")):
             got = parse_log(path)
+            if model in g.get("models", []):  # gated model: only its short gate runs count (not a later full run)
+                n = re.search(r"\((\d+) samples", Path(path).read_text(errors="replace"))
+                if not n or int(n.group(1)) != g["trials"]:
+                    continue
             if got and got[0] in g["seeds"]:
                 vals[got[0]] = (got[1].get("selected_by") or {}).get("value")
         if set(vals) != set(g["seeds"]) or any(v is None for v in vals.values()):

@@ -7,5 +7,6 @@ Krakencoder_mse,Krakencoder (MSE),deep_baseline,CrossModal_PCA_PLS_learnable,5,-
 CrossModal_ConditionalGaussian,Conditional Gaussian,linear_closed_form,CrossModal_PCA_PLS_learnable,5,-0.00156263,0.000386584,-0.0298509,0.00348615,-0.00451282,0.00971739,0.0215385,0.0148098
 Sarwar2020MLP,Sarwar MLP,deep_baseline,CrossModal_PCA_PLS_learnable,5,-0.00117245,5.09884e-05,-0.0307847,0.00421406,-0.0246101,0.006907,-0.0410256,0.0108786
 CrossModal_PLS_SVD,PLS-SVD,linear_closed_form,CrossModal_PCA_PLS_learnable,5,-0.00746139,0.00146134,-0.0344127,0.00528099,-0.0279448,0.0080492,-0.0112821,0.0161681
+MaskedMLPPretrainer,Masked MLP pretrainer ‡,latent_pretrained,CrossModal_PCA_PLS_learnable,5,-0.00206262,0.000252958,-0.0400189,0.00307622,-0.056952,0.00822307,-0.0358974,0.0189813
 Krakencoder_paper,Krakencoder (paper loss),deep_baseline,CrossModal_PCA_PLS_learnable,5,-0.00211264,0.000162849,-0.0569443,0.00510799,0.00898343,0.00938081,0.0164102,0.0160866
 CrossModalPCA,PCA null,null_ceiling,CrossModal_PCA_PLS_learnable,5,-0.053481,0.00326079,-0.155178,0.00434064,-0.375995,0.00671994,-0.12,0.0150912
