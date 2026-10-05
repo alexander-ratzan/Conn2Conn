@@ -59,6 +59,16 @@ def normalize_modality_spec(spec):
     return parts
 
 
+def _upper_to_dense(upper, n):
+    """[S, n(n-1)/2] upper triangles (k=1) -> [S, n, n] symmetric float32 matrices with a unit diagonal."""
+    out = np.zeros((upper.shape[0], n, n), dtype=np.float32)
+    iu = np.triu_indices(n, k=1)
+    out[:, iu[0], iu[1]] = upper
+    out[:, iu[1], iu[0]] = upper
+    out[:, np.arange(n), np.arange(n)] = 1.0
+    return out
+
+
 class HCP_Base():
     def __init__(self,
     HCP_dir='/scratch/asr655/neuroinformatics/GeneEx2Conn_data/HCP1200/',
@@ -73,6 +83,7 @@ class HCP_Base():
     expose_fc_sessions=False,
     fc_conditions=None,
     fc_condition_matrices=False,
+    fc_source_condition=None,
     cov_sources=None):
         """
         Load and cache all global HCP data for one fixed experiment data setup.
@@ -109,6 +120,16 @@ class HCP_Base():
         # precomputed condition caches in either load mode. Their subjects join the canonical intersection.
         self.fc_conditions = [] if fc_conditions is None else list(dict.fromkeys(fc_conditions))
         self.fc_condition_matrices = bool(fc_condition_matrices)
+        # Which FC is "FC" for this run (spec v3 E0): None / 'rest' = the main rest FC; a task name (must be in
+        # fc_conditions) or 'rest_S1' / 'rest_S2' (needs expose_fc_sessions) rebinds the FC arrays to that condition
+        # before the train-split PCA, so every model, PCA basis and evaluator sees it as FC.
+        self.fc_source_condition = None if fc_source_condition in (None, "", "rest") else str(fc_source_condition)
+        if self.fc_source_condition in ("rest_S1", "rest_S2"):
+            if not self.expose_fc_sessions:
+                raise ValueError(f"fc_source_condition={self.fc_source_condition!r} needs expose_fc_sessions=True")
+        elif self.fc_source_condition is not None and self.fc_source_condition not in self.fc_conditions:
+            raise ValueError(f"fc_source_condition={self.fc_source_condition!r} must be one of fc_conditions "
+                             f"{self.fc_conditions} (or rest / rest_S1 / rest_S2)")
         self.enable_partition_tensor_cache = (self.data_load_mode == "precomputed")
         self._tensor_cache = {} if self.enable_partition_tensor_cache else None
         self.cov_sources = list(cov_sources) if cov_sources is not None else ["fs_all"]
@@ -320,6 +341,19 @@ class HCP_Base():
         tri_indices = np.triu_indices(self.sc_r2t_corr_matrices.shape[1], k=1)
         self.sc_r2t_corr_upper_triangles = self.sc_r2t_corr_matrices[:, tri_indices[0], tri_indices[1]]
         
+        # Rebind FC to the requested condition (all arrays are canonical-aligned at this point; the PCA and every
+        # downstream consumer read self.fc_upper_triangles / self.fc_matrices).
+        if self.fc_source_condition is not None:
+            if self.fc_source_condition in ("rest_S1", "rest_S2"):
+                session = self.fc_source_condition[-1]
+                self.fc_upper_triangles = getattr(self, f"fc_session{session}_upper_triangles")
+                self.fc_matrices = getattr(self, f"fc_session{session}_matrices")
+            else:
+                self.fc_upper_triangles = self.fc_condition_upper_triangles[self.fc_source_condition]
+                mats = self.fc_condition_matrices_by_condition.get(self.fc_source_condition)
+                n = self.fc_matrices.shape[1]
+                self.fc_matrices = mats if mats is not None else _upper_to_dense(self.fc_upper_triangles, n)
+
         # Build train/val/test split indices and ids. Indices are positions in the canonical (post-intersection)
         # metadata_df, which every modality array is aligned to; positions in the pre-intersection subject list
         # would be shifted whenever the intersection drops subjects (it does with fc_conditions).

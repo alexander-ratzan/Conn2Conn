@@ -1,0 +1,27 @@
+# Spec v3 E0 — which FC condition best predicts SC (FC -> SC, Glasser, PCA-PLS learnable, MSE-only).
+# Every run loads all seven task FCs and the rest sessions (identical 917-subject cohort and splits); the only
+# variable is fc_source_condition. Per-condition configs: configs/<condition>.yml (make_configs.py).
+#   python scripts/experiments/task_fc_to_sc/make_configs.py            # (re)generate configs/
+#   python scripts/experiments/task_fc_to_sc/submit.py --stage pilot    # rest + wm, seed 0
+#   python scripts/experiments/task_fc_to_sc/submit.py --stage full     # all conditions, seeds 0-4
+#   python scripts/experiments/task_fc_to_sc/run.py                     # tables + figures from the task logs
+campaign: e0_taskfc
+model: CrossModal_PCA_PLS_learnable
+base_config: models/configs/benchmark/mse/CrossModal_PCA_PLS_learnable.yml   # v2:E2.2 FC -> SC protocol and search space
+direction: fc2sc
+parcellation: Glasser
+seeds: [0, 1, 2, 3, 4]
+num_samples: 16              # user 2026-10-05 (E2.2 used 64)
+search_alg: optuna
+packing: {gpus_per_trial: 0.25, max_concurrent: 4}
+task_conditions: [emotion, gambling, language, motor, relational, social, wm]   # loaded in every run (cohort)
+conditions: [rest, rest_S1, emotion, gambling, language, motor, relational, social, wm]
+pilot: {conditions: [rest, wm], seeds: [0]}
+labels: {rest: "Rest (4 runs)", rest_S1: "Rest S1 (2 runs)", emotion: Emotion, gambling: Gambling, language: Language,
+         motor: Motor, relational: Relational, social: Social, wm: Working memory}
+types:                        # bar colours / legend groups (order = legend order)
+  rest: {label: Resting state, color: "#0F4D92"}
+  task: {label: Task, color: "#42949E"}
+metrics: [pearson, demeaned_pearson, avg_rank, top1_acc]
+reference: rest               # paired differences are against this condition
+output_dir: results           # tables/ and figures/ under scripts/experiments/task_fc_to_sc/results/

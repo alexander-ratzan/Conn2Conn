@@ -56,6 +56,22 @@ from models.registry import (
     FLAT_METADATA_KEYS,
 )
 
+# Data-config keys passed through to HCP_Base by every builder (main run, runtime rebuild, Tune worker), so a tuned
+# trial and its best-trial report always load the same cohort.
+HCP_BASE_DATA_KEYS = (
+    "HCP_dir",
+    "sc_metric_type",
+    "sc_apply_log1p",
+    "volume_feature_type",
+    "centroid_feature_type",
+    "data_load_mode",
+    "precompute_cache_root",
+    "write_manual_cache",
+    "expose_fc_sessions",
+    "fc_conditions",
+    "fc_source_condition",
+)
+
 # Ensure project root is on path when run as script
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if _SCRIPT_DIR not in sys.path:
@@ -269,17 +285,7 @@ class Sim:
             "expose_node_features": (self.model_name in {"NodalGNN", "NodalMLP"}),
             "expose_sc_matrix": (self.model_name == "NodalMLP"),
         }
-        for _k in (
-            "HCP_dir",
-            "sc_metric_type",
-            "sc_apply_log1p",
-            "volume_feature_type",
-            "centroid_feature_type",
-            "data_load_mode",
-            "precompute_cache_root",
-            "write_manual_cache",
-            "expose_fc_sessions",
-        ):
+        for _k in HCP_BASE_DATA_KEYS:
             if _k in data_cfg:
                 hcp_base_kwargs[_k] = data_cfg[_k]
         self.base = HCP_Base(**hcp_base_kwargs)
@@ -340,17 +346,7 @@ class Sim:
             "expose_node_features": (self.model_name in {"NodalGNN", "NodalMLP"}),
             "expose_sc_matrix": (self.model_name == "NodalMLP"),
         }
-        for _k in (
-            "HCP_dir",
-            "sc_metric_type",
-            "sc_apply_log1p",
-            "volume_feature_type",
-            "centroid_feature_type",
-            "data_load_mode",
-            "precompute_cache_root",
-            "write_manual_cache",
-            "expose_fc_sessions",
-        ):
+        for _k in HCP_BASE_DATA_KEYS:
             if _k in data_cfg:
                 hcp_base_kwargs[_k] = data_cfg[_k]
 
@@ -944,16 +940,7 @@ class Sim:
                     "expose_node_features": (model_name in {"NodalGNN", "NodalMLP"}),
                     "expose_sc_matrix": (model_name == "NodalMLP"),
                 }
-                for _k in (
-                    "HCP_dir",
-                    "sc_metric_type",
-                    "sc_apply_log1p",
-                    "volume_feature_type",
-                    "centroid_feature_type",
-                    "data_load_mode",
-                    "precompute_cache_root",
-                    "write_manual_cache",
-                ):
+                for _k in HCP_BASE_DATA_KEYS:
                     if _k in fixed_data_cfg:
                         _worker_hcp_kwargs[_k] = fixed_data_cfg[_k]
                 _WORKER_CACHE["base"] = HCP_Base(**_worker_hcp_kwargs)

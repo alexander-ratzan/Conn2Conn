@@ -8,7 +8,7 @@ from copy import deepcopy
 import yaml
 
 TRAINER_KEYS = {"lr", "loss_type", "loss_terms", "loss_normalize", "loss_scale_ema_decay", "loss_scale_warmup_steps", "loss_monitor_terms", "max_epochs", "batch_size", "log_every", "lr_schedule", "cosine_t0", "cosine_t_mult", "cosine_eta_min_ratio", "tune_grace_period_ratio", "tune_reduction_factor"}
-DATA_KEYS = {"parcellation", "hemi", "source", "target", "shuffle_seed", "HCP_dir", "sc_metric_type", "sc_apply_log1p", "volume_feature_type", "centroid_feature_type", "data_load_mode", "precompute_cache_root", "write_manual_cache", "expose_fc_sessions"}
+DATA_KEYS = {"parcellation", "hemi", "source", "target", "shuffle_seed", "HCP_dir", "sc_metric_type", "sc_apply_log1p", "volume_feature_type", "centroid_feature_type", "data_load_mode", "precompute_cache_root", "write_manual_cache", "expose_fc_sessions", "fc_conditions", "fc_source_condition"}
 FLAT_METADATA_KEYS = {"cov_sources_str", "cov_dims", "cov_projectors_tag", "cov_fusion_tag"}
 # Flat trainer keys that override composite loss_terms weights / term kwargs (Tune-searchable).
 LOSS_WEIGHT_PREFIX = "loss_weight_"
