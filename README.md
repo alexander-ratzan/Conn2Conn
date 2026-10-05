@@ -170,7 +170,7 @@ python main.py --mode prod --model CrossModal_PCA_PLS_learnable \
 | Flag | Description |
 |---|---|
 | `--mode dev\|prod` | `dev` for interactive/notebook use; `prod` for SLURM/batch |
-| `--model` | Model name (must match a YAML in `models/configs/`) |
+| `--model` | Model name (its default config is found by name anywhere under `models/configs/`) |
 | `--source` | Input modality: `SC`, `SC_r2t`, or `SC+SC_r2t` |
 | `--target` | Output modality (default `FC`) |
 | `--shuffle_seed` | Train/val/test split seed (the multi-seed arrays use 0–9) |
@@ -238,10 +238,10 @@ Ray (empty `search_space`); a variant is a new retrain tag.
 sbatch scripts/sbatch/Krakencoder/train_array_krakencoder_seeds.sh                       # seeds 0-9, default recipe
 sbatch --array=0 --export=ALL,CONFIG=<variant.yml> scripts/sbatch/Krakencoder/train_array_krakencoder_seeds.sh
 # or step by step
-python -m models.architectures.krakencoder.retrain --config models/configs/Krakencoder.yml --seed 0
-python main.py --mode prod --model Krakencoder --config models/configs/Krakencoder.yml --source FC --target SC --shuffle_seed 0
+python -m models.architectures.krakencoder.retrain --config models/configs/deep/Krakencoder.yml --seed 0
+python main.py --mode prod --model Krakencoder --config models/configs/deep/Krakencoder.yml --source FC --target SC --shuffle_seed 0
 ```
-- recipe: the `retrain:` block of `models/configs/Krakencoder.yml` (flavors, loss string, epochs, latent size, dropout);
+- recipe: the `retrain:` block of `models/configs/deep/Krakencoder.yml` (flavors, loss string, epochs, latent size, dropout);
   defaults reproduce the March 2026 runs; `default.model.tag` names the output folder
 - outputs: `results/krakencoder/<tag>/seed{seed}/` (checkpoint, transforms, logs, `manifest.json`,
   `predictions_source_{parc}.{SC|FC}.mat`); shared inputs in `results/krakencoder/_inputs/`
@@ -384,4 +384,4 @@ Conn2Conn/
 └── krakencoder_experimental/        # Local Krakencoder copy + data, cached predictions (gitignored)
 ```
 
-Last updated at: 2026-10-04 EDT
+Last updated at: 2026-10-05 EDT

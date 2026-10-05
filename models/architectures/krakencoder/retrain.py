@@ -1,7 +1,7 @@
 """
 Retrain Krakencoder for one seed with the vendored upstream code and write predictions for the benchmark loader.
 
-    python -m models.architectures.krakencoder.retrain --config models/configs/Krakencoder.yml --seed 0
+    python -m models.architectures.krakencoder.retrain --config models/configs/deep/Krakencoder.yml --seed 0
     python -m models.architectures.krakencoder.retrain --config ... --seed 0 --tag smoke --epochs 20   # quick check
 
 Stages (all by default; each is skipped when its output exists, so a requeued job resumes):

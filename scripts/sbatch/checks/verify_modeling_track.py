@@ -210,7 +210,8 @@ def task_cross_tree():
 def task_tune():
     import yaml
 
-    src = yaml.safe_load((REPO_ROOT / "models/configs/CrossModal_linear_backbone.yml").read_text())
+    from models.registry import _config_path
+    src = yaml.safe_load(Path(_config_path("CrossModal_linear_backbone")).read_text())
     src["search_space"] = {
         "lr": src["search_space"]["lr"],
         "max_epochs": {"type": "choice", "values": [3]},
