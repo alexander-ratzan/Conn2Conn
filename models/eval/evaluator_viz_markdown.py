@@ -116,8 +116,9 @@ def generate_markdown_report(figures_dict, all_metrics, filepath, verbose=False)
         md_lines.append("|--------|-----|----------|")
         raw = all_metrics.get("heatmaps_raw", {})
         dem = all_metrics.get("heatmaps_demeaned", {})
-        md_lines.append(f"| Mean Corr | {raw.get('raw_mean_corr', raw.get('mean_corr', np.nan)):.3f} | {dem.get('raw_mean_corr', dem.get('mean_corr', np.nan)):.3f} |")
-        md_lines.append(f"| Demeaned Mean Corr | {raw.get('demeaned_mean_corr', np.nan):.3f} | {dem.get('demeaned_mean_corr', np.nan):.3f} |")
+        # each column's own mean_corr (raw: raw predictions vs targets; demeaned: both minus the train mean). The
+        # raw_mean_corr / demeaned_mean_corr keys are the same in both dicts, so they would repeat across columns.
+        md_lines.append(f"| Mean Corr | {raw.get('mean_corr', np.nan):.3f} | {dem.get('mean_corr', np.nan):.3f} |")
         md_lines.append(f"| Top-1 Acc | {raw.get('top1_acc', '-'):.3f} | {dem.get('top1_acc', '-'):.3f} |")
         md_lines.append(f"| Avg Rank %ile | {raw.get('avg_rank_percentile', '-'):.3f} | {dem.get('avg_rank_percentile', '-'):.3f} |")
     elif "heatmaps_demeaned" in all_metrics:
