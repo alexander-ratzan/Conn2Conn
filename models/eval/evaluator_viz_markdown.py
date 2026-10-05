@@ -73,7 +73,9 @@ def generate_markdown_report(figures_dict, all_metrics, filepath, verbose=False)
     md_lines = []
 
     source, target = all_metrics.get('source'), all_metrics.get('target')
-    md_lines.append(f"# {target or 'FC'} Prediction Evaluation Report")
+    tgt = target or 'FC'
+    pred_lbl, emp_lbl = f"p{tgt}", f"e{tgt}"  # predicted / empirical connectome labels (pFC / eFC for SC -> FC)
+    md_lines.append(f"# {tgt} Prediction Evaluation Report")
     md_lines.append("")
     md_lines.append(
         f"**Model:** {model_type} | "
@@ -137,7 +139,7 @@ def generate_markdown_report(figures_dict, all_metrics, filepath, verbose=False)
         md_lines.append("## SPD Geodesic Heatmaps")
         md_lines.append("")
         md_lines.append(
-            "Pairwise distances between full reconstructed FC matrices after SPD projection. "
+            f"Pairwise distances between full reconstructed {tgt} matrices after SPD projection. "
             "These plots use an SPD-aware matrix distance instead of edgewise correlation."
         )
         md_lines.append("")
@@ -190,18 +192,18 @@ def generate_markdown_report(figures_dict, all_metrics, filepath, verbose=False)
         md_lines.append("|--------|-----|----------|")
         raw = all_metrics.get("violin_raw", {})
         dem = all_metrics.get("violin_demeaned", {})
-        md_lines.append(f"| pFC r_intra | {raw.get('pfc_mean_r_intra', '-'):.3f} | {dem.get('pfc_mean_r_intra', '-'):.3f} |")
-        md_lines.append(f"| pFC r_inter | {raw.get('pfc_mean_r_inter', '-'):.3f} | {dem.get('pfc_mean_r_inter', '-'):.3f} |")
-        md_lines.append(f"| pFC Cohen's d | {raw.get('pfc_cohen_d', '-'):.2f} | {dem.get('pfc_cohen_d', '-'):.2f} |")
-        md_lines.append(f"| pFC p-value (t-test) | {raw.get('pfc_p_value', '-'):.2e} | {dem.get('pfc_p_value', '-'):.2e} |")
+        md_lines.append(f"| {pred_lbl} r_intra | {raw.get('pfc_mean_r_intra', '-'):.3f} | {dem.get('pfc_mean_r_intra', '-'):.3f} |")
+        md_lines.append(f"| {pred_lbl} r_inter | {raw.get('pfc_mean_r_inter', '-'):.3f} | {dem.get('pfc_mean_r_inter', '-'):.3f} |")
+        md_lines.append(f"| {pred_lbl} Cohen's d | {raw.get('pfc_cohen_d', '-'):.2f} | {dem.get('pfc_cohen_d', '-'):.2f} |")
+        md_lines.append(f"| {pred_lbl} p-value (t-test) | {raw.get('pfc_p_value', '-'):.2e} | {dem.get('pfc_p_value', '-'):.2e} |")
     elif "violin_demeaned" in all_metrics:
         dem = all_metrics.get("violin_demeaned", {})
         md_lines.append("| Metric | Value |")
         md_lines.append("|--------|-------|")
-        md_lines.append(f"| pFC r_intra | {dem.get('pfc_mean_r_intra', '-'):.3f} |")
-        md_lines.append(f"| pFC r_inter | {dem.get('pfc_mean_r_inter', '-'):.3f} |")
-        md_lines.append(f"| pFC Cohen's d | {dem.get('pfc_cohen_d', '-'):.2f} |")
-        md_lines.append(f"| pFC p-value (t-test) | {dem.get('pfc_p_value', '-'):.2e} |")
+        md_lines.append(f"| {pred_lbl} r_intra | {dem.get('pfc_mean_r_intra', '-'):.3f} |")
+        md_lines.append(f"| {pred_lbl} r_inter | {dem.get('pfc_mean_r_inter', '-'):.3f} |")
+        md_lines.append(f"| {pred_lbl} Cohen's d | {dem.get('pfc_cohen_d', '-'):.2f} |")
+        md_lines.append(f"| {pred_lbl} p-value (t-test) | {dem.get('pfc_p_value', '-'):.2e} |")
     md_lines.append("")
     md_lines.append("---")
     md_lines.append("")
@@ -210,7 +212,7 @@ def generate_markdown_report(figures_dict, all_metrics, filepath, verbose=False)
         md_lines.append("## Hungarian Matching")
         md_lines.append("")
         md_lines.append(
-            "The Hungarian algorithm derives an optimal **one-to-one** mapping between target (eFC) and predicted (pFC) matrices "
+            f"The Hungarian algorithm derives an optimal **one-to-one** mapping between target ({emp_lbl}) and predicted ({pred_lbl}) matrices "
             "that maximizes total similarity. Unlike greedy matching (which permits one-to-many assignments), "
             "Hungarian matching ensures each prediction is assigned to exactly one target."
         )
@@ -240,7 +242,7 @@ def generate_markdown_report(figures_dict, all_metrics, filepath, verbose=False)
             md_lines.append("|-----------|---------------|---------------------|")
             raw = all_metrics.get("hungarian_raw", {})
             dem = all_metrics.get("hungarian_demeaned", {})
-            md_lines.append(f"| pFC | {raw.get('pfc_accuracy', '-'):.3f} | {dem.get('pfc_accuracy', '-'):.3f} |")
+            md_lines.append(f"| {pred_lbl} | {raw.get('pfc_accuracy', '-'):.3f} | {dem.get('pfc_accuracy', '-'):.3f} |")
             md_lines.append(f"| Null (noise) | {raw.get('null_noise_accuracy', '-'):.3f} | {dem.get('null_noise_accuracy', '-'):.3f} |")
             md_lines.append(f"| Null (permute) | {raw.get('null_permute_accuracy', '-'):.3f} | {dem.get('null_permute_accuracy', '-'):.3f} |")
         md_lines.append("")
@@ -251,7 +253,7 @@ def generate_markdown_report(figures_dict, all_metrics, filepath, verbose=False)
         md_lines.append("")
         md_lines.append(
             "Matching accuracy as a function of subset sample size. "
-            "Stars indicate sample sizes where pFC significantly exceeds both null baselines (FDR-corrected, two-sample t-test)."
+            f"Stars indicate sample sizes where {pred_lbl} significantly exceeds both null baselines (FDR-corrected, two-sample t-test)."
         )
         md_lines.append("")
 
@@ -362,7 +364,7 @@ def generate_markdown_report(figures_dict, all_metrics, filepath, verbose=False)
 
     if verbose and ("hungarian_raw" in all_metrics or "hungarian_demeaned" in all_metrics):
         raw_hung = all_metrics.get("hungarian_raw", all_metrics.get("hungarian_demeaned", {}))
-        md_lines.append(f"| Hungarian | pFC Top-1 Acc | {raw_hung.get('pfc_accuracy', '-'):.3f} |")
+        md_lines.append(f"| Hungarian | {pred_lbl} Top-1 Acc | {raw_hung.get('pfc_accuracy', '-'):.3f} |")
 
     if "pca" in all_metrics:
         pca = all_metrics["pca"]
@@ -395,6 +397,12 @@ FONT_CONFIG = {
     'legend': 11,
     'annotation': 11,
 }
+
+def _display_label(cond, target):
+    """Display label for an internal condition key ('pFC', 'Mean eFC') given the target modality."""
+    tgt = target or "FC"
+    return {"pFC": f"p{tgt}", "Mean eFC": f"Mean e{tgt}"}.get(cond, cond)
+
 
 def set_plot_defaults():
     """Set global matplotlib defaults for better visibility."""
@@ -1456,7 +1464,7 @@ class EvaluatorVizMarkdownMixin:
         
         # Formatting
         ax.set_xticks(positions)
-        ax.set_xticklabels(conditions, fontsize=FONT_CONFIG['label'] + 2)
+        ax.set_xticklabels([_display_label(c, self.dataset.target) for c in conditions], fontsize=FONT_CONFIG['label'] + 2)
         ax.set_ylabel('Correlation', fontsize=FONT_CONFIG['label'] + 2)
         ax.set_xlabel('')
         
@@ -1474,7 +1482,7 @@ class EvaluatorVizMarkdownMixin:
         
         # Title
         demean_str = " (demeaned)" if demeaned else ""
-        ax.set_title(f'FC Prediction Identifiability{demean_str}', fontsize=FONT_CONFIG['title'] + 2)
+        ax.set_title(f'{self.dataset.target} Prediction Identifiability{demean_str}', fontsize=FONT_CONFIG['title'] + 2)
         
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
@@ -1591,7 +1599,7 @@ class EvaluatorVizMarkdownMixin:
             n_correct = hung['n_correct']
             n_total = hung['n']
             demean_str = " (demeaned)" if demeaned else ""
-            ax.set_title(f'{cond}{demean_str}\nTop-1 Acc: {acc:.1f}% ({n_correct}/{n_total})', fontsize=FONT_CONFIG['title'])
+            ax.set_title(f'{_display_label(cond, self.dataset.target)}{demean_str}\nTop-1 Acc: {acc:.1f}% ({n_correct}/{n_total})', fontsize=FONT_CONFIG['title'])
             ax.set_xlabel('Predicted', fontsize=FONT_CONFIG['label'])
             ax.set_ylabel('Target', fontsize=FONT_CONFIG['label'])
             
@@ -1733,7 +1741,7 @@ class EvaluatorVizMarkdownMixin:
 
         # Plot only the 3 main lines (no std bands)
         ax.plot(sample_sizes, results['pFC']['mean'] * 100, '-', color=color_pfc, 
-                linewidth=2, label='pFC')
+                linewidth=2, label=_display_label('pFC', self.dataset.target))
         ax.plot(sample_sizes, results['Null (noise)']['mean'] * 100, '-', color=color_noise,
                 linewidth=2, label='Null (noise)')
         ax.plot(sample_sizes, results['Null (permute)']['mean'] * 100, '-', color=color_permute,
