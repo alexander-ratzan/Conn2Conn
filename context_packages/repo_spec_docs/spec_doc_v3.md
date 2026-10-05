@@ -17,11 +17,12 @@ To add an experiment, append a section under §4 (template: v2 §4.0) and add a 
 | E0 | Which task FC best predicts SC: PCA-PLS learnable, MSE-only, FC → SC per condition (`task_fc_to_sc`) | planned (spec 2026-10-05; decisions pending) | — | agent:infra |
 | C1 | Composite-loss benchmark with tuned weights, both directions; then the final reoptimized benchmark (v2:E2.3) | planned (design pending) | v2:E1, v2:E2.2 | — |
 | C2 | Covariate ablation for PCA-PLS + covariates (v2:E2.2 / E3 Phase D) | planned (proposed 2026-10-04, not approved) | — | — |
-| C3 | Merge I2.3 config family folders (branch `i2-config-layout`); then one tune launcher and variants as overrides (v2:I2.4–I2.5) | planned (no-jobs window) | — | agent:modeling |
+| C3 | Merge I2.3 config family folders (branch `i2-config-layout`); then one tune launcher and variants as overrides (v2:I2.4–I2.5) | in progress (merge done 2026-10-05 `5efe03a`; launcher + overrides planned) | — | agent:modeling |
 | C4 | Subject × subject connectome-similarity views (v2:I1.2) | planned | — | — |
 | C5 | Task-FC follow-ups: cross-condition fingerprinting, network-ordered view (v2:I1.5) | planned | — | — |
 | C6 | FC → SC reverse variants for Chen GCN, Nodal GNN, Nodal MLP (v2:E2.0) | planned | — | — |
 | C7 | Environment alignment and C6 archive deletion (v2:C6.5) | planned | user | user |
+| C8 | E2.2 addendum: Masked MLP pretrainer FC → SC at full budget despite its failed gate (user 2026-10-05) | in progress (job `19248105`) | — | agent:modeling |
 | C!1 | PCA-PLS + covariates FC → SC gain is likely anatomy, not FC | open | resolved by C2 | — |
 
 ---
@@ -47,11 +48,12 @@ mixtures; fixed reference scales).
 |---|---|---|
 | C1 | **Composite-loss benchmark (tuned weights), both directions** (v2:E2.3 + E3's composite FC → SC). Optuna over scaled weights (Demeaned corr-eye, Neighbor dist, Var-match; raw Corr-eye excluded, v2:D5) jointly with `lr` / `l2_reg` / epochs, seeds 0–4, batch 64 (v2:D4), results in `model_benchmark/composite/<direction>/`. Candidates from v2:E2.2: SC → FC linear backbone, Conditional Gaussian, PCA-PLS learnable (Krakencoder as the deep reference); FC → SC PCA-PLS learnable, linear backbone. Then the final reoptimized benchmark (`model_benchmark/final/`). | Design with the user: model set, weight ranges (v2 E1 gradient-strength table), **selection metric** (val demeaned r, val avg_rank, or a combination; no weighting maximizes both). Also from v2 E3 Phase D: tune epochs with the weights and widen `linear_backbone` PCs (consensus hit 256) and `pca_pls_learnable` lr (near 3e-5). FC → SC note: v2 Phase D found no composite term helps FC → SC. Open: sources beyond SC (`SC_r2t`, `SC+SC_r2t`). |
 | C2 | **Covariate ablation** for `CrossModal_PCA_PLS_CovProjector`: (a) `fs_all` without regional volumes + demographics, (b) demographics only; both directions, E2.2 protocol, ~1–2 GPU-h. | Needs approval. Resolves C!1. |
-| C3 | **Merge v2:I2.3** (`7501e94`, worktree `../Conn2Conn_wt_i2`): config family folders `models/configs/{null_ceiling,linear,latent,graph_nodal,deep}/`, `variants/<family>/`, name-based lookup with legacy fallback, ConditionalGaussian moved to `models/architectures/crossmodal_conditional_gaussian.py`. | Merge only when no job is queued or running; re-run loss regression (45/45), E1.1 checks, `build_configs.py --check`, benchmark checks on `main`; remove the worktree. **Then:** a generic `scripts/sbatch/launch_tune.sh` + roster `submit.py` (per-model sbatch scripts → `scripts/sbatch/legacy/`), and source / covariate variants as `data:` / `model:` overrides in rosters. |
+| C3 | **v2:I2.3 merged 2026-10-05** (`5efe03a`; branch and worktree removed): config family folders `models/configs/{null_ceiling,linear,latent,graph_nodal,deep}/`, `variants/<family>/`, name-based lookup with legacy fallback, ConditionalGaussian in `models/architectures/crossmodal_conditional_gaussian.py`. Checks on `main`: loss regression 45/45 vs `5efe03a^1`, E1.1 checks, `build_configs.py --check`, benchmark checks; benchmark configs semantically unchanged (13/13). | **Next:** a generic `scripts/sbatch/launch_tune.sh` + roster `submit.py` (per-model sbatch scripts → `scripts/sbatch/legacy/`), and source / covariate variants as `data:` / `model:` overrides in rosters. |
 | C4 | Subject × subject connectome-similarity matrices, raw and demeaned, with interactive per-subject views (self-contained HTML). | — |
 | C5 | Cross-condition fingerprinting (top-1, differential identifiability) and a network-ordered condition view. | User follow-ups from the v2:I1.5 notebook review. |
 | C6 | FC → SC variants: message passing on FC thresholded at τ (`fc_graph_threshold`, default 0.5) for Chen GCN / Nodal GNN; no SC-derived node inputs (`use_r2t: false`); Nodal MLP reads FC rows; guard refusing `target == "SC"` with SC-derived inputs (v2:E2.0). | Low priority: all three are at the null SC → FC (v2:E2.2). |
 | C7 | Align `activate_env.sh` and Jupyter kernels with `/ext3/env.sh`; delete `/scratch/asr655/envs/archive/2026-09-30_c6/` once jobs run clean (they have since 2026-09-30). | User. |
+| C8 | **Masked MLP pretrainer FC → SC, all 5 seeds at full budget** (56 trials, 0.25 × 4 packing; ~6.3 GPU-h). It failed the v2:E2.2 latent gate (val 0.132 < 0.169) but is a competitive nonlinear model, so it is reported anyway (`gate_override` in `model_benchmark/config.yml`; marked ‡ in tables and figures; the gate result stays recorded). | When `19248105` finishes: `run.py --direction fc2sc`, update `model_benchmark.md`. **Jobs read `main.py`, `data/` and `models/` live: no edits there (e.g. E0's `HCP_Base` change) until the array is done.** |
 
 ### Caveats (`C!`)
 
@@ -119,6 +121,7 @@ Moved from v2 §6 (originally v1 §6, v1 §8.6, the unrun parts of v1 M10, and E
 |---|---|
 | 2026-10-04 | v3 created at v2 closure: carried items C1–C12, caveats C!1–C!3, backlog moved; v2:D1–D6 in force. |
 | 2026-10-05 | E0 specified (task FC → SC with PCA-PLS learnable, matched 917-subject cohort); C7 promoted to E0. |
+| 2026-10-05 | C3: I2.3 merged (`5efe03a`), checks pass on `main`. C8 added: Masked MLP FC → SC full run (gate override), job `19248105`. |
 | 2026-10-05 | Carry-over pruned to essentials (user): C4/C5 folded into C3; C7 → E0; C10, C11 and caveats on old ema runs / z-scored latents dropped; renumbered C1–C7, C!1. |
 
 Last updated at: 2026-10-05 EDT

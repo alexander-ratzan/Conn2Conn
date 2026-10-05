@@ -10,12 +10,12 @@ metrics: [pearson, demeaned_pearson, avg_rank, top1_acc]  # the four figure metr
 
 # Model type = figure group (colour, and sort by the group's mean on each metric).
 types:
-  linear_closed_form: {label: "Linear (closed-form)", color: "#3775BA"}
+  linear_closed_form: {label: "Linear (closed-form)", color: "#8DB8E8", header_color: "#3775BA"}
   linear_learned:     {label: "Linear (learned)",     color: "#0F4D92"}
   latent_pretrained:  {label: "Latent / pretrained",  color: "#9A4D8E"}
   deep_baseline:      {label: "Deep-learning baseline", color: "#B64342"}
-  pairwise_nodal:     {label: "Pairwise nodal",       color: "#E3962B"}
-  null_ceiling:       {label: "Null / ceiling",       color: "#8C8C8C"}
+  pairwise_nodal:     {label: "Pairwise nodal",       color: "#42949E"}
+  null_ceiling:       {label: "Null / ceiling",       color: "#8C8C8C", header: "Null"}
 
 # extra_inputs: the model sees more than the source modality (not input-matched: marked † and never the paired
 # reference). FC -> SC caveat: fs_all volumes ~ the SC target's invnodevol normalisation (spec v2 E3).

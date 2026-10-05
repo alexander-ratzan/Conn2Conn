@@ -81,7 +81,8 @@ def main():
     check("runner: reused Krakencoder (MSE + paper) + test-retest rows", reused == {"Krakencoder_mse", "Krakencoder_paper", "TestRetest"}, str(reused))
     expected = ["tables/seed_records.csv", "tables/summary.csv", "tables/summary.md", "tables/paired_vs_best_linear.csv",
                 "tables/paired_vs_best_linear.md", "figures/scatter_demeaned_vs_rank.png"] + \
-               [f"figures/bars_{m}.png" for m in cfg["metrics"]] + ["figures/bars_all_metrics.png"]
+               [f"figures/bars_{m}.png" for m in cfg["metrics"]] + ["figures/bars_all_metrics.png",
+                                                                   "figures/panel_grouped.png", "figures/panel_performance.png"]
     missing = [e for e in expected if not (d / e).exists()]
     check("runner: every table and figure written", not missing, f"missing={missing}")
     rc2 = run.build("sc2fc", cached=True, cfg=cfg, out_root=tmp / "out", log_dir=logs)

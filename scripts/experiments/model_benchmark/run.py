@@ -323,6 +323,118 @@ def scatter(cfg, summary, out):
     return "scatter_demeaned_vs_rank.png"
 
 
+# ------------------------------------------------------------------------------------------- panel (main figure)
+PANEL_FONTS = ["Arial", "Helvetica", "Nimbus Sans", "Liberation Sans", "DejaVu Sans"]  # skill: Helvetica-like sans
+
+
+def _panel_slots(cfg, summary, order):
+    """Rows top to bottom: ("model", row) or ("header", type). `performance`: by test demeaned r, null last;
+    `grouped`: config type order with a header per group, by demeaned r within a group, null last."""
+    s = summary[summary["role"] != "ceiling"]
+    body = s[s["role"] != "floor"].sort_values("demeaned_pearson_mean", ascending=False)
+    null = s[s["role"] == "floor"]
+    slots = []
+    if order == "performance":
+        slots = [("model", r) for r in body.to_dict("records")]
+    else:
+        for t in cfg["types"]:
+            g = body[body["type"] == t]
+            if len(g):
+                slots += [("header", t)] + [("model", r) for r in g.to_dict("records")]
+    if len(null):
+        slots += ([("header", "null_ceiling")] if order == "grouped" else []) + [("model", r) for r in null.to_dict("records")]
+    return slots
+
+
+def panel(cfg, summary, seed_df, out, direction, order):
+    """One row per model, the four metrics side by side on a shared model axis (dot and whisker: mean ± SE, faint
+    dots = seeds; open squares = native objective). Ceiling: dashed line when in range, else its value in the title."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+    rc = {"font.family": PANEL_FONTS, "font.size": 15, "axes.spines.right": False, "axes.spines.top": False,
+          "axes.spines.left": False, "axes.linewidth": 1.8, "legend.frameon": False}
+    types = cfg["types"]
+    slots = _panel_slots(cfg, summary, order)
+    ceil = summary[summary["role"] == "ceiling"]
+    null = summary[summary["role"] == "floor"]
+    shown = [r for kind, r in slots if kind == "model"]
+    n = len(slots)
+    y = np.arange(n)[::-1]
+    with plt.rc_context(rc):
+        fig, axes = plt.subplots(1, len(cfg["metrics"]), figsize=(16, 0.40 * n + 2.2), sharey=True, layout="constrained")
+        fig.get_layout_engine().set(wspace=0.04)
+        for ax, m in zip(axes, cfg["metrics"]):
+            k = 0
+            for yi, (kind, r) in zip(y, slots):
+                if kind != "model":
+                    continue
+                if k % 2 == 0:
+                    ax.axhspan(yi - 0.5, yi + 0.5, color="#F2F2F2", zorder=0, lw=0)
+                k += 1
+                col = "#767676" if r["role"] == "floor" else types.get(r["type"], {}).get("color", "#777777")
+                pts = seed_df.loc[seed_df["model"] == r["model"], f"test_{m}"].dropna().to_numpy()
+                ax.scatter(pts, np.full(len(pts), yi), s=16, color=col, alpha=0.35, lw=0, zorder=2)
+                mean, se = r[f"{m}_mean"], r[f"{m}_se"]
+                if np.isfinite(se):
+                    ax.errorbar(mean, yi, xerr=se, fmt="none", ecolor=col, elinewidth=2.2, capsize=4, capthick=2, zorder=3)
+                native = bool(r["objective"])
+                ax.scatter([mean], [yi], s=90, marker="s" if native else "o", zorder=4,
+                           facecolor="white" if native else col, edgecolor=col if native else "black",
+                           linewidth=2.0 if native else 0.8)
+            vals = np.r_[[r[f"{m}_mean"] for r in shown],
+                         seed_df.loc[seed_df["model"].isin([r["model"] for r in shown]), f"test_{m}"].dropna().to_numpy()]
+            pad = 0.06 * (vals.max() - vals.min())
+            lo, hi = vals.min() - pad, vals.max() + pad
+            if len(null):
+                ax.axvline(null.iloc[0][f"{m}_mean"], color="#767676", ls=":", lw=1.6, zorder=1)
+            if m == "avg_rank":
+                ax.axvline(0.5, color="#B0B0B0", ls="-", lw=1.0, zorder=1)
+            title = METRIC_LABEL[m]
+            if len(ceil) and np.isfinite(ceil.iloc[0][f"{m}_mean"]):
+                c = ceil.iloc[0][f"{m}_mean"]
+                if c <= hi + 2 * pad:
+                    hi = max(hi, c + pad)
+                    ax.axvline(c, color="black", ls="--", lw=1.6, zorder=1)
+                else:
+                    title += f"\n(test-retest: {c:.2f}, off scale)"
+            ax.set_xlim(lo, hi)
+            ax.set_title(title, fontsize=16)
+            ax.tick_params(axis="x", labelsize=13, width=1.5, length=5)
+            ax.tick_params(axis="y", length=0)
+            ax.locator_params(axis="x", nbins=4)
+        labels = [(r["label"] + (" *" if r["objective"] else "")) if kind == "model"
+                  else types[r].get("header", types[r]["label"]) for kind, r in slots]
+        axes[0].set_yticks(y)
+        axes[0].set_yticklabels(labels, fontsize=14)
+        axes[0].set_ylim(-0.5, n - 0.5)
+        for tick, (kind, r) in zip(axes[0].get_yticklabels(), slots):
+            if kind == "header":
+                tick.set_fontweight("bold")
+                tick.set_color("#4D4D4D" if r == "null_ceiling" else types[r].get("header_color", types[r]["color"]))
+        # grouped: the headers name the type colours, so the legend keeps only the encodings
+        present = [] if order == "grouped" else [t for t in types if t != "null_ceiling" and any(x["type"] == t for x in shown)]
+        handles = [Line2D([0], [0], marker="o", ls="none", markersize=9, markerfacecolor=types[t]["color"],
+                          markeredgecolor="black", label=types[t]["label"]) for t in present]
+        handles += [Line2D([0], [0], marker="s", ls="none", markersize=9, markerfacecolor="white",
+                           markeredgecolor="#4D4D4D", markeredgewidth=2, label="native objective (*)"),
+                    Line2D([0], [0], color="#767676", ls=":", lw=1.6, label="PCA null"),
+                    Line2D([0], [0], color="#B0B0B0", ls="-", lw=1.0, label="chance (average rank)")]
+        if len(ceil):
+            handles.append(Line2D([0], [0], color="black", ls="--", lw=1.6, label="test-retest ceiling"))
+        fig.legend(handles=handles, loc="outside lower center", ncol=4, fontsize=13, handlelength=1.8, columnspacing=1.6)
+        src, tgt = cfg["directions"][direction]["source"], cfg["directions"][direction]["target"]
+        how = "grouped by model type, sorted by demeaned r within group" if order == "grouped" else "sorted by demeaned r"
+        marks = "; † extra inputs" + ("; ‡ below screening gate, included" if cfg["directions"][direction].get("gate_override") else "")
+        fig.suptitle(f"{src} → {tgt}: test set, mean ± SE over {len(cfg['seeds'])} seeds (faint dots = seeds), {how}{marks}",
+                     fontsize=15)
+        name = f"panel_{order}.png"
+        fig.savefig(out / name, dpi=300, facecolor="white")
+        plt.close(fig)
+    return name
+
+
 # ------------------------------------------------------------------------------------------- entry
 def build(direction, cached=False, cfg=None, out_root=None, log_dir=LOG_DIR):
     cfg = cfg or yaml.safe_load((HERE / "config.yml").read_text())
@@ -349,6 +461,7 @@ def build(direction, cached=False, cfg=None, out_root=None, log_dir=LOG_DIR):
     (d / "tables" / "summary.md").write_text("\n".join(md) + "\n")
     written = figures(cfg, summary, seed_df, d / "figures", direction)
     written.append(scatter(cfg, summary, d / "figures"))
+    written += [panel(cfg, summary, seed_df, d / "figures", direction, order) for order in ("grouped", "performance")]
     ref, pair = paired(cfg, seed_df, summary)
     if ref is not None:
         pair.to_csv(d / "tables" / "paired_vs_best_linear.csv", index=False, float_format="%.6g")
