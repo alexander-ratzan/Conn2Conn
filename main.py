@@ -1330,6 +1330,17 @@ class Sim:
                 "value": best.metrics.get(metric),
             },
             "ray_tune_id": ray_tune_id,
+            "run": {
+                "source": self.source,
+                "target": self.target,
+                "shuffle_seed": self.shuffle_seed,
+                "config_path": self.config_path,
+                "slurm_job_name": os.environ.get("SLURM_JOB_NAME"),
+                "slurm_job_id": (
+                    f"{os.environ['SLURM_ARRAY_JOB_ID']}_{os.environ.get('SLURM_ARRAY_TASK_ID', '')}"
+                    if os.environ.get("SLURM_ARRAY_JOB_ID") else os.environ.get("SLURM_JOB_ID")
+                ),
+            },
             "best_trial": {
                 "id": best_trial_id,
                 "path": best_path,
@@ -1354,8 +1365,16 @@ class Sim:
         if store_eval_md and summary["paths"]["test_report_md"] and os.path.isfile(summary["paths"]["test_report_md"]):
             with open(summary["paths"]["test_report_md"], "r") as f:
                 report_body = f.read()
+            run_info = summary["run"]
+            slurm = run_info.get("slurm_job_name") or run_info.get("slurm_job_id")
             trial_meta = (
                 f"## Ray Tune Linkage\n\n"
+                f"- Direction: **{run_info['source']} → {run_info['target']}** "
+                f"(source `{run_info['source']}`, target `{run_info['target']}`)\n"
+                f"- Shuffle seed: `{run_info['shuffle_seed']}`\n"
+                f"- Config: `{run_info['config_path']}`\n"
+                + (f"- SLURM job: `{run_info.get('slurm_job_name')}` (`{run_info.get('slurm_job_id')}`)\n" if slurm else "")
+                + f"- Selected by: `{metric}` ({mode}) = `{summary['selected_by']['value']}`\n"
                 f"- Ray Tune id: `{ray_tune_id}`\n"
                 f"- Ray Tune trial id: `{best_trial_id}`\n"
                 f"- Ray Tune trial path: `{best_path}`\n"

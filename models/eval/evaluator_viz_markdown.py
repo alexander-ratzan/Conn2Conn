@@ -72,11 +72,13 @@ def generate_markdown_report(figures_dict, all_metrics, filepath, verbose=False)
 
     md_lines = []
 
-    md_lines.append("# FC Prediction Evaluation Report")
+    source, target = all_metrics.get('source'), all_metrics.get('target')
+    md_lines.append(f"# {target or 'FC'} Prediction Evaluation Report")
     md_lines.append("")
     md_lines.append(
         f"**Model:** {model_type} | "
-        f"**Partition:** {all_metrics.get('partition', 'N/A')} | "
+        + (f"**Direction:** {source} → {target} | " if source and target else "")
+        + f"**Partition:** {all_metrics.get('partition', 'N/A')} | "
         f"**N subjects:** {all_metrics.get('n_subjects', 'N/A')} | "
         f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}"
     )
@@ -2216,6 +2218,8 @@ class EvaluatorVizMarkdownMixin:
         all_metrics = {
             'partition': self.dataset_partition.partition,
             'n_subjects': len(self.subject_indices),
+            'source': getattr(self.dataset, 'source', None),
+            'target': getattr(self.dataset, 'target', None),
             'base_metrics': self._metrics.copy(),
             'model_name': model_name,
         }
