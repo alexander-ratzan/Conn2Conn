@@ -25,3 +25,4 @@ types:                        # bar colours / legend groups (order = legend orde
 metrics: [pearson, demeaned_pearson, avg_rank, top1_acc]
 reference: rest               # paired differences are against this condition
 output_dir: results           # tables/ and figures/ under scripts/experiments/task_fc_to_sc/results/
+log_dir: /scratch/asr655/neuroinformatics/Conn2Conn/results/logs   # where launch.sh writes task logs (main checkout)

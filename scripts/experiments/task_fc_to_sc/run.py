@@ -34,7 +34,8 @@ def scrape(cfg):
     records = []
     for cond in cfg["conditions"]:
         latest = {}
-        for path in sorted(glob.glob(str(mb.LOG_DIR / f"{cfg['campaign']}_{cond}_*_*.out")), key=os.path.getmtime):
+        for path in sorted(glob.glob(str(Path(cfg.get("log_dir") or mb.LOG_DIR) / f"{cfg['campaign']}_{cond}_*_*.out")),
+                           key=os.path.getmtime):
             got = mb.parse_log(path)
             if got:
                 latest[got[0]] = (path, got[1])
@@ -42,7 +43,12 @@ def scrape(cfg):
             if seed not in cfg["seeds"]:
                 continue
             m = s.get("metrics") or {}
-            records.append({"model": cond, "seed": seed, "log": os.path.relpath(path, REPO_ROOT),
+            run = s.get("run") or {}
+            want = f"scripts/experiments/task_fc_to_sc/configs/{cond}.yml"
+            if run.get("config_path") != want or (run.get("source"), run.get("target")) != ("FC", "SC"):
+                raise SystemExit(f"{path}: ran {run.get('config_path')} {run.get('source')}->{run.get('target')}, "
+                                 f"expected {want} FC->SC")
+            records.append({"model": cond, "seed": seed, "log": os.path.basename(path),
                             "selected_val": (s.get("selected_by") or {}).get("value"),
                             "config": (s.get("best_trial") or {}).get("config"), "val": m.get("val") or {},
                             "test": m.get("test") or {}})
