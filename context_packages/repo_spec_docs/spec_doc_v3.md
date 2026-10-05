@@ -14,7 +14,7 @@ To add an experiment, append a section under §4 (template: v2 §4.0) and add a 
 
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
-| E0 | Which task FC best predicts SC: PCA-PLS learnable, MSE-only, FC → SC per condition (`task_fc_to_sc`) | planned (spec 2026-10-05; decisions pending) | — | agent:infra |
+| E0 | Which task FC best predicts SC: PCA-PLS learnable, MSE-only, FC → SC per condition (`task_fc_to_sc`) | planned (decisions set 2026-10-05) | — | agent:infra |
 | C1 | Composite-loss benchmark with tuned weights, both directions; then the final reoptimized benchmark (v2:E2.3) | planned (design pending) | v2:E1, v2:E2.2 | — |
 | C2 | Covariate ablation for PCA-PLS + covariates (v2:E2.2 / E3 Phase D) | planned (proposed 2026-10-04, not approved) | — | — |
 | C3 | Merge I2.3 config family folders (branch `i2-config-layout`); then one tune launcher and variants as overrides (v2:I2.4–I2.5) | in progress (merge done 2026-10-05 `5efe03a`; launcher + overrides planned) | — | agent:modeling |
@@ -39,6 +39,8 @@ Inherited from v2 §2 unchanged (experiment homes, reported metrics, seeds 0–4
 PNG figures, `sbatch` compute, one campaign per benchmark row). Decisions **v2:D1–D6 stay in force** (one job
 environment; tuning budget scales with evidence; E1 envelope; composite protocol at batch 64; Demeaned corr-eye in
 mixtures; fixed reference scales).
+**Parcellation:** experiments run on Glasser first. A 4S456Parcels replication is an easily executable to-do for every
+experiment (same configs with `parcellation: 4S456Parcels`; caches exist) and is listed under each experiment as such.
 
 ## 3. Carried over from v2
 
@@ -72,29 +74,32 @@ source.
   on Pearson r, demeaned r, average rank and top-1?
 - **Design:**
   - **Model / loss:** `CrossModal_PCA_PLS_learnable`, MSE-only, v2:E2.2 FC → SC protocol and config; Glasser.
-  - **Conditions (source):** `rest` (reference) + `emotion`, `gambling`, `language`, `motor`, `relational`,
-    `social`, `wm` (combined LR+RL relmats, v2:I1.4 caches). Target: SC (default metric, log1p).
+  - **Conditions (source), 9 bars:** `rest` (all four runs, reference), `rest_S1` (session 1 only, ≈ half the rest
+    scan time: shows how much of rest's lead is scan length) + `emotion`, `gambling`, `language`, `motor`,
+    `relational`, `social`, `wm` (combined LR+RL relmats, v2:I1.4 caches). Target: SC (default metric, log1p).
+  - **Scope:** FC → SC, Glasser. No null reference bar (user: covered by earlier benchmarks).
   - **Matched subjects and splits:** every run loads all eight conditions (`HCP_Base(fc_conditions=[...all 7 tasks])`),
     so the cohort is the intersection — **917 of 957** subjects (missing per task: 5–15) — and identical across
     conditions. Splits are the per-seed `train_val_test` labels restricted to that cohort (seed 0: 659 / 74 / 184 vs
     683 / 79 / 195 on the full cohort), seeds 0–4. Rest is re-run on this cohort, so rest-vs-task differences are
     paired by seed and subject.
 - **Code change (small):**
-  - `HCP_Base(fc_source_condition=None)`: when set to a task, the FC arrays (`fc_upper_triangles` / `fc_matrices`)
-    are rebound to that condition **before** the train-split PCA, so source `FC` *is* the task FC everywhere
-    downstream (PCA bases, models, evaluator). Requires the condition in `fc_conditions`. `rest` = current behaviour.
+  - `HCP_Base(fc_source_condition=None)`: when set to a task or `rest_S1`, the FC arrays (`fc_upper_triangles` /
+    `fc_matrices`) are rebound to that condition **before** the train-split PCA, so source `FC` *is* that FC
+    everywhere downstream (PCA bases, models, evaluator). Every run loads all seven tasks and the rest sessions, so
+    the cohort is identical. `rest` = current behaviour.
+  - Built on a branch and merged when no other job imports `main.py` / `data/` / `models/` (v2 live-files rule).
   - Add `fc_conditions`, `fc_source_condition` to `DATA_KEYS` and to `main.py`'s data allow-list; condition logged in
     the W&B config and run name.
   - Check: with `fc_source_condition=rest` and all conditions loaded, the subset run reproduces the plain
     `HCP_Base` arrays restricted to the 917 subjects (bit-identical).
 - **Outputs** (`scripts/experiments/task_fc_to_sc/`): tables per condition × seed with paired Δ vs rest; four bar
   charts (one per metric, one bar per condition, mean ± SE) as in `model_benchmark`; write-up.
-- **Compute:** full E2.2 tune = 0.75 GPU-h per seed → 8 conditions × 5 seeds ≈ 30 GPU-h (packed, group GPU quota).
-  Cheaper option: 16-trial tunes (≈ ½) or fixed hyperparameters from v2:E2.2's FC → SC consensus (≈ 3–4 GPU-h).
+- **Compute:** 16-trial tunes (user 2026-10-05), packed: ≈ 0.4 GPU-h per seed → 9 conditions × 5 seeds ≈ 17 GPU-h;
+  pilot first (rest + one task, seed 0).
 - **Caveat:** scan length differs by condition (rest ≈ 4 × 14.4 min vs tasks ≈ 2 × 2–5 min), so condition is
   confounded with data quantity.
-- **Decisions pending (user):** tuning budget (full / 16-trial / fixed); include a closed-form null per condition
-  (`CrossModalPCA`, CPU, minutes) as a reference line; also run SC → task FC (reverse) later.
+- **To-do (easily executable):** 4S456Parcels replication; SC → task FC (reverse direction).
 
 ## 5. Infrastructure
 
@@ -123,5 +128,6 @@ Moved from v2 §6 (originally v1 §6, v1 §8.6, the unrun parts of v1 M10, and E
 | 2026-10-05 | E0 specified (task FC → SC with PCA-PLS learnable, matched 917-subject cohort); C7 promoted to E0. |
 | 2026-10-05 | C3: I2.3 merged (`5efe03a`), checks pass on `main`. C8 added: Masked MLP FC → SC full run (gate override), job `19248105`. |
 | 2026-10-05 | Carry-over pruned to essentials (user): C4/C5 folded into C3; C7 → E0; C10, C11 and caveats on old ema runs / z-scored latents dropped; renumbered C1–C7, C!1. |
+| 2026-10-05 | E0 decisions: 16-trial tunes, `rest_S1` bar added (9 conditions), no null bar, FC → SC Glasser; §2 notes 4S456 replications as easy to-dos. |
 
 Last updated at: 2026-10-05 EDT
