@@ -19,6 +19,8 @@ conditions: [rest, rest_S1, emotion, gambling, language, motor, relational, soci
 pilot: {conditions: [rest, wm], seeds: [0]}
 labels: {rest: "Rest (4 runs)", rest_S1: "Rest S1 (2 runs)", emotion: Emotion, gambling: Gambling, language: Language,
          motor: Motor, relational: Relational, social: Social, wm: Working memory}
+volumes: {rest: 4800, rest_S1: 2400, emotion: 352, gambling: 506, language: 632, motor: 568, relational: 464,
+          social: 548, wm: 810}   # fMRI volumes in the FC (rest 4 / 2 x 1200; tasks LR+RL); xcp-d timeseries rows, TR 0.72 s
 types:                        # bar colours / legend groups (order = legend order)
   rest: {label: Resting state, color: "#0F4D92"}
   task: {label: Task, color: "#42949E"}

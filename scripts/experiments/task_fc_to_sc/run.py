@@ -121,6 +121,67 @@ def combined_figure(mcfg, summary, seed_df, path):
         plt.close(fig)
 
 
+
+def scan_time_figure(cfg, mcfg, summary, path, tr=0.72):
+    """Each metric against the source FC's scan time (log scale), 2 x 2 like bars_all_metrics.png. Dashed: least-squares
+    fit of the metric on log scan time over all conditions; Spearman rho over all conditions and over tasks only."""
+    import textwrap
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.ticker import FixedLocator, NullLocator
+    s = summary.set_index("model")
+    conds = cfg["conditions"]
+    minutes = pd.Series({c: cfg["volumes"][c] * tr / 60.0 for c in conds})
+    tasks = [c for c in conds if not c.startswith("rest")]
+    rc = {**mb.FIG_RC, "font.size": 16, "axes.linewidth": 2.2, "xtick.major.width": 2.0, "ytick.major.width": 2.0,
+          "xtick.major.size": 6, "ytick.major.size": 6}
+    with plt.rc_context(rc):
+        fig, axes = plt.subplots(2, 2, figsize=(19, 13.5), layout="constrained")
+        for letter, ax, metric in zip("ABCD", axes.flat, mcfg["metrics"]):
+            m, se = s.loc[conds, f"{metric}_mean"], s.loc[conds, f"{metric}_se"]
+            lx = np.log(minutes[conds].to_numpy())
+            b, a = np.polyfit(lx, m.to_numpy(), 1)
+            grid = np.linspace(lx.min() - 0.1, lx.max() + 0.1, 50)
+            ax.plot(np.exp(grid), a + b * grid, color="#767676", ls="--", lw=1.8, zorder=1)
+            for c in conds:
+                col = cfg["types"]["rest" if c.startswith("rest") else "task"]["color"]
+                ax.errorbar(minutes[c], m[c], yerr=se[c], fmt="o", ms=11, color=col, mec="black", mew=1.2,
+                            ecolor="black", elinewidth=1.6, capsize=4, capthick=1.6, zorder=3)
+            ax.set_xscale("log")
+            ax.xaxis.set_major_locator(FixedLocator([4, 6, 10, 20, 30, 60]))
+            ax.xaxis.set_minor_locator(NullLocator())
+            ax.set_xticklabels(["4", "6", "10", "20", "30", "60"])
+            ax.set_xlim(3.4, 75)
+            lo, hi = (m - se).min(), (m + se).max()
+            ax.set_ylim(lo - 0.22 * (hi - lo), hi + 0.22 * (hi - lo))
+            ax.locator_params(axis="y", nbins=5)
+            ax.tick_params(labelsize=15)
+            ax.set_title(mb.METRIC_LABEL[metric], fontsize=19, fontweight="bold", pad=10)
+            ax.text(-0.08, 1.04, letter, transform=ax.transAxes, fontsize=22, fontweight="bold", va="bottom")
+            rho_all = pd.Series(m.to_numpy()).corr(pd.Series(lx), method="spearman")
+            rho_task = m[tasks].corr(minutes[tasks], method="spearman")
+            ax.text(0.98, 0.04, f"Spearman \u03c1: all {rho_all:.2f} \u00b7 tasks {rho_task:.2f}",
+                    transform=ax.transAxes, ha="right", va="bottom", fontsize=14.5, color="#333333")
+            mb._place_labels(ax, [(minutes[c], m[c], cfg["labels"][c]) for c in conds], fontsize=12.5)
+        groups, _ = mb._order(mcfg, summary)
+        handles = mb._legend_handles(mcfg, groups)
+        from matplotlib.lines import Line2D
+        handles.append(Line2D([0], [0], color="#767676", ls="--", lw=1.8, label="fit on log scan time"))
+        axes.flat[0].legend(handles=handles, loc="upper left", fontsize=15, handlelength=1.8, frameon=False)
+        fig.supxlabel("\n".join(textwrap.wrap(
+            "Points: mean ± SE over 5 seeds. x: source FC scan time in minutes (fMRI volumes × TR 0.72 s; log scale). "
+            "MSE loss, Glasser; test split of the matched 917-subject cohort; only the source FC differs.", width=215)),
+            fontsize=13.5, color="#4D4D4D", ha="left", x=0.01)
+        fig.supylabel("")
+        for ax in axes[1]:
+            ax.set_xlabel("Scan time (min, log scale)", fontsize=16)
+        fig.get_layout_engine().set(h_pad=0.25, w_pad=0.3)
+        fig.suptitle("Scan Time and FC → SC Performance: CrossModal PCA-PLS Learnable", fontsize=22, fontweight="bold")
+        fig.savefig(path, dpi=300, facecolor="white")
+        plt.close(fig)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--allow-partial", action="store_true", help="draw even if some condition x seed cells are missing")
@@ -157,6 +218,7 @@ def main():
                                   "Glasser, test split of the matched 917-subject cohort; only the source FC differs.")
     written = mb.figures(mcfg, summary, seed_df, out / "figures", cfg["direction"])
     combined_figure(mcfg, summary, seed_df, out / "figures" / "bars_all_metrics.png")
+    scan_time_figure(cfg, mcfg, summary, out / "figures" / "scan_time.png")
     print("wrote", out / "tables", "and", [str(out / "figures" / w) for w in written])
 
 
