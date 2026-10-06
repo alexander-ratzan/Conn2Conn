@@ -124,7 +124,8 @@ def combined_figure(mcfg, summary, seed_df, path):
 
 def scan_time_figure(cfg, mcfg, summary, path, tr=0.72):
     """Each metric against the source FC's scan time (log scale), 2 x 2 like bars_all_metrics.png. Dashed: least-squares
-    fit of the metric on log scan time over all conditions; Spearman rho over all conditions and over tasks only."""
+    fit of the metric on log scan time over all conditions; Pearson r (on log scan time) and Spearman rho over all
+    conditions and over tasks only."""
     import textwrap
     import matplotlib
     matplotlib.use("Agg")
@@ -159,10 +160,12 @@ def scan_time_figure(cfg, mcfg, summary, path, tr=0.72):
             ax.tick_params(labelsize=15)
             ax.set_title(mb.METRIC_LABEL[metric], fontsize=19, fontweight="bold", pad=10)
             ax.text(-0.08, 1.04, letter, transform=ax.transAxes, fontsize=22, fontweight="bold", va="bottom")
-            rho_all = pd.Series(m.to_numpy()).corr(pd.Series(lx), method="spearman")
-            rho_task = m[tasks].corr(minutes[tasks], method="spearman")
-            ax.text(0.98, 0.04, f"Spearman \u03c1: all {rho_all:.2f} \u00b7 tasks {rho_task:.2f}",
-                    transform=ax.transAxes, ha="right", va="bottom", fontsize=14.5, color="#333333")
+            logt = np.log(minutes)
+            corr = {k: (m.corr(logt[conds], method=k), m[tasks].corr(logt[tasks], method=k))
+                    for k in ("pearson", "spearman")}
+            ax.text(0.98, 0.04, f"Pearson r (log time): all {corr['pearson'][0]:.2f} \u00b7 tasks {corr['pearson'][1]:.2f}\n"
+                                f"Spearman \u03c1: all {corr['spearman'][0]:.2f} \u00b7 tasks {corr['spearman'][1]:.2f}",
+                    transform=ax.transAxes, ha="right", va="bottom", fontsize=14.5, color="#333333", linespacing=1.4)
             mb._place_labels(ax, [(minutes[c], m[c], cfg["labels"][c]) for c in conds], fontsize=12.5)
         groups, _ = mb._order(mcfg, summary)
         handles = mb._legend_handles(mcfg, groups)

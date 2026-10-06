@@ -104,7 +104,7 @@ source.
   avg rank 0.878, top-1 0.116); every task is below it (Δ demeaned r −0.04 to −0.10). Working memory is the best task
   (0.108 / 0.765 / 0.053; ahead of every other task on 5/5 seeds); the other six sit at 0.046–0.072 demeaned r and
   top-1 ≈ 0.01–0.02. Rest S1 costs 0.020 demeaned r and half of top-1, so scan length explains much of the ordering
-  but not all of it (Spearman 0.64 across tasks). Pearson r is flat (0.913–0.916).
+  but not all of it (tasks only, vs log scan time: Pearson 0.73, Spearman 0.64). Pearson r is flat (0.913–0.916).
 - **To-do (easily executable):** 4S456Parcels replication; SC → task FC (reverse direction); length-matched rest
   control (rest truncated to a task's volume count).
 

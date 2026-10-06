@@ -59,9 +59,11 @@ Scan time = HCP volumes (LR+RL, or 4 / 2 rest runs of 1200) × TR 0.72 s. Top-1 
 3. **Scan length explains much, but not all, of the ordering.** Halving rest (rest S1) costs 0.020 demeaned r and half
    of top-1; WM, with a third of rest S1's scan time, is a further 0.020 lower (5/5 seeds) in demeaned r but matches
    it in top-1 within noise. Among the six shorter tasks the spread is small (0.046–0.072) and only loosely tracks
-   length (Spearman 0.64 over the 7 tasks; language, the second-longest task, is fifth). Condition and data quantity
-   remain confounded ([`scan_time.png`](results/figures/scan_time.png): Spearman ρ over all 9 conditions 0.83 demeaned r,
-   0.78 avg rank, 0.65 top-1; WM sits above the log-scan-time trend in every metric). A length-matched comparison
+   length (language, the second-longest task, is fifth). Condition and data quantity remain confounded
+   ([`scan_time.png`](results/figures/scan_time.png); Pearson r on log scan time / Spearman ρ, all 9 conditions vs
+   tasks only: demeaned r 0.94 / 0.83 vs 0.73 / 0.64, avg rank 0.92 / 0.78 vs 0.70 / 0.54, top-1 0.93 / 0.65 vs
+   0.61 / 0.25; the all-9 values lean on the two rest points). WM sits above the log-scan-time fit in every metric.
+   A length-matched comparison
    (truncate rest to a task's volume count) would separate them.
 4. **Rest on the matched cohort is close to E2.2.** 0.148 demeaned r / 0.878 avg rank vs v2:E2.2's 0.162 / 0.889 on
    the full 957-subject cohort with 64-trial tunes; the gap is consistent with the smaller cohort and tune budget.
