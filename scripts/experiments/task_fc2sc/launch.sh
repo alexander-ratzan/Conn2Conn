@@ -19,7 +19,7 @@ COND="${1:?condition}"; NUM_SAMPLES="${2:?num_samples}"; SEARCH_ALG="${3:?search
 GPUS_PER_TRIAL="${4:-0.25}"; MAX_CONCURRENT="${5:-4}"
 SEED=${SLURM_ARRAY_TASK_ID}
 CONN2CONN_DIR="${CONN2CONN_DIR:-/scratch/asr655/neuroinformatics/Conn2Conn}"
-CONFIG="scripts/experiments/task_fc_to_sc/configs/${COND}.yml"
+CONFIG="scripts/experiments/task_fc2sc/configs/${COND}.yml"
 CPUS_PER_TRIAL=$(( ${SLURM_CPUS_PER_TASK:-10} / ${MAX_CONCURRENT} )); [ "${CPUS_PER_TRIAL}" -lt 1 ] && CPUS_PER_TRIAL=1
 
 module purge

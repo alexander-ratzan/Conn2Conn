@@ -5,7 +5,7 @@
 2. Every condition: identical cohort and splits across conditions; FC rebound to that condition's cache rows
    (tasks from fc_condition_upper_triangles, rest_S1 from the session-1 cache); PCA basis fit on that FC.
 
-    python scripts/experiments/task_fc_to_sc/checks/check_fc_source_condition.py [--seeds 0 1]
+    python scripts/experiments/task_fc2sc/checks/check_fc_source_condition.py [--seeds 0 1]
 """
 import argparse
 import sys

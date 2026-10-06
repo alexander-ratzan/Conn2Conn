@@ -1,7 +1,7 @@
 """Spec v3 E0 results: scrape the task logs (job name e0_taskfc_<condition>), write per-seed and summary tables with
 paired differences against rest, and draw the four metric bar charts (shared model_benchmark bar code).
 
-    python scripts/experiments/task_fc_to_sc/run.py [--allow-partial]
+    python scripts/experiments/task_fc2sc/run.py [--allow-partial]
 """
 import argparse
 import glob
@@ -47,8 +47,9 @@ def scrape(cfg):
                 continue
             m = s.get("metrics") or {}
             run = s.get("run") or {}
-            want = f"scripts/experiments/task_fc_to_sc/configs/{cond}.yml"
-            if run.get("config_path") != want or (run.get("source"), run.get("target")) != ("FC", "SC"):
+            want = f"scripts/experiments/task_fc2sc/configs/{cond}.yml"
+            legacy = f"scripts/experiments/task_fc_to_sc/configs/{cond}.yml"  # folder name of the 2026-10-05/06 runs
+            if run.get("config_path") not in (want, legacy) or (run.get("source"), run.get("target")) != ("FC", "SC"):
                 raise SystemExit(f"{path}: ran {run.get('config_path')} {run.get('source')}->{run.get('target')}, "
                                  f"expected {want} FC->SC")
             records.append({"model": cond, "seed": seed, "log": os.path.basename(path),

@@ -1,7 +1,7 @@
 """Submit spec v3 E0 tasks: one SLURM array per FC condition (index = seed), job name e0_taskfc_<condition>.
 
-    python scripts/experiments/task_fc_to_sc/submit.py --stage pilot [--dry-run]     # config.yml pilot conditions/seeds
-    python scripts/experiments/task_fc_to_sc/submit.py --stage full [--conditions ...] [--dry-run]
+    python scripts/experiments/task_fc2sc/submit.py --stage pilot [--dry-run]     # config.yml pilot conditions/seeds
+    python scripts/experiments/task_fc2sc/submit.py --stage full [--conditions ...] [--dry-run]
     --repo DIR runs the tasks from another checkout (e.g. a worktree before its branch is merged).
 """
 import argparse

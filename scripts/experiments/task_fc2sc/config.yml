@@ -1,10 +1,10 @@
 # Spec v3 E0 — which FC condition best predicts SC (FC -> SC, Glasser, PCA-PLS learnable, MSE-only).
 # Every run loads all seven task FCs and the rest sessions (identical 917-subject cohort and splits); the only
 # variable is fc_source_condition. Per-condition configs: configs/<condition>.yml (make_configs.py).
-#   python scripts/experiments/task_fc_to_sc/make_configs.py            # (re)generate configs/
-#   python scripts/experiments/task_fc_to_sc/submit.py --stage pilot    # rest + wm, seed 0
-#   python scripts/experiments/task_fc_to_sc/submit.py --stage full     # all conditions, seeds 0-4
-#   python scripts/experiments/task_fc_to_sc/run.py                     # tables + figures from the task logs
+#   python scripts/experiments/task_fc2sc/make_configs.py            # (re)generate configs/
+#   python scripts/experiments/task_fc2sc/submit.py --stage pilot    # rest + wm, seed 0
+#   python scripts/experiments/task_fc2sc/submit.py --stage full     # all conditions, seeds 0-4
+#   python scripts/experiments/task_fc2sc/run.py                     # tables + figures from the task logs
 campaign: e0_taskfc
 model: CrossModal_PCA_PLS_learnable
 base_config: models/configs/benchmark/mse/CrossModal_PCA_PLS_learnable.yml   # v2:E2.2 FC -> SC protocol and search space
@@ -26,5 +26,5 @@ types:                        # bar colours / legend groups (order = legend orde
   task: {label: Task, color: "#42949E"}
 metrics: [pearson, demeaned_pearson, avg_rank, top1_acc]
 reference: rest               # paired differences are against this condition
-output_dir: results           # tables/ and figures/ under scripts/experiments/task_fc_to_sc/results/
+output_dir: results           # tables/ and figures/ under scripts/experiments/task_fc2sc/results/
 log_dir: /scratch/asr655/neuroinformatics/Conn2Conn/results/logs   # where launch.sh writes task logs (main checkout)

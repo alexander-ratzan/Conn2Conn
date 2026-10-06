@@ -14,7 +14,7 @@ To add an experiment, append a section under §4 (template: v2 §4.0) and add a 
 
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
-| E0 | Which task FC best predicts SC: PCA-PLS learnable, MSE-only, FC → SC per condition (`task_fc_to_sc`) | done 2026-10-06 on branch `e0-task-fc` (awaiting merge) | — | agent:infra |
+| E0 | Which task FC best predicts SC: PCA-PLS learnable, MSE-only, FC → SC per condition (`task_fc2sc`) | done 2026-10-06 on branch `e0-task-fc` (awaiting merge) | — | agent:infra |
 | C1 | Composite-loss benchmark with tuned weights, both directions; then the final reoptimized benchmark (v2:E2.3) | planned (design pending) | v2:E1, v2:E2.2 | — |
 | C2 | Covariate ablation for PCA-PLS + covariates (v2:E2.2 / E3 Phase D) | planned (proposed 2026-10-04, not approved) | — | — |
 | C3 | Merge I2.3 config family folders (branch `i2-config-layout`); then one tune launcher and variants as overrides (v2:I2.4–I2.5) | in progress (merge done 2026-10-05 `5efe03a`; launcher + overrides planned) | — | agent:modeling |
@@ -65,7 +65,7 @@ experiment (same configs with `parcellation: 4S456Parcels`; caches exist) and is
 
 ## 4. Experiments
 
-### E0 — Which task FC best predicts SC   (slug: `task_fc_to_sc`) · status: done 2026-10-06 · owner: agent:infra
+### E0 — Which task FC best predicts SC   (slug: `task_fc2sc`) · status: done 2026-10-06 · owner: agent:infra
 
 Entry experiment of v3 (v2:I1.3). Single model, single loss; the only variable is which FC condition is the
 source.
@@ -93,13 +93,13 @@ source.
     the W&B config and run name.
   - Check: with `fc_source_condition=rest` and all conditions loaded, the subset run reproduces the plain
     `HCP_Base` arrays restricted to the 917 subjects (bit-identical).
-- **Outputs** (`scripts/experiments/task_fc_to_sc/`): tables per condition × seed with paired Δ vs rest; four bar
+- **Outputs** (`scripts/experiments/task_fc2sc/`): tables per condition × seed with paired Δ vs rest; four bar
   charts (one per metric, one bar per condition, mean ± SE) as in `model_benchmark`; write-up.
 - **Compute:** 16-trial tunes (user 2026-10-05), packed: ≈ 0.4 GPU-h per seed → 9 conditions × 5 seeds ≈ 17 GPU-h;
   pilot first (rest + one task, seed 0).
 - **Caveat:** scan length differs by condition (rest ≈ 4 × 14.4 min vs tasks ≈ 2 × 2–5 min), so condition is
   confounded with data quantity.
-- **Results** ([`task_fc_to_sc.md`](../../scripts/experiments/task_fc_to_sc/task_fc_to_sc.md); jobs `19251071`,
+- **Results** ([`task_fc2sc.md`](../../scripts/experiments/task_fc2sc/task_fc2sc.md); jobs `19251071`,
   `19251073`, `19253190`–`19253201`; 13.6 GPU-h; test, 5 seeds): rest is best on every individual-level metric (demeaned r 0.148,
   avg rank 0.878, top-1 0.116); every task is below it (Δ demeaned r −0.04 to −0.10). Working memory is the best task
   (0.108 / 0.765 / 0.053; ahead of every other task on 5/5 seeds); the other six sit at 0.046–0.072 demeaned r and
