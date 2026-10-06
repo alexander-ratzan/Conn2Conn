@@ -80,15 +80,15 @@ def md(df, cols, fmt=4):
     return head + body
 
 
-TITLE = "Rest FC reconstructs individual SC best; working memory is the strongest task condition"
-FOOTER = ("Bars: mean ± SE over 5 seeds (dots = seeds). CrossModal PCA-PLS learnable, MSE, FC → SC, Glasser; test split "
+TITLE = "Rest and Task FC → SC Benchmark: CrossModal PCA-PLS Learnable"
+FOOTER = ("Bars: mean ± SE over 5 seeds (dots = seeds). MSE loss, Glasser; test split "
           "of the matched 917-subject cohort; only the source FC differs. Pearson r axis truncated; average-rank axis "
           "starts at chance (0.5).")
 
 
 def combined_figure(mcfg, summary, seed_df, path):
     """bars_all_metrics.png in the benchmark 2 x 2 layout, restyled for reading (scientific-figure-making skill:
-    16 pt base, heavier axes and bar edges, panel letters, one legend in panel A, a finding as title, setup in the footer)."""
+    16 pt base, heavier axes and bar edges, panel letters, one legend in panel A, experiment title, setup in the footer)."""
     import textwrap
     import matplotlib
     matplotlib.use("Agg")
@@ -116,7 +116,7 @@ def combined_figure(mcfg, summary, seed_df, path):
         axes.flat[0].legend(handles=mb._legend_handles(mcfg, groups), loc="upper right", ncol=2, fontsize=16,
                             handlelength=1.8, columnspacing=1.6, frameon=False)
         fig.get_layout_engine().set(h_pad=0.25, w_pad=0.3)
-        fig.supxlabel("\n".join(textwrap.wrap(FOOTER, width=200)), fontsize=13.5, color="#4D4D4D", ha="left", x=0.01)
+        fig.supxlabel("\n".join(textwrap.wrap(FOOTER, width=215)), fontsize=13.5, color="#4D4D4D", ha="left", x=0.01)
         fig.savefig(path, dpi=300, facecolor="white")
         plt.close(fig)
 
