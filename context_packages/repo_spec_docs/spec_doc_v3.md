@@ -14,7 +14,7 @@ To add an experiment, append a section under §4 (template: v2 §4.0) and add a 
 
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
-| E0 | Which task FC best predicts SC: PCA-PLS learnable, MSE-only, FC → SC per condition (`task_fc_to_sc`) | planned (decisions set 2026-10-05) | — | agent:infra |
+| E0 | Which task FC best predicts SC: PCA-PLS learnable, MSE-only, FC → SC per condition (`task_fc_to_sc`) | done 2026-10-06 on branch `e0-task-fc` (awaiting merge) | — | agent:infra |
 | C1 | Composite-loss benchmark with tuned weights, both directions; then the final reoptimized benchmark (v2:E2.3) | planned (design pending) | v2:E1, v2:E2.2 | — |
 | C2 | Covariate ablation for PCA-PLS + covariates (v2:E2.2 / E3 Phase D) | planned (proposed 2026-10-04, not approved) | — | — |
 | C3 | Merge I2.3 config family folders (branch `i2-config-layout`); then one tune launcher and variants as overrides (v2:I2.4–I2.5) | in progress (merge done 2026-10-05 `5efe03a`; launcher + overrides planned) | — | agent:modeling |
@@ -65,7 +65,7 @@ experiment (same configs with `parcellation: 4S456Parcels`; caches exist) and is
 
 ## 4. Experiments
 
-### E0 — Which task FC best predicts SC   (slug: `task_fc_to_sc`) · status: planned · owner: agent:infra
+### E0 — Which task FC best predicts SC   (slug: `task_fc_to_sc`) · status: done 2026-10-06 · owner: agent:infra
 
 Entry experiment of v3 (v2:I1.3). Single model, single loss; the only variable is which FC condition is the
 source.
@@ -99,7 +99,14 @@ source.
   pilot first (rest + one task, seed 0).
 - **Caveat:** scan length differs by condition (rest ≈ 4 × 14.4 min vs tasks ≈ 2 × 2–5 min), so condition is
   confounded with data quantity.
-- **To-do (easily executable):** 4S456Parcels replication; SC → task FC (reverse direction).
+- **Results** ([`task_fc_to_sc.md`](../../scripts/experiments/task_fc_to_sc/task_fc_to_sc.md); jobs `19251071`,
+  `19251073`, `19253190`–`19253201`; test, 5 seeds): rest is best on every individual-level metric (demeaned r 0.148,
+  avg rank 0.878, top-1 0.116); every task is below it (Δ demeaned r −0.04 to −0.10). Working memory is the best task
+  (0.108 / 0.765 / 0.053; ahead of every other task on 5/5 seeds); the other six sit at 0.046–0.072 demeaned r and
+  top-1 ≈ 0.01–0.02. Rest S1 costs 0.020 demeaned r and half of top-1, so scan length explains much of the ordering
+  but not all of it (Spearman 0.64 across tasks). Pearson r is flat (0.913–0.916).
+- **To-do (easily executable):** 4S456Parcels replication; SC → task FC (reverse direction); length-matched rest
+  control (rest truncated to a task's volume count).
 
 ## 5. Infrastructure
 
@@ -130,5 +137,6 @@ Moved from v2 §6 (originally v1 §6, v1 §8.6, the unrun parts of v1 M10, and E
 | 2026-10-05 | C8 done: Masked MLP FC → SC 0.122 demeaned r (−0.040 vs PCA-PLS learnable); E2.2 figures restyled per the figure skill, grouped / performance panels added. |
 | 2026-10-05 | Carry-over pruned to essentials (user): C4/C5 folded into C3; C7 → E0; C10, C11 and caveats on old ema runs / z-scored latents dropped; renumbered C1–C7, C!1. |
 | 2026-10-05 | E0 decisions: 16-trial tunes, `rest_S1` bar added (9 conditions), no null bar, FC → SC Glasser; §2 notes 4S456 replications as easy to-dos. |
+| 2026-10-06 | E0 done (branch `e0-task-fc`): rest best; WM best task (−0.041 demeaned r vs rest); scan length explains much of the order. |
 
-Last updated at: 2026-10-05 EDT
+Last updated at: 2026-10-06 EDT
