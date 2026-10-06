@@ -7,6 +7,7 @@ import argparse
 import glob
 import math
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -34,8 +35,10 @@ def scrape(cfg):
     records = []
     for cond in cfg["conditions"]:
         latest = {}
-        for path in sorted(glob.glob(str(Path(cfg.get("log_dir") or mb.LOG_DIR) / f"{cfg['campaign']}_{cond}_*_*.out")),
-                           key=os.path.getmtime):
+        # exact <job>_<task> suffix so "rest" does not also match rest_S1 logs
+        pat = re.compile(rf"{re.escape(cfg['campaign'])}_{re.escape(cond)}_\d+_\d+\.out")
+        paths = glob.glob(str(Path(cfg.get("log_dir") or mb.LOG_DIR) / f"{cfg['campaign']}_{cond}_*_*.out"))
+        for path in sorted((p for p in paths if pat.fullmatch(os.path.basename(p))), key=os.path.getmtime):
             got = mb.parse_log(path)
             if got:
                 latest[got[0]] = (path, got[1])
