@@ -80,6 +80,47 @@ def md(df, cols, fmt=4):
     return head + body
 
 
+TITLE = "Rest FC reconstructs individual SC best; working memory is the strongest task condition"
+FOOTER = ("Bars: mean ± SE over 5 seeds (dots = seeds). CrossModal PCA-PLS learnable, MSE, FC → SC, Glasser; test split "
+          "of the matched 917-subject cohort; only the source FC differs. Pearson r axis truncated; average-rank axis "
+          "starts at chance (0.5).")
+
+
+def combined_figure(mcfg, summary, seed_df, path):
+    """bars_all_metrics.png in the benchmark 2 x 2 layout, restyled for reading (scientific-figure-making skill:
+    16 pt base, heavier axes and bar edges, panel letters, one legend in panel A, a finding as title, setup in the footer)."""
+    import textwrap
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    rc = {**mb.FIG_RC, "font.size": 16, "axes.linewidth": 2.2, "xtick.major.width": 2.0, "ytick.major.width": 2.0,
+          "ytick.major.size": 6}
+    with plt.rc_context(rc):
+        fig, axes = plt.subplots(2, 2, figsize=(19, 13.5), layout="constrained")
+        for letter, ax, metric in zip("ABCD", axes.flat, mcfg["metrics"]):
+            mb.bar_axes(ax, mcfg, summary, seed_df, metric, show_legend=False)
+            for b in ax.patches:
+                b.set_linewidth(1.6)
+            for c in ax.collections:  # seed dots (PathCollection); error bars are LineCollections
+                if hasattr(c, "set_sizes"):
+                    c.set_sizes([34])
+            ax.set_title(mb.METRIC_LABEL[metric], fontsize=19, fontweight="bold", pad=10)
+            ax.set_ylabel("")
+            ax.tick_params(axis="y", labelsize=15, length=6)
+            ax.set_xticklabels([t.get_text() for t in ax.get_xticklabels()], rotation=35, ha="right",
+                               rotation_mode="anchor", fontsize=15.5)
+            ax.text(-0.08, 1.04, letter, transform=ax.transAxes, fontsize=22, fontweight="bold", va="bottom")
+        groups, _ = mb._order(mcfg, summary)
+        fig.suptitle(TITLE, fontsize=22, fontweight="bold")
+        # one legend, in panel A's empty headroom (a figure-level legend collides with the suptitle)
+        axes.flat[0].legend(handles=mb._legend_handles(mcfg, groups), loc="upper right", ncol=2, fontsize=16,
+                            handlelength=1.8, columnspacing=1.6, frameon=False)
+        fig.get_layout_engine().set(h_pad=0.25, w_pad=0.3)
+        fig.supxlabel("\n".join(textwrap.wrap(FOOTER, width=200)), fontsize=13.5, color="#4D4D4D", ha="left", x=0.01)
+        fig.savefig(path, dpi=300, facecolor="white")
+        plt.close(fig)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--allow-partial", action="store_true", help="draw even if some condition x seed cells are missing")
@@ -115,6 +156,7 @@ def main():
     mb._figure_note = lambda *_: ("Bars: mean ± SE over 5 seeds (dots = seeds). CrossModal PCA-PLS learnable, MSE, FC → SC, "
                                   "Glasser, test split of the matched 917-subject cohort; only the source FC differs.")
     written = mb.figures(mcfg, summary, seed_df, out / "figures", cfg["direction"])
+    combined_figure(mcfg, summary, seed_df, out / "figures" / "bars_all_metrics.png")
     print("wrote", out / "tables", "and", [str(out / "figures" / w) for w in written])
 
 

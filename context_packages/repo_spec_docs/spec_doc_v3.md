@@ -100,7 +100,7 @@ source.
 - **Caveat:** scan length differs by condition (rest ≈ 4 × 14.4 min vs tasks ≈ 2 × 2–5 min), so condition is
   confounded with data quantity.
 - **Results** ([`task_fc_to_sc.md`](../../scripts/experiments/task_fc_to_sc/task_fc_to_sc.md); jobs `19251071`,
-  `19251073`, `19253190`–`19253201`; test, 5 seeds): rest is best on every individual-level metric (demeaned r 0.148,
+  `19251073`, `19253190`–`19253201`; 13.6 GPU-h; test, 5 seeds): rest is best on every individual-level metric (demeaned r 0.148,
   avg rank 0.878, top-1 0.116); every task is below it (Δ demeaned r −0.04 to −0.10). Working memory is the best task
   (0.108 / 0.765 / 0.053; ahead of every other task on 5/5 seeds); the other six sit at 0.046–0.072 demeaned r and
   top-1 ≈ 0.01–0.02. Rest S1 costs 0.020 demeaned r and half of top-1, so scan length explains much of the ordering

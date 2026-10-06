@@ -4,7 +4,7 @@
 `launch.sh` / `submit.py` (one array per condition, index = seed; `--repo` runs from a worktree), `run.py` (scrape,
 tables, figures), `checks/check_fc_source_condition.py` (cohort, splits, rebinding, PCA mean). Data: `HCP_Base(fc_source_condition=...)`.
 **Tables (tracked):** `results/tables/{seed_records,summary,runs,paired_vs_rest}.csv`, `summary.md`.
-**Figures:** `results/figures/bars_{pearson,demeaned_pearson,avg_rank,top1_acc}.png`, `bars_all_metrics.png`.
+**Figures:** `results/figures/bars_{pearson,demeaned_pearson,avg_rank,top1_acc}.png`; `bars_all_metrics.png` (2 × 2 summary figure, E0-specific styling in `run.py`).
 **Runs:** logs `results/logs/e0_taskfc_<condition>_<job>_<seed>.out` (main checkout); pilot jobs `19251071` (rest),
 `19251073` (wm), full run `19253190`–`19253201`; check job `19248618` (ALL_OK).
 **Status:** complete 2026-10-06 · spec v3 E0 · branch `e0-task-fc`
@@ -25,7 +25,7 @@ demeaned r, average rank and top-1?
 | Target | SC (default metric, log1p), Glasser |
 | Cohort / splits | subjects with every condition: 917 of 957; per-seed `train_val_test` labels restricted to it (seed 0: 659 / 74 / 184); seeds 0–4, identical across conditions |
 | Comparison | test split; Δ = paired-by-seed difference from `rest`, ± SE over 5 seeds |
-| Compute | 45 tasks, ≈ 15 min each on 1 GPU (4 trials packed) ≈ 11 GPU-h |
+| Compute | 45 tasks on 1 GPU each (4 trials packed), median 17 min (13–30): 13.6 GPU-h; ≈ 10.5 h wall clock (group GPU quota allowed 1–2 tasks at once) |
 
 Every run loads all conditions, so the cohort and splits are the same; `fc_source_condition` rebinds the FC arrays
 before the train-split PCA, so the source PCA basis is fit on that condition.
