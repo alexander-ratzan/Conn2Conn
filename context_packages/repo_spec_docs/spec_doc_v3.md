@@ -121,7 +121,10 @@ Moved from v2 §6 (originally v1 §6, v1 §8.6, the unrun parts of v1 M10, and E
   are at the null.
 - **Editable install** (`pyproject.toml` + `pip install -e .`; the overlay mounts `:rw` without `--fakeroot`) and
   `conn2conn/` namespacing.
-- **Artifact cleanup:** `results/ray_results/` (118 GB) and a `results/logs/` retention policy.
+- **Artifact cleanup / checkpoint bloat:** `results/ray_results/` (118 GB) and a `results/logs/` retention policy. Tune
+  runs also leave large `results/ray_tmp/` and `results/ray_checkpoints/`: E0 alone (45 tunes of 16 trials) left 246 GB
+  and 96 GB (deleted 2026-10-06). Revisit Tune checkpoint retention (`keep_checkpoints_num`, no per-trial
+  checkpoints when only the best trial is re-evaluated) and Ray temp cleanup after each job (user 2026-10-06).
 - **Shared constants** between `main.py` and `scripts/results_utils/records.py`.
 - **Untracked reference code** in `context_packages/modeling/*_context/`.
 - **Latent-space terms inside composite** (`latent_mse` / `latent_weighted_mse` as mixable terms).
