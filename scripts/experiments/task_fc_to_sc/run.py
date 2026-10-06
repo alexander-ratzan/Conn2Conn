@@ -108,6 +108,12 @@ def main():
         + md(pv, ["label", "n_shared_seeds", "d_pearson_mean", "d_demeaned_pearson_mean", "d_avg_rank_mean", "d_top1_acc_mean"]))
     for col in ("role", "objective"):
         summary[col] = summary[col].fillna("").astype(str)
+    # E0 has no native-objective / null / extra-input / gated bars: keep only the type swatches and replace the footer
+    _handles = mb._legend_handles
+    mb._legend_handles = lambda c, g, **kw: [h for h in _handles(c, g, **kw)
+                                             if h.get_label() not in ("native objective (*)", "PCA null")]
+    mb._figure_note = lambda *_: ("Bars: mean ± SE over 5 seeds (dots = seeds). CrossModal PCA-PLS learnable, MSE, FC → SC, "
+                                  "Glasser, test split of the matched 917-subject cohort; only the source FC differs.")
     written = mb.figures(mcfg, summary, seed_df, out / "figures", cfg["direction"])
     print("wrote", out / "tables", "and", [str(out / "figures" / w) for w in written])
 
