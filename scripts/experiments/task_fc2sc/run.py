@@ -1,13 +1,14 @@
-"""Spec v3 E0 results: scrape the task logs (job name e0_taskfc_<condition>), write per-seed and summary tables with
-paired differences against rest, and draw the four metric bar charts (shared model_benchmark bar code).
+"""Spec v3 E0 results: scrape one step's task logs (config.yml steps: parcellation x direction), write per-seed and
+summary tables with paired differences against rest, and draw the four metric bar charts (shared model_benchmark bar
+code) and the scan-time figure into results/<parcellation>/<direction>/. --compare builds results/compare/ across the
+finished steps (condition-order agreement, side-by-side differences vs rest, one demeaned-r panel per step).
 
-    python scripts/experiments/task_fc2sc/run.py [--allow-partial]
+    python scripts/experiments/task_fc2sc/run.py --step E0.2 [--allow-partial]
+    python scripts/experiments/task_fc2sc/run.py --compare
 """
 import argparse
-import glob
 import math
 import os
-import re
 import sys
 from pathlib import Path
 
@@ -19,40 +20,38 @@ HERE = Path(__file__).resolve().parent
 REPO_ROOT = next(p for p in HERE.parents if (p / "main.py").exists())
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "experiments" / "model_benchmark"))
 import run as mb  # noqa: E402  (model_benchmark/run.py: parse_log, tables, figures)
+sys.path.insert(0, str(HERE))
+import autopilot  # noqa: E402  (task_logs / verify: the same done-cell rule the autopilot uses)
 
 METRICS = ("pearson", "demeaned_pearson", "avg_rank", "top1_acc", "mse")
 
 
-def mb_cfg(cfg):
+def mb_cfg(cfg, step):
     """The slice of a model_benchmark config that its tables / figures read, with conditions as 'models'."""
+    st = cfg["steps"][step]
     return {"campaign": cfg["campaign"], "seeds": cfg["seeds"], "metrics": cfg["metrics"], "types": cfg["types"],
-            "reuse": {}, "directions": {cfg["direction"]: {"models": cfg["conditions"]}},
+            "reuse": {}, "directions": {st["direction"]: {"models": cfg["conditions"], **cfg["directions"][st["direction"]]}},
             "models": {c: {"label": cfg["labels"][c], "type": "rest" if c.startswith("rest") else "task"}
                        for c in cfg["conditions"]}}
 
 
-def scrape(cfg):
+def scrape(cfg, step):
+    """One record per verified (condition, seed): the latest task whose best-trial summary ran this step's config,
+    direction, parcellation, condition and cohort (autopilot.verify); a mismatched finished log is an error."""
     records = []
     for cond in cfg["conditions"]:
         latest = {}
-        # exact <job>_<task> suffix so "rest" does not also match rest_S1 logs
-        pat = re.compile(rf"{re.escape(cfg['campaign'])}_{re.escape(cond)}_\d+_\d+\.out")
-        paths = glob.glob(str(Path(cfg.get("log_dir") or mb.LOG_DIR) / f"{cfg['campaign']}_{cond}_*_*.out"))
-        for path in sorted((p for p in paths if pat.fullmatch(os.path.basename(p))), key=os.path.getmtime):
-            got = mb.parse_log(path)
-            if got:
-                latest[got[0]] = (path, got[1])
-        for seed, (path, s) in sorted(latest.items()):
+        for log in autopilot.task_logs(cfg, step, cond):
+            if log["summary"] and log["bad"]:
+                raise SystemExit(f"{log['path']}: {log['bad']}")
+            if log["summary"]:
+                latest[log["seed"]] = log
+        for seed, log in sorted(latest.items()):
             if seed not in cfg["seeds"]:
                 continue
+            s = log["summary"]
             m = s.get("metrics") or {}
-            run = s.get("run") or {}
-            want = f"scripts/experiments/task_fc2sc/configs/{cond}.yml"
-            legacy = f"scripts/experiments/task_fc_to_sc/configs/{cond}.yml"  # folder name of the 2026-10-05/06 runs
-            if run.get("config_path") not in (want, legacy) or (run.get("source"), run.get("target")) != ("FC", "SC"):
-                raise SystemExit(f"{path}: ran {run.get('config_path')} {run.get('source')}->{run.get('target')}, "
-                                 f"expected {want} FC->SC")
-            records.append({"model": cond, "seed": seed, "log": os.path.basename(path),
+            records.append({"model": cond, "seed": seed, "log": os.path.basename(log["path"]),
                             "selected_val": (s.get("selected_by") or {}).get("value"),
                             "config": (s.get("best_trial") or {}).get("config"), "val": m.get("val") or {},
                             "test": m.get("test") or {}})
@@ -81,13 +80,28 @@ def md(df, cols, fmt=4):
     return head + body
 
 
-TITLE = "Rest and Task FC → SC Benchmark: CrossModal PCA-PLS Learnable"
-FOOTER = ("Bars: mean ± SE over 5 seeds (dots = seeds). MSE loss, Glasser; test split "
-          "of the matched 917-subject cohort; only the source FC differs. Pearson r axis truncated; average-rank axis "
-          "starts at chance (0.5).")
+def texts(cfg, step):
+    """Figure titles / footers for one step (E0.1, Glasser FC -> SC, keeps its original wording)."""
+    st = cfg["steps"][step]
+    parc, n = st["parcellation"], cfg["cohort"][st["parcellation"]]
+    fc_role = "source" if st["direction"] == "fc2sc" else "target"
+    arrow = "FC → SC" if st["direction"] == "fc2sc" else "SC → FC"
+    title = ("Rest and Task FC → SC Benchmark" if st["direction"] == "fc2sc" else "SC → Rest and Task FC Benchmark")
+    parc_note = "" if parc == "Glasser" else f" ({parc})"
+    return dict(
+        title=f"{title}{parc_note}: CrossModal PCA-PLS Learnable",
+        footer=(f"Bars: mean ± SE over 5 seeds (dots = seeds). MSE loss, {parc}; test split "
+                f"of the matched {n}-subject cohort; only the {fc_role} FC differs. Pearson r axis truncated; average-rank axis "
+                "starts at chance (0.5)."),
+        note=(f"Bars: mean ± SE over 5 seeds (dots = seeds). CrossModal PCA-PLS learnable, MSE, {arrow}, "
+              f"{parc}, test split of the matched {n}-subject cohort; only the {fc_role} FC differs."),
+        scan_title=f"Scan Time and {arrow} Performance{parc_note}: CrossModal PCA-PLS Learnable",
+        scan_footer=(f"Points: mean ± SE over 5 seeds. x: {fc_role} FC scan time in minutes (fMRI volumes × TR 0.72 s; log scale). "
+                     f"MSE loss, {parc}; test split of the matched {n}-subject cohort; only the {fc_role} FC differs."))
 
 
-def combined_figure(mcfg, summary, seed_df, path):
+
+def combined_figure(mcfg, summary, seed_df, path, txt):
     """bars_all_metrics.png in the benchmark 2 x 2 layout, restyled for reading (scientific-figure-making skill:
     16 pt base, heavier axes and bar edges, panel letters, one legend in panel A, experiment title, setup in the footer)."""
     import textwrap
@@ -112,18 +126,18 @@ def combined_figure(mcfg, summary, seed_df, path):
                                rotation_mode="anchor", fontsize=15.5)
             ax.text(-0.08, 1.04, letter, transform=ax.transAxes, fontsize=22, fontweight="bold", va="bottom")
         groups, _ = mb._order(mcfg, summary)
-        fig.suptitle(TITLE, fontsize=22, fontweight="bold")
+        fig.suptitle(txt["title"], fontsize=22, fontweight="bold")
         # one legend, in panel A's empty headroom (a figure-level legend collides with the suptitle)
         axes.flat[0].legend(handles=mb._legend_handles(mcfg, groups), loc="upper right", ncol=2, fontsize=16,
                             handlelength=1.8, columnspacing=1.6, frameon=False)
         fig.get_layout_engine().set(h_pad=0.25, w_pad=0.3)
-        fig.supxlabel("\n".join(textwrap.wrap(FOOTER, width=215)), fontsize=13.5, color="#4D4D4D", ha="left", x=0.01)
+        fig.supxlabel("\n".join(textwrap.wrap(txt["footer"], width=215)), fontsize=13.5, color="#4D4D4D", ha="left", x=0.01)
         fig.savefig(path, dpi=300, facecolor="white")
         plt.close(fig)
 
 
 
-def scan_time_figure(cfg, mcfg, summary, path, tr=0.72):
+def scan_time_figure(cfg, mcfg, summary, path, txt, tr=0.72):
     """Each metric against the source FC's scan time (log scale), 2 x 2 like bars_all_metrics.png. Dashed: least-squares
     fit of the metric on log scan time over all conditions; Pearson r (on log scan time) and Spearman rho over all
     conditions and over tasks only."""
@@ -173,33 +187,33 @@ def scan_time_figure(cfg, mcfg, summary, path, tr=0.72):
         from matplotlib.lines import Line2D
         handles.append(Line2D([0], [0], color="#767676", ls="--", lw=1.8, label="fit on log scan time"))
         axes.flat[0].legend(handles=handles, loc="upper left", fontsize=15, handlelength=1.8, frameon=False)
-        fig.supxlabel("\n".join(textwrap.wrap(
-            "Points: mean ± SE over 5 seeds. x: source FC scan time in minutes (fMRI volumes × TR 0.72 s; log scale). "
-            "MSE loss, Glasser; test split of the matched 917-subject cohort; only the source FC differs.", width=215)),
+        fig.supxlabel("\n".join(textwrap.wrap(txt["scan_footer"], width=215)),
             fontsize=13.5, color="#4D4D4D", ha="left", x=0.01)
         fig.supylabel("")
         for ax in axes[1]:
             ax.set_xlabel("Scan time (min, log scale)", fontsize=16)
         fig.get_layout_engine().set(h_pad=0.25, w_pad=0.3)
-        fig.suptitle("Scan Time and FC → SC Performance: CrossModal PCA-PLS Learnable", fontsize=22, fontweight="bold")
+        fig.suptitle(txt["scan_title"], fontsize=22, fontweight="bold")
         fig.savefig(path, dpi=300, facecolor="white")
         plt.close(fig)
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--allow-partial", action="store_true", help="draw even if some condition x seed cells are missing")
-    args = ap.parse_args()
-    cfg = yaml.safe_load((HERE / "config.yml").read_text())
-    mcfg = mb_cfg(cfg)
-    records = scrape(cfg)
+def out_dir(cfg, step):
+    st = cfg["steps"][step]
+    return HERE / cfg["output_dir"] / st["parcellation"] / st["direction"]
+
+
+def build_step(cfg, step, allow_partial=False):
+    mcfg, txt = mb_cfg(cfg, step), texts(cfg, step)
+    direction = cfg["steps"][step]["direction"]
+    records = scrape(cfg, step)
     have = {(r["model"], r["seed"]) for r in records}
     missing = [(c, s) for c in cfg["conditions"] for s in cfg["seeds"] if (c, s) not in have]
-    print(f"{len(records)} condition x seed results; missing {len(missing)}: {missing[:12]}")
-    if not records or (missing and not args.allow_partial):
+    print(f"{step}: {len(records)} condition x seed results; missing {len(missing)}: {missing[:12]}")
+    if not records or (missing and not allow_partial):
         raise SystemExit("incomplete (use --allow-partial for a partial render)")
     seed_df, summary = mb.tables(mcfg, records)
-    out = HERE / cfg["output_dir"]
+    out = out_dir(cfg, step)
     (out / "tables").mkdir(parents=True, exist_ok=True)
     seed_df.to_csv(out / "tables" / "seed_records.csv", index=False, float_format="%.6g")
     summary.to_csv(out / "tables" / "summary.csv", index=False, float_format="%.6g")
@@ -218,12 +232,98 @@ def main():
     _handles = mb._legend_handles
     mb._legend_handles = lambda c, g, **kw: [h for h in _handles(c, g, **kw)
                                              if h.get_label() not in ("native objective (*)", "PCA null")]
-    mb._figure_note = lambda *_: ("Bars: mean ± SE over 5 seeds (dots = seeds). CrossModal PCA-PLS learnable, MSE, FC → SC, "
-                                  "Glasser, test split of the matched 917-subject cohort; only the source FC differs.")
-    written = mb.figures(mcfg, summary, seed_df, out / "figures", cfg["direction"])
-    combined_figure(mcfg, summary, seed_df, out / "figures" / "bars_all_metrics.png")
-    scan_time_figure(cfg, mcfg, summary, out / "figures" / "scan_time.png")
+    mb._figure_note = lambda *_: txt["note"]
+    try:
+        written = mb.figures(mcfg, summary, seed_df, out / "figures", direction)
+        combined_figure(mcfg, summary, seed_df, out / "figures" / "bars_all_metrics.png", txt)
+        scan_time_figure(cfg, mcfg, summary, out / "figures" / "scan_time.png", txt)
+    finally:
+        mb._legend_handles = _handles
     print("wrote", out / "tables", "and", [str(out / "figures" / w) for w in written])
+    return seed_df, summary
+
+
+def build_compare(cfg):
+    """results/compare/: steps with a complete summary.csv; condition-order agreement (Spearman over condition means,
+    per metric), side-by-side paired differences vs rest, and one demeaned-r panel per step (2 x 2)."""
+    steps = [s for s in cfg["steps"] if (out_dir(cfg, s) / "tables" / "summary.csv").exists()]
+    if len(steps) < 2:
+        raise SystemExit(f"--compare needs >= 2 finished steps; have {steps}")
+    out = HERE / cfg["output_dir"] / "compare"
+    (out / "tables").mkdir(parents=True, exist_ok=True)
+    summ = {s: pd.read_csv(out_dir(cfg, s) / "tables" / "summary.csv").set_index("model") for s in steps}
+    pv = {s: pd.read_csv(out_dir(cfg, s) / "tables" / "paired_vs_rest.csv").set_index("condition") for s in steps}
+    name = {s: f"{s} {cfg['steps'][s]['parcellation']} {cfg['steps'][s]['direction']}" for s in steps}
+    rows = []
+    for metric in cfg["metrics"]:
+        means = pd.DataFrame({name[s]: summ[s][f"{metric}_mean"] for s in steps}).loc[cfg["conditions"]]
+        rho = means.corr(method="spearman")
+        tasks = [c for c in cfg["conditions"] if not c.startswith("rest")]
+        rho_t = means.loc[tasks].corr(method="spearman")
+        for i, a in enumerate(rho.index):
+            for b in rho.columns[i + 1:]:
+                rows.append({"metric": metric, "step_a": a, "step_b": b, "spearman_all": rho.loc[a, b],
+                             "spearman_tasks": rho_t.loc[a, b]})
+    agree = pd.DataFrame(rows)
+    agree.to_csv(out / "tables" / "order_agreement.csv", index=False, float_format="%.4g")
+    side = pd.DataFrame({f"{name[s]} {k}": pv[s][f"d_demeaned_pearson_{k}"] for s in steps for k in ("mean", "se")}).loc[cfg["conditions"]]
+    side.insert(0, "label", [cfg["labels"][c] for c in side.index])
+    side.reset_index(names="condition").to_csv(out / "tables" / "paired_vs_rest_demeaned_r.csv", index=False, float_format="%.6g")
+    means = pd.DataFrame({name[s]: summ[s]["demeaned_pearson_mean"] for s in steps}).loc[cfg["conditions"]]
+    means.insert(0, "label", [cfg["labels"][c] for c in means.index])
+    (out / "tables" / "summary.md").write_text(
+        "Test demeaned r by condition (mean over 5 seeds):\n\n" + md(means.reset_index(names="condition"), ["label"] + [name[s] for s in steps])
+        + "\nCondition-order agreement (Spearman over condition means):\n\n"
+        + md(agree, ["metric", "step_a", "step_b", "spearman_all", "spearman_tasks"], fmt=2))
+    compare_figure(cfg, steps, out / "figures" / "demeaned_r_by_step.png")
+    print("wrote", out)
+
+
+def compare_figure(cfg, steps, path):
+    """One demeaned-r bar panel per step (rows parcellation, columns direction), same bar code as the step figures."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    path.parent.mkdir(parents=True, exist_ok=True)
+    parcs = list(dict.fromkeys(cfg["steps"][s]["parcellation"] for s in cfg["steps"]))
+    dirs = ["fc2sc", "sc2fc"]
+    with plt.rc_context({**mb.FIG_RC, "font.size": 14}):
+        fig, axes = plt.subplots(len(parcs), 2, figsize=(18, 6.5 * len(parcs)), layout="constrained", squeeze=False)
+        for step, st in cfg["steps"].items():
+            ax = axes[parcs.index(st["parcellation"])][dirs.index(st["direction"])]
+            if step not in steps:
+                ax.set_axis_off()
+                ax.set_title(f"{step}: not run yet", fontsize=15)
+                continue
+            mcfg = mb_cfg(cfg, step)
+            seed_df = pd.read_csv(out_dir(cfg, step) / "tables" / "seed_records.csv")
+            summary = pd.read_csv(out_dir(cfg, step) / "tables" / "summary.csv")
+            for col in ("role", "objective"):
+                summary[col] = summary[col].fillna("").astype(str)
+                seed_df[col] = seed_df[col].fillna("").astype(str)
+            mb.bar_axes(ax, mcfg, summary, seed_df, "demeaned_pearson", show_legend=False)
+            ax.set_title(f"{step} · {st['parcellation']} · {'FC → SC' if st['direction'] == 'fc2sc' else 'SC → FC'}",
+                         fontsize=16, fontweight="bold")
+            ax.set_xticklabels([t.get_text() for t in ax.get_xticklabels()], rotation=35, ha="right", rotation_mode="anchor")
+        fig.suptitle("Test Demeaned r by FC Condition, Direction and Parcellation: CrossModal PCA-PLS Learnable",
+                     fontsize=19, fontweight="bold")
+        fig.savefig(path, dpi=300, facecolor="white")
+        plt.close(fig)
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--step", help="config.yml step (E0.1 ... E0.4)")
+    ap.add_argument("--compare", action="store_true", help="cross-step comparison into results/compare/")
+    ap.add_argument("--allow-partial", action="store_true", help="draw even if some condition x seed cells are missing")
+    args = ap.parse_args()
+    cfg = yaml.safe_load((HERE / "config.yml").read_text())
+    if args.compare:
+        build_compare(cfg)
+    elif args.step in cfg["steps"]:
+        build_step(cfg, args.step, args.allow_partial)
+    else:
+        raise SystemExit(f"give --step one of {list(cfg['steps'])} or --compare")
 
 
 if __name__ == "__main__":

@@ -9,18 +9,12 @@ For user-facing usage/setup, see `README.md`.
 ## Mission
 
 `Conn2Conn` predicts one connectome modality from another on HCP-derived data (default `SC -> FC`) and compares:
-- closed-form baselines (PCA/PLS family)
-- conditional Gaussian baseline
-- learned variants (learnable map, covariate-conditioned residual projector, VAE, Sarwar MLP, Chen GCN)
-- linear latent backbone probe (`CrossModal_linear_backbone`)
-- latent attention variant (`LatentAttnMasked`)
-- experimental masked-latent pretraining variants (`MaskedLatentPretrainer`, `MaskedMLPPretrainer`)
-- nodal-feature GNN baseline (`NodalGNN`)
-- graph-free nodal/edge MLP baseline (`NodalMLP`)
-- precomputed Krakencoder baseline
-- test-retest oracle baseline (`TestRetestPrecomputed`)
+linear, latent, graph / nodal and deep models (full list: Model Inventory below; user-facing table: `README.md`
+§Models) in both directions (`SC → FC`, `FC → SC`), on two parcellations, and with FC from rest or HCP task
+conditions.
 
-The main evaluation axis is performance across `(model, source, shuffle_seed)` with W&B-backed experiment tracking.
+The main evaluation axis is performance across `(model, direction, source / FC condition, shuffle_seed)`.
+Hyperparameters are tuned on val demeaned r, and test is reported. Current plans: `context_packages/repo_spec_docs/spec_doc_v3.md`.
 
 ---
 
@@ -63,23 +57,22 @@ If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after 
 - `scripts/results_utils/`
   - W&B/Ray results scraping → tables → figures (see "Results Utilities" below)
 - `scripts/sbatch/<ModelName>/`
-  - SLURM launchers (tune arrays, parallel/sequential sweeps); submit with `sbatch scripts/sbatch/<ModelName>/<script>.sh`
+  - legacy per-model tune arrays (spec v3 I2 replaces them with one launcher + rosters); `scripts/sbatch/checks/`
+    (verification scripts), `scripts/sbatch/data/` (FC cache builder). Campaign launchers live in their experiment folder.
 - `README.md`
   - user-level commands + workflow
-- `scripts/experiments/sc_type_benchmark/`, `scripts/experiments/cov_projector_benchmark/`
-  - config-driven results benchmarks (`config.yml` + `run.py` + tracked `records.json`); templates for turning results
-    notebooks into scripts (model × source grid vs labelled condition rows)
-- `scripts/experiments/nodal_models_benchmark/`
-  - closed E0 benchmark of nodal models (NodalMLP probe decoders, NodalGNN, Chen GCN) with scraped tune trials
-    (`trials.json`) for within-seed hyperparameter importance; its `run.py` enforces an MSE-only loss per run
+- `scripts/experiments/` (index: `experiments_index.md`); two patterns:
+  - W&B-scraped results experiments (`sc_type_benchmark/`, `cov_projector_benchmark/`, `nodal_models_benchmark/`):
+    `config.yml` + `run.py` + tracked `records.json`
+  - SLURM campaigns scraped from task logs: `model_benchmark/` (MSE benchmark, both directions; `build_configs.py`,
+    `submit.py`, `autopilot.py`, `run.py`), `composite_loss/` (`protocol.py`, `report.py`, `compare.py`; instances
+    `<model>/{sc2fc,fc2sc}/`), `task_fc2sc/` (FC condition × seed; `make_configs.py`, `submit.py`, `run.py`)
 - `scripts/notebooks/model_overviews/*.ipynb`
   - conceptual onboarding notebooks for PCA/PLS, conditional Gaussian, latent-attention, masked pretraining, and nodal baselines
 - `scripts/notebooks/model_testing/*.ipynb`
   - per-model smoke-test / dev notebooks
 - `scripts/notebooks/{EDA,kraken}/*.ipynb`
   - data exploration; Krakencoder tracking/eval
-- `scripts/experiments/<name>/`
-  - self-contained side experiments (code + small outputs + write-up `<slug>/<slug>.md`); index: `scripts/experiments/experiments_index.md`
 - `context_packages/`
   - agent/human reference material: `modeling/` (model design notes), `repo_spec_docs/` (refactor specs), `schematics/`, `T1/`
 - `data/data_viz.py`, `data/demeaned_viz.py`
@@ -115,7 +108,9 @@ Closed-form (`learned: false`):
 - `CrossModalPCA`
 - `CrossModal_PLS_SVD`
 - `CrossModal_PCA_PLS`
+- `CrossModal_ConditionalGaussian` (`models/architectures/crossmodal_conditional_gaussian.py`; conditional mean in PCA space or ridge in edge space, optional covariates)
 - `Krakencoder_precomputed` (precomputed artifacts, no training; class `KrakencoderPrecomputed`)
+- `Krakencoder` (`learned: false` in the Lightning sense: retrained per seed outside `main.py` by the vendored upstream trainer, then served like `Krakencoder_precomputed`; see below)
 - `TestRetestPrecomputed` (test-retest oracle, loads session 1/2 cached connectomes; class in `models/architectures/test_retest_precomputed.py`)
 
 Learned (`learned: true`):
@@ -125,14 +120,14 @@ Learned (`learned: true`):
 - `CrossModalVAE`
 - `LatentAttnMasked` (implemented in `models/architectures/latent_attention/latent_attn_masked.py`); `residual_mode` ∈ {`attention_only`, `pls_residual`, `linear_residual`}. `none` was removed and raises, pointing to `CrossModal_linear_backbone`.
 - `MaskedLatentPretrainer` (`models/architectures/latent_attention/masked_latent_pretrainer.py`) — **experimental, in development, not production**. SSL pretrainer for joint SC/FC PCA-latent reconstruction; transfers weights to `LatentAttnMasked` via `export_to_latent_attn_masked(downstream_model)`. Kept isolated: no cross-module changes in `lightning_module.py` / `trainer.py` / `main.py` should be made on its behalf. Dev harness: `scripts/notebooks/model_overviews/masked_attn_pretraining_overview.ipynb`.
-- `MaskedMLPPretrainer` (`models/architectures/latent_attention/masked_mlp_pretrainer.py`) — **experimental**. SSL pretrainer variant of the masked-latent path using linear, low-rank-linear, or nonlinear MLP encoders plus configurable SC/FC masking. Config surfaces include `MaskedMLPPretrainer.yml`, `MaskedMLPPretrainer_linear.yml`, `MaskedMLPPretrainer_nonlinear.yml`, and `MaskedMLPPretrainer_mask_grid.yml`; sbatch launchers live under `scripts/sbatch/MaskedMLPPretrainer/`.
+- `MaskedMLPPretrainer` (`models/architectures/latent_attention/masked_mlp_pretrainer.py`) — **experimental**. SSL pretrainer variant of the masked-latent path using linear, low-rank-linear, or nonlinear MLP encoders plus configurable SC/FC masking. Configs: `latent/MaskedMLPPretrainer.yml` + `variants/latent/MaskedMLPPretrainer_{linear,nonlinear,mask_grid}.yml`; sbatch launchers live under `scripts/sbatch/MaskedMLPPretrainer/`.
 - `Sarwar2020MLP` (implemented in `models/architectures/sarwar2020_mlp.py`)
 - `Chen2024GCN` (implemented in `models/architectures/graph_based/chen2024_gnn.py`)
 - `NodalGNN` (implemented in `models/architectures/graph_based/nodal_gnn.py`)
-- `NodalMLP` (implemented in `models/architectures/graph_based/nodal_mlp.py`) — graph-free node/edge baseline. It can use anatomical parcel features (`volume`, `spatial`, `SC_r2t`), subject SC rows, or spectral SC eigenvectors; decoder variants include `mlp`, `dot`, `bilinear`, `diag_bilinear`, and `linear_beta`. Configs include `NodalMLP.yml`, `NodalMLP_spatial.yml`, `NodalMLP_all_features.yml`, `NodalMLP_dot.yml`, `NodalMLP_bilinear.yml`, `NodalMLP_linear_beta.yml`, and `NodalMLP_spectral.yml`; sbatch launchers live under `scripts/sbatch/NodalMLP/`.
+- `NodalMLP` (implemented in `models/architectures/graph_based/nodal_mlp.py`) — graph-free node/edge baseline. It can use anatomical parcel features (`volume`, `spatial`, `SC_r2t`), subject SC rows, or spectral SC eigenvectors; decoder variants include `mlp`, `dot`, `bilinear`, `diag_bilinear`, and `linear_beta`. Configs: `graph_nodal/NodalMLP.yml` + `variants/graph_nodal/NodalMLP_{spatial,all_features,dot,bilinear,linear_beta,spectral}.yml`; sbatch launchers live under `scripts/sbatch/NodalMLP/`.
 
-Closed-form / hybrid special cases present in configs:
-- `CrossModal_ConditionalGaussian` (implemented in `models/architectures/latent_attention/conditional_gaussian.py`)
+Input / covariate / decoder variants of these models: `models/configs/variants/<family>/` (e.g. `SC_r2t` and
+`SC+SC_r2t` sources, CovProjector covariate sets, NodalMLP decoders, MaskedMLP backbones).
 
 ### Special: `Krakencoder_precomputed` and `Krakencoder` (retrained)
 
@@ -171,7 +166,7 @@ Naming note:
 
 `data/hcp_dataset.py` provides:
 - `HCP_Base` for loading modalities + covariates
-- `HCP_Partition` for family-aware train/val/test partitioning
+- `HCP_Partition` exposing one split (family-preserving splits come from `dataset_utils.load_metadata` / `generate_train_val_test`)
 - support for composite sources like `SC+SC_r2t`
 
 Parcel-level node feature pipeline:
@@ -195,13 +190,25 @@ Performance / payload notes:
 - `Sim` enables `expose_sc_matrix=True` for `NodalMLP` so SC-row and spectral encoders can reconstruct dense subject SC matrices from source edges.
 - Other models do not pay for unused node-feature or dense-SC batch payloads.
 
-Covariates used by projector variants include demographics and FreeSurfer features; category collapsing for sparse `race_eth` occurs at partition time.
+Covariates used by projector variants include demographics and FreeSurfer features; category collapsing for sparse `race_eth` occurs at metadata load (training counts < 10 → `Other`).
+
+FC conditions (spec v2 I1.4–I1.5, v3 E0; user-facing summary in `README.md` → Data Structure and Splits):
+- `fc_conditions=[...]` loads task caches (`FC_TASK_CONDITIONS` in `data/dataset_utils.py`: emotion, gambling,
+  language, motor, relational, social, wm; combined LR+RL relmats) in either load mode; `fc_condition_matrices`
+  adds dense matrices. `expose_fc_sessions` loads rest session 1 / 2.
+- Every loaded condition joins the canonical intersection (957 → 917 Glasser / 916 4S456 with all tasks).
+- `fc_source_condition` (`rest_S1`, `rest_S2`, or a loaded task) rebinds `fc_upper_triangles` / `fc_matrices`
+  **before** the train-split PCA, so it is "FC" for the whole run (source or target).
+- These are `data:` keys only (`models/registry.py` `DATA_KEYS`, `main.py` `HCP_BASE_DATA_KEYS`); no CLI flags.
+- Split indices are positions in the post-intersection `metadata_df` (fixed 2026-10-04; positions in the
+  pre-intersection list were wrong whenever the intersection dropped subjects).
+- Splits are family-preserving for every seed; seed 0 is the `participants.tsv` split (683 / 79 / 195 of 957).
 
 ---
 
 ## W&B Schema (Important)
 
-Two run types exist:
+Three run types exist:
 
 1. Tune trial runs
 - tags include: model name, `tune`, `ray_tune_id:{id}`
@@ -242,6 +249,8 @@ Modules (one-way dependencies `plots → tables → records`):
   `load_config`, the records-cache contract (`load_cached` exits if the cache is missing or does not cover the
   config; `scrape_metadata`), `write_table`, `write_figures(cfg, out_dir, resolve)`, `write_manifest`
 - `local_results.py` — loaders/plots for notebook-written `results/local_results/`
+- `loss_grid.py` — composite-loss protocol helpers (`find_stage1_runs`, `consensus_config`, `reference_scales`,
+  `combo_loss_trainer`, `run_one`, `collect_runs`); not re-exported
 - `optuna_importance.py` — hparam importance from W&B tune trials (not re-exported; needs optuna):
   `python -m scripts.results_utils.optuna_importance --help`
 - `__init__.py` — re-exports the notebook-facing API; `reload()` reloads submodules in dependency order for
@@ -281,7 +290,7 @@ Suggested quick smoke workflow:
 - Geodesic FC distance support lives in `models/eval/fc_distance.py`.
   - `affine_invariant` is the metric most faithful to the geometry-aware FC paper and the legacy `GeneEx2Conn/models/metrics/distance_FC.py` implementation.
   - `log_euclidean` is kept as a faster SPD-aware alternative.
-- `Evaluator.analyze_results(...)` can optionally append exploratory geodesic summary metrics into `base_metrics` via:
+- `Evaluator.analyze_results(...)` (defined in the `models/eval/evaluator_viz_markdown.py` mixin) can optionally append exploratory geodesic summary metrics into `base_metrics` via:
   - `include_geodesic_metrics=True`
   - `geodesic_metric_method=...`
   - `geodesic_metric_demeaned=True|False`
@@ -297,7 +306,8 @@ Suggested quick smoke workflow:
 - `search_space_to_tune` supports `choice`, `grid`, `loguniform`, `uniform`, and raises on anything else (unsupported types used to be dropped silently).
 - Keys starting with `loss_weight_` / `loss_kwarg_` are trainer keys (`registry.is_trainer_key`) and never reach model constructors.
 - source-dependent PCA dims are normalized by `resolve_source_dependent_config`.
-- YAML `search_space` is converted to Ray Tune objects by `search_space_to_tune`.
+- Name lookup searches `models/configs/` except `benchmark/` and raises on duplicate names; old flat paths resolve
+  with a `[config] … moved to …` notice.
 
 Training loss (`models/train/loss.py`): every edge-space model uses `loss_type: composite`. The only other types are the latent
 losses `latent_mse` / `latent_weighted_mse` (PCA-score reconstruction). `resolve_loss_config()` is the single entry point: it
@@ -309,14 +319,19 @@ trainer:
   loss_terms:                       # default when omitted: [mse]
     - {name: mse, weight: 1.0}      # anchor; not searched
     - {name: neidist, weight: 0.0}  # weight 0 drops the term
-  loss_normalize: auto              # auto: none for one active term, ema otherwise; or ema / none
+  loss_normalize: auto              # auto: none for one active term or any fixed scale, ema otherwise
 search_space:
   loss_weight_neidist: {type: choice, values: [0.0, 0.25, 0.5, 1.0]}   # flat, Optuna-safe
   loss_kwarg_pairwise_corr__corr_target: {type: uniform, lower: 0.3, upper: 0.9}
 ```
 
-- Terms: `mse`, `varmatch`, `correye`, `neidist` (signed; kwarg `margin`), `demeaned_mse` (needs `base`),
+- Terms (`VALID_TERMS`): `mse`, `varmatch`, `correye`, `correye_dm` (Corr-eye on demeaned predictions; needs the
+  target mean like `demeaned_mse`), `neidist` (signed; kwarg `margin`), `demeaned_mse` (needs `base`),
   `pairwise_corr` (Sarwar; kwarg `corr_target`), `kld` (needs the model's `mu`/`logvar`, raises otherwise).
+- Fixed reference scales (spec v2 D6): any term takes kwarg `scale` (> 0) and contributes `weight * raw / scale`.
+  Scales replace `ema` (combining them raises). The composite-loss protocol (`scripts/results_utils/loss_grid.py`)
+  always sets them; a plain multi-term config without scales still falls back to `ema`.
+- `loss_monitor_terms`: extra terms computed and logged, never optimized.
 - `ema` estimates each term's scale from `|raw|` during `loss_scale_warmup_steps` training steps, then freezes it.
   Scales are logged as `*_loss_ref_*`.
 - `loss_signature` (e.g. `mse+0.5*neidist`) is logged on prod, best-trial and Tune-trial runs; group W&B runs by it.
@@ -366,7 +381,8 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
 - **Specs.** Refactors and experiment plans are tracked in `context_packages/repo_spec_docs/`: `spec_doc_v1.md`
   (complete: the `scripts/` build-out and the composite-loss / regularization modeling track), `spec_doc_v2.md`
   (closed 2026-10-04: E0–E3 experiments, environment consolidation, task-FC caches, repo organisation), `spec_doc_v3.md`
-  (active: v2's carried items, starting with the composite-loss benchmark with tuned weights). Format and item IDs (`I` infrastructure, `M` modeling, `E` experiment,
+  (active: E0 task FC ↔ SC in both directions and parcellations, I1 composite-loss search infra, I2 one tune launcher,
+  I3 bidirectional graph / nodal models, I4 environment, E1 covariate ablation). Format and item IDs (`I` infrastructure, `M` modeling, `E` experiment,
   `C` carryover, `C!` caveat, `D` decision) follow `spec_conventions.md`; each spec's status table is the place to read
   its current state.
 
@@ -376,7 +392,8 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
 - Avoid heavy artifact trees unless task explicitly needs them:
   - `results/ray_results/` (best-trial reports + checkpoints, ~118 GB)
   - `results/ray_checkpoints/` (Ray Tune storage: every trial's params/progress/W&B local copy)
-  - `results/ray_tmp/` (per-job Ray session scratch + Ray system logs; sessions before 2026-04-01 pruned, rest kept for debugging)
+  - `results/ray_tmp/` (per-job Ray session scratch + Ray system logs; a 45-tune campaign left 246 GB here, spec v3 backlog)
+  - `results/conn2conn/` (Lightning checkpoints per W&B run id), `results/krakencoder/` (retrain runs, ~13 GB per grid cell)
   - `results/logs/` (SLURM stdout/stderr; forwarded Ray worker output lands here)
   - `wandb/` (local W&B run copies; the W&B cloud is the source of truth)
   - large notebooks
@@ -386,7 +403,7 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
   (what the launchers use): since 2026-09-30 (spec v2 C6) every job package, including `torch_geometric`, lives in the
   overlay and `env.sh` sets `PYTHONNOUSERSITE=1` / `PIP_USER=0`, so `~/.local` is never read or written. Install
   packages with a plain `:rw` mount (no `--fakeroot`; it cannot write the overlay on this cluster). `activate_env.sh`
-  is a different stack (`pylibs`, torch 2.11) until C6.5. Without the library, `import wandb` silently picks up the
+  is a different stack (`pylibs`, torch 2.11) until spec v3 I4. Without the library, `import wandb` silently picks up the
   repo-root `wandb/` run folder.
 
 ---
@@ -398,15 +415,17 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
 3. Multi-source PCA settings may be scalar or dict; resolve before model build.
 4. Precomputed model path bypasses DataLoader-based prediction.
 5. Krakencoder config/class naming should be verified before relying on automated runs.
-6. `Chen2024GCN` requires `torch-geometric` in the runtime environment. As of 2026-09-23 it is **not installed** in the
-   `kraken_env` overlay (torch 2.9.0), so this model and `NodalGNN` fail at import until PyG is reinstalled (`:rw` mount).
-7. `NodalGNN` also requires `torch-geometric`.
+6. `Chen2024GCN` and `NodalGNN` require `torch_geometric` (in the kraken overlay since 2026-09-30, spec v2 C6).
+7. Worktree runs write Tune / Ray outputs under the worktree's own `results/`; move keepers to the main checkout and
+   clean `ray_tmp/` before `git worktree remove`.
 8. `NodalMLP` does not require `torch-geometric`, but configs with `use_sc_row=True` require `batch["sc_matrix"]`; this is wired through `Sim` and the train/eval wrappers.
 9. `precomputed` data_load_mode only works when cache files already exist at the resolved cache root.
-10. Active multi-seed SLURM launchers live under `scripts/sbatch/<ModelName>/`. They hardcode an absolute `CONN2CONN_DIR` and absolute log paths, so they are location-independent.
-11. Sbatch scripts and input-feature subset configs are still duplicated by experiment variant; a future manifest/launcher layer should move grids out of copied shell/YAML files.
+10. Launchers (`scripts/sbatch/<ModelName>/` and campaign launchers in experiment folders) hardcode an absolute `CONN2CONN_DIR` and absolute log paths, so they are location-independent.
+11. Sbatch scripts and input-feature subset configs are still duplicated by experiment variant; spec v3 I2 (one tune launcher, variants as roster overrides) is the planned fix.
 12. `models/`, `data/` have no `__init__.py` (namespace packages) and `models/eval/__init__.py`, `models/train/__init__.py` re-export nothing: import from the defining module (e.g. `from models.eval.evaluator import Evaluator`), not the package.
-13. W&B project/entity and results paths are duplicated in `main.py` and `scripts/results_utils/records.py`; change both together.
+13. W&B project/entity and results paths are duplicated in `main.py` and `scripts/results_utils/records.py`, and
+    results paths again in `loss_grid.py`, `optuna_importance.py` and `models/train/trainer.py`
+    (cwd-relative `results/lightning_logs`); change them together.
 14. W&B public API: always fetch runs via `query_runs` (full data); a plain `api.runs(...)` on wandb 0.25 returns empty configs and every source/seed parse fails silently (runs are skipped with a warning).
 15. The regularization term is added unnormalized on top of the loss, so the effective reg strength depends on the loss
     scale: an `ema`-normalized composite starts at about Σweights, a raw `none` loss at the raw MSE scale. Re-tune reg ranges
@@ -430,7 +449,7 @@ Add/modify loss behavior:
 1. add atomic terms or factories in `models/train/loss.py`
 2. route training behavior through `models/train/lightning_module.py`
 3. keep metric-only calculations in `models/eval/metrics.py` unless they are part of the differentiable training objective
-4. new edge-space terms go in `CompositeLoss` (`VALID_TERMS` + `_compute_raw_term`); expose weights to Tune as `loss_weight_<term>`
+4. new edge-space terms go in `CompositeLoss` (`VALID_TERMS` + `_compute_raw_term`; add to `MEAN_TERMS` / `MONITOR_TERMS` if it needs the target mean or may be monitored); expose weights to Tune as `loss_weight_<term>`
 5. check equivalence and regressions with `resolve_loss_config` + `create_loss_fn` on random tensors before any GPU run
 
 For nodal models:
@@ -458,10 +477,24 @@ Debug missing results cell:
 
 ## Recent Changes
 
+2026-10-05 → 2026-10-07 — spec v3 started:
+- `HCP_Base(fc_source_condition=...)` (`31de503`): rest sessions or a task become the run's FC; one shared
+  `HCP_Base` data-key list for all builders.
+- `scripts/experiments/task_fc2sc/` (spec v3 E0, renamed from `task_fc_to_sc` in `4f00c4a`): 9 FC conditions × 5
+  seeds × {FC → SC, SC → FC} × {Glasser, 4S456Parcels}; rest best everywhere, condition order replicates. Steps in
+  `config.yml`; `autopilot.py` (status / gate / budget / launch); `launch.sh` deletes each finished task's Ray temp and
+  Tune storage (`KEEP_RAY=1` keeps them). Best-trial summaries now record `parcellation`, `fc_source_condition`,
+  `n_subjects`. Gotcha: `--parcellation` (CLI, default Glasser) overrides `data.parcellation` in a config.
+- `model_benchmark`: Masked MLP FC → SC at full budget via `gate_override` (‡, `8f97342`); restyled figures with
+  `panel_grouped.png` / `panel_performance.png`.
+- Config family folders merged (`5efe03a`, spec v2 I2.3 / v3 I2).
+- Best-trial reports record their direction (`2e9df7f`); eval-report labels follow the target (pFC / eSC, `4f575d3`).
+
 2026-10-04 — spec v2 closed (E1, E2.2, E3, I1.4–I1.5; details in `spec_doc_v2.md` § Closure):
 - `scripts/experiments/composite_loss/` (E1 + E3): per-model instances in `<model>/{sc2fc,fc2sc}/` (`--instance
-  <model>/<direction>`); grid v3; fixed reference scales are the default composite balancing (spec v2 D6); cross-model
-  page `figures/cross_model_interactive.html` with a direction switch and the SC → FC test-retest ceiling.
+  <model>/<direction>`); grid v3; cross-model
+  page `figures/cross_model_interactive.html` with a direction switch and the SC → FC test-retest ceiling. Fixed
+  reference scales are the protocol's default balancing (spec v2 D6).
 - `scripts/experiments/model_benchmark/` (E2.2): MSE-only benchmark, both directions. Configs generated into
   `models/configs/benchmark/mse/` by `build_configs.py` (no `data:` block: `--source/--target` set the direction;
   `<Model>_fc2sc.yml` only where needed); roster / packing / gate / budget in `config.yml`; `autopilot.py` (host python:
@@ -470,11 +503,6 @@ Debug missing results cell:
   policy); 0.25 × 4 runs clean.
 - Retrainable Krakencoder (`models/architectures/krakencoder/`, spec v2 E2.1) serves both directions.
 - Task FC caches and loaders: `HCP_Base(fc_conditions=[...])`, `load_fc_precomputed(task=)` (spec v2 I1.4–I1.5).
-- `model_benchmark` figures (2026-10-05): `run.py` writes `panel_grouped.png` (main: one row per model, four metrics,
-  dot and whisker, type-group headers) and `panel_performance.png` next to the bar charts and scatter, all in the
-  scientific-figure-making skill style; a `gate_override` in `config.yml` reports a gate-failed model anyway (‡).
-- Config family folders merged 2026-10-05 (spec v2 I2.3 / v3 C3): `models/configs/{null_ceiling,linear,latent,graph_nodal,deep}/`,
-  `variants/<family>/`, `benchmark/<campaign>/`; `models/registry.py` finds configs by name, old flat paths fall back.
 
 2026-09-30 — E0 closed and environment consolidated (spec v2 E0, C6, C1):
 - `scripts/experiments/nodal_models_benchmark/` (closed): every nodal model is at the null on SC→FC; follow-up
@@ -515,23 +543,7 @@ Debug missing results cell:
   (both notebook tables reproduced exactly); shared runner plumbing extracted to `scripts/results_utils/runner.py`;
   `cov_dl_bars` / `cov_dl_panels` added to `FIGURE_TYPES`.
 
-Earlier:
-- Analysis/figure schematics and context images now live under `context_packages/schematics/`.
-- Notebook organization uses purpose folders under `scripts/notebooks/`: `EDA/`, `kraken/`, `model_overviews/`,
-  `model_testing/` (`results_scrape/` emptied and removed 2026-09-30).
-- PCA/PLS onboarding notebooks split closed-form models from learnable/covariate-projector models:
-  - `scripts/notebooks/model_overviews/crossmodal_pca_pls_closed_form_overview.ipynb`
-  - `scripts/notebooks/model_overviews/crossmodal_pca_pls_learnable_overview.ipynb`
-- Results-analysis workflow centers on:
-  - `scripts/experiments/sc_type_benchmark/` (was `scrape_SCtype_results.ipynb`)
-  - `scripts/experiments/cov_projector_benchmark/` (was `scrape_covtype_results.ipynb`)
-- Lightweight visualization helpers were moved into:
-  - `data/data_viz.py`
-  - `data/demeaned_viz.py`
-- `scripts/notebooks/kraken/track_krakencoder_model.ipynb` can log W&B runs and optionally save local markdown reports under `results/local_results/Krakencoder_precomputed/`.
-- `NodalMLP` now has explicit decoder/encoder variant configs and launchers, including dot, bilinear, linear-beta, and spectral/connectome-harmonic probes.
-- `MaskedMLPPretrainer` now has separate linear, nonlinear, and mask-grid config/launcher surfaces.
-- Model code now lives under `models/architectures/`, training code under `models/train/`, and evaluation/reporting code under `models/eval/`.
-- Backward-compatibility shims for old top-level model/train/eval files are intentionally removed.
+Earlier: model code moved to `models/architectures/`, training to `models/train/`, evaluation to `models/eval/`;
+old top-level shims removed (git history has the rest).
 
-Last updated at: 2026-10-05 EDT
+Last updated at: 2026-10-07 EDT

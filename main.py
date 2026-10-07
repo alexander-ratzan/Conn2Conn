@@ -1321,6 +1321,9 @@ class Sim:
                 "source": self.source,
                 "target": self.target,
                 "shuffle_seed": self.shuffle_seed,
+                "parcellation": self.parcellation,
+                "fc_source_condition": getattr(self.base, "fc_source_condition", None) or "rest",
+                "n_subjects": len(self.base.metadata_df),
                 "config_path": self.config_path,
                 "slurm_job_name": os.environ.get("SLURM_JOB_NAME"),
                 "slurm_job_id": (

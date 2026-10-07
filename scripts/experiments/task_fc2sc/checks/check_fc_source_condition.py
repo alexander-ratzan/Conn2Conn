@@ -5,7 +5,11 @@
 2. Every condition: identical cohort and splits across conditions; FC rebound to that condition's cache rows
    (tasks from fc_condition_upper_triangles, rest_S1 from the session-1 cache); PCA basis fit on that FC.
 
-    python scripts/experiments/task_fc2sc/checks/check_fc_source_condition.py [--seeds 0 1]
+3. --direction sc2fc: the dataset target y (HCP_Partition) is that condition's FC (the condition is the target).
+4. The cohort size matches config.yml cohort[<parcellation>].
+
+    python scripts/experiments/task_fc2sc/checks/check_fc_source_condition.py [--seeds 0 1] \
+        [--parcellation Glasser|4S456Parcels] [--direction fc2sc|sc2fc]
 """
 import argparse
 import sys
@@ -16,10 +20,12 @@ import numpy as np
 REPO_ROOT = next(p for p in Path(__file__).resolve().parents if (p / "main.py").exists())
 sys.path.insert(0, str(REPO_ROOT))
 from data.dataset_utils import FC_TASK_CONDITIONS  # noqa: E402
-from data.hcp_dataset import HCP_Base  # noqa: E402
+from data.hcp_dataset import HCP_Base, HCP_Partition  # noqa: E402
+import yaml  # noqa: E402
 
 CONDITIONS = ("rest", "rest_S1", *FC_TASK_CONDITIONS)
 COMMON = dict(parcellation="Glasser", hemi="both", source="FC", target="SC", data_load_mode="precomputed")
+CFG = yaml.safe_load((REPO_ROOT / "scripts" / "experiments" / "task_fc2sc" / "config.yml").read_text())
 
 
 def base(seed, cond=None, all_conditions=True):
@@ -32,7 +38,11 @@ def base(seed, cond=None, all_conditions=True):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--seeds", type=int, nargs="*", default=[0, 1])
+    ap.add_argument("--parcellation", default="Glasser")
+    ap.add_argument("--direction", choices=["fc2sc", "sc2fc"], default="fc2sc")
     args = ap.parse_args()
+    d = CFG["directions"][args.direction]
+    COMMON.update(parcellation=args.parcellation, source=d["source"], target=d["target"])
     ok = True
     for seed in args.seeds:
         plain = base(seed, all_conditions=False)
@@ -48,6 +58,7 @@ def main():
                 plain_parts = {k: [str(x) for x in v if str(x) in set(ids)] for k, v in plain.trainvaltest_partition_ids.items()}
                 checks = {
                     "cohort_size": len(ids),
+                    "cohort_matches_config": len(ids) == CFG["cohort"][args.parcellation],
                     "sc_equal": np.array_equal(b.sc_upper_triangles, plain.sc_upper_triangles[pos]),
                     "rest_fc_equal": np.array_equal(b.fc_upper_triangles, plain.fc_upper_triangles[pos]),
                     "splits_are_plain_restricted": parts == plain_parts,
@@ -67,6 +78,12 @@ def main():
                     "pca_mean_from_condition": np.allclose(b.fc_train_avg, want[train].mean(0), atol=1e-5),
                     "dense_matches_upper": np.array_equal(b.fc_matrices[0][np.triu_indices(b.fc_matrices.shape[1], k=1)], b.fc_upper_triangles[0]),
                 }
+            if args.direction == "sc2fc":  # the condition FC is the dataset target
+                cond_fc = b.fc_upper_triangles
+                part = HCP_Partition(b, "val")
+                checks["target_y_is_condition"] = all(
+                    np.allclose(part[i]["y"].cpu().numpy(), cond_fc[part.indices[i]]) for i in (0, len(part) - 1))
+                checks["source_x_is_sc"] = np.allclose(part[0]["x"].cpu().numpy(), b.sc_upper_triangles[part.indices[0]])
             bad = [k for k, v in checks.items() if v is False]
             ok &= not bad
             print(f"seed {seed} {cond:10s} {'OK ' if not bad else 'FAIL'} {checks}", flush=True)
