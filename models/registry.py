@@ -229,6 +229,7 @@ def _model_class(name):
         "CrossModal_PCA_PLS_learnable",
         "CrossModal_linear_backbone",
         "CrossModal_PCA_PLS_CovProjector",
+        "CrossModal_PCA_PLS_TaskResid",
     }:
         from models.architectures import crossmodal_pca_pls
         return getattr(crossmodal_pca_pls, name)

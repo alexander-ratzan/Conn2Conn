@@ -1,0 +1,21 @@
+# Spec v3 E2 — joint task-FC -> SC: do the 7 task-FC blocks add to rest FC? Closed-form multi-block PCA-PLS on CPU.
+#   sbatch scripts/experiments/joint_taskfc2sc/launch_grid.sh                 # array: seed x version (grid.py)
+#   python scripts/experiments/joint_taskfc2sc/run.py                         # tables + figures (kraken env)
+campaign: e2_joint
+parcellation: Glasser
+direction: fc2sc
+task_conditions: [emotion, gambling, language, motor, relational, social, wm]
+cohort: 917                      # E0's matched cohort (all task conditions + rest sessions loaded)
+seeds: [0, 1, 2, 3, 4]
+versions:
+  raw: {label: "Raw task blocks", model: CrossModal_PCA_PLS}
+  predictive_resid: {label: "Predictive-residual task blocks", model: CrossModal_PCA_PLS_TaskResid}
+grid:
+  k_rest: [64, 128, 256, 512]
+  k_task: [0, 8, 16, 32, 64]     # 0 = rest-only ablation (same model in both versions)
+  k_sc: [16, 32, 64, 128, 256]
+  n_pls: [4, 8, 16, 32, 64, 128] # one fit at max(n_pls) per cell, truncated (exact; checks/bench_pls_grid.py)
+selection: {metric: val_demeaned_pearson, mode: max}   # per seed, within each k_task slice; never on test
+metrics: [pearson, demeaned_pearson, avg_rank, top1_acc]
+output_dir: results              # results/<parcellation>/{raw,predictive_resid,compare}/{tables,figures}
+runs_dir: runs                   # runs/<version>/seed<S>.csv (every cell x n_pls, val + test metrics)

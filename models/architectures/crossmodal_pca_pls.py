@@ -358,6 +358,101 @@ class CrossModal_PCA_PLS(nn.Module):
         self.target_loadings_k = self.target_loadings_k.to(*args, **kwargs)
         return self
 
+def fit_rest_residualizer(z_rest_train, y_train, alphas=None):
+    """Ridge map from rest PC scores to a task's centred FC edges, penalty chosen by GCV (spec v3 I5, E2.2).
+
+    z_rest_train: (n, k) train rest PC scores; y_train: (n, edges) train task FC minus its train mean.
+    One shared penalty per task, chosen from `alphas` (default: s_max^2 x logspace(-6, 1, 29)) by generalized
+    cross-validation pooled over edges. Returns (coef (k, edges), alpha). Residual = y - z @ coef.
+    """
+    z = np.asarray(z_rest_train, dtype=np.float64)
+    y = np.asarray(y_train, dtype=np.float64)
+    u, sv, vt = np.linalg.svd(z, full_matrices=False)
+    uty = u.T @ y                                    # (k, edges)
+    proj2 = (uty ** 2).sum(axis=1)                   # per-direction energy of y in span(z)
+    total2 = float((y ** 2).sum())
+    s2 = sv ** 2
+    if alphas is None:
+        alphas = s2.max() * np.logspace(-6, 1, 29)
+    n = z.shape[0]
+    best = None
+    for a in alphas:
+        f = s2 / (s2 + a)                            # shrinkage of each direction
+        rss = total2 - float(((2 * f - f ** 2) * proj2).sum())
+        gcv = rss / (n - f.sum()) ** 2
+        if best is None or gcv < best[0]:
+            best = (gcv, a)
+    a = best[1]
+    coef = vt.T @ ((sv / (s2 + a))[:, None] * uty)   # (k, edges)
+    return coef.astype(np.float32), float(a)
+
+
+class CrossModal_PCA_PLS_TaskResid(nn.Module):
+    """
+    Multi-block PCA-PLS with predictive-residual task blocks (spec v3 E2.2).
+
+    Sources: "FC" (rest) plus FC_<task> blocks. Rest block: rest PCA scores (k_rest). Task block, per task: a ridge
+    fit on the train split predicts the subject's task FC from their own k_rest rest scores (fit_rest_residualizer);
+    the block is the train PCA (k_task) of the prediction error, so it holds only what rest cannot predict. Val / test
+    subjects are residualized with the train fit. PLS (scale=True) maps the concatenated scores to the target PCA
+    scores; decoding as CrossModal_PCA_PLS. k_task = 0 drops the task blocks (rest-only, identical to raw).
+    """
+    def __init__(self, base, k_rest=256, k_task=16, n_components_pls=16, n_components_pca_target=32,
+                 resid_alphas=None, device=None):
+        super().__init__()
+        from data.dataset_utils import population_mean_pca
+        self.source_modalities = list(getattr(base, "source_modalities", [base.source]))
+        if self.source_modalities[0] != "FC" or not all(m.startswith("FC_") for m in self.source_modalities[1:]):
+            raise ValueError(f"TaskResid expects sources FC+FC_<task>...; got {self.source_modalities}")
+        self.task_modalities = self.source_modalities[1:]
+        self.k_rest, self.k_task = int(k_rest), int(k_task)
+        self.n_components_pls = int(n_components_pls)
+        self.n_components_pca_target = int(n_components_pca_target)
+        self.device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        data = get_modality_data(base, device=self.device, include_scores=True, include_raw_data=True)
+        train = np.asarray(base.trainvaltest_partition_indices["train"])
+        rest = data["sources"]["FC"]
+        z_rest = np.asarray(rest["scores"])[:, :self.k_rest]
+        parts, self.alphas = [z_rest], {}
+        self.register_buffer("rest_mean", torch.as_tensor(np.asarray(rest["mean"]), dtype=torch.float32))
+        self.register_buffer("rest_loadings_k", torch.as_tensor(np.asarray(rest["loadings"])[:, :self.k_rest], dtype=torch.float32))
+        for m in (self.task_modalities if self.k_task > 0 else []):
+            t = data["sources"][m]
+            y = np.asarray(t["upper_triangles"])[train] - np.asarray(t["mean"])
+            coef, self.alphas[m] = fit_rest_residualizer(z_rest, y, resid_alphas)
+            r_mean, r_load, r_scores = population_mean_pca(y - z_rest @ coef)
+            parts.append(np.asarray(r_scores)[:, :self.k_task])
+            self.register_buffer(f"task_mean_{m}", torch.as_tensor(np.asarray(t["mean"]), dtype=torch.float32))
+            self.register_buffer(f"task_coef_{m}", torch.as_tensor(coef, dtype=torch.float32))
+            self.register_buffer(f"resid_mean_{m}", torch.as_tensor(np.asarray(r_mean), dtype=torch.float32))
+            self.register_buffer(f"resid_loadings_k_{m}", torch.as_tensor(np.asarray(r_load)[:, :self.k_task], dtype=torch.float32))
+        x_pls = np.concatenate(parts, axis=1)
+        target = data["target"]
+        y_pls = np.asarray(target["scores"])[:, :self.n_components_pca_target]
+        self.pls = PLSRegression(n_components=min(self.n_components_pls, x_pls.shape[1])).fit(x_pls, y_pls)
+        self.register_buffer("target_mean_", torch.as_tensor(np.asarray(target["mean"]), dtype=torch.float32))
+        self.register_buffer("target_loadings_k", torch.as_tensor(np.asarray(target["loadings"])[:, :self.n_components_pca_target], dtype=torch.float32))
+        print(f"TaskResid: k_rest={self.k_rest} k_task={self.k_task} blocks={len(parts)} X={x_pls.shape} "
+              f"ridge alphas={ {m: round(a, 3) for m, a in self.alphas.items()} }")
+
+    def scores(self, x):
+        """Concatenated block scores (rest, residual tasks) for a batch dict of source edge tensors."""
+        dev = self.target_mean_.device
+        z_rest = (x["FC"].to(dev).float() - self.rest_mean) @ self.rest_loadings_k
+        parts = [z_rest]
+        for m in (self.task_modalities if self.k_task > 0 else []):
+            r = x[m].to(dev).float() - getattr(self, f"task_mean_{m}") - z_rest @ getattr(self, f"task_coef_{m}")
+            parts.append((r - getattr(self, f"resid_mean_{m}")) @ getattr(self, f"resid_loadings_k_{m}"))
+        return torch.cat(parts, dim=1)
+
+    def forward(self, x):
+        if not isinstance(x, dict):
+            raise TypeError("CrossModal_PCA_PLS_TaskResid expects the multi-source dict input")
+        z = self.scores(x).detach().cpu().numpy()
+        y_pca = torch.as_tensor(self.pls.predict(z), dtype=torch.float32, device=self.target_mean_.device)
+        return y_pca @ self.target_loadings_k.t() + self.target_mean_
+
+
 class CrossModal_PCA_PLS_learnable(nn.Module):
     """
     Learnable cross-modal encoder-decoder model.

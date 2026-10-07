@@ -19,7 +19,9 @@ Desired features:
     - return relevant covariate info
 """
 
-VALID_MODALITIES = {"SC", "SC_r2t", "FC"}
+# FC_<task>: a task-condition FC as its own source modality (spec v3 I5; source only, needs the task in fc_conditions)
+FC_CONDITION_MODALITIES = {f"FC_{task}": task for task in FC_TASK_CONDITIONS}
+VALID_MODALITIES = {"SC", "SC_r2t", "FC", *FC_CONDITION_MODALITIES}
 
 # Subset of FreeSurfer features representing whole-brain volumes
 FS_VOLUME_COLUMNS = [
@@ -103,6 +105,9 @@ class HCP_Base():
             )
         self.source = "+".join(self.source_modalities)
         self.target = self.target_modalities[0]
+        if self.target in FC_CONDITION_MODALITIES:
+            raise ValueError(f"{self.target} is a source-only modality; use target=FC with fc_source_condition instead")
+        self.fc_condition_sources = [m for m in self.source_modalities if m in FC_CONDITION_MODALITIES]
         self.sc_metric_type = sc_metric_type
         self.sc_apply_log1p = sc_apply_log1p
         self.shuffle_seed = shuffle_seed
@@ -130,6 +135,11 @@ class HCP_Base():
         elif self.fc_source_condition is not None and self.fc_source_condition not in self.fc_conditions:
             raise ValueError(f"fc_source_condition={self.fc_source_condition!r} must be one of fc_conditions "
                              f"{self.fc_conditions} (or rest / rest_S1 / rest_S2)")
+        missing = [m for m in self.fc_condition_sources if FC_CONDITION_MODALITIES[m] not in self.fc_conditions]
+        if missing:
+            raise ValueError(f"sources {missing} need their task in fc_conditions (got {self.fc_conditions})")
+        if self.fc_condition_sources and self.fc_source_condition is not None:
+            raise ValueError("FC_<task> sources expect FC = rest; do not combine them with fc_source_condition")
         self.enable_partition_tensor_cache = (self.data_load_mode == "precomputed")
         self._tensor_cache = {} if self.enable_partition_tensor_cache else None
         self.cov_sources = list(cov_sources) if cov_sources is not None else ["fs_all"]
@@ -416,6 +426,12 @@ class HCP_Base():
         self.fc_train_avg, self.fc_train_loadings, self.fc_train_scores = population_mean_pca(self.fc_upper_triangles[train_indices])
         self.sc_r2t_corr_train_avg, self.sc_r2t_corr_train_loadings, self.sc_r2t_corr_train_scores = population_mean_pca(self.sc_r2t_corr_upper_triangles[train_indices])
 
+        # Train-split PCA of each task FC used as its own source block (spec v3 I5); only for requested sources.
+        self.fc_condition_train_pca = {}
+        for modality in self.fc_condition_sources:
+            task = FC_CONDITION_MODALITIES[modality]
+            self.fc_condition_train_pca[task] = population_mean_pca(self.fc_condition_upper_triangles[task][train_indices])
+
         if self.expose_fc_sessions:
             self.fc_session1_train_avg, _, _ = population_mean_pca(self.fc_session1_upper_triangles[train_indices])
             self.fc_session2_train_avg, _, _ = population_mean_pca(self.fc_session2_upper_triangles[train_indices])
@@ -517,6 +533,10 @@ class HCP_Partition(Dataset):
             else None
         )
         
+        self.fc_condition_tensors = {
+            modality: base.get_cached_tensor(modality, base.fc_condition_upper_triangles[FC_CONDITION_MODALITIES[modality]], self.device)
+            for modality in getattr(base, "fc_condition_sources", [])
+        }
         # Prebuild covariate tensors for requested sources
         self.cov_sources = list(base.cov_sources)
         self.cov_tensors = {}
@@ -558,6 +578,8 @@ class HCP_Partition(Dataset):
             return self.sc_upper_triangles[global_idx]
         if modality == "FC":
             return self.fc_upper_triangles[global_idx]
+        if modality in self.fc_condition_tensors:
+            return self.fc_condition_tensors[modality][global_idx]
         if modality == "SC_r2t":
             if self.sc_r2t_corr_upper_triangles is None:
                 raise ValueError("SC_r2t requested but sc_r2t correlation matrices are unavailable.")

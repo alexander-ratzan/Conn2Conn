@@ -1,0 +1,11 @@
+# Spec v3 E2.2: multi-block PCA-PLS with predictive-residual task blocks (closed-form). Sources must be
+# FC+FC_<task>... with those tasks in data.fc_conditions; k_task = 0 is the rest-only model.
+learned: false
+default:
+  model: {name: CrossModal_PCA_PLS_TaskResid, k_rest: 256, k_task: 16, n_components_pls: 16, n_components_pca_target: 32,
+    resid_alphas: null, device: null}
+  trainer: {}
+  data:
+    fc_conditions: [emotion, gambling, language, motor, relational, social, wm]
+    expose_fc_sessions: true
+search_space: {}

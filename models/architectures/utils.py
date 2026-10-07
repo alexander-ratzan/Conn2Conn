@@ -52,6 +52,16 @@ def get_model_input(batch):
 
 def get_single_modality_data(base, modality, include_scores=True, include_raw_data=False):
     """Extract train-split summaries and optional raw data for one modality."""
+    if modality.startswith("FC_") and modality[3:] in getattr(base, "fc_condition_train_pca", {}):
+        task = modality[3:]  # FC_<task> source block (spec v3 I5): that condition's own train-split PCA
+        mean, loadings, scores = base.fc_condition_train_pca[task]
+        result = {"mean": mean, "loadings": loadings}
+        if include_scores:
+            result["scores"] = scores
+        if include_raw_data:
+            result["upper_triangles"] = base.fc_condition_upper_triangles[task]
+            result["train_indices"] = base.trainvaltest_partition_indices["train"]
+        return result
     mapping = {
         "SC": (
             base.sc_train_avg,
