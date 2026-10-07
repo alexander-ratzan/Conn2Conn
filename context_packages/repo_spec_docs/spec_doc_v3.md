@@ -51,7 +51,7 @@ mixtures; fixed reference scales).
 
 ## 2. Experiments
 
-### E0 — Task FC ↔ SC by FC condition   (slug: `task_fc2sc`) · status: done 2026-10-07 · owner: agent:infra
+### E0 — Task FC ↔ SC by FC condition   (slug: `task_bidirectional_bench`, `task_fc2sc` until 2026-10-07) · status: done 2026-10-07 · owner: agent:infra
 
 - **Question:** which FC condition (rest, `rest_S1`, or one of the seven HCP tasks) best predicts SC (FC → SC), and
   which is best predicted from SC (SC → FC)? Does the ordering hold in 4S456Parcels?
@@ -65,12 +65,12 @@ mixtures; fixed reference scales).
 
 | Step | Direction | Parcellation | Status | Result |
 |---|---|---|---|---|
-| E0.1 | FC → SC | Glasser | done 2026-10-06 (merged, `4f00c4a`; 13.6 GPU-h) | Rest best (demeaned r 0.148); WM best task (0.108, Δ −0.041); other tasks 0.046–0.072; `rest_S1` −0.020. Scan time explains much of the order (tasks: Pearson 0.73 on log scan time). [`task_fc2sc.md`](../../scripts/experiments/task_fc2sc/task_fc2sc.md) |
+| E0.1 | FC → SC | Glasser | done 2026-10-06 (merged, `4f00c4a`; 13.6 GPU-h) | Rest best (demeaned r 0.148); WM best task (0.108, Δ −0.041); other tasks 0.046–0.072; `rest_S1` −0.020. Scan time explains much of the order (tasks: Pearson 0.73 on log scan time). [`task_bidirectional_bench.md`](../../scripts/experiments/task_bidirectional_bench/task_bidirectional_bench.md) |
 | E0.2 | SC → FC | Glasser | done 2026-10-07 (14.8 GPU-h) | Rest best (0.085); language best task (0.037), WM 0.030; tasks 0.013–0.037, near the SC → FC null |
 | E0.3 | FC → SC | 4S456Parcels | done 2026-10-07 (20.8 GPU-h) | Rest best (0.138); WM best task (0.101); order as Glasser (ρ 0.88) |
 | E0.4 | SC → FC | 4S456Parcels | done 2026-10-07 (18.7 GPU-h) | Rest best (0.055, noisy: one seed 0.002); WM best task (0.039); order identical to E0.3 |
 
-- **Changes for E0.2–E0.4:** `steps:` (parcellation × direction) in `task_fc2sc/config.yml`; configs
+- **Changes for E0.2–E0.4:** `steps:` (parcellation × direction) in `task_bidirectional_bench/config.yml`; configs
   `configs/<parcellation>/<condition>.yml` (direction set by the launcher); job names `e0_taskfc_<parc>_<dir>_<cond>`;
   results `results/<parcellation>/<direction>/{tables,figures}` + `results/compare/` (E0.1 moved to `Glasser/fc2sc`,
   re-render checked); `autopilot.py` (status / gate / launch / budget); per-task Ray cleanup in `launch.sh`. SC → FC

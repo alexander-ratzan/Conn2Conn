@@ -1,0 +1,48 @@
+# Spec v3 E0 — which FC condition best predicts SC (FC -> SC) and is best predicted from SC (SC -> FC), per
+# parcellation (PCA-PLS learnable, MSE-only). Every run loads all seven task FCs and the rest sessions (identical
+# matched cohort and splits within a parcellation); the only variable is fc_source_condition (the source FC in
+# fc2sc, the target FC in sc2fc). Configs: configs/<parcellation>/<condition>.yml (make_configs.py; direction-free).
+#   python scripts/experiments/task_bidirectional_bench/make_configs.py                         # (re)generate configs/
+#   python3 scripts/experiments/task_bidirectional_bench/autopilot.py status --step E0.2         # host python (squeue / sbatch)
+#   python3 scripts/experiments/task_bidirectional_bench/autopilot.py launch --step E0.2 --stage pilot|full [--dry-run]
+#   python scripts/experiments/task_bidirectional_bench/run.py --step E0.2 | --compare           # kraken env: tables + figures
+campaign: e0_taskfc
+model: CrossModal_PCA_PLS_learnable
+base_config: models/configs/benchmark/mse/CrossModal_PCA_PLS_learnable.yml   # v2:E2.2 FC -> SC protocol and search space
+# One step = parcellation x direction. job_prefix: task logs are <job_prefix>_<condition>_<job>_<seed>.out.
+# E0.1 ran before steps existed: job e0_taskfc_<condition>, configs/<condition>.yml (now configs/Glasser/).
+# Folder renamed task_fc2sc -> task_bidirectional_bench on 2026-10-07: logs before that record the old config paths
+# (autopilot.verify accepts them).
+steps:
+  E0.1: {parcellation: Glasser, direction: fc2sc, job_prefix: e0_taskfc, time: "2:00:00",
+         legacy_configs: ["scripts/experiments/task_fc2sc/configs/{cond}.yml", "scripts/experiments/task_fc_to_sc/configs/{cond}.yml"]}
+  E0.2: {parcellation: Glasser, direction: sc2fc, job_prefix: e0_taskfc_glasser_sc2fc}
+  E0.3: {parcellation: 4S456Parcels, direction: fc2sc, job_prefix: e0_taskfc_4s456_fc2sc}
+  E0.4: {parcellation: 4S456Parcels, direction: sc2fc, job_prefix: e0_taskfc_4s456_sc2fc, needs_pilots: [E0.2, E0.3]}
+directions: {fc2sc: {source: FC, target: SC}, sc2fc: {source: SC, target: FC}}
+cohort: {Glasser: 917, 4S456Parcels: 916}     # matched all-condition cohort (README: Data Structure and Splits)
+seeds: [0, 1, 2, 3, 4]
+num_samples: 16              # user 2026-10-05 (E2.2 used 64)
+search_alg: optuna
+packing: {gpus_per_trial: 0.25, max_concurrent: 4}
+task_conditions: [emotion, gambling, language, motor, relational, social, wm]   # loaded in every run (cohort)
+conditions: [rest, rest_S1, emotion, gambling, language, motor, relational, social, wm]
+pilot: {conditions: [rest, wm], seeds: [0], steps: [E0.2, E0.3], time: "3:00:00"}
+# Autonomy (spec v3 D1). Gate per pilot task; stop conditions -> autopilot exit code 2.
+gate:
+  trials: 16
+  min_rest_val_dr: 0.05
+  reference: {E0.2: {test_demeaned_pearson: 0.0713315, tol: 0.02, source: "v2:E2.2 sc2fc CrossModal_PCA_PLS_learnable seed 0"}}
+budget: {gpu_h_cap: 55, queue_cut: {wait_h: 2, factor: 0.8}, time_factor: 1.5, min_time_h: 0.5, time_cap_h: 6,
+         max_retries: 1, max_error_frac: 0.2}
+labels: {rest: "Rest (4 runs)", rest_S1: "Rest S1 (2 runs)", emotion: Emotion, gambling: Gambling, language: Language,
+         motor: Motor, relational: Relational, social: Social, wm: Working memory}
+volumes: {rest: 4800, rest_S1: 2400, emotion: 352, gambling: 506, language: 632, motor: 568, relational: 464,
+          social: 548, wm: 810}   # fMRI volumes in the FC (rest 4 / 2 x 1200; tasks LR+RL); xcp-d timeseries rows, TR 0.72 s
+types:                        # bar colours / legend groups (order = legend order)
+  rest: {label: Resting state, color: "#0F4D92"}
+  task: {label: Task, color: "#42949E"}
+metrics: [pearson, demeaned_pearson, avg_rank, top1_acc]
+reference: rest               # paired differences are against this condition
+output_dir: results           # results/<parcellation>/<direction>/{tables,figures} and results/compare/
+log_dir: /scratch/asr655/neuroinformatics/Conn2Conn/results/logs   # where launch.sh writes task logs (main checkout)

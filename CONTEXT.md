@@ -66,7 +66,7 @@ If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after 
     `config.yml` + `run.py` + tracked `records.json`
   - SLURM campaigns scraped from task logs: `model_benchmark/` (MSE benchmark, both directions; `build_configs.py`,
     `submit.py`, `autopilot.py`, `run.py`), `composite_loss/` (`protocol.py`, `report.py`, `compare.py`; instances
-    `<model>/{sc2fc,fc2sc}/`), `task_fc2sc/` (FC condition × seed; `make_configs.py`, `submit.py`, `run.py`)
+    `<model>/{sc2fc,fc2sc}/`), `task_bidirectional_bench/` (FC condition × seed × direction × parcellation; `make_configs.py`, `submit.py`, `run.py`)
 - `scripts/notebooks/model_overviews/*.ipynb`
   - conceptual onboarding notebooks for PCA/PLS, conditional Gaussian, latent-attention, masked pretraining, and nodal baselines
 - `scripts/notebooks/model_testing/*.ipynb`
@@ -480,7 +480,7 @@ Debug missing results cell:
 2026-10-05 → 2026-10-07 — spec v3 started:
 - `HCP_Base(fc_source_condition=...)` (`31de503`): rest sessions or a task become the run's FC; one shared
   `HCP_Base` data-key list for all builders.
-- `scripts/experiments/task_fc2sc/` (spec v3 E0, renamed from `task_fc_to_sc` in `4f00c4a`): 9 FC conditions × 5
+- `scripts/experiments/task_bidirectional_bench/` (spec v3 E0; was `task_fc_to_sc`, then `task_fc2sc` until 2026-10-07; old config paths in logs stay valid): 9 FC conditions × 5
   seeds × {FC → SC, SC → FC} × {Glasser, 4S456Parcels}; rest best everywhere, condition order replicates. Steps in
   `config.yml`; `autopilot.py` (status / gate / budget / launch); `launch.sh` deletes each finished task's Ray temp and
   Tune storage (`KEEP_RAY=1` keeps them). Best-trial summaries now record `parcellation`, `fc_source_condition`,

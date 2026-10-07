@@ -94,7 +94,7 @@ default:
 - `fc_source_condition` (`rest` / unset, `rest_S1`, `rest_S2`, or a loaded task) makes that condition *the* FC for the
   whole run (PCA bases, model, evaluator), so it is the source in `FC → SC` and the target in `SC → FC`.
 - `fc_condition_matrices: true` also loads dense task matrices (upper triangles only by default).
-- Example: `scripts/experiments/task_fc2sc/` (spec v3 E0).
+- Example: `scripts/experiments/task_bidirectional_bench/` (spec v3 E0).
 
 ### Subjects and cohort
 
@@ -215,7 +215,7 @@ weights, fixed reference scales and the normalization rules: `CONTEXT.md` → Co
 
 - **Experiment campaigns** have their own launchers in their folder. Examples:
   - `scripts/experiments/model_benchmark/{launch_model.sh,submit.py,autopilot.py}`
-  - `scripts/experiments/task_fc2sc/{launch.sh,submit.py}`
+  - `scripts/experiments/task_bidirectional_bench/{launch.sh,submit.py}`
   - `scripts/experiments/composite_loss/launch_*.sh`
 - **Per-model tune arrays** live in `scripts/sbatch/<ModelName>/`. They are legacy launchers: spec v3 I2 replaces them
   with one `launch_tune.sh` plus rosters. Folders: `Chen2024GCN/`, `CrossModal_ConditionalGaussian/`, `CrossModalPCA/`,
@@ -302,7 +302,7 @@ launcher + `run.py`:
   needs spec v3 I1.
 - **Composite-loss protocol** (`scripts/experiments/composite_loss/`): `protocol.py`, `report.py`, `compare.py`, with
   per-model instances in `<model>/{sc2fc,fc2sc}/`.
-- **Task FC** (`scripts/experiments/task_fc2sc/`, spec v3 E0): FC condition × seed for PCA-PLS learnable.
+- **Task FC ↔ SC** (`scripts/experiments/task_bidirectional_bench/`, spec v3 E0): FC condition × seed × direction × parcellation for PCA-PLS learnable.
 
 `scripts/experiments/experiments_index.md` lists every experiment with its status and write-up.
 
@@ -337,7 +337,7 @@ table = build_metric_table(records, metric="demeaned_pearson")
 
 - Notebooks live under `scripts/notebooks/<purpose>/`. Each one starts with a small bootstrap that finds the repo root by walking up to `main.py`, so notebooks work from any folder in the repo; write repo paths as `REPO_ROOT / "results/..."`.
 - Side experiments live under `scripts/experiments/<name>/` (code, launchers, and their tables/figures). Truly bulky outputs (checkpoints, large arrays) go to `results/experiments/<name>/`.
-- W&B-scraped results experiments follow `scripts/experiments/sc_type_benchmark/` (model × source grid) or `scripts/experiments/cov_projector_benchmark/` (labelled condition rows): a `config.yml`, a `run.py`, and a small tracked `records.json` snapshot of the latest W&B scrape. Campaign experiments (`model_benchmark`, `task_fc2sc`) add a `submit.py` / launcher and read their task logs.
+- W&B-scraped results experiments follow `scripts/experiments/sc_type_benchmark/` (model × source grid) or `scripts/experiments/cov_projector_benchmark/` (labelled condition rows): a `config.yml`, a `run.py`, and a small tracked `records.json` snapshot of the latest W&B scrape. Campaign experiments (`model_benchmark`, `task_bidirectional_bench`) add a `submit.py` / launcher and read their task logs.
 - Each experiment is documented in its own folder by a write-up named after it (`<name>/<name>.md`: the question, setup, how to run it, W&B ids, results, and caveats), or by its notebook when that already describes it. `scripts/experiments/experiments_index.md` lists all experiments.
 
 ---
