@@ -19,7 +19,7 @@ row to the status table.
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
 | E0 | Which task FC best predicts SC, and which is best predicted from SC (both directions, both parcellations) | done 2026-10-07 | — | agent:infra |
-| E1 | Covariate ablation for PCA-PLS + covariates (late stage) | planned | — | — |
+| E1 | Covariate family ablation for PCA-PLS + covariates, both directions, + unnormalised-SC control | specified 2026-10-12 | D2 | — |
 | E2 | Joint task-FC → SC: do the 7 task-FC blocks add to rest FC? (E2.1 raw, E2.2 predictive residual) | done 2026-10-12 | I5 | agent:infra |
 | I1 | Composite-loss search infrastructure: 4 candidate weightings per direction as a tuned hyperparameter | planned | — | — |
 | I2 | Config layout: family folders (done), one tune launcher, variants as roster overrides | in progress | — | agent:modeling |
@@ -28,6 +28,7 @@ row to the status table.
 | I5 | Joint task-FC infrastructure: FC conditions as source modalities, CPU grid runner, predictive-residual PCA-PLS, E2 figures | done 2026-10-07 (`01adae6`) | — | agent:infra |
 | C!1 | PCA-PLS + covariates FC → SC gain is likely anatomy, not FC | open | resolved by E1 | — |
 | D1 | E0.2–E0.4 compute envelope and autonomous execution | decided | — | user |
+| D2 | E1 compute envelope and autonomous execution | proposed 2026-10-12 | — | user |
 
 Carried-over items C1–C8 are all closed or moved; see §4.
 
@@ -45,6 +46,7 @@ mixtures; fixed reference scales).
 | ID | Decision | Rationale |
 |---|---|---|
 | D1 | **E0.2–E0.4 run autonomously (user 2026-10-06):** cap 55 GPU-h for the three steps, cut by 20% (to 44) if queue waits exceed 2 h. Pilots (rest + wm, seed 0) for E0.2 and E0.3; E0.4 starts without its own pilot once both pass. Gate per pilot task: 16 trials, finite metrics, the log's config / direction / parcellation match, rest val demeaned r > 0.05; E0.2 rest seed-0 test demeaned r within 0.02 of v2:E2.2 SC → FC PCA-PLS learnable seed 0 (0.071). Per-step time limit = pilot wall time × 1.5. Stop and report on a gate failure, > 20% task errors after one retry each, a log mismatch, a budget overrun, two GPU-underuse kills of one task, or a Ray hang `watch_jobs.py` cannot clear; relaxing a threshold needs the user. No split-half reliability ceiling (user). | Lets E0 finish without per-stage approval, with explicit exits (as v2:D3). |
+| D2 | **Proposed, not yet approved: E1 runs autonomously** through E1.0–E1.4 (see E1) with a 6 GPU-h cap. Gates: E1.1 cache gate, E1.2 pilot gate. Stop and report on a gate failure; on > 20% task errors after one retry each; on a budget overrun; when a log's config / direction / SC metric / covariate set does not match its condition; on a code change outside the files listed in E1 *Changes*; or when another agent's queued or running job imports `models/` or `data/` at the moment E1.0 needs to edit them (rule: jobs read live files). Per-task time limit = pilot wall time × 1.5. Relaxing a threshold needs the user. Commits stay local (no push). | Small, fully specified ablation with frozen hyperparameters; nothing is tuned, so the exits are mechanical. |
 
 **Parcellation:** experiments run on Glasser first; the 4S456Parcels replication uses the same configs with
 `parcellation: 4S456Parcels` (caches exist).
@@ -89,16 +91,70 @@ mixtures; fixed reference scales).
 - **Budget / autonomy:** D1 (cap 55 GPU-h; estimate 14 Glasser + 16–18 per 4S456 step).
 - **Optional (not scheduled):** length-matched rest control (rest truncated to a task's volume count).
 
-### E1 — Covariate ablation for PCA-PLS + covariates · status: planned (late stage, not pressing) · owner: —
+### E1 — Covariate family ablation for PCA-PLS + covariates   (slug: `covariate_ablation`) · status: specified 2026-10-12 · owner: —
 
-- **Question:** is `CrossModal_PCA_PLS_CovProjector`'s FC → SC lead (v2:E2.2 test demeaned r 0.221, top-1 0.45 vs
-  0.162 / 0.13 for PCA-PLS learnable) due to FreeSurfer regional volumes predicting the SC target's `invnodevol`
-  normalisation (C!1)?
-- **Design:** three covariate sets — (a) full (`fs_all` + age, sex, race/eth; existing E2.2 rows), (b) `fs_all`
-  without regional volumes + demographics, (c) demographics only. Both directions, E2.2 protocol, seeds 0–4, Glasser.
-- **Changes:** two variants under `models/configs/variants/linear/` (or I2 roster overrides once available).
-- **Accept:** paired Δ vs PCA-PLS learnable per covariate set and direction; C!1 set to `resolved` with the finding.
-- **Budget:** ≈ 1–2 GPU-h.
+- **Question:**
+  1. How much does each covariate family add to `CrossModal_PCA_PLS_CovProjector` (test demeaned r, top-1, avg rank)
+     in FC → SC and SC → FC?
+  2. Is the FC → SC lead (v2:E2.2 test demeaned r 0.221, top-1 0.45 vs 0.162 / 0.13 for PCA-PLS learnable) mostly
+     anatomy undoing the SC target's `invnodevol` node-volume normalisation (C!1)?
+- **Covariate families** (an exact split of the E2.2 inputs `fs_all` + age, sex, race/eth):
+
+  | Key | Contents | Columns |
+  |---|---|---|
+  | `demo` | age, sex, race/eth (existing `age`, `sex`, `race_eth` sources as one group) | — |
+  | `fs_vol` | every `FS_*` column not `*_Area` / `*_Thck`: global + subcortical volumes, eTIV ratios, defect holes | 63 |
+  | `fs_area` | DK cortical surface areas (`*_Area`) | 68 |
+  | `fs_thick` | DK cortical thicknesses (`*_Thck`) | 68 |
+
+- **Design:**
+  - **Model and hyperparameters:** CovProjector with each seed's E2.2 best-trial config frozen (from
+    `model_benchmark/mse/<direction>/records.json`); no tuning, so paired differences come from the covariates only.
+    The frozen `fs_all` projector `out_dim` is split over `fs_vol` / `fs_area` / `fs_thick` in proportion to column
+    count (min 2); `demo` projectors keep their frozen sizes.
+  - **Conditions (10):** `none` (`cov_sources: []`, z_cov = 0, same backbone), `full`, `drop_<family>` × 4,
+    `only_<family>` × 4. Both directions, seeds 0–4, Glasser, normalised SC (`sift_invnodevol_radius2_count`): 100 runs.
+  - **Unnormalised-SC control (FC → SC):** `none` and `full` with target `sift_radius2_count_connectivity` (log1p,
+    same field in the raw qsirecon `.mat`, checked 2026-10-12), seeds 0–4: 10 runs. Same frozen hyperparameters
+    (caveat: tuned on the normalised target; only the `full − none` difference is interpreted).
+  - **Reading:** `only − none` = what a family gives on its own; `full − drop` = what only that family gives; a large
+    gap between the two = shared signal. C!1 is supported if the `full − none` gain largely disappears on unnormalised
+    SC and `fs_vol` (or `fs_area`) carries most of the normalised FC → SC gain.
+- **Steps:**
+
+  | Step | What | Compute |
+  |---|---|---|
+  | E1.0 | Infra: families, `cov_sources: []`, runner, checks | CPU |
+  | E1.1 | Build the unnormalised Glasser SC cache | 1 CPU job |
+  | E1.2 | Pilot: seed 0, `none` + `full`, both directions | 4 runs |
+  | E1.3 | Remaining runs (normalised grid + unnormalised control) | 106 runs |
+  | E1.4 | Tables, figures, write-up, spec / C!1 update | CPU |
+
+- **Changes:**
+  - `data/hcp_dataset.py`: `fs_vol`, `fs_area`, `fs_thick` cov sources (column selectors on `fs_all`, train-split
+    z-score as now); `demo` expands to `age`, `sex`, `race_eth`.
+  - `models/architectures/crossmodal_pca_pls.py`: CovProjector accepts `cov_sources: []` (z_cov = 0).
+  - SC cache `Conn2Conn_data/sc/parc-Glasser_hemi-both_metric-sift_radius2_count_connectivity_log1p-1/` via the
+    existing `load_sc(write_cache=True)` path in a CPU sbatch job; copy the `system.nfs4_acl` from the sibling
+    invnodevol cache onto new files.
+  - `scripts/experiments/covariate_ablation/`: `config.yml` (families, conditions, directions, seeds, SC metrics,
+    frozen-config source), `launch.sh` (sbatch array over condition × direction × seed × SC metric, packed per GPU),
+    `run.py` (tables + figures), `checks/`, write-up `covariate_ablation.md`.
+- **Figures (3):**
+  1. Per-family effect: `only − none` and `full − drop` per family, demeaned r and top-1, FC → SC and SC → FC side by
+     side, seed dots.
+  2. Normalisation control: `full − none` gain on normalised vs unnormalised SC (FC → SC), demeaned r and top-1.
+  3. Context: `none`, `full`, PCA-PLS learnable (E2.2 rows, reused) per direction.
+- **Accept:**
+  - checks: the three FS families are disjoint and their union is the 199 `fs_all` columns; `full` with the new
+    families' code path and `cov_sources: [fs_all, age, sex, race_eth]` reproduces the E2.2 seed-0 run's test metrics
+    (same config) to numerical tolerance; `none` gives z_cov ≡ 0; all z-scoring uses the train split only;
+  - 110 / 110 runs with finite metrics; tables with paired (by seed) deltas, mean ± std over seeds;
+  - write-up answers both questions; C!1 set to `resolved` (or reworded) with the finding.
+- **Gates:** E1.1: subject count ≥ the invnodevol cache's modeling cohort, finite and symmetric matrices, per-subject
+  correlation with the invnodevol SC high but < 1. E1.2: `full` seed-0 test demeaned r within 0.01 of E2.2
+  (FC → SC 0.224, SC → FC 0.095); `none` finite with val demeaned r > 0.05 (FC → SC).
+- **Budget / autonomy:** D2 (proposed). 110 single trainings with frozen configs; estimate 2–4 GPU-h, cap 6.
 
 ### E2 — Joint task-FC → SC   (slug: `joint_taskfc2sc`) · status: done 2026-10-12 · owner: agent:infra
 
@@ -297,5 +353,6 @@ mixtures; fixed reference scales).
 | 2026-10-07 | E0 done: E0.2–E0.4 (54.3 GPU-h, no retries); rest best everywhere, condition order replicates across direction and parcellation; SC → FC tasks near the null. |
 | 2026-10-07 | E2 (joint task-FC → SC, raw vs predictive residual) and I5 specified; grid sized from v2:E2.2 trials and the SC reconstruction ceiling; PLS truncation benchmarked (CPU, ≈ 5–12 s per fit). |
 | 2026-10-12 | E2 done: task-FC blocks add no FC → SC signal over rest (raw or predictive residual; −0.005 to −0.018 demeaned r, all seeds); test-oracle bound rules out a selection artifact; edge extension `k_rest` 640 / `k_sc` 8; convergence check OK. I5 done. |
+| 2026-10-12 | E1 specified (user): 4 covariate families (`demo`, `fs_vol`, `fs_area`, `fs_thick`), 10 conditions × 2 directions × 5 seeds with frozen E2.2 configs, plus an unnormalised-SC (`sift_radius2_count`) FC → SC control; 3 figures. D2 (autonomous execution, 6 GPU-h cap) proposed. |
 
-Last updated at: 2026-10-12 EDT
+Last updated at: 2026-10-12 EDT (E1 specified)
