@@ -1,0 +1,45 @@
+# Spec v3 E1 — covariate family ablation for CrossModal_PCA_PLS_CovProjector, both directions, plus an
+# unnormalised-SC (no invnodevol) FC -> SC control. Frozen per-seed E2.2 best-trial configs; no tuning.
+#   sbatch scripts/experiments/covariate_ablation/launch.sh <direction> <sc_metric> "<conditions>"   # array = seeds
+#   python scripts/experiments/covariate_ablation/run.py                                             # tables + figures
+campaign: e1_cov
+model: CrossModal_PCA_PLS_CovProjector
+parcellation: Glasser
+seeds: [0, 1, 2, 3, 4]
+directions: [fc2sc, sc2fc]
+
+# Frozen configs: the benchmark default with each seed's E2.2 best-trial config merged on top.
+frozen:
+  default: models/configs/benchmark/mse/CrossModal_PCA_PLS_CovProjector.yml
+  records: scripts/experiments/model_benchmark/mse/{direction}/records.json
+
+# Covariate families: an exact split of the E2.2 inputs (fs_all + age, sex, race_eth).
+families:
+  demo: [age, sex, race_eth]
+  fs_vol: [fs_vol]
+  fs_area: [fs_area]
+  fs_thick: [fs_thick]
+# The frozen fs_all projector out_dim is split over the FS families in proportion to column count (min 2);
+# demographic projectors keep their frozen sizes.
+fs_projector_min_dim: 2
+
+# Conditions: none, full, drop_<family>, only_<family> (built in conditions.py); e2_ref = the exact E2.2 inputs
+# (fs_all + demographics), used as the reproduction check in the pilot.
+sc_metrics:
+  invnodevol: sift_invnodevol_radius2_count_connectivity
+  unnorm: sift_radius2_count_connectivity
+
+runs:
+  - {name: grid, directions: [fc2sc, sc2fc], sc_metric: invnodevol, conditions: all}
+  - {name: unnorm_control, directions: [fc2sc], sc_metric: unnorm, conditions: [none, full]}
+
+pilot:
+  seed: 0
+  conditions: [none, full, e2_ref]
+  e2_seed0_test_demeaned_r: {fc2sc: 0.224, sc2fc: 0.095}
+  tolerance: 0.01
+  none_min_val_demeaned_r: {fc2sc: 0.05}
+
+metrics: [pearson, demeaned_pearson, avg_rank, top1_acc, mse]
+runs_dir: runs            # runs/<sc_metric>/<direction>/<condition>/seed<S>.json
+output_dir: results       # results/{tables,figures}

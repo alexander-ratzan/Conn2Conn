@@ -19,7 +19,7 @@ row to the status table.
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
 | E0 | Which task FC best predicts SC, and which is best predicted from SC (both directions, both parcellations) | done 2026-10-07 | — | agent:infra |
-| E1 | Covariate family ablation for PCA-PLS + covariates, both directions, + unnormalised-SC control | specified 2026-10-12 | D2 | — |
+| E1 | Covariate family ablation for PCA-PLS + covariates, both directions, + unnormalised-SC control | in progress | D2 | agent:infra |
 | E2 | Joint task-FC → SC: do the 7 task-FC blocks add to rest FC? (E2.1 raw, E2.2 predictive residual) | done 2026-10-12 | I5 | agent:infra |
 | I1 | Composite-loss search infrastructure: 4 candidate weightings per direction as a tuned hyperparameter | planned | — | — |
 | I2 | Config layout: family folders (done), one tune launcher, variants as roster overrides | in progress | — | agent:modeling |
@@ -28,7 +28,7 @@ row to the status table.
 | I5 | Joint task-FC infrastructure: FC conditions as source modalities, CPU grid runner, predictive-residual PCA-PLS, E2 figures | done 2026-10-07 (`01adae6`) | — | agent:infra |
 | C!1 | PCA-PLS + covariates FC → SC gain is likely anatomy, not FC | open | resolved by E1 | — |
 | D1 | E0.2–E0.4 compute envelope and autonomous execution | decided | — | user |
-| D2 | E1 compute envelope and autonomous execution | proposed 2026-10-12 | — | user |
+| D2 | E1 compute envelope and autonomous execution | decided | — | user |
 
 Carried-over items C1–C8 are all closed or moved; see §4.
 
@@ -46,7 +46,7 @@ mixtures; fixed reference scales).
 | ID | Decision | Rationale |
 |---|---|---|
 | D1 | **E0.2–E0.4 run autonomously (user 2026-10-06):** cap 55 GPU-h for the three steps, cut by 20% (to 44) if queue waits exceed 2 h. Pilots (rest + wm, seed 0) for E0.2 and E0.3; E0.4 starts without its own pilot once both pass. Gate per pilot task: 16 trials, finite metrics, the log's config / direction / parcellation match, rest val demeaned r > 0.05; E0.2 rest seed-0 test demeaned r within 0.02 of v2:E2.2 SC → FC PCA-PLS learnable seed 0 (0.071). Per-step time limit = pilot wall time × 1.5. Stop and report on a gate failure, > 20% task errors after one retry each, a log mismatch, a budget overrun, two GPU-underuse kills of one task, or a Ray hang `watch_jobs.py` cannot clear; relaxing a threshold needs the user. No split-half reliability ceiling (user). | Lets E0 finish without per-stage approval, with explicit exits (as v2:D3). |
-| D2 | **Proposed, not yet approved: E1 runs autonomously** through E1.0–E1.4 (see E1) with a 6 GPU-h cap. Gates: E1.1 cache gate, E1.2 pilot gate. Stop and report on a gate failure; on > 20% task errors after one retry each; on a budget overrun; when a log's config / direction / SC metric / covariate set does not match its condition; on a code change outside the files listed in E1 *Changes*; or when another agent's queued or running job imports `models/` or `data/` at the moment E1.0 needs to edit them (rule: jobs read live files). Per-task time limit = pilot wall time × 1.5. Relaxing a threshold needs the user. Commits stay local (no push). | Small, fully specified ablation with frozen hyperparameters; nothing is tuned, so the exits are mechanical. |
+| D2 | **E1 runs autonomously (user 2026-10-12)** through E1.0–E1.4 (see E1) with a 6 GPU-h cap. Gates: E1.1 cache gate, E1.2 pilot gate. Stop and report on a gate failure; on > 20% task errors after one retry each; on a budget overrun; when a log's config / direction / SC metric / covariate set does not match its condition; on a code change outside the files listed in E1 *Changes*; or when another agent's queued or running job imports `models/` or `data/` at the moment E1.0 needs to edit them (rule: jobs read live files). Per-task time limit = pilot wall time × 1.5. Relaxing a threshold needs the user. Commits stay local (no push). | Small, fully specified ablation with frozen hyperparameters; nothing is tuned, so the exits are mechanical. |
 
 **Parcellation:** experiments run on Glasser first; the 4S456Parcels replication uses the same configs with
 `parcellation: 4S456Parcels` (caches exist).
@@ -91,7 +91,7 @@ mixtures; fixed reference scales).
 - **Budget / autonomy:** D1 (cap 55 GPU-h; estimate 14 Glasser + 16–18 per 4S456 step).
 - **Optional (not scheduled):** length-matched rest control (rest truncated to a task's volume count).
 
-### E1 — Covariate family ablation for PCA-PLS + covariates   (slug: `covariate_ablation`) · status: specified 2026-10-12 · owner: —
+### E1 — Covariate family ablation for PCA-PLS + covariates   (slug: `covariate_ablation`) · status: in progress · owner: agent:infra
 
 - **Question:**
   1. How much does each covariate family add to `CrossModal_PCA_PLS_CovProjector` (test demeaned r, top-1, avg rank)
@@ -154,7 +154,7 @@ mixtures; fixed reference scales).
 - **Gates:** E1.1: subject count ≥ the invnodevol cache's modeling cohort, finite and symmetric matrices, per-subject
   correlation with the invnodevol SC high but < 1. E1.2: `full` seed-0 test demeaned r within 0.01 of E2.2
   (FC → SC 0.224, SC → FC 0.095); `none` finite with val demeaned r > 0.05 (FC → SC).
-- **Budget / autonomy:** D2 (proposed). 110 single trainings with frozen configs; estimate 2–4 GPU-h, cap 6.
+- **Budget / autonomy:** D2. 110 single trainings with frozen configs; estimate 2–4 GPU-h, cap 6.
 
 ### E2 — Joint task-FC → SC   (slug: `joint_taskfc2sc`) · status: done 2026-10-12 · owner: agent:infra
 

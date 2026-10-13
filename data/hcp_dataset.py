@@ -43,6 +43,18 @@ FS_VOLUME_COLUMNS = [
     "FS_MaskVol_eTIV_Ratio",
 ]
 
+# FreeSurfer covariate families (spec v3 E1): an exact split of the fs_all columns. Each family is a column slice of
+# the train-split z-scored fs_all matrix; fs_vol is every column that is neither a cortical area nor a thickness.
+FS_FAMILY_SOURCES = ("fs_vol", "fs_area", "fs_thick")
+
+
+def fs_family_of(column):
+    if column.endswith("_Area"):
+        return "fs_area"
+    if column.endswith("_Thck"):
+        return "fs_thick"
+    return "fs_vol"
+
 def normalize_modality_spec(spec):
     """Normalize a source/target modality spec to a list of modality names."""
     if isinstance(spec, str):
@@ -392,6 +404,13 @@ class HCP_Base():
         self.fs_train_std = self.fs_features_all[train_indices].std(axis=0)
         self.fs_train_std[self.fs_train_std == 0] = 1.0
         self.fs_features_z = (self.fs_features_all - self.fs_train_mean) / self.fs_train_std
+        self.fs_family_columns = {
+            family: [i for i, col in enumerate(self.fs_feature_columns) if fs_family_of(col) == family]
+            for family in FS_FAMILY_SOURCES
+        }
+        self.fs_family_z = {
+            family: np.ascontiguousarray(self.fs_features_z[:, idx]) for family, idx in self.fs_family_columns.items()
+        }
 
         # Precompute FS volume subset   
         self.fs_volume_columns = [col for col in FS_VOLUME_COLUMNS if col in self.freesurfer_df.columns]
@@ -415,6 +434,8 @@ class HCP_Base():
         # Covariate dimension registry for model construction.
         self.cov_dims = {}
         self.cov_dims["fs_all"]    = int(self.fs_features_z.shape[1])
+        for family, arr in self.fs_family_z.items():
+            self.cov_dims[family] = int(arr.shape[1])
         if self.fs_volumes_z is not None:
             self.cov_dims["fs_volumes"] = int(self.fs_volumes_z.shape[1])
         self.cov_dims["age"]      = 1
@@ -546,6 +567,9 @@ class HCP_Partition(Dataset):
                 base.fs_features_z,
                 self.device,
             )
+        for family in FS_FAMILY_SOURCES:
+            if family in self.cov_sources:
+                self.cov_tensors[family] = base.get_cached_tensor(f"cov_{family}", base.fs_family_z[family], self.device)
         if "fs_volumes" in self.cov_sources:
             if base.fs_volumes_z is None:
                 raise ValueError("fs_volumes requested but FS volume columns are unavailable.")

@@ -901,7 +901,10 @@ class CrossModal_PCA_PLS_CovProjector(nn.Module):
         fused_cov_dim = sum(self.cov_embed_dims.values())
         # Cov fusion output must match target latent dim (z_cov is added to z_base).
         fusion_type = (self.cov_fusion or {}).get("type", "linear")
-        if fusion_type == "mlp":
+        if fused_cov_dim == 0:
+            # cov_sources: [] (spec v3 E1 'none' condition): no covariate branch, z_cov = 0.
+            self.cov_fusion_net = None
+        elif fusion_type == "mlp":
             hidden = (self.cov_fusion or {}).get("hidden_dims", [k_tgt])
             dropout_p = float((self.cov_fusion or {}).get("dropout", 0.0))
             use_ln = bool((self.cov_fusion or {}).get("layer_norm", False))
@@ -974,6 +977,11 @@ class CrossModal_PCA_PLS_CovProjector(nn.Module):
             z_parts.append(z)
         return torch.cat(z_parts, dim=1)
 
+    def _covariate_latent(self, cov, z_base):
+        if self.cov_fusion_net is None:
+            return torch.zeros_like(z_base)
+        return self.cov_fusion_net(self._encode_covariates(cov))
+
     def _predict_target_latent_from_sources(self, z_src):
         z_base = self.dropout(z_src)
         z_base = torch.matmul(z_base, self.W_mid.T)
@@ -990,7 +998,7 @@ class CrossModal_PCA_PLS_CovProjector(nn.Module):
         source_inputs, cov = self._resolve_inputs(x, cov=cov)
         z_src = self._encode_sources(source_inputs)
         z_base = self._predict_target_latent_from_sources(z_src)
-        z_cov = self.cov_fusion_net(self._encode_covariates(cov))
+        z_cov = self._covariate_latent(cov, z_base)
         if self.use_target_scores_in_projector and self.target_scores_proj is not None and y is not None:
             target_scores = self.encode_target_latents(y)
             z_cov = self.target_scores_proj(target_scores)
@@ -1000,7 +1008,7 @@ class CrossModal_PCA_PLS_CovProjector(nn.Module):
         source_inputs, cov = self._resolve_inputs(batch)
         z_src = self._encode_sources(source_inputs)
         z_base = self._predict_target_latent_from_sources(z_src)
-        z_cov = self.cov_fusion_net(self._encode_covariates(cov))
+        z_cov = self._covariate_latent(cov, z_base)
         z_target = z_base + z_cov
         return {
             "z_base": z_base,
@@ -1014,7 +1022,8 @@ class CrossModal_PCA_PLS_CovProjector(nn.Module):
 
     def get_reg_loss(self):
         params = list(self.source_encoders.values()) + [self.W_mid, self.W_dec]
-        params.extend(self.cov_fusion_net.parameters())
+        if self.cov_fusion_net is not None:
+            params.extend(self.cov_fusion_net.parameters())
         if self.target_scores_proj is not None:
             params.extend(self.target_scores_proj.parameters())
         for encoder in self.cov_encoders.values():
