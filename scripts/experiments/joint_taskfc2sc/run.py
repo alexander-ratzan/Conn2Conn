@@ -80,6 +80,26 @@ def summarize(sel, cfg):
     return pd.DataFrame(rows)
 
 
+def selection_diagnostics(df, cfg):
+    """Is the with-task deficit a selection (val-overfitting) effect? Per version x k_task, over seeds: val and test of
+    the val-selected config, their gap, the test-oracle bound (best config chosen on test: diagnostic only, never a
+    result), and consensus selection (one config by mean val across seeds)."""
+    rows = []
+    for (v, kt), g in df.groupby(["version", "k_task"]):
+        per = []
+        for _, gs in g.groupby("seed"):
+            b = gs.loc[gs["val_demeaned_pearson"].idxmax()]
+            per.append((b["val_demeaned_pearson"], b["test_demeaned_pearson"], gs["test_demeaned_pearson"].max()))
+        per = np.array(per)
+        m = g.groupby(["k_rest", "k_sc", "n_pls"])[["val_demeaned_pearson", "test_demeaned_pearson"]].mean()
+        ci = m["val_demeaned_pearson"].idxmax()
+        rows.append({"version": v, "k_task": kt, "val_selected": per[:, 0].mean(), "test_selected": per[:, 1].mean(),
+                     "val_test_gap": (per[:, 0] - per[:, 1]).mean(), "test_oracle": per[:, 2].mean(),
+                     "consensus_config": "k_rest={} k_sc={} n_pls={}".format(*[int(x) for x in ci]),
+                     "consensus_test": m.loc[ci, "test_demeaned_pearson"]})
+    return pd.DataFrame(rows)
+
+
 def md(df, cols, fmt=4):
     head = "| " + " | ".join(cols) + " |\n|" + "---|" * len(cols) + "\n"
     return head + "".join("| " + " | ".join(f"{r[c]:.{fmt}f}" if isinstance(r[c], float) else str(r[c]) for c in cols)
@@ -258,17 +278,20 @@ def fig_blocks(sel, cfg, path):
             s = sel[(sel["version"] == v) & (sel["k_task"] > 0)]
             best_kt = s.groupby("k_task")["val_demeaned_pearson"].mean().idxmax()
             s = s[s["k_task"] == best_kt]
+            total = s["k_rest"] + len(cfg["task_conditions"]) * s["k_task"]
             for j, b in enumerate(blocks):
                 vals = s[f"vip_{b}"]
                 x = j + (i - 0.5) * 0.35
                 ax.bar(x, vals.mean(), width=0.33, color=COLORS[v], edgecolor="black",
                        label=f"{cfg['versions'][v]['label']} (k_task = {best_kt})" if j == 0 else None)
                 ax.scatter(np.full(len(vals), x), vals, color="white", edgecolor="black", s=18, zorder=3)
-        ax.axhline(1 / len(blocks), color="#555555", ls=":", lw=1)
+                col_share = ((s["k_rest"] if b == "rest" else s["k_task"]) / total).mean()  # share from block size alone
+                ax.plot([x - 0.16, x + 0.16], [col_share, col_share], color="black", lw=2.2, zorder=4,
+                        label="share expected from block size" if (i, j) == (0, 0) else None)
         ax.set_xticks(range(len(blocks)), [b.capitalize() if b != "wm" else "WM" for b in blocks])
         ax.set_ylabel("share of explained SC variance (block VIP)")
         ax.legend(frameon=False)
-        ax.set_title("Which FC Blocks Carry the PLS Fit (best with-task slice; dots = seeds; dotted = equal share)",
+        ax.set_title("Which FC Blocks Carry the PLS Fit (best with-task slice; dots = seeds; black tick = block-size share)",
                      fontweight="bold")
         fig.savefig(path, dpi=300, facecolor="white")
         plt.close(fig)
@@ -325,6 +348,12 @@ def main():
     summ.to_csv(out / "tables" / "summary.csv", index=False, float_format="%.6g")
     (out / "tables" / "summary.md").write_text(md(summ, ["version", "k_task"] + [f"{m}_mean" for m in cfg["metrics"]]
                                                   + [f"d_{m}_mean" for m in cfg["metrics"]]))
+    diag = selection_diagnostics(df, cfg)
+    diag.to_csv(out / "tables" / "selection_diagnostics.csv", index=False, float_format="%.6g")
+    (out / "tables" / "selection_diagnostics.md").write_text(
+        "Test demeaned r (seed means). test_oracle = best config chosen on test (diagnostic upper bound only).\n\n"
+        + md(diag, ["version", "k_task", "val_selected", "test_selected", "val_test_gap", "test_oracle",
+                    "consensus_config", "consensus_test"]))
     fig_ablation(summ, cfg, out / "figures" / "ablation_curve.png")
     fig_dimensionality(df, cfg, out / "figures" / "dimensionality.png")
     fig_paired(sel, cfg, out / "figures" / "paired_delta.png")

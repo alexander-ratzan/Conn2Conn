@@ -1,0 +1,11 @@
+version,k_task,val_selected,test_selected,val_test_gap,test_oracle,consensus_config,consensus_test
+predictive_resid,0,0.161686,0.148592,0.0130932,0.151286,k_rest=512 k_sc=16 n_pls=16,0.150133
+predictive_resid,8,0.159808,0.141668,0.0181398,0.145556,k_rest=640 k_sc=16 n_pls=32,0.14518
+predictive_resid,16,0.155657,0.140098,0.0155588,0.142012,k_rest=640 k_sc=16 n_pls=32,0.141411
+predictive_resid,32,0.151414,0.133454,0.0179593,0.136401,k_rest=640 k_sc=16 n_pls=32,0.135563
+predictive_resid,64,0.145514,0.130659,0.0148544,0.132217,k_rest=640 k_sc=8 n_pls=32,0.129536
+raw,0,0.161686,0.148592,0.0130932,0.151286,k_rest=512 k_sc=16 n_pls=16,0.150133
+raw,8,0.159757,0.143464,0.0162933,0.146219,k_rest=640 k_sc=16 n_pls=32,0.145718
+raw,16,0.156648,0.140997,0.0156511,0.142242,k_rest=640 k_sc=16 n_pls=32,0.141581
+raw,32,0.152158,0.133789,0.0183687,0.138506,k_rest=640 k_sc=16 n_pls=32,0.137047
+raw,64,0.152711,0.13827,0.0144417,0.141594,k_rest=512 k_sc=16 n_pls=8,0.139328

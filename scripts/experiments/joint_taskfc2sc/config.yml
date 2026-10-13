@@ -11,9 +11,9 @@ versions:
   raw: {label: "Raw task blocks", model: CrossModal_PCA_PLS}
   predictive_resid: {label: "Predictive-residual task blocks", model: CrossModal_PCA_PLS_TaskResid}
 grid:
-  k_rest: [64, 128, 256, 512]
+  k_rest: [64, 128, 256, 512, 640]   # 640 added 2026-10-08 (edge rule: winners at 512; max ~658 PCs)
   k_task: [0, 8, 16, 32, 64]     # 0 = rest-only ablation (same model in both versions)
-  k_sc: [16, 32, 64, 128, 256]
+  k_sc: [8, 16, 32, 64, 128, 256]    # 8 added 2026-10-08 (edge rule: winners at 16)
   n_pls: [4, 8, 16, 32, 64, 128] # one fit at max(n_pls) per cell, truncated (exact; checks/bench_pls_grid.py)
 selection: {metric: val_demeaned_pearson, mode: max}   # per seed, within each k_task slice; never on test
 metrics: [pearson, demeaned_pearson, avg_rank, top1_acc]

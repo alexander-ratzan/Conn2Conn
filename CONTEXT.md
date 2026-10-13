@@ -477,6 +477,13 @@ Debug missing results cell:
 
 ## Recent Changes
 
+2026-10-07 → 2026-10-12 — spec v3 E2 / I5:
+- `FC_<task>` source modalities (`data/hcp_dataset.py`, `models/architectures/utils.py`): a task FC as its own source
+  block (needs the task in `fc_conditions`; train PCA only when requested). `CrossModal_PCA_PLS_TaskResid` +
+  `fit_rest_residualizer` (predictive-residual task blocks).
+- `scripts/experiments/joint_taskfc2sc/` (E2): CPU grid runner for closed-form multi-block PCA-PLS (one PLS fit per cell
+  truncated to every `n_pls`; Evaluator metrics). Result: task-FC blocks add no FC → SC signal over rest.
+
 2026-10-05 → 2026-10-07 — spec v3 started:
 - `HCP_Base(fc_source_condition=...)` (`31de503`): rest sessions or a task become the run's FC; one shared
   `HCP_Base` data-key list for all builders.

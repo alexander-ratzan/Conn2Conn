@@ -20,12 +20,12 @@ row to the status table.
 |---|---|---|---|---|
 | E0 | Which task FC best predicts SC, and which is best predicted from SC (both directions, both parcellations) | done 2026-10-07 | — | agent:infra |
 | E1 | Covariate ablation for PCA-PLS + covariates (late stage) | planned | — | — |
-| E2 | Joint task-FC → SC: do the 7 task-FC blocks add to rest FC? (E2.1 raw, E2.2 predictive residual) | planned | I5 | agent:infra |
+| E2 | Joint task-FC → SC: do the 7 task-FC blocks add to rest FC? (E2.1 raw, E2.2 predictive residual) | done 2026-10-12 | I5 | agent:infra |
 | I1 | Composite-loss search infrastructure: 4 candidate weightings per direction as a tuned hyperparameter | planned | — | — |
 | I2 | Config layout: family folders (done), one tune launcher, variants as roster overrides | in progress | — | agent:modeling |
 | I3 | Bidirectional graph / nodal models: FC → SC variants with a tuned FC edge threshold | planned | — | — |
 | I4 | Environment alignment (Jupyter kernel image) and v2 C6 archive deletion | planned | — | user |
-| I5 | Joint task-FC infrastructure: FC conditions as source modalities, CPU grid runner, predictive-residual PCA-PLS, E2 figures | in progress | — | agent:infra |
+| I5 | Joint task-FC infrastructure: FC conditions as source modalities, CPU grid runner, predictive-residual PCA-PLS, E2 figures | done 2026-10-07 (`01adae6`) | — | agent:infra |
 | C!1 | PCA-PLS + covariates FC → SC gain is likely anatomy, not FC | open | resolved by E1 | — |
 | D1 | E0.2–E0.4 compute envelope and autonomous execution | decided | — | user |
 
@@ -100,7 +100,7 @@ mixtures; fixed reference scales).
 - **Accept:** paired Δ vs PCA-PLS learnable per covariate set and direction; C!1 set to `resolved` with the finding.
 - **Budget:** ≈ 1–2 GPU-h.
 
-### E2 — Joint task-FC → SC   (slug: `joint_taskfc2sc`) · status: planned · owner: agent:infra
+### E2 — Joint task-FC → SC   (slug: `joint_taskfc2sc`) · status: done 2026-10-12 · owner: agent:infra
 
 - **Question:** for FC → SC, do the seven task-FC blocks add predictive signal to rest FC, and does that hold for the
   task-specific, individualized part of task FC (the part of a subject's task FC that their own rest FC cannot
@@ -113,8 +113,8 @@ mixtures; fixed reference scales).
 
 | Step | Task blocks | Status |
 |---|---|---|
-| E2.1 | **raw**: PCA of each task's FC (the naive concatenation; early task PCs largely repeat rest) | planned |
-| E2.2 | **predictive residual**: per task, a ridge fit (train only) predicts each subject's task FC from their own `k_rest` rest PC scores; the task block is the PCA of the prediction error, so it holds only what rest cannot predict | planned |
+| E2.1 | **raw**: PCA of each task's FC (the naive concatenation; early task PCs largely repeat rest) | done 2026-10-08 |
+| E2.2 | **predictive residual**: per task, a ridge fit (train only) predicts each subject's task FC from their own `k_rest` rest PC scores; the task block is the PCA of the prediction error, so it holds only what rest cannot predict | done 2026-10-08 |
 
   Simple subtraction (task FC − own rest FC) was dropped: per edge the task-on-rest slope is ≈ 0.25–0.3, not 1, so it
   over-subtracts and injects a sign-flipped copy of rest (rest explains 5–15 % of the difference's variance vs ≈ 2 % of
@@ -125,9 +125,9 @@ mixtures; fixed reference scales).
 
 | Axis | Values | Why |
 |---|---|---|
-| `k_rest` | 64, 128, 256, 512 | v2:E2.2 rest-only val demeaned r: 32 → 0.128, 64 → 0.140, 128 → 0.150, 256 → 0.158, 512 → 0.159 (32 dropped; 512 = plateau edge) |
+| `k_rest` | 64, 128, 256, 512, **640** (added by the edge rule) | v2:E2.2 rest-only val demeaned r: 32 → 0.128, 64 → 0.140, 128 → 0.150, 256 → 0.158, 512 → 0.159 (32 dropped; 512 = plateau edge) |
 | `k_task` (shared by all 7 tasks) | **0**, 8, 16, 32, 64 | 0 = rest-only ablation (identical in E2.1 and E2.2) |
-| `k_sc` | 16, 32, 64, 128, 256 | the SC test-reconstruction ceiling keeps rising to 256 (test R² 0.33 → 0.42 and demeaned-r ceiling 0.57 → 0.65 from 128 to 256); rest-only prefers 32 (v2:E2.2 val 0.160 at 32 → 0.138 at 256), so a shift of the optimum when tasks are added is itself a result |
+| `k_sc` | **8** (added by the edge rule), 16, 32, 64, 128, 256 | the SC test-reconstruction ceiling keeps rising to 256 (test R² 0.33 → 0.42 and demeaned-r ceiling 0.57 → 0.65 from 128 to 256); rest-only prefers 32 (v2:E2.2 val 0.160 at 32 → 0.138 at 256), so a shift of the optimum when tasks are added is itself a result |
 | `n_pls` | 4, 8, 16, 32, 64, 128 | one `n_pls = 128` fit truncated to all six (NIPALS is sequential; exact to 1e-15, `checks/bench_pls_grid.py`) |
 
   E2.1: 4 × 5 × 5 = 100 PLS fits per seed (600 configurations); E2.2 adds 80. Each `k_task` slice has 120
@@ -147,15 +147,30 @@ mixtures; fixed reference scales).
   7. Selected `k_sc` by `k_task` (does the target-dimension optimum move up when tasks are added?).
 - **Accept:** both versions complete on 5 seeds with every grid cell scored; figures 1–7 and the write-up
   `joint_taskfc2sc.md`; `k_task = 0` slice reproduces a plain `main.py` `CrossModal_PCA_PLS --source FC` run on the
-  same cohort and config to numerical precision.
+  same cohort and config to numerical precision. **Met** (I5 checks `19358187`; convergence `19457342`).
+- **Result:** [`joint_taskfc2sc.md`](../../scripts/experiments/joint_taskfc2sc/joint_taskfc2sc.md).
+  - **No gain from task FC:** rest only is best (test demeaned r 0.149). Every with-task slice is lower, raw −0.005 to
+    −0.015 and predictive residual −0.007 to −0.018, negative in all 5 seeds × 4 slices of both versions.
+  - **Not a selection artifact:** choosing configs on test (diagnostic bound) still leaves every with-task slice
+    (≤ 0.146) below val-selected rest only. The val → test gap grows only slightly with tasks (0.016–0.018 vs 0.013).
+  - `k_task = 0` is the best column at every `k_rest`; adding tasks doesn't move the SC-PC optimum (16).
+  - PLS gives task blocks ≈ 2× their column share of explained variance, and that weight doesn't generalize.
+  - Edge rule applied: `k_rest` 640, `k_sc` 8 added (winners at 640 ≈ the PC maximum).
+  - ≈ 6 CPU-node-hours (grid `19365975`, extension `19454464`).
 - **Budget:** CPU only (no GPU). Measured ≈ 5–12 s per PLS fit incl. the six truncations and edge metrics
   (`bench_pls_grid.sh`, job `19348816`) → ≈ 20 min per seed per version, ≈ 3–4 CPU-node-hours for E2. One CPU array
   (seed × version). Launch after the I5 checks pass and the user's go.
 - **Caveat:** task blocks differ in scan length, so a task's added value is partly data quantity.
-- **Follow-ups (not scheduled):** add-one / drop-one per task at the winner; regional Δ maps (per-region demeaned r of
-  predicted SC rows, (rest + task) − rest, seed-paired, FDR across regions) for the MTL / WM hypothesis; block scaling
-  instead of per-column standardization at each winner; learnable multi-block `CrossModal_PCA_PLS_learnable`
-  initialized from the winner, then composite losses (I1); 4S456Parcels replication.
+- **Follow-ups (not scheduled), in priority order:**
+  1. Block-weighted regression (group ridge per block, or PLS block scaling) so the fit can switch noisy task blocks
+     off. Per-column standardization gives every task PC rest-level weight; this is the remaining linear route.
+  2. Regional Δ maps (per-region demeaned r of predicted SC rows, (rest + task) − rest, seed-paired, FDR) for the
+     WM / MTL hypothesis.
+  3. Add-one / drop-one per task.
+  4. More stable selection (k-fold CV on train + val, consensus): low value, since the test-oracle bound rules out a
+     selection fix.
+  5. Learnable multi-block model and composite losses; 4S456Parcels replication: deprioritized given no linear
+     gain.
 
 ## 3. Infrastructure
 
@@ -204,7 +219,7 @@ mixtures; fixed reference scales).
   wrapper (`~/.local/share/jupyter/kernels/kraken_env/python`, still cuda12.3.2) and `activate_env.sh` at the same
   image, then delete `/scratch/asr655/envs/archive/2026-09-30_c6/`.
 
-### I5 — Joint task-FC infrastructure (for E2) · status: in progress · owner: agent:infra
+### I5 — Joint task-FC infrastructure (for E2) · status: done 2026-10-07 (`01adae6`) · owner: agent:infra
 
 - **Goal:** run E2 from library code (no forked model math), fast enough for exhaustive grids on CPU.
 - **Changes:**
@@ -274,5 +289,6 @@ mixtures; fixed reference scales).
 | 2026-10-06 | D1: E0.2–E0.4 approved for autonomous execution; E0 layout and plan set; owner agent:infra. |
 | 2026-10-07 | E0 done: E0.2–E0.4 (54.3 GPU-h, no retries); rest best everywhere, condition order replicates across direction and parcellation; SC → FC tasks near the null. |
 | 2026-10-07 | E2 (joint task-FC → SC, raw vs predictive residual) and I5 specified; grid sized from v2:E2.2 trials and the SC reconstruction ceiling; PLS truncation benchmarked (CPU, ≈ 5–12 s per fit). |
+| 2026-10-12 | E2 done: task-FC blocks add no FC → SC signal over rest (raw or predictive residual; −0.005 to −0.018 demeaned r, all seeds); test-oracle bound rules out a selection artifact; edge extension `k_rest` 640 / `k_sc` 8; convergence check OK. I5 done. |
 
-Last updated at: 2026-10-07 EDT
+Last updated at: 2026-10-12 EDT
