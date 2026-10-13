@@ -109,6 +109,7 @@ Closed-form (`learned: false`):
 - `CrossModal_PLS_SVD`
 - `CrossModal_PCA_PLS`
 - `CrossModal_ConditionalGaussian` (`models/architectures/crossmodal_conditional_gaussian.py`; conditional mean in PCA space or ridge in edge space, optional covariates)
+- `CrossModal_PCA_PLS_TaskResid` (`models/architectures/crossmodal_pca_pls.py`, spec v3 E2.2): sources `FC+FC_<task>…`; per task a ridge (GCV, `fit_rest_residualizer`) predicts task FC from the subject's `k_rest` rest scores, the block is the train PCA (`k_task`) of the residual; PLS to SC PCs. Args `k_rest`, `k_task`, `n_components_pls`, `n_components_pca_target`, `resid_alphas`.
 - `Krakencoder_precomputed` (precomputed artifacts, no training; class `KrakencoderPrecomputed`)
 - `Krakencoder` (`learned: false` in the Lightning sense: retrained per seed outside `main.py` by the vendored upstream trainer, then served like `Krakencoder_precomputed`; see below)
 - `TestRetestPrecomputed` (test-retest oracle, loads session 1/2 cached connectomes; class in `models/architectures/test_retest_precomputed.py`)
@@ -200,6 +201,9 @@ FC conditions (spec v2 I1.4–I1.5, v3 E0; user-facing summary in `README.md` �
 - `fc_source_condition` (`rest_S1`, `rest_S2`, or a loaded task) rebinds `fc_upper_triangles` / `fc_matrices`
   **before** the train-split PCA, so it is "FC" for the whole run (source or target).
 - These are `data:` keys only (`models/registry.py` `DATA_KEYS`, `main.py` `HCP_BASE_DATA_KEYS`); no CLI flags.
+- `FC_<task>` source modalities (spec v3 I5; `FC_CONDITION_MODALITIES` in `data/hcp_dataset.py`): source only, need the task
+  in `fc_conditions`, cannot be combined with `fc_source_condition`. `HCP_Base.fc_condition_train_pca[task]` holds the
+  train PCA (built only for requested sources); `HCP_Partition` serves the edges; `get_modality_data` maps them.
 - Split indices are positions in the post-intersection `metadata_df` (fixed 2026-10-04; positions in the
   pre-intersection list were wrong whenever the intersection dropped subjects).
 - Splits are family-preserving for every seed; seed 0 is the `participants.tsv` split (683 / 79 / 195 of 957).

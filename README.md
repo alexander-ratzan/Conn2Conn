@@ -23,6 +23,7 @@ directions: `scripts/experiments/model_benchmark/model_benchmark.md`.
 | `CrossModal_PCA_PLS_learnable` | Linear decomposition | Supervised (gradient) | PCA/PLS-initialized linear map, fine-tuned end-to-end |
 | `CrossModal_linear_backbone` | Linear decomposition | Supervised (gradient) | Frozen PCA encoder/decoder around one learned affine latent map; fast probe for loss/regularization studies |
 | `CrossModal_PCA_PLS_CovProjector` | Linear decomposition | Supervised (gradient) | PCA+PLS + residual correction conditioned on subject covariates |
+| `CrossModal_PCA_PLS_TaskResid` | Linear decomposition | Closed-form | Multi-block PCA-PLS for `FC + FC_<task>` sources: each task block is the part of the subject's task FC that their rest FC cannot predict (ridge residual, then PCA); FC → SC only |
 | `LatentAttnMasked` | Latent / pretrained | Supervised (gradient) | Latent PCA backbone (zero / PLS / learned linear) plus a masked target-token attention residual |
 | `MaskedLatentPretrainer` | Latent / pretrained (experimental) | Self-supervised (masked reconstruction) | Joint source+target latent-token reconstruction; predicts by masking every target token |
 | `MaskedMLPPretrainer` | Latent / pretrained (experimental) | Self-supervised (masked reconstruction) | Same masked objective with linear / MLP backbone variants |
@@ -94,6 +95,9 @@ default:
 - `fc_source_condition` (`rest` / unset, `rest_S1`, `rest_S2`, or a loaded task) makes that condition *the* FC for the
   whole run (PCA bases, model, evaluator), so it is the source in `FC → SC` and the target in `SC → FC`.
 - `fc_condition_matrices: true` also loads dense task matrices (upper triangles only by default).
+- **Task FC as extra source blocks:** `--source FC+FC_wm+FC_language+…` adds each task FC as its own input block with
+  its own train-split PCA (the task must be in `fc_conditions`; `FC` stays rest). Multi-source `CrossModal_PCA_PLS`
+  takes a per-block `n_components_pca` dict. Example: `scripts/experiments/joint_taskfc2sc/` (spec v3 E2).
 - Example: `scripts/experiments/task_bidirectional_bench/` (spec v3 E0).
 
 ### Subjects and cohort
@@ -303,6 +307,8 @@ launcher + `run.py`:
 - **Composite-loss protocol** (`scripts/experiments/composite_loss/`): `protocol.py`, `report.py`, `compare.py`, with
   per-model instances in `<model>/{sc2fc,fc2sc}/`.
 - **Task FC ↔ SC** (`scripts/experiments/task_bidirectional_bench/`, spec v3 E0): FC condition × seed × direction × parcellation for PCA-PLS learnable.
+- **Joint task FC → SC** (`scripts/experiments/joint_taskfc2sc/`, spec v3 E2): rest + 7 task-FC blocks, closed-form
+  grid on CPU (`grid.py`, `launch_grid.sh`); reads its own `runs/` CSVs rather than SLURM logs.
 
 `scripts/experiments/experiments_index.md` lists every experiment with its status and write-up.
 
@@ -392,4 +398,4 @@ Conn2Conn/
 └── krakencoder_experimental/        # Local Krakencoder copy + data, cached predictions, participants.tsv (gitignored)
 ```
 
-Last updated at: 2026-10-06 EDT
+Last updated at: 2026-10-12 EDT

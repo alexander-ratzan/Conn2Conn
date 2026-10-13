@@ -269,9 +269,16 @@ mixtures; fixed reference scales).
 - **Graph / nodal models on top of the mean** (v2:E0): GNNs on the deviation from the train-split mean FC, or on PCA
   scores / low-rank factors, including an SC-only `NodalGNN`. Pilot per v2:D2 against PCA-PLS learnable. After I3.
 - **Editable install** (`pyproject.toml` + `pip install -e .`) and `conn2conn/` namespacing.
-- **Artifact cleanup:** `results/ray_results/` (118 GB), a `results/logs/` retention policy, and Tune checkpoint /
-  Ray temp retention (E0.1 left 246 GB `ray_tmp` + 96 GB `ray_checkpoints`, deleted 2026-10-06): `keep_checkpoints_num`,
-  no per-trial checkpoints when only the best trial is re-evaluated, Ray temp cleanup per job.
+- **Artifact cleanup / storage** (audit 2026-10-06; repo ≈ 2.3 TB, user wants to revisit it):
+  - `results/ray_tmp` 768 GB and `results/ray_checkpoints` 699 GB, mostly sessions and trial storage from Feb–Apr and
+    Sep–Oct; `results/krakencoder` 286 GB (≈ 13 GB per grid cell, mostly two 1.1 GB prediction `.mat` per seed);
+    `results/conn2conn` 272 GB (Lightning checkpoints per W&B run id, 1,623 dirs); `results/ray_results` 142 GB (Sarwar
+    100 GB); `krakencoder_experimental/` 87 GB; legacy cwd-relative `checkpoints/` 69 GB (669 `.ckpt`, Mar–Sep).
+  - `.git` 4.2 GB, of which ≈ 3.7 GB is loose objects / garbage (packed history 286 MB): a `git gc` would reclaim it.
+  - One stray tracked file: `results/local_results/Krakencoder_precomputed/krakencoder_seed0/.ipynb_checkpoints/eval_test-checkpoint.md`.
+  - Prevention already in place: `task_bidirectional_bench/launch.sh` deletes each finished task's Ray temp + Tune
+    storage (≈ 7–8 GB per task). Still open: the same for the other launchers, `keep_checkpoints_num`, no per-trial
+    checkpoints when only the best trial is re-evaluated, a `results/logs/` retention policy.
 - **Shared constants** between `main.py` and `scripts/results_utils/records.py`.
 - **Untracked reference code** in `context_packages/modeling/*_context/`.
 - **Latent-space terms inside composite** (`latent_mse` / `latent_weighted_mse` as mixable terms).
