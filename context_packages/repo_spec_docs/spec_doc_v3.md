@@ -93,6 +93,12 @@ mixtures; fixed reference scales).
 
 ### E1 — Covariate family ablation for PCA-PLS + covariates   (slug: `covariate_ablation`) · status: in progress · owner: agent:infra
 
+- **In plain terms:** in E2.2, adding subject covariates (demographics + FreeSurfer anatomy) to PCA-PLS made FC → SC
+  predictions clearly more accurate and far more identifiable, while SC → FC barely changed. The SC target is divided
+  by node volume, so a model told each subject's regional volumes / areas may just be undoing that division, a
+  trivial gain rather than an FC–covariate link. E1 keeps the tuned model fixed, switches covariate families on and
+  off to see which one carries the gain, and repeats `none` vs `full` on unnormalised SC: if the gain mostly vanishes
+  there, it was the normalisation.
 - **Question:**
   1. How much does each covariate family add to `CrossModal_PCA_PLS_CovProjector` (test demeaned r, top-1, avg rank)
      in FC → SC and SC → FC?
@@ -151,10 +157,14 @@ mixtures; fixed reference scales).
     (same config) to numerical tolerance; `none` gives z_cov ≡ 0; all z-scoring uses the train split only;
   - 110 / 110 runs with finite metrics; tables with paired (by seed) deltas, mean ± std over seeds;
   - write-up answers both questions; C!1 set to `resolved` (or reworded) with the finding.
-- **Gates:** E1.1: subject count ≥ the invnodevol cache's modeling cohort, finite and symmetric matrices, per-subject
-  correlation with the invnodevol SC high but < 1. E1.2: `full` seed-0 test demeaned r within 0.01 of E2.2
+- **Gates:** E1.1: subject count ≥ the invnodevol cache's modeling cohort, finite and symmetric matrices, identical
+  zero pattern, per-subject Spearman with the invnodevol SC > 0.95 but < 1 (user 2026-10-14: Pearson is ~0.68 only
+  because log1p compresses the two count scales differently; Spearman 0.99). E1.2: `full` seed-0 test demeaned r within 0.01 of E2.2
   (FC → SC 0.224, SC → FC 0.095); `none` finite with val demeaned r > 0.05 (FC → SC).
 - **Budget / autonomy:** D2. 110 single trainings with frozen configs; estimate 2–4 GPU-h, cap 6.
+- **Progress:** E1.0 done (9e7e75e). E1.1 cache built (1063 subjects), gate passed on Spearman. E1.2 pilot passed
+  (seed 0 test demeaned r, `none` / `full` / E2.2 inputs: FC → SC 0.144 / 0.223 / 0.227, top-1 0.14 / 0.37 / 0.43;
+  SC → FC 0.090 / 0.094 / 0.096). E1.3 submitted 2026-10-14.
 
 ### E2 — Joint task-FC → SC   (slug: `joint_taskfc2sc`) · status: done 2026-10-12 · owner: agent:infra
 

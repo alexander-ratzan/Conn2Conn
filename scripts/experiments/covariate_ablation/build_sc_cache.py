@@ -19,6 +19,7 @@ REPO_ROOT = os.path.abspath(os.path.join(EXP_DIR, "..", "..", ".."))
 sys.path.insert(0, REPO_ROOT)
 
 import numpy as np  # noqa: E402
+from scipy.stats import spearmanr  # noqa: E402
 
 from data.dataset_utils import DEFAULT_CONN2CONN_CACHE_ROOT, _cache_dir_sc, load_sc  # noqa: E402
 
@@ -82,15 +83,22 @@ def gate(cache_root):
     rows_r = [ri[s] for s in common]
     rows_n = [ni[s] for s in common]
     r = np.array([np.corrcoef(ref_tri[i], new_tri[j])[0, 1] for i, j in zip(rows_r, rows_n)])
+    rho = np.array([spearmanr(ref_tri[i], new_tri[j])[0] for i, j in zip(rows_r, rows_n)])
+    same_zeros = all(np.array_equal(ref_tri[i] == 0, new_tri[j] == 0) for i, j in zip(rows_r, rows_n))
     sym = max(float(np.abs(new_mats[k] - new_mats[k].T).max()) for k in range(0, len(new_ids), 25))
     res = {
         "n_ref": int(len(ref_ids)), "n_new": int(len(new_ids)), "n_common": int(len(common)),
         "missing_from_new": [int(s) for s in np.setdiff1d(ref_ids, new_ids)],
         "finite": bool(np.isfinite(new_tri).all()), "max_asym_sampled": sym,
         "corr_with_invnodevol": {"min": float(r.min()), "median": float(np.median(r)), "max": float(r.max())},
+        "spearman_with_invnodevol": {"min": float(rho.min()), "median": float(np.median(rho)), "max": float(rho.max())},
+        "same_zero_pattern": bool(same_zeros),
     }
+    # Gate on rank correlation (user 2026-10-14): log1p of differently scaled counts lowers Pearson (~0.68) although
+    # the edge ranking is near identical; Pearson is kept for reference.
     res["pass"] = bool(res["n_common"] == res["n_ref"] and res["finite"] and sym < 1e-5
-                       and res["corr_with_invnodevol"]["median"] > 0.8 and res["corr_with_invnodevol"]["max"] < 0.9999)
+                       and res["same_zero_pattern"] and res["spearman_with_invnodevol"]["median"] > 0.95
+                       and res["spearman_with_invnodevol"]["max"] < 0.9999)
     os.makedirs(os.path.join(EXP_DIR, "runs"), exist_ok=True)
     with open(os.path.join(EXP_DIR, "runs", "cache_gate.json"), "w") as f:
         json.dump(res, f, indent=1)
