@@ -1,0 +1,107 @@
+{
+ "campaign": "e1_cov",
+ "condition": "only_fs_thick",
+ "direction": "fc2sc",
+ "source": "FC",
+ "target": "SC",
+ "sc_metric": "invnodevol",
+ "sc_metric_type": "sift_invnodevol_radius2_count_connectivity",
+ "seed": 1,
+ "cov_sources": [
+  "fs_thick"
+ ],
+ "cov_dims": {
+  "fs_thick": 68
+ },
+ "config": {
+  "model": {
+   "name": "CrossModal_PCA_PLS_CovProjector",
+   "n_components_pca_source": 128,
+   "n_components_pca_target": 128,
+   "n_components_pls": 32,
+   "learn_encoder": false,
+   "learn_mid": true,
+   "learn_decoder": false,
+   "random_init": false,
+   "l1_reg": 0.0,
+   "l2_reg": 0.0001,
+   "dropout": 0.23653976256297854,
+   "cov_sources": [
+    "fs_thick"
+   ],
+   "cov_projectors": {
+    "fs_thick": {
+     "type": "linear",
+     "out_dim": 44
+    }
+   },
+   "cov_fusion": {
+    "dropout": 0.1,
+    "hidden_dims": [
+     128
+    ],
+    "layer_norm": true,
+    "type": "mlp"
+   },
+   "use_target_scores_in_projector": false,
+   "device": null
+  },
+  "trainer": {
+   "lr": 0.00011940083749525247,
+   "max_epochs": 101,
+   "batch_size": 64,
+   "log_every": 5,
+   "loss_type": "composite",
+   "loss_terms": [
+    {
+     "name": "mse",
+     "weight": 1.0
+    }
+   ],
+   "loss_normalize": "auto"
+  }
+ },
+ "frozen_from": {
+  "e2_log": "results/logs/e2_mse_CrossModal_PCA_PLS_CovProjector_fc2sc_19083392_1.out",
+  "e2_ray_tune_id": "1790997632",
+  "e2_test": {
+   "avg_rank": 0.9765417488494411,
+   "demeaned_pearson": 0.22992375493049622,
+   "mse": 0.005195145029574633,
+   "pearson": 0.9175315499305725,
+   "r2": 0.040550678968429565,
+   "top1_acc": 0.4717948717948718
+  },
+  "e2_val": {
+   "avg_rank": 0.9676333920846019,
+   "demeaned_pearson": 0.23123489320278168,
+   "mse": 0.005069614388048649,
+   "pearson": 0.9196329116821289,
+   "r2": 0.03134297952055931,
+   "top1_acc": 0.569620253164557
+  }
+ },
+ "n_params": 41948,
+ "val": {
+  "mse": 0.005210219416767359,
+  "r2": 0.008219229988753796,
+  "pearson": 0.9177336096763611,
+  "avg_rank": 0.9086684826149656,
+  "top1_acc": 0.25316455696202533,
+  "demeaned_pearson": 0.1629561483860016
+ },
+ "test": {
+  "mse": 0.005332600325345993,
+  "r2": 0.019368939101696014,
+  "pearson": 0.9157825708389282,
+  "avg_rank": 0.9206311637080868,
+  "top1_acc": 0.17435897435897435,
+  "demeaned_pearson": 0.1689716875553131
+ },
+ "train_s": 38.0,
+ "data_load_s": 14.1,
+ "slurm_job": "19809372",
+ "slurm_array_task": "1",
+ "gpu": "NVIDIA H100 80GB HBM3",
+ "git_commit": "e6dd008bbd316cf400e1cb669cb20069bbc18f74"
+}

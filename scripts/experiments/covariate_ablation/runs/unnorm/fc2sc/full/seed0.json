@@ -1,0 +1,142 @@
+{
+ "campaign": "e1_cov",
+ "condition": "full",
+ "direction": "fc2sc",
+ "source": "FC",
+ "target": "SC",
+ "sc_metric": "unnorm",
+ "sc_metric_type": "sift_radius2_count_connectivity",
+ "seed": 0,
+ "cov_sources": [
+  "age",
+  "sex",
+  "race_eth",
+  "fs_vol",
+  "fs_area",
+  "fs_thick"
+ ],
+ "cov_dims": {
+  "age": 1,
+  "sex": 2,
+  "race_eth": 7,
+  "fs_vol": 63,
+  "fs_area": 68,
+  "fs_thick": 68
+ },
+ "config": {
+  "model": {
+   "name": "CrossModal_PCA_PLS_CovProjector",
+   "n_components_pca_source": 256,
+   "n_components_pca_target": 128,
+   "n_components_pls": 8,
+   "learn_encoder": false,
+   "learn_mid": true,
+   "learn_decoder": false,
+   "random_init": false,
+   "l1_reg": 0.0,
+   "l2_reg": 0.0001,
+   "dropout": 0.27037477388665776,
+   "cov_sources": [
+    "age",
+    "sex",
+    "race_eth",
+    "fs_vol",
+    "fs_area",
+    "fs_thick"
+   ],
+   "cov_projectors": {
+    "age": {
+     "out_dim": 2,
+     "type": "linear"
+    },
+    "sex": {
+     "out_dim": 2,
+     "type": "linear"
+    },
+    "race_eth": {
+     "out_dim": 4,
+     "type": "linear"
+    },
+    "fs_vol": {
+     "type": "linear",
+     "out_dim": 10
+    },
+    "fs_area": {
+     "type": "linear",
+     "out_dim": 11
+    },
+    "fs_thick": {
+     "type": "linear",
+     "out_dim": 11
+    }
+   },
+   "cov_fusion": {
+    "dropout": 0.1,
+    "hidden_dims": [
+     128
+    ],
+    "layer_norm": true,
+    "type": "mlp"
+   },
+   "use_target_scores_in_projector": false,
+   "device": null
+  },
+  "trainer": {
+   "lr": 0.0001795749436234499,
+   "max_epochs": 101,
+   "batch_size": 64,
+   "log_every": 5,
+   "loss_type": "composite",
+   "loss_terms": [
+    {
+     "name": "mse",
+     "weight": 1.0
+    }
+   ],
+   "loss_normalize": "auto"
+  }
+ },
+ "frozen_from": {
+  "e2_log": "results/logs/e2_mse_CrossModal_PCA_PLS_CovProjector_fc2sc_19071247_0.out",
+  "e2_ray_tune_id": "1790981109",
+  "e2_test": {
+   "avg_rank": 0.9691781722550953,
+   "demeaned_pearson": 0.22407856583595276,
+   "mse": 0.005198736675083637,
+   "pearson": 0.918064534664154,
+   "r2": 0.037559498101472855,
+   "top1_acc": 0.41025641025641024
+  },
+  "e2_val": {
+   "avg_rank": 0.9769267745553597,
+   "demeaned_pearson": 0.21274900436401367,
+   "mse": 0.0050095864571630955,
+   "pearson": 0.9192154407501221,
+   "r2": 0.01838981918990612,
+   "top1_acc": 0.46835443037974683
+  }
+ },
+ "n_params": 56984,
+ "val": {
+  "mse": 0.45163455605506897,
+  "r2": 0.014925306662917137,
+  "pearson": 0.9395272135734558,
+  "avg_rank": 0.9335042461144047,
+  "top1_acc": 0.31645569620253167,
+  "demeaned_pearson": 0.18817929923534393
+ },
+ "test": {
+  "mse": 0.462727427482605,
+  "r2": 0.01813420094549656,
+  "pearson": 0.9379671812057495,
+  "avg_rank": 0.8988034188034189,
+  "top1_acc": 0.17435897435897435,
+  "demeaned_pearson": 0.16656796634197235
+ },
+ "train_s": 48.7,
+ "data_load_s": 19.6,
+ "slurm_job": "19810287",
+ "slurm_array_task": "0",
+ "gpu": "NVIDIA H100 80GB HBM3",
+ "git_commit": "e6dd008bbd316cf400e1cb669cb20069bbc18f74"
+}

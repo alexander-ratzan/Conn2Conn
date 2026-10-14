@@ -1,0 +1,116 @@
+{
+ "campaign": "e1_cov",
+ "condition": "drop_demo",
+ "direction": "sc2fc",
+ "source": "SC",
+ "target": "FC",
+ "sc_metric": "invnodevol",
+ "sc_metric_type": "sift_invnodevol_radius2_count_connectivity",
+ "seed": 4,
+ "cov_sources": [
+  "fs_vol",
+  "fs_area",
+  "fs_thick"
+ ],
+ "cov_dims": {
+  "fs_vol": 63,
+  "fs_area": 68,
+  "fs_thick": 68
+ },
+ "config": {
+  "model": {
+   "name": "CrossModal_PCA_PLS_CovProjector",
+   "n_components_pca_source": 128,
+   "n_components_pca_target": 128,
+   "n_components_pls": 8,
+   "learn_encoder": false,
+   "learn_mid": true,
+   "learn_decoder": false,
+   "random_init": false,
+   "l1_reg": 0.0,
+   "l2_reg": 0.0001,
+   "dropout": 0.23393002544314084,
+   "cov_sources": [
+    "fs_vol",
+    "fs_area",
+    "fs_thick"
+   ],
+   "cov_projectors": {
+    "fs_vol": {
+     "type": "linear",
+     "out_dim": 10
+    },
+    "fs_area": {
+     "type": "linear",
+     "out_dim": 11
+    },
+    "fs_thick": {
+     "type": "linear",
+     "out_dim": 11
+    }
+   },
+   "cov_fusion": {
+    "type": "linear"
+   },
+   "use_target_scores_in_projector": false,
+   "device": null
+  },
+  "trainer": {
+   "lr": 4.0474063110710924e-05,
+   "max_epochs": 200,
+   "batch_size": 64,
+   "log_every": 5,
+   "loss_type": "composite",
+   "loss_terms": [
+    {
+     "name": "mse",
+     "weight": 1.0
+    }
+   ],
+   "loss_normalize": "auto"
+  }
+ },
+ "frozen_from": {
+  "e2_log": "results/logs/e2_mse_CrossModal_PCA_PLS_CovProjector_sc2fc_19071364_4.out",
+  "e2_ray_tune_id": "1790988236",
+  "e2_test": {
+   "avg_rank": 0.7500328731097962,
+   "demeaned_pearson": 0.11957243084907532,
+   "mse": 0.013607686385512352,
+   "pearson": 0.8402377963066101,
+   "r2": 0.0019150052685290575,
+   "top1_acc": 0.06153846153846154
+  },
+  "e2_val": {
+   "avg_rank": 0.7421887518025958,
+   "demeaned_pearson": 0.14270104467868805,
+   "mse": 0.013910826295614243,
+   "pearson": 0.8360490202903748,
+   "r2": -0.002587216440588236,
+   "top1_acc": 0.0379746835443038
+  }
+ },
+ "n_params": 22766,
+ "val": {
+  "mse": 0.013924624770879745,
+  "r2": -0.003653096267953515,
+  "pearson": 0.8358696103096008,
+  "avg_rank": 0.7386636756929978,
+  "top1_acc": 0.0379746835443038,
+  "demeaned_pearson": 0.13685452938079834
+ },
+ "test": {
+  "mse": 0.013619973324239254,
+  "r2": 0.001166222500614822,
+  "pearson": 0.8400877118110657,
+  "avg_rank": 0.7457199211045364,
+  "top1_acc": 0.046153846153846156,
+  "demeaned_pearson": 0.11420058459043503
+ },
+ "train_s": 87.5,
+ "data_load_s": 25.2,
+ "slurm_job": "19808131",
+ "slurm_array_task": "4",
+ "gpu": "NVIDIA H200",
+ "git_commit": "e6dd008bbd316cf400e1cb669cb20069bbc18f74"
+}

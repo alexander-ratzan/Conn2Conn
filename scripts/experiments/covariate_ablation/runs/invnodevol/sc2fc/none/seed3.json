@@ -1,0 +1,91 @@
+{
+ "campaign": "e1_cov",
+ "condition": "none",
+ "direction": "sc2fc",
+ "source": "SC",
+ "target": "FC",
+ "sc_metric": "invnodevol",
+ "sc_metric_type": "sift_invnodevol_radius2_count_connectivity",
+ "seed": 3,
+ "cov_sources": [],
+ "cov_dims": {},
+ "config": {
+  "model": {
+   "name": "CrossModal_PCA_PLS_CovProjector",
+   "n_components_pca_source": 128,
+   "n_components_pca_target": 128,
+   "n_components_pls": 16,
+   "learn_encoder": false,
+   "learn_mid": true,
+   "learn_decoder": false,
+   "random_init": false,
+   "l1_reg": 0.0,
+   "l2_reg": 0.0001,
+   "dropout": 0.1964701713422811,
+   "cov_sources": [],
+   "cov_projectors": {},
+   "cov_fusion": {
+    "type": "linear"
+   },
+   "use_target_scores_in_projector": false,
+   "device": null
+  },
+  "trainer": {
+   "lr": 0.0005367457538781417,
+   "max_epochs": 151,
+   "batch_size": 64,
+   "log_every": 5,
+   "loss_type": "composite",
+   "loss_terms": [
+    {
+     "name": "mse",
+     "weight": 1.0
+    }
+   ],
+   "loss_normalize": "auto"
+  }
+ },
+ "frozen_from": {
+  "e2_log": "results/logs/e2_mse_CrossModal_PCA_PLS_CovProjector_sc2fc_19071364_3.out",
+  "e2_ray_tune_id": "1790988172",
+  "e2_test": {
+   "avg_rank": 0.7065088757396449,
+   "demeaned_pearson": 0.09351454675197601,
+   "mse": 0.013391335494816303,
+   "pearson": 0.833997905254364,
+   "r2": -0.0028486764058470726,
+   "top1_acc": 0.046153846153846156
+  },
+  "e2_val": {
+   "avg_rank": 0.7404262137477968,
+   "demeaned_pearson": 0.11131247878074646,
+   "mse": 0.013671601191163063,
+   "pearson": 0.8345590829849243,
+   "r2": -0.008548412472009659,
+   "top1_acc": 0.0759493670886076
+  }
+ },
+ "n_params": 16384,
+ "val": {
+  "mse": 0.013697320595383644,
+  "r2": -0.010502778925001621,
+  "pearson": 0.8342893719673157,
+  "avg_rank": 0.7553276718474603,
+  "top1_acc": 0.10126582278481013,
+  "demeaned_pearson": 0.10211820155382156
+ },
+ "test": {
+  "mse": 0.0133903743699193,
+  "r2": -0.002781011862680316,
+  "pearson": 0.8340806365013123,
+  "avg_rank": 0.7204470742932281,
+  "top1_acc": 0.041025641025641026,
+  "demeaned_pearson": 0.0912766382098198
+ },
+ "train_s": 69.0,
+ "data_load_s": 20.9,
+ "slurm_job": "19825006",
+ "slurm_array_task": "3",
+ "gpu": "NVIDIA A100-SXM4-80GB",
+ "git_commit": "e6dd008bbd316cf400e1cb669cb20069bbc18f74"
+}

@@ -1,0 +1,26 @@
+| sc_metric | direction | condition | n | demeaned_pearson_mean | demeaned_pearson_std | top1_acc_mean | top1_acc_std | avg_rank_mean | avg_rank_std |
+|---|---|---|---|---|---|---|---|---|---|
+| invnodevol | fc2sc | drop_demo | 5 | 0.2151 | 0.0096 | 0.3959 | 0.0335 | 0.9716 | 0.0029 |
+| invnodevol | fc2sc | drop_fs_area | 5 | 0.1996 | 0.0091 | 0.3159 | 0.0442 | 0.9594 | 0.0051 |
+| invnodevol | fc2sc | drop_fs_thick | 5 | 0.2128 | 0.0088 | 0.3877 | 0.0371 | 0.9696 | 0.0037 |
+| invnodevol | fc2sc | drop_fs_vol | 5 | 0.2044 | 0.0113 | 0.3487 | 0.0348 | 0.9613 | 0.0078 |
+| invnodevol | fc2sc | e2_ref | 1 | 0.2269 | nan | 0.4256 | nan | 0.9718 | nan |
+| invnodevol | fc2sc | full | 5 | 0.2175 | 0.0090 | 0.4174 | 0.0367 | 0.9727 | 0.0033 |
+| invnodevol | fc2sc | none | 5 | 0.1408 | 0.0068 | 0.1108 | 0.0270 | 0.8782 | 0.0068 |
+| invnodevol | fc2sc | only_demo | 5 | 0.1517 | 0.0070 | 0.1292 | 0.0260 | 0.8969 | 0.0045 |
+| invnodevol | fc2sc | only_fs_area | 5 | 0.1930 | 0.0089 | 0.2769 | 0.0574 | 0.9519 | 0.0070 |
+| invnodevol | fc2sc | only_fs_thick | 5 | 0.1588 | 0.0091 | 0.1805 | 0.0156 | 0.9136 | 0.0114 |
+| invnodevol | fc2sc | only_fs_vol | 5 | 0.1876 | 0.0076 | 0.2410 | 0.0382 | 0.9466 | 0.0071 |
+| invnodevol | sc2fc | drop_demo | 5 | 0.0922 | 0.0234 | 0.0369 | 0.0111 | 0.6962 | 0.0484 |
+| invnodevol | sc2fc | drop_fs_area | 5 | 0.1039 | 0.0225 | 0.0400 | 0.0111 | 0.7114 | 0.0381 |
+| invnodevol | sc2fc | drop_fs_thick | 5 | 0.1024 | 0.0176 | 0.0308 | 0.0150 | 0.7084 | 0.0336 |
+| invnodevol | sc2fc | drop_fs_vol | 5 | 0.1029 | 0.0180 | 0.0390 | 0.0187 | 0.7119 | 0.0318 |
+| invnodevol | sc2fc | e2_ref | 1 | 0.0955 | nan | 0.0359 | nan | 0.6962 | nan |
+| invnodevol | sc2fc | full | 5 | 0.1013 | 0.0156 | 0.0338 | 0.0165 | 0.7073 | 0.0315 |
+| invnodevol | sc2fc | none | 5 | 0.1039 | 0.0134 | 0.0349 | 0.0133 | 0.7329 | 0.0278 |
+| invnodevol | sc2fc | only_demo | 5 | 0.1056 | 0.0259 | 0.0297 | 0.0092 | 0.7359 | 0.0282 |
+| invnodevol | sc2fc | only_fs_area | 5 | 0.0930 | 0.0156 | 0.0297 | 0.0128 | 0.7063 | 0.0351 |
+| invnodevol | sc2fc | only_fs_thick | 5 | 0.0950 | 0.0176 | 0.0421 | 0.0151 | 0.7120 | 0.0396 |
+| invnodevol | sc2fc | only_fs_vol | 5 | 0.0906 | 0.0156 | 0.0308 | 0.0081 | 0.7092 | 0.0298 |
+| unnorm | fc2sc | full | 5 | 0.1710 | 0.0141 | 0.1815 | 0.0403 | 0.9035 | 0.0134 |
+| unnorm | fc2sc | none | 5 | 0.1259 | 0.0095 | 0.0667 | 0.0162 | 0.8225 | 0.0223 |

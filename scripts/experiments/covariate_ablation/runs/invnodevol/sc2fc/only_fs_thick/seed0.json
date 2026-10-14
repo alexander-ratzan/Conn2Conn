@@ -1,0 +1,102 @@
+{
+ "campaign": "e1_cov",
+ "condition": "only_fs_thick",
+ "direction": "sc2fc",
+ "source": "SC",
+ "target": "FC",
+ "sc_metric": "invnodevol",
+ "sc_metric_type": "sift_invnodevol_radius2_count_connectivity",
+ "seed": 0,
+ "cov_sources": [
+  "fs_thick"
+ ],
+ "cov_dims": {
+  "fs_thick": 68
+ },
+ "config": {
+  "model": {
+   "name": "CrossModal_PCA_PLS_CovProjector",
+   "n_components_pca_source": 128,
+   "n_components_pca_target": 256,
+   "n_components_pls": 8,
+   "learn_encoder": false,
+   "learn_mid": true,
+   "learn_decoder": false,
+   "random_init": false,
+   "l1_reg": 0.0,
+   "l2_reg": 0.0001,
+   "dropout": 0.26018230534355435,
+   "cov_sources": [
+    "fs_thick"
+   ],
+   "cov_projectors": {
+    "fs_thick": {
+     "type": "linear",
+     "out_dim": 44
+    }
+   },
+   "cov_fusion": {
+    "type": "linear"
+   },
+   "use_target_scores_in_projector": false,
+   "device": null
+  },
+  "trainer": {
+   "lr": 5.120219544243231e-05,
+   "max_epochs": 200,
+   "batch_size": 64,
+   "log_every": 5,
+   "loss_type": "composite",
+   "loss_terms": [
+    {
+     "name": "mse",
+     "weight": 1.0
+    }
+   ],
+   "loss_normalize": "auto"
+  }
+ },
+ "frozen_from": {
+  "e2_log": "results/logs/e2_mse_CrossModal_PCA_PLS_CovProjector_sc2fc_19061425_0.out",
+  "e2_ray_tune_id": "1790971962",
+  "e2_test": {
+   "avg_rank": 0.6952268244575937,
+   "demeaned_pearson": 0.09474588930606842,
+   "mse": 0.013219918124377728,
+   "pearson": 0.8405151963233948,
+   "r2": -0.0026886393316090107,
+   "top1_acc": 0.03076923076923077
+  },
+  "e2_val": {
+   "avg_rank": 0.7508412113443359,
+   "demeaned_pearson": 0.12933869659900665,
+   "mse": 0.014117300510406494,
+   "pearson": 0.8335686326026917,
+   "r2": -0.001142960274592042,
+   "top1_acc": 0.0759493670886076
+  }
+ },
+ "n_params": 47324,
+ "val": {
+  "mse": 0.014142978005111217,
+  "r2": -0.002883578184992075,
+  "pearson": 0.8332435488700867,
+  "avg_rank": 0.7436308283928857,
+  "top1_acc": 0.10126582278481013,
+  "demeaned_pearson": 0.12348303943872452
+ },
+ "test": {
+  "mse": 0.013235349208116531,
+  "r2": -0.003711420577019453,
+  "pearson": 0.8403287529945374,
+  "avg_rank": 0.6913083497698882,
+  "top1_acc": 0.020512820512820513,
+  "demeaned_pearson": 0.0867433026432991
+ },
+ "train_s": 121.3,
+ "data_load_s": 23.1,
+ "slurm_job": "19821531",
+ "slurm_array_task": "0",
+ "gpu": "NVIDIA H200",
+ "git_commit": "e6dd008bbd316cf400e1cb669cb20069bbc18f74"
+}

@@ -1,0 +1,135 @@
+{
+ "campaign": "e1_cov",
+ "condition": "drop_fs_thick",
+ "direction": "fc2sc",
+ "source": "FC",
+ "target": "SC",
+ "sc_metric": "invnodevol",
+ "sc_metric_type": "sift_invnodevol_radius2_count_connectivity",
+ "seed": 3,
+ "cov_sources": [
+  "age",
+  "sex",
+  "race_eth",
+  "fs_vol",
+  "fs_area"
+ ],
+ "cov_dims": {
+  "age": 1,
+  "sex": 2,
+  "race_eth": 7,
+  "fs_vol": 63,
+  "fs_area": 68
+ },
+ "config": {
+  "model": {
+   "name": "CrossModal_PCA_PLS_CovProjector",
+   "n_components_pca_source": 256,
+   "n_components_pca_target": 128,
+   "n_components_pls": 16,
+   "learn_encoder": false,
+   "learn_mid": true,
+   "learn_decoder": false,
+   "random_init": false,
+   "l1_reg": 0.0,
+   "l2_reg": 0.0001,
+   "dropout": 0.1681022270751455,
+   "cov_sources": [
+    "age",
+    "sex",
+    "race_eth",
+    "fs_vol",
+    "fs_area"
+   ],
+   "cov_projectors": {
+    "age": {
+     "out_dim": 8,
+     "type": "linear"
+    },
+    "sex": {
+     "out_dim": 4,
+     "type": "linear"
+    },
+    "race_eth": {
+     "out_dim": 16,
+     "type": "linear"
+    },
+    "fs_vol": {
+     "type": "linear",
+     "out_dim": 41
+    },
+    "fs_area": {
+     "type": "linear",
+     "out_dim": 44
+    }
+   },
+   "cov_fusion": {
+    "dropout": 0.1,
+    "hidden_dims": [
+     128
+    ],
+    "layer_norm": true,
+    "type": "mlp"
+   },
+   "use_target_scores_in_projector": false,
+   "device": null
+  },
+  "trainer": {
+   "lr": 0.00018899053342752003,
+   "max_epochs": 101,
+   "batch_size": 64,
+   "log_every": 5,
+   "loss_type": "composite",
+   "loss_terms": [
+    {
+     "name": "mse",
+     "weight": 1.0
+    }
+   ],
+   "loss_normalize": "auto"
+  }
+ },
+ "frozen_from": {
+  "e2_log": "results/logs/e2_mse_CrossModal_PCA_PLS_CovProjector_fc2sc_19083392_3.out",
+  "e2_ray_tune_id": "1790999933",
+  "e2_test": {
+   "avg_rank": 0.9716502301117685,
+   "demeaned_pearson": 0.22203068435192108,
+   "mse": 0.005246481858193874,
+   "pearson": 0.9175331592559814,
+   "r2": 0.037772201001644135,
+   "top1_acc": 0.40512820512820513
+  },
+  "e2_val": {
+   "avg_rank": 0.9666720076910752,
+   "demeaned_pearson": 0.2250414937734604,
+   "mse": 0.005050512030720711,
+   "pearson": 0.918310821056366,
+   "r2": 0.023424390703439713,
+   "top1_acc": 0.569620253164557
+  }
+ },
+ "n_params": 69944,
+ "val": {
+  "mse": 0.005055478774011135,
+  "r2": 0.02407609298825264,
+  "pearson": 0.9182263016700745,
+  "avg_rank": 0.9726005447844897,
+  "top1_acc": 0.5443037974683544,
+  "demeaned_pearson": 0.2225612998008728
+ },
+ "test": {
+  "mse": 0.005258409306406975,
+  "r2": 0.036841657012701035,
+  "pearson": 0.9173341393470764,
+  "avg_rank": 0.9683629191321499,
+  "top1_acc": 0.4256410256410256,
+  "demeaned_pearson": 0.2171550989151001
+ },
+ "train_s": 54.6,
+ "data_load_s": 14.5,
+ "slurm_job": "19816716",
+ "slurm_array_task": "3",
+ "gpu": "NVIDIA H100 80GB HBM3",
+ "git_commit": "e6dd008bbd316cf400e1cb669cb20069bbc18f74"
+}

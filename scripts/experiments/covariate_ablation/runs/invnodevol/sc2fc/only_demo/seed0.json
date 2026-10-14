@@ -1,0 +1,116 @@
+{
+ "campaign": "e1_cov",
+ "condition": "only_demo",
+ "direction": "sc2fc",
+ "source": "SC",
+ "target": "FC",
+ "sc_metric": "invnodevol",
+ "sc_metric_type": "sift_invnodevol_radius2_count_connectivity",
+ "seed": 0,
+ "cov_sources": [
+  "age",
+  "sex",
+  "race_eth"
+ ],
+ "cov_dims": {
+  "age": 1,
+  "sex": 2,
+  "race_eth": 7
+ },
+ "config": {
+  "model": {
+   "name": "CrossModal_PCA_PLS_CovProjector",
+   "n_components_pca_source": 128,
+   "n_components_pca_target": 256,
+   "n_components_pls": 8,
+   "learn_encoder": false,
+   "learn_mid": true,
+   "learn_decoder": false,
+   "random_init": false,
+   "l1_reg": 0.0,
+   "l2_reg": 0.0001,
+   "dropout": 0.26018230534355435,
+   "cov_sources": [
+    "age",
+    "sex",
+    "race_eth"
+   ],
+   "cov_projectors": {
+    "age": {
+     "out_dim": 8,
+     "type": "linear"
+    },
+    "sex": {
+     "out_dim": 4,
+     "type": "linear"
+    },
+    "race_eth": {
+     "out_dim": 16,
+     "type": "linear"
+    }
+   },
+   "cov_fusion": {
+    "type": "linear"
+   },
+   "use_target_scores_in_projector": false,
+   "device": null
+  },
+  "trainer": {
+   "lr": 5.120219544243231e-05,
+   "max_epochs": 200,
+   "batch_size": 64,
+   "log_every": 5,
+   "loss_type": "composite",
+   "loss_terms": [
+    {
+     "name": "mse",
+     "weight": 1.0
+    }
+   ],
+   "loss_normalize": "auto"
+  }
+ },
+ "frozen_from": {
+  "e2_log": "results/logs/e2_mse_CrossModal_PCA_PLS_CovProjector_sc2fc_19061425_0.out",
+  "e2_ray_tune_id": "1790971962",
+  "e2_test": {
+   "avg_rank": 0.6952268244575937,
+   "demeaned_pearson": 0.09474588930606842,
+   "mse": 0.013219918124377728,
+   "pearson": 0.8405151963233948,
+   "r2": -0.0026886393316090107,
+   "top1_acc": 0.03076923076923077
+  },
+  "e2_val": {
+   "avg_rank": 0.7508412113443359,
+   "demeaned_pearson": 0.12933869659900665,
+   "mse": 0.014117300510406494,
+   "pearson": 0.8335686326026917,
+   "r2": -0.001142960274592042,
+   "top1_acc": 0.0759493670886076
+  }
+ },
+ "n_params": 40348,
+ "val": {
+  "mse": 0.01418763305991888,
+  "r2": -0.006177770439535379,
+  "pearson": 0.8326462507247925,
+  "avg_rank": 0.760615286011857,
+  "top1_acc": 0.06329113924050633,
+  "demeaned_pearson": 0.10831595212221146
+ },
+ "test": {
+  "mse": 0.013247273862361908,
+  "r2": -0.00490436190739274,
+  "pearson": 0.8401379585266113,
+  "avg_rank": 0.7017225509533203,
+  "top1_acc": 0.020512820512820513,
+  "demeaned_pearson": 0.08215010911226273
+ },
+ "train_s": 121.6,
+ "data_load_s": 23.1,
+ "slurm_job": "19821531",
+ "slurm_array_task": "0",
+ "gpu": "NVIDIA H200",
+ "git_commit": "e6dd008bbd316cf400e1cb669cb20069bbc18f74"
+}

@@ -1,0 +1,102 @@
+{
+ "campaign": "e1_cov",
+ "condition": "only_fs_vol",
+ "direction": "sc2fc",
+ "source": "SC",
+ "target": "FC",
+ "sc_metric": "invnodevol",
+ "sc_metric_type": "sift_invnodevol_radius2_count_connectivity",
+ "seed": 3,
+ "cov_sources": [
+  "fs_vol"
+ ],
+ "cov_dims": {
+  "fs_vol": 63
+ },
+ "config": {
+  "model": {
+   "name": "CrossModal_PCA_PLS_CovProjector",
+   "n_components_pca_source": 128,
+   "n_components_pca_target": 128,
+   "n_components_pls": 16,
+   "learn_encoder": false,
+   "learn_mid": true,
+   "learn_decoder": false,
+   "random_init": false,
+   "l1_reg": 0.0,
+   "l2_reg": 0.0001,
+   "dropout": 0.1964701713422811,
+   "cov_sources": [
+    "fs_vol"
+   ],
+   "cov_projectors": {
+    "fs_vol": {
+     "type": "linear",
+     "out_dim": 20
+    }
+   },
+   "cov_fusion": {
+    "type": "linear"
+   },
+   "use_target_scores_in_projector": false,
+   "device": null
+  },
+  "trainer": {
+   "lr": 0.0005367457538781417,
+   "max_epochs": 151,
+   "batch_size": 64,
+   "log_every": 5,
+   "loss_type": "composite",
+   "loss_terms": [
+    {
+     "name": "mse",
+     "weight": 1.0
+    }
+   ],
+   "loss_normalize": "auto"
+  }
+ },
+ "frozen_from": {
+  "e2_log": "results/logs/e2_mse_CrossModal_PCA_PLS_CovProjector_sc2fc_19071364_3.out",
+  "e2_ray_tune_id": "1790988172",
+  "e2_test": {
+   "avg_rank": 0.7065088757396449,
+   "demeaned_pearson": 0.09351454675197601,
+   "mse": 0.013391335494816303,
+   "pearson": 0.833997905254364,
+   "r2": -0.0028486764058470726,
+   "top1_acc": 0.046153846153846156
+  },
+  "e2_val": {
+   "avg_rank": 0.7404262137477968,
+   "demeaned_pearson": 0.11131247878074646,
+   "mse": 0.013671601191163063,
+   "pearson": 0.8345590829849243,
+   "r2": -0.008548412472009659,
+   "top1_acc": 0.0759493670886076
+  }
+ },
+ "n_params": 20352,
+ "val": {
+  "mse": 0.01369874645024538,
+  "r2": -0.010559987276792526,
+  "pearson": 0.8342611789703369,
+  "avg_rank": 0.7519628264701169,
+  "top1_acc": 0.06329113924050633,
+  "demeaned_pearson": 0.10193343460559845
+ },
+ "test": {
+  "mse": 0.013385893777012825,
+  "r2": -0.0025167963467538357,
+  "pearson": 0.8341374397277832,
+  "avg_rank": 0.7236817882971729,
+  "top1_acc": 0.041025641025641026,
+  "demeaned_pearson": 0.0932178795337677
+ },
+ "train_s": 67.7,
+ "data_load_s": 20.9,
+ "slurm_job": "19825006",
+ "slurm_array_task": "3",
+ "gpu": "NVIDIA A100-SXM4-80GB",
+ "git_commit": "e6dd008bbd316cf400e1cb669cb20069bbc18f74"
+}

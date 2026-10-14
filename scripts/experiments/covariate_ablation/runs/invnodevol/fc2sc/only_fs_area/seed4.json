@@ -1,0 +1,107 @@
+{
+ "campaign": "e1_cov",
+ "condition": "only_fs_area",
+ "direction": "fc2sc",
+ "source": "FC",
+ "target": "SC",
+ "sc_metric": "invnodevol",
+ "sc_metric_type": "sift_invnodevol_radius2_count_connectivity",
+ "seed": 4,
+ "cov_sources": [
+  "fs_area"
+ ],
+ "cov_dims": {
+  "fs_area": 68
+ },
+ "config": {
+  "model": {
+   "name": "CrossModal_PCA_PLS_CovProjector",
+   "n_components_pca_source": 128,
+   "n_components_pca_target": 256,
+   "n_components_pls": 8,
+   "learn_encoder": false,
+   "learn_mid": true,
+   "learn_decoder": false,
+   "random_init": false,
+   "l1_reg": 0.0,
+   "l2_reg": 0.0001,
+   "dropout": 0.09279383740920649,
+   "cov_sources": [
+    "fs_area"
+   ],
+   "cov_projectors": {
+    "fs_area": {
+     "type": "linear",
+     "out_dim": 44
+    }
+   },
+   "cov_fusion": {
+    "dropout": 0.1,
+    "hidden_dims": [
+     128
+    ],
+    "layer_norm": true,
+    "type": "mlp"
+   },
+   "use_target_scores_in_projector": false,
+   "device": null
+  },
+  "trainer": {
+   "lr": 0.0001500804278498398,
+   "max_epochs": 101,
+   "batch_size": 64,
+   "log_every": 5,
+   "loss_type": "composite",
+   "loss_terms": [
+    {
+     "name": "mse",
+     "weight": 1.0
+    }
+   ],
+   "loss_normalize": "auto"
+  }
+ },
+ "frozen_from": {
+  "e2_log": "results/logs/e2_mse_CrossModal_PCA_PLS_CovProjector_fc2sc_19083392_4.out",
+  "e2_ray_tune_id": "1791000173",
+  "e2_test": {
+   "avg_rank": 0.9727810650887574,
+   "demeaned_pearson": 0.21631543338298798,
+   "mse": 0.005096148233860731,
+   "pearson": 0.918352484703064,
+   "r2": 0.036420922726392746,
+   "top1_acc": 0.46153846153846156
+  },
+  "e2_val": {
+   "avg_rank": 0.9798109277359397,
+   "demeaned_pearson": 0.2156146764755249,
+   "mse": 0.005109553225338459,
+   "pearson": 0.9185988903045654,
+   "r2": 0.025450492277741432,
+   "top1_acc": 0.6329113924050633
+  }
+ },
+ "n_params": 74844,
+ "val": {
+  "mse": 0.0051607126370072365,
+  "r2": 0.020465828478336334,
+  "pearson": 0.9177781939506531,
+  "avg_rank": 0.974523313571543,
+  "top1_acc": 0.45569620253164556,
+  "demeaned_pearson": 0.19190151989459991
+ },
+ "test": {
+  "mse": 0.005139877088367939,
+  "r2": 0.02813689410686493,
+  "pearson": 0.9176740050315857,
+  "avg_rank": 0.9590006574621959,
+  "top1_acc": 0.3641025641025641,
+  "demeaned_pearson": 0.1948888897895813
+ },
+ "train_s": 84.8,
+ "data_load_s": 28.3,
+ "slurm_job": "19808130",
+ "slurm_array_task": "4",
+ "gpu": "NVIDIA H200",
+ "git_commit": "e6dd008bbd316cf400e1cb669cb20069bbc18f74"
+}

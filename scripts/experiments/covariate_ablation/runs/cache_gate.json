@@ -1,0 +1,20 @@
+{
+ "n_ref": 1063,
+ "n_new": 1063,
+ "n_common": 1063,
+ "missing_from_new": [],
+ "finite": true,
+ "max_asym_sampled": 0.0,
+ "corr_with_invnodevol": {
+  "min": 0.6567905982543719,
+  "median": 0.6824073615765869,
+  "max": 0.7088048373592575
+ },
+ "spearman_with_invnodevol": {
+  "min": 0.983541847179217,
+  "median": 0.9902553618120127,
+  "max": 0.9977237969035205
+ },
+ "same_zero_pattern": true,
+ "pass": true
+}

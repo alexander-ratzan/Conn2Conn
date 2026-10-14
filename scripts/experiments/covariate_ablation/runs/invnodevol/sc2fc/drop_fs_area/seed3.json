@@ -1,0 +1,130 @@
+{
+ "campaign": "e1_cov",
+ "condition": "drop_fs_area",
+ "direction": "sc2fc",
+ "source": "SC",
+ "target": "FC",
+ "sc_metric": "invnodevol",
+ "sc_metric_type": "sift_invnodevol_radius2_count_connectivity",
+ "seed": 3,
+ "cov_sources": [
+  "age",
+  "sex",
+  "race_eth",
+  "fs_vol",
+  "fs_thick"
+ ],
+ "cov_dims": {
+  "age": 1,
+  "sex": 2,
+  "race_eth": 7,
+  "fs_vol": 63,
+  "fs_thick": 68
+ },
+ "config": {
+  "model": {
+   "name": "CrossModal_PCA_PLS_CovProjector",
+   "n_components_pca_source": 128,
+   "n_components_pca_target": 128,
+   "n_components_pls": 16,
+   "learn_encoder": false,
+   "learn_mid": true,
+   "learn_decoder": false,
+   "random_init": false,
+   "l1_reg": 0.0,
+   "l2_reg": 0.0001,
+   "dropout": 0.1964701713422811,
+   "cov_sources": [
+    "age",
+    "sex",
+    "race_eth",
+    "fs_vol",
+    "fs_thick"
+   ],
+   "cov_projectors": {
+    "age": {
+     "out_dim": 4,
+     "type": "linear"
+    },
+    "sex": {
+     "out_dim": 4,
+     "type": "linear"
+    },
+    "race_eth": {
+     "out_dim": 8,
+     "type": "linear"
+    },
+    "fs_vol": {
+     "type": "linear",
+     "out_dim": 20
+    },
+    "fs_thick": {
+     "type": "linear",
+     "out_dim": 22
+    }
+   },
+   "cov_fusion": {
+    "type": "linear"
+   },
+   "use_target_scores_in_projector": false,
+   "device": null
+  },
+  "trainer": {
+   "lr": 0.0005367457538781417,
+   "max_epochs": 151,
+   "batch_size": 64,
+   "log_every": 5,
+   "loss_type": "composite",
+   "loss_terms": [
+    {
+     "name": "mse",
+     "weight": 1.0
+    }
+   ],
+   "loss_normalize": "auto"
+  }
+ },
+ "frozen_from": {
+  "e2_log": "results/logs/e2_mse_CrossModal_PCA_PLS_CovProjector_sc2fc_19071364_3.out",
+  "e2_ray_tune_id": "1790988172",
+  "e2_test": {
+   "avg_rank": 0.7065088757396449,
+   "demeaned_pearson": 0.09351454675197601,
+   "mse": 0.013391335494816303,
+   "pearson": 0.833997905254364,
+   "r2": -0.0028486764058470726,
+   "top1_acc": 0.046153846153846156
+  },
+  "e2_val": {
+   "avg_rank": 0.7404262137477968,
+   "demeaned_pearson": 0.11131247878074646,
+   "mse": 0.013671601191163063,
+   "pearson": 0.8345590829849243,
+   "r2": -0.008548412472009659,
+   "top1_acc": 0.0759493670886076
+  }
+ },
+ "n_params": 26818,
+ "val": {
+  "mse": 0.013685685582458973,
+  "r2": -0.00963506568223238,
+  "pearson": 0.8344177007675171,
+  "avg_rank": 0.7572504406345137,
+  "top1_acc": 0.10126582278481013,
+  "demeaned_pearson": 0.10828991234302521
+ },
+ "test": {
+  "mse": 0.013387689366936684,
+  "r2": -0.002549842232838273,
+  "pearson": 0.8341004848480225,
+  "avg_rank": 0.7228928336620644,
+  "top1_acc": 0.046153846153846156,
+  "demeaned_pearson": 0.09340039640665054
+ },
+ "train_s": 72.0,
+ "data_load_s": 20.9,
+ "slurm_job": "19825006",
+ "slurm_array_task": "3",
+ "gpu": "NVIDIA A100-SXM4-80GB",
+ "git_commit": "e6dd008bbd316cf400e1cb669cb20069bbc18f74"
+}
