@@ -44,6 +44,9 @@ __all__ = [
     "plot_condition_similarity",
     "compute_subject_condition_correlations",
     "plot_subject_condition_corrmap",
+    "compute_task_signatures",
+    "plot_task_signature_means",
+    "plot_task_signature_summary",
 ]
 
 
@@ -1302,12 +1305,12 @@ def plot_multifeature_regression_summary(
 
     finite_q = q_value[np.isfinite(q_value)]
     text = (
-        f"median beta = {np.median(beta):.4g}\n"
-        f"mean beta = {np.mean(beta):.4g}\n"
+        f"median beta = {np.nanmedian(beta):.4g}\n"
+        f"mean beta = {np.nanmean(beta):.4g}\n"
             f"FDR-significant = {int(sig_mask.sum())}\n"
-            f"median delta R2 = {np.median(delta_r2):.4g}\n"
+            f"median delta R2 = {np.nanmedian(delta_r2):.4g}\n"
             f"best q = {np.min(finite_q):.4g}" if finite_q.size else
-        f"median beta = {np.median(beta):.4g}\nmean beta = {np.mean(beta):.4g}\nFDR-significant = {int(sig_mask.sum())}\nmedian delta R2 = {np.median(delta_r2):.4g}"
+        f"median beta = {np.nanmedian(beta):.4g}\nmean beta = {np.nanmean(beta):.4g}\nFDR-significant = {int(sig_mask.sum())}\nmedian delta R2 = {np.nanmedian(delta_r2):.4g}"
     )
     axes[1].text(
         0.03,
@@ -2334,3 +2337,137 @@ def plot_subject_condition_corrmap(
         plt.show()
     summary = pd.DataFrame({"raw": raw["summary"], f"demeaned ({demean})": dem["summary"]})
     return fig, pair_fig, {"raw": raw, "demeaned": dem, "summary": summary}
+
+
+# --- Figure 4: task signature above rest (spec v3 E4) --------------------------------------------------
+_SESSION_NULL = ("rest_S1", "rest_S2")
+_SPLIT_PAIRS = (("train", "val"), ("train", "test"), ("val", "test"))
+
+
+def _signature_label(condition, reference):
+    return f"{_condition_label(condition)} − {_condition_label(reference)}"
+
+
+def compute_task_signatures(base, tasks, reference="rest", null=_SESSION_NULL, d_threshold=0.5):
+    """Task FC signature above rest, from subject-level residual connectomes D_i = F_i^(task) − F_i^(reference).
+
+    For each task and the session null (`null[0] − null[1]`, rest S1 − rest S2: no task, a pure session
+    difference), returns:
+      - `means[(key, partition)]`: mean residual edge vector per train / val / test partition;
+      - `reproducibility`: Pearson r of those means between partitions (train↔val, train↔test, val↔test);
+      - `strength`: per-edge effect size d = mean / SD of D across train subjects, its median |d| and the share of
+        edges with |d| > `d_threshold`;
+      - `individual`: per val / test subject, Pearson r of their D with the train-mean signature.
+    The mean signature equals mean(task) − mean(reference), so it is the same under plain or fitted subtraction.
+    """
+    edges = condition_upper_triangles(base, [reference, *tasks, *null])
+    pairs = [(t, reference) for t in tasks] + [tuple(null)]
+    parts = {p: _partition_indices(base, p) for p in ("train", "val", "test")}
+    sids = base.metadata_df["subject"].astype(str).to_numpy()
+
+    means, d_values, rep_rows, strength_rows, indiv_rows = {}, {}, [], [], []
+    for cond, ref in pairs:
+        key = f"{cond}-{ref}"
+        resid = {p: np.asarray(edges[cond][idx], dtype=np.float64) - np.asarray(edges[ref][idx], dtype=np.float64)
+                 for p, idx in parts.items()}
+        for p, r in resid.items():
+            means[(key, p)] = r.mean(axis=0)
+        for a, b in _SPLIT_PAIRS:
+            rep_rows.append({"signature": key, "label": _signature_label(cond, ref), "pair": f"{a}↔{b}",
+                             "r": float(np.corrcoef(means[(key, a)], means[(key, b)])[0, 1])})
+        sd = resid["train"].std(axis=0, ddof=1)
+        d = np.divide(means[(key, "train")], sd, out=np.zeros_like(sd), where=sd > 0)
+        d_values[key] = d
+        strength_rows.append({"signature": key, "label": _signature_label(cond, ref),
+                              "n_train": len(parts["train"]), "median_abs_d": float(np.median(np.abs(d))),
+                              "q95_abs_d": float(np.quantile(np.abs(d), 0.95)),
+                              f"frac_abs_d_gt_{d_threshold:g}": float(np.mean(np.abs(d) > d_threshold)),
+                              "mean_abs_signature": float(np.mean(np.abs(means[(key, "train")])))})
+        train_mean = means[(key, "train")] - means[(key, "train")].mean()
+        for p in ("val", "test"):
+            r = resid[p] - resid[p].mean(axis=1, keepdims=True)
+            num = r @ train_mean
+            den = np.linalg.norm(r, axis=1) * np.linalg.norm(train_mean)
+            corr = np.divide(num, den, out=np.full_like(num, np.nan), where=den > 0)
+            for sid, c in zip(sids[parts[p]], corr):
+                indiv_rows.append({"signature": key, "label": _signature_label(cond, ref), "partition": p,
+                                   "subject_id": sid, "r": float(c)})
+
+    return {
+        "signatures": [f"{c}-{r}" for c, r in pairs],
+        "labels": {f"{c}-{r}": _signature_label(c, r) for c, r in pairs},
+        "means": means,
+        "d": d_values,
+        "d_threshold": float(d_threshold),
+        "n": {p: len(idx) for p, idx in parts.items()},
+        "reproducibility": pd.DataFrame(rep_rows),
+        "strength": pd.DataFrame(strength_rows),
+        "individual": pd.DataFrame(indiv_rows),
+    }
+
+
+def plot_task_signature_means(sig, vmax=None, panel_size=2.6, dpi=150, show=True):
+    """One row per signature, train / val / test mean residual connectome; one shared symmetric colour scale
+    (default: 99.5th percentile of |mean residual| over every panel)."""
+    keys, parts = sig["signatures"], ("train", "val", "test")
+    if vmax is None:
+        vmax = float(np.quantile(np.abs(np.concatenate([sig["means"][(k, p)] for k in keys for p in parts])), 0.995))
+    fig, axes = plt.subplots(len(keys), len(parts), dpi=dpi, squeeze=False, layout="constrained",
+                             figsize=(panel_size * len(parts) + 1.6, panel_size * len(keys) + 0.6))
+    for i, (row, key) in enumerate(zip(axes, keys)):
+        for ax, p in zip(row, parts):
+            title = f"{_PARTITION_DISPLAY.get(p, p)} (n={sig['n'][p]})" if i == 0 else ""
+            im = _fc_panel(ax, _edges_to_square(sig["means"][(key, p)], diag_value=0.0), vmax, title)
+        row[0].set_ylabel(sig["labels"][key], fontsize=10)
+    fig.colorbar(im, ax=axes, shrink=0.3, ticks=[-vmax, 0.0, vmax], label="Mean FC difference (r)")
+    fig.suptitle("Mean residual connectome per split\n(task − rest; null: rest S1 − rest S2)", fontsize=12)
+    if show:
+        plt.show()
+    return fig, axes, {"vmax": vmax}
+
+
+def plot_task_signature_summary(sig, dpi=150, show=True):
+    """Three panels per signature: split-to-split reproducibility of the mean signature, per-edge effect size
+    (train), and individual consistency (val / test subjects vs the train mean)."""
+    keys = sig["signatures"]
+    labels = [sig["labels"][k] for k in keys]
+    x = np.arange(len(keys))
+    fig, axes = plt.subplots(1, 3, figsize=(17, 4.8), dpi=dpi)
+
+    ax = axes[0]
+    rep = sig["reproducibility"]
+    for j, (pair, marker) in enumerate(zip([f"{a}↔{b}" for a, b in _SPLIT_PAIRS], ("o", "s", "^"))):
+        v = rep[rep["pair"] == pair].set_index("signature").loc[keys, "r"]
+        ax.scatter(x + (j - 1) * 0.18, v, marker=marker, s=40, edgecolor="black", lw=0.5, zorder=3, label=pair)
+    ax.set_ylabel("r between split means")
+    ax.set_title("Reproducibility of the mean signature")
+    ax.legend(frameon=False, fontsize=8)
+
+    ax = axes[1]
+    st = sig["strength"].set_index("signature").loc[keys]
+    frac_col = f"frac_abs_d_gt_{sig['d_threshold']:g}"
+    ax.bar(x, st[frac_col], color="#0F4D92", edgecolor="black", lw=0.6)
+    ax.set_ylabel(f"Share of edges with |d| > {sig['d_threshold']:g}")
+    ax.set_title("Strength (train, d = mean / SD of D; labels: median |d|)")
+    for xi, frac, med in zip(x, st[frac_col], st["median_abs_d"]):
+        ax.text(xi, frac, f"{med:.2f}", ha="center", va="bottom", fontsize=7)
+
+    ax = axes[2]
+    ind = sig["individual"]
+    data = [ind[ind["signature"] == k]["r"].dropna().to_numpy() for k in keys]
+    parts = ax.violinplot(data, positions=x, showmedians=True, widths=0.8)
+    for body in parts["bodies"]:
+        body.set_facecolor("#93C5FD")
+        body.set_edgecolor("black")
+        body.set_alpha(0.8)
+    ax.set_ylabel("r(subject D, train-mean signature)")
+    ax.set_title(f"Individual consistency (val + test, n={sig['n']['val'] + sig['n']['test']})")
+
+    for ax in axes:
+        ax.axhline(0, color="black", lw=0.8)
+        ax.set_xticks(x, labels, rotation=45, ha="right", fontsize=8)
+        ax.spines[["top", "right"]].set_visible(False)
+    fig.tight_layout()
+    if show:
+        plt.show()
+    return fig, axes

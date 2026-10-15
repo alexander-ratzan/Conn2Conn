@@ -22,7 +22,7 @@ row to the status table.
 | E1 | Covariate family ablation for PCA-PLS + covariates, both directions, + unnormalised-SC control; E1.5 node-size follow-up | done 2026-10-15 | D2 | agent:infra |
 | E2 | Joint task-FC → SC: do the 7 task-FC blocks add to rest FC? (E2.1 raw, E2.2 predictive residual) | done 2026-10-12 | I5 | agent:infra |
 | E3 | Composite-loss cross-model benchmark: v2:E2.2 rerun with composite-loss weights tuned per model and seed | planned | I1, D3 | agent:infra |
-| E4 | Task-FC signature above rest: subject-level task − rest residual connectomes, train / val / test means (notebook) | planned | — | — |
+| E4 | Task-FC signature above rest: subject-level task − rest residual connectomes, train / val / test means (notebook) | done 2026-10-15 | — | agent:infra |
 | I1 | Composite-loss benchmark infrastructure: composite configs per model, reference scales, extra val metrics | planned | D3 | agent:infra |
 | I2 | Config layout: family folders (done), one tune launcher, variants as roster overrides | done (layout, `5efe03a`); launcher dropped 2026-10-15 | — | — |
 | I3 | Bidirectional graph / nodal models: FC → SC variants with a tuned FC edge threshold | superseded 2026-10-15 (→ v4 nodal-models item, not as a bidirectionality fix) | — | — |
@@ -309,7 +309,7 @@ mixtures; fixed reference scales).
   terms add little per step; the trial counts rise to the 64 cap for most models.
 - **Then:** the final reoptimized benchmark (the composite winners as the model set) is a v4 item.
 
-### E4 — Task-FC signature above rest   (slug: notebook `scripts/notebooks/EDA/FC_matrix_analysis.ipynb`) · status: planned · owner: —
+### E4 — Task-FC signature above rest   (slug: notebook `scripts/notebooks/EDA/FC_matrix_analysis.ipynb`) · status: done 2026-10-15 · owner: agent:infra
 
 - **Question:** does each task have a consistent FC signature above rest? Is it reproducible across independent
   groups of subjects, and how consistently do individual subjects express it? This bears on task-FC data quality
@@ -335,6 +335,31 @@ mixtures; fixed reference scales).
 - **Accept:** the four outputs for all 7 tasks plus the session null; a short summary cell; figures saved under
   `results/figures/fc_conditions/`.
 - **Budget:** CPU, under 1 node-hour.
+- **Done:** `compute_task_signatures`, `plot_task_signature_means`, `plot_task_signature_summary` in `data/data_viz.py`;
+  notebook §4 (cells `fcmat-e4-*`, appended; earlier cells and the user's uncommitted edits unchanged). Table
+  `results/tables/task_signature_Glasser.csv`; figures `results/figures/fc_conditions/task_signature_{means,summary}_Glasser.png`.
+  Whole notebook ran headless (`run_notebook_cells.sh`); E4 compute ≈ 30 s.
+- **Result:**
+
+  | Signature | r train↔test / train↔val / val↔test | Edges \|d\| > 0.5 (median \|d\|) | Individual r, median (10th pct) |
+  |---|---|---|---|
+  | WM − rest | 0.99 / 0.97 / 0.96 | 32% (0.33) | 0.48 (0.37) |
+  | Language − rest | 0.98 / 0.96 / 0.95 | 27% (0.29) | 0.42 (0.31) |
+  | Relational − rest | 0.98 / 0.96 / 0.94 | 22% (0.25) | 0.38 (0.25) |
+  | Social − rest | 0.98 / 0.96 / 0.95 | 21% (0.24) | 0.40 (0.27) |
+  | Gambling − rest | 0.98 / 0.96 / 0.94 | 20% (0.25) | 0.37 (0.23) |
+  | Motor − rest | 0.97 / 0.93 / 0.91 | 11% (0.21) | 0.31 (0.22) |
+  | Emotion − rest | 0.94 / 0.89 / 0.86 | 4% (0.15) | 0.23 (0.14) |
+  | Null: rest S1 − rest S2 | 0.76 / 0.57 / 0.48 | 0% (0.07) | 0.09 (−0.08) |
+
+  - Every task has a strong signature above rest that independent groups reproduce (r 0.86–0.99); the session null
+    is ~8× weaker (mean |Δ| 0.011 vs 0.06–0.09), has no edge with |d| > 0.5 and replicates only partly.
+  - Individuals express it: all 258 val / test subjects correlate positively with the train signature for every task
+    (median r 0.23–0.48; null 0.09, 76% positive), but most of each subject's residual lies outside it.
+  - Strength tracks task and scan length (WM 810 TRs strongest, emotion 352 TRs weakest; motor below its TR count).
+  - **For E2:** task-FC quality is not why task blocks added nothing for FC → SC. The signatures are real and
+    subject-expressed; their group part is shared by everyone (no subject-specific information), and E2 found no
+    FC → SC signal in the per-subject remainder.
 
 ## 3. Infrastructure
 
@@ -472,7 +497,8 @@ mixtures; fixed reference scales).
 | 2026-10-14 | E1 done: E1.1 cache gate moved to Spearman + zero pattern (user). FC → SC covariate gain (+0.077 demeaned r, +0.31 top-1) is regional size (area ≈ volumes, overlapping); none in SC → FC; ~40% of it disappears on unnormalised SC, the rest stays. C!1 resolved (reworded). |
 | 2026-10-15 | Stock-take (user): I2 launcher dropped (layout done); I3 → v4 as a nodal-models item; I4 necessity written out; I1 re-scoped to composite-benchmark infrastructure; E3 (composite-loss cross-model benchmark) and E4 (task-FC signature above rest, notebook) added; D3 pending. |
 | 2026-10-15 | D3 decided (user): 4-model roster, per-model data-driven weight grids from the v2:E1 val Pareto fronts, batch 64, both selections reported, autonomous at 80 GPU-h; E3 runs SC → FC first and cites C!2 for FC → SC rank metrics. I4 dropped. |
+| 2026-10-15 | E4 done (CPU, notebook §4): all 7 tasks have a strong, split-reproducible signature above rest (r 0.86–0.99; session null 0.48–0.76, ~8× weaker) that every held-out subject expresses (median r 0.23–0.48); WM strongest, emotion weakest. Task-FC quality is not why E2's task blocks added nothing. `data/data_viz.py` task-signature compute + plots. |
 | 2026-10-15 | E1.5 node-size follow-up done (CPU): each subject's parcel volumes alone predict held-out SC (demeaned r 0.20, top-1 ~1.0) on normalised and raw counts, beating FC + all covariates; nothing for FC. E1 result reworded (families overlap: ~half of the covariate gain is shared). C!1 reworded and resolved; C!2 (SC dominated by parcel geometry) and D4 (primary analysis direction, user) added. `data/data_viz.py` edgewise predict / evaluate helpers + Glasser atlas support. |
 | 2026-10-12 | E1 specified (user): 4 covariate families (`demo`, `fs_vol`, `fs_area`, `fs_thick`), 10 conditions × 2 directions × 5 seeds with frozen E2.2 configs, plus an unnormalised-SC (`sift_radius2_count`) FC → SC control; 3 figures. D2 (autonomous execution, 6 GPU-h cap) proposed. |
 
-Last updated at: 2026-10-15 EDT (E1.5 node-size follow-up, C!2, D4)
+Last updated at: 2026-10-15 EDT (E4 done)
