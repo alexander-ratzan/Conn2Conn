@@ -4,7 +4,7 @@
 `run_cell.py` (train + evaluate one direction × SC metric × seed), `launch.sh` (GPU array), `prep.sh` (CPU: checks +
 SC cache), `build_sc_cache.py` (E1.1), `run.py` (pilot gate, tables, figures), `checks/check_e1.py` (E1.0)
 **Outputs:** `runs/<sc_metric>/<direction>/<condition>/seed<S>.json`, `results/{tables,figures}/`
-**Status:** done 2026-10-14 (owner agent:infra)
+**Status:** done 2026-10-14; E1.5 follow-up 2026-10-15 (owner agent:infra)
 
 ## 1. Question
 
@@ -69,16 +69,17 @@ Figures: `fig1_family_contributions.png`, `fig2_normalisation_control.png`, `fig
 ## 5. Findings
 
 1. **The covariate gain is FC → SC only, and it is regional size.** Cortical area and FS volumes each give about
-   two thirds of the full gain on their own; thickness adds a little, demographics almost nothing. Each family's
-   unique gain (full − drop) is much smaller than its solo gain, so area and volume largely carry the same
-   (region-size) signal. In SC → FC no family helps.
+   two thirds of the full gain on their own; thickness adds a little, demographics almost nothing. The unique gains
+   (full − drop) sum to 0.038, about half the total gain (0.077): the other half is shared, i.e. any of several
+   families supplies it (overall / regional size). Interactions between families cannot be read off these totals
+   (they are netted against the overlap); no test was run. In SC → FC no family helps.
 2. **The node-volume normalisation explains part of it, not all.** On unnormalised SC the gain falls by ~40%
    (demeaned r) and ~60% (top-1), but stays clearly positive in every seed (+0.045, top-1 +0.11). So the E2.2 lead is
    partly the model undoing `invnodevol`, and partly anatomy predicting individual streamline counts directly
    (larger regions / interfaces carry more streamlines), which the FC backbone does not see.
 3. **For C!1:** either way the extra signal comes from anatomy, not FC (the covariate branch never sees FC). The
    CovProjector stays a non-input-matched (†) reference; an FC-only comparison should use `none`, which is
-   ≈ PCA-PLS learnable (0.141 vs 0.162 demeaned r).
+   ≈ PCA-PLS learnable (0.141 vs 0.162 demeaned r). §7 shows what the "anatomy" is: parcel size.
 
 ## 6. Caveats
 
@@ -87,3 +88,50 @@ Figures: `fig1_family_contributions.png`, `fig2_normalisation_control.png`, `fig
 - The unnormalised control reuses hyperparameters tuned on the normalised target; its `none` baseline differs, so
   only the size of the paired gain is compared, not absolute scores.
 - E2.2 training is not seeded; a rerun of the same config differs slightly (pilot reproduction tolerance 0.01).
+
+## 7. Follow-up E1.5: parcel size alone
+
+**Code:** `node_size.py` (all seeds; `checks/check_node_size.py`), `data/data_viz.py` edgewise helpers; notebook
+section "SC Follow-Up" in `scripts/notebooks/EDA/dist_vol_analysis.ipynb` (seed-0 per-edge views).
+**Outputs:** `results/node_size/{per_edge_block.csv, heldout.csv, heldout_summary.md, fig_node_size.png}`
+
+**Question:** E1's covariates are FreeSurfer DK summaries. How much of the subject-specific SC does each subject's own
+parcel geometry explain, with no connectivity input, and does it survive without the `invnodevol` normalisation?
+
+**Setup:** per edge, across training subjects (Glasser, E1 splits, seeds 0–4), fit y ~ distance (subject's own
+centroid distance), y ~ parcel size (log(4 v_i v_j) + log1p|v_i − v_j|, each subject's T1w-space Glasser parcel
+volumes), and y ~ both. Apply to test subjects; score with the E1 metric code. Outcomes: volume-normalised SC, raw
+streamline counts (log1p), FC. Per-edge nested F-test (volume terms over distance) on train, seed 0.
+
+| Outcome | Distance only | Parcel size only | Distance + parcel size | E1 `none` | E1 `full` |
+|---|---|---|---|---|---|
+| SC, volume-normalised | 0.156 / 0.84 | 0.202 / 1.00 | **0.262 / 1.00** | 0.141 / 0.11 | 0.218 / 0.42 |
+| SC, raw counts | 0.089 / 0.35 | 0.202 / 0.99 | **0.222 / 0.98** | 0.126 / 0.07 | 0.171 / 0.18 |
+| FC | 0.037 / 0.02 | 0.039 / 0.03 | 0.044 / 0.04 | 0.104 / 0.03 | 0.101 / 0.03 |
+
+Test demeaned r / top-1, mean over seeds 0–4 (std ≤ 0.004 / 0.02). E1 columns: PCA-PLS + covariates (FC → SC for the
+SC rows, SC → FC for FC).
+
+| Outcome (train, seed 0) | Median ΔR² | Mean ΔR² | Edges FDR-significant |
+|---|---|---|---|
+| SC, volume-normalised | 0.009 | 0.017 | 43% |
+| SC, raw counts | 0.014 | 0.030 | 59% |
+| FC | 0.003 | 0.005 | 2% |
+
+**Findings:**
+1. **Parcel size alone identifies ~99–100% of test subjects from their SC**, normalised or raw, and predicts it better
+   (demeaned r 0.20) than FC + all covariates. The DK covariates in E1 are a coarser proxy for the same thing.
+2. **Small per edge, coherent across edges.** The volume terms explain ~1% of an edge's across-subject variance, but
+   the same node-size shift applies to all ~65k edges, which makes a near-perfect fingerprint.
+3. **Not the normalisation.** The effect is as strong or stronger on raw counts: tractography counts scale with
+   parcel size. The `invnodevol` division adds a second, nearly exact, size term (normalised: distance + size 0.262).
+4. **FC is untouched by it** (chance identification, 2% of edges), as in the FC-outcome analysis earlier in the
+   notebook and E1's SC → FC null.
+
+**Implication (spec C!2, D4):** subject-specific SC as measured is dominated by parcel geometry that FC cannot see.
+Comparisons among FC-only models stay valid, but absolute FC → SC identifiability is capped by geometry, and SC's
+value as a prediction target is an open decision (D4, user).
+
+**Caveat:** parcel volumes come from each subject's T1w-space Glasser segmentation, close to the node volumes
+`invnodevol` divides by, so the normalised-SC row is partly tautological; the raw-count row is the informative one.
+

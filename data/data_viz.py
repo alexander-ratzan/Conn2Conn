@@ -27,6 +27,8 @@ __all__ = [
     "plot_edgewise_regression_summary",
     "plot_single_edge_distance_scatter",
     "compute_edgewise_multifeature_regression",
+    "predict_edgewise_multifeature_regression",
+    "evaluate_edgewise_predictions",
     "compare_edgewise_models",
     "plot_multifeature_regression_summary",
     "plot_single_edge_distance_scatter_across_partitions",
@@ -464,6 +466,13 @@ def _atlas_roi_df(parcellation, hemi):
     ).copy()
     roi_df["roi_idx"] = np.arange(len(roi_df), dtype=np.int64)
     roi_df["hemisphere"] = roi_df["hemisphere"].astype(str)
+    # Only the 4S tables carry network / atlas columns; Glasser's has its Yeo community instead.
+    if "network_label" not in roi_df.columns:
+        roi_df["network_label"] = roi_df["community_yeo"] if "community_yeo" in roi_df.columns else np.nan
+    if "network_label_17network" not in roi_df.columns:
+        roi_df["network_label_17network"] = np.nan
+    if "atlas_name" not in roi_df.columns:
+        roi_df["atlas_name"] = parcellation
     if hemi == "left":
         return roi_df[roi_df["hemisphere"].str.contains("L")].reset_index(drop=True)
     if hemi == "right":
@@ -728,25 +737,32 @@ def _benjamini_hochberg_qvalues(p_value):
     return q_value
 
 
-def compute_edgewise_multifeature_regression(
-    base,
-    partition="val",
-    y_key="FC",
-    model_name="distance_mean_volume_mismatch",
-    fdr_alpha=0.05,
-):
-    """Fit an edgewise multivariate regression across subjects for each edge."""
+EDGEWISE_MODEL_NAMES = (
+    "distance",
+    "distance_mean_volume_mismatch",
+    "distance_log_product_volume_log_volume_mismatch",
+    "log_product_volume_log_volume_mismatch",
+    "distance_log_product_volume_log_volume_mismatch_sc",
+    "distance_log_product_volume_log_volume_mismatch_sc_subject_z",
+    "sc",
+    "distance_sc",
+)
+
+
+def _edgewise_y(base, part_indices, y_key):
     if y_key not in {"FC", "SC", "SC_r2t_corr"}:
         raise ValueError("y_key must be one of {'FC', 'SC', 'SC_r2t_corr'}")
-
-    part_indices = _partition_indices(base, partition)
-    n_subjects = int(len(part_indices))
     if y_key == "FC":
-        y = np.asarray(base.fc_upper_triangles[part_indices], dtype=np.float64)
-    elif y_key == "SC":
-        y = np.asarray(base.sc_upper_triangles[part_indices], dtype=np.float64)
-    else:
-        y = np.asarray(base.sc_r2t_corr_upper_triangles[part_indices], dtype=np.float64)
+        return np.asarray(base.fc_upper_triangles[part_indices], dtype=np.float64)
+    if y_key == "SC":
+        return np.asarray(base.sc_upper_triangles[part_indices], dtype=np.float64)
+    return np.asarray(base.sc_r2t_corr_upper_triangles[part_indices], dtype=np.float64)
+
+
+def _edgewise_feature_arrays(base, part_indices, model_name):
+    """Per-subject edge features for `model_name`: ({name: (n_subjects, n_edges)}, distance, mean volume, mismatch)."""
+    if model_name not in EDGEWISE_MODEL_NAMES:
+        raise ValueError(f"model_name must be one of {set(EDGEWISE_MODEL_NAMES)}")
 
     distance_stack = _distance_stack(base, part_indices)
     distance_ut = np.stack([square2tri(mat) for mat in distance_stack], axis=0).astype(np.float64)
@@ -761,7 +777,9 @@ def compute_edgewise_multifeature_regression(
     mismatch_ut = np.stack(mismatch_ut, axis=0).astype(np.float64)
 
     eps = 1e-8
-    if model_name == "distance_mean_volume_mismatch":
+    if model_name == "distance":
+        feature_arrays = {"distance": distance_ut}
+    elif model_name == "distance_mean_volume_mismatch":
         feature_arrays = {
             "distance": distance_ut,
             "mean_volume": mean_volume_ut,
@@ -770,6 +788,11 @@ def compute_edgewise_multifeature_regression(
     elif model_name == "distance_log_product_volume_log_volume_mismatch":
         feature_arrays = {
             "distance": distance_ut,
+            "log_product_volume": np.log(np.clip(4.0 * (mean_volume_ut ** 2) - (mismatch_ut ** 2), eps, None)),
+            "log_volume_mismatch": np.log1p(np.clip(mismatch_ut, 0.0, None)),
+        }
+    elif model_name == "log_product_volume_log_volume_mismatch":
+        feature_arrays = {
             "log_product_volume": np.log(np.clip(4.0 * (mean_volume_ut ** 2) - (mismatch_ut ** 2), eps, None)),
             "log_volume_mismatch": np.log1p(np.clip(mismatch_ut, 0.0, None)),
         }
@@ -795,20 +818,28 @@ def compute_edgewise_multifeature_regression(
         feature_arrays = {
             "SC": np.asarray(base.sc_upper_triangles[part_indices], dtype=np.float64),
         }
-    elif model_name == "distance_sc":
+    else:  # distance_sc
         feature_arrays = {
             "distance": distance_ut,
             "SC": np.asarray(base.sc_upper_triangles[part_indices], dtype=np.float64),
         }
-    else:
-        raise ValueError(
-            "model_name must be one of "
-            "{'distance_mean_volume_mismatch', "
-            "'distance_log_product_volume_log_volume_mismatch', "
-            "'distance_log_product_volume_log_volume_mismatch_sc', "
-            "'distance_log_product_volume_log_volume_mismatch_sc_subject_z', "
-            "'sc', 'distance_sc'}"
-        )
+    return feature_arrays, distance_ut, mean_volume_ut, mismatch_ut
+
+
+def compute_edgewise_multifeature_regression(
+    base,
+    partition="val",
+    y_key="FC",
+    model_name="distance_mean_volume_mismatch",
+    fdr_alpha=0.05,
+):
+    """Fit an edgewise multivariate regression across subjects for each edge."""
+    part_indices = _partition_indices(base, partition)
+    n_subjects = int(len(part_indices))
+    y = _edgewise_y(base, part_indices, y_key)
+    feature_arrays, distance_ut, mean_volume_ut, mismatch_ut = _edgewise_feature_arrays(
+        base, part_indices, model_name
+    )
 
     feature_names = list(feature_arrays.keys())
     p = len(feature_names)
@@ -910,6 +941,32 @@ def compute_edgewise_multifeature_regression(
     out["model_df"] = int(p + 1)
     out["label"] = f"{_PARTITION_DISPLAY[partition]} edgewise {y_key} ~ " + " + ".join(feature_names)
     return out
+
+
+def predict_edgewise_multifeature_regression(base, reg_df, partition="test"):
+    """Apply per-edge coefficients from `compute_edgewise_multifeature_regression` (fit on another partition) to
+    every subject in `partition`. Returns (y_pred, y_true), each (n_subjects, n_edges)."""
+    model_name = str(reg_df["model_name"].iloc[0])
+    y_key = str(reg_df["y_key"].iloc[0])
+    part_indices = _partition_indices(base, partition)
+    feature_arrays, _, _, _ = _edgewise_feature_arrays(base, part_indices, model_name)
+    y_pred = np.broadcast_to(reg_df["intercept"].to_numpy(dtype=np.float64), (len(part_indices), len(reg_df))).copy()
+    for name, x in feature_arrays.items():
+        y_pred += x * reg_df[f"{name}_beta"].to_numpy(dtype=np.float64)[None, :]
+    return y_pred, _edgewise_y(base, part_indices, y_key)
+
+
+def evaluate_edgewise_predictions(y_pred, y_true, train_mean):
+    """Model-benchmark metrics (pearson, demeaned_pearson, avg_rank, top1_acc, mse, r2) for edgewise predictions."""
+    from models.eval.metrics import compute_basic_regression_metrics, compute_corr_matrix
+
+    train_mean = np.asarray(train_mean, dtype=np.float64)[None, :]
+    return compute_basic_regression_metrics(
+        y_pred,
+        y_true,
+        corr_matrix=compute_corr_matrix(y_true, y_pred),
+        corr_matrix_demeaned=compute_corr_matrix(y_true - train_mean, y_pred - train_mean),
+    )
 
 
 def compare_edgewise_models(
