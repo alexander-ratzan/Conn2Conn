@@ -21,18 +21,18 @@ row to the status table.
 | E0 | Which task FC best predicts SC, and which is best predicted from SC (both directions, both parcellations) | done 2026-10-07 | — | agent:infra |
 | E1 | Covariate family ablation for PCA-PLS + covariates, both directions, + unnormalised-SC control; E1.5 node-size follow-up | done 2026-10-15 | D2 | agent:infra |
 | E2 | Joint task-FC → SC: do the 7 task-FC blocks add to rest FC? (E2.1 raw, E2.2 predictive residual) | done 2026-10-12 | I5 | agent:infra |
-| E3 | Composite-loss cross-model benchmark: v2:E2.2 rerun with composite-loss weights tuned per model and seed | planned | I1, D3 | — |
+| E3 | Composite-loss cross-model benchmark: v2:E2.2 rerun with composite-loss weights tuned per model and seed | planned | I1, D3 | agent:infra |
 | E4 | Task-FC signature above rest: subject-level task − rest residual connectomes, train / val / test means (notebook) | planned | — | — |
-| I1 | Composite-loss benchmark infrastructure: composite configs per model, reference scales, extra val metrics | planned | D3 | — |
+| I1 | Composite-loss benchmark infrastructure: composite configs per model, reference scales, extra val metrics | planned | D3 | agent:infra |
 | I2 | Config layout: family folders (done), one tune launcher, variants as roster overrides | done (layout, `5efe03a`); launcher dropped 2026-10-15 | — | — |
 | I3 | Bidirectional graph / nodal models: FC → SC variants with a tuned FC edge threshold | superseded 2026-10-15 (→ v4 nodal-models item, not as a bidirectionality fix) | — | — |
-| I4 | Environment alignment (Jupyter kernel image) and v2 C6 archive deletion | planned | — | user |
+| I4 | Environment alignment (Jupyter kernel image) and v2 C6 archive deletion | dropped 2026-10-15 (user: everything works) | — | — |
 | I5 | Joint task-FC infrastructure: FC conditions as source modalities, CPU grid runner, predictive-residual PCA-PLS, E2 figures | done 2026-10-07 (`01adae6`) | — | agent:infra |
 | C!1 | PCA-PLS + covariates FC → SC gain is parcel geometry (regional size), not FC; present with or without the `invnodevol` normalisation | resolved 2026-10-15 (E1, E1.5) | — | — |
 | C!2 | Subject-specific SC (and its identifiability) is dominated by parcel size, which FC cannot see | open | D4 | user |
 | D1 | E0.2–E0.4 compute envelope and autonomous execution | decided | — | user |
 | D2 | E1 compute envelope and autonomous execution | decided | — | user |
-| D3 | E3 roster, loss-weight grid, batch size, selection metric(s) and compute envelope | pending | — | user |
+| D3 | E3 roster, loss-weight grid, batch size, selection metric(s) and compute envelope | decided 2026-10-15 | — | user |
 | D4 | Primary analysis direction given C!2: is SC (as measured) still a useful prediction target? | pending | E1 | user |
 
 Carried-over items C1–C8 are all closed or moved; see §4.
@@ -52,7 +52,7 @@ mixtures; fixed reference scales).
 |---|---|---|
 | D1 | **E0.2–E0.4 run autonomously (user 2026-10-06):** cap 55 GPU-h for the three steps, cut by 20% (to 44) if queue waits exceed 2 h. Pilots (rest + wm, seed 0) for E0.2 and E0.3; E0.4 starts without its own pilot once both pass. Gate per pilot task: 16 trials, finite metrics, the log's config / direction / parcellation match, rest val demeaned r > 0.05; E0.2 rest seed-0 test demeaned r within 0.02 of v2:E2.2 SC → FC PCA-PLS learnable seed 0 (0.071). Per-step time limit = pilot wall time × 1.5. Stop and report on a gate failure, > 20% task errors after one retry each, a log mismatch, a budget overrun, two GPU-underuse kills of one task, or a Ray hang `watch_jobs.py` cannot clear; relaxing a threshold needs the user. No split-half reliability ceiling (user). | Lets E0 finish without per-stage approval, with explicit exits (as v2:D3). |
 | D2 | **E1 runs autonomously (user 2026-10-12)** through E1.0–E1.4 (see E1) with a 6 GPU-h cap. Gates: E1.1 cache gate, E1.2 pilot gate. Stop and report on a gate failure; on > 20% task errors after one retry each; on a budget overrun; when a log's config / direction / SC metric / covariate set does not match its condition; on a code change outside the files listed in E1 *Changes*; or when another agent's queued or running job imports `models/` or `data/` at the moment E1.0 needs to edit them (rule: jobs read live files). Per-task time limit = pilot wall time × 1.5. Relaxing a threshold needs the user. Commits stay local (no push). | Small, fully specified ablation with frozen hyperparameters; nothing is tuned, so the exits are mechanical. |
-| D3 | **Pending (user):** E3's (a) roster: the learned edge-space models whose composite terms are meaningful at batch 64 (proposed: PCA-PLS learnable, linear backbone, PCA-PLS + covariates †, Sarwar, Nodal MLP; Chen GCN and Nodal GNN train at batch 4 / 8 and are at the null, so they keep their E2.2 MSE rows); (b) the weight grid (proposed `varmatch` {0, 0.1, 0.5}, `correye_dm` {0, 0.1, 0.5, 1}, `neidist` {0, 0.1, 0.5}; MSE-only inside the grid); (c) batch fixed at 64 for every composite run (v2:D4); (d) selection: val demeaned r (primary, as every benchmark) plus a secondary val-avg-rank best-trial report per seed from the same tune; (e) compute cap (estimate ≈ 60–80 GPU-h) and whether it runs autonomously. | Composite terms trade demeaned r for rank / top-1 (v2:E1); selecting on demeaned r alone is expected to land near MSE-only, so the secondary selection decides whether E3 can show the trade-off. |
+| D3 | **Decided (user 2026-10-15):** (a) **Roster:** the stable learned edge-space models (agent's discretion): PCA-PLS learnable, linear backbone, PCA-PLS + covariates †, Sarwar; both directions. Out: Chen GCN, Nodal GNN, Nodal MLP (at the null; batch 4–32), Masked MLP (latent objective), closed-form models, Krakencoder (own grid). They keep their E2.2 rows. (b) **Weight grid is data-driven per model × direction:** from that model's v2:E1 / E3-Phase-D composite-loss grid (`composite_loss/<model>/<direction>/tables/seed_records.csv`, **val metrics only**), the combinations on the seed-mean (val demeaned r, val avg rank) Pareto front. Each term's grid is the set of its weights used by a front combination, plus 0. Sarwar (no grid) takes the union of the three linear models' levels per direction. (c) Batch 64 for every composite run (v2:D4). (d) **Both selections reported:** best trial on val demeaned r and best trial on val avg rank, from the same tune. (e) **Autonomous**, cap 80 GPU-h; stop and report on a smoke-check failure, a log / config mismatch, more than 20 % task errors after one retry, or the cap. | Composite terms trade demeaned r for rank / top-1 (v2:E1), so both selections are reported. The grids reuse val information from v2:E1 on the same splits: this is design reuse, not test leakage. |
 | D4 | **Pending (user):** primary analysis direction. E1.5 shows that each subject's own parcel volumes, with no connectivity input, predict held-out subject-specific SC better than FC + all covariates and identify ~99–100% of test subjects, on normalised and raw counts alike; for FC they give nothing. Open: keep SC as a target, make SC → FC the main direction, predict SC with parcel-size effects removed, or move to other targets. No plan yet (user 2026-10-15: SC as a strong product of spatial geometry is of limited neuroscientific interest). | Much of what makes SC subject-specific in our data is measurement geometry (tractography counts scale with parcel size), not connectivity a model could learn from FC. |
 
 **Parcellation:** experiments run on Glasser first; the 4S456Parcels replication uses the same configs with
@@ -294,8 +294,10 @@ mixtures; fixed reference scales).
   - Masked MLP pretrainer (native latent objective);
   - Krakencoder (its own composite grid, v2:E2.1; reused as reference rows);
   - Chen GCN and Nodal GNN if D3 (a) keeps them out.
-- **Selection:** val demeaned r (primary, every benchmark's rule). Secondary (D3 d): a second best-trial report per
-  seed selected on val average rank from the same tune, reported as a separate row set. Neither selects on test.
+- **Selection (D3 d):** two best-trial reports per seed from the same tune, one selected on val demeaned r and one on val
+  average rank, reported as two row sets. Neither selects on test.
+- **Order:** SC → FC first (unaffected by C!2), then FC → SC. FC → SC average rank / top-1 are dominated by parcel size
+  (C!2, E1.5), so its rank-selected rows are reported with that caveat; D4 does not block E3.
 - **Outputs** (`scripts/experiments/model_benchmark/composite/{sc2fc,fc2sc}/`, tracked like `mse/`):
   - records, tables and figures in the E2.2 layout (bars per metric, grouped / performance panels, scatter);
   - per model × seed paired Δ vs E2.2 MSE (same splits);
@@ -303,7 +305,7 @@ mixtures; fixed reference scales).
   - for the secondary selection, the demeaned r ↔ average rank trade-off per model.
 - **Accept:** every roster model × direction × seed has a verified best-trial report (both selections); tables and
   figures; write-up section in `model_benchmark.md` (or `composite.md`); E2.2 rows unchanged.
-- **Budget:** D3 (e). Estimate ≈ 60–80 GPU-h. E2.2's learned models took most of its 111.5 GPU-h; the composite
+- **Budget / autonomy:** D3 (e): autonomous, cap 80 GPU-h. Estimate ≈ 50–70 GPU-h with the 4-model roster. E2.2's learned models took most of its 111.5 GPU-h; the composite
   terms add little per step; the trial counts rise to the 64 cap for most models.
 - **Then:** the final reoptimized benchmark (the composite winners as the model set) is a v4 item.
 
@@ -328,6 +330,8 @@ mixtures; fixed reference scales).
      subjects scored against the train mean), as distributions per task.
 - **Code:** reusable functions in `data/data_viz.py` next to the existing condition views (compute + plot); the
   notebook cells call them. Headless execution through `scripts/sbatch/checks/run_notebook_cells.sh` (CPU).
+- **Execution:** agent-runnable end to end (functions + appended cells + headless run on CPU), once the uncommitted
+  `data/data_viz.py` / notebook edits in the working tree are committed or handed over (no concurrent editor).
 - **Accept:** the four outputs for all 7 tasks plus the session null; a short summary cell; figures saved under
   `results/figures/fc_conditions/`.
 - **Budget:** CPU, under 1 node-hour.
@@ -379,21 +383,11 @@ mixtures; fixed reference scales).
   (FC graph at a tuned threshold, no SC-derived node inputs, `target == "SC"` guard) join the backlog's "graph / nodal
   models on top of the mean". Chen GCN, Nodal GNN and Nodal MLP stay SC → FC only in v3.
 
-### I4 — Environment alignment · status: planned · owner: user
+### I4 — Environment alignment · status: dropped 2026-10-15 · owner: —
 
-- Jobs have run clean on `/ext3/env.sh` + the cuda12.8.1 (Ubuntu 24.04) image since 2026-09-30, E0–E2 included.
-- **What is left, and why it matters:**
-  1. The Jupyter kernel wrapper (`~/.local/share/jupyter/kernels/kraken_env/python`) still starts the cuda12.3.2
-     (Ubuntu 22.04) image. Notebooks therefore run the same overlay packages on a different base image (CUDA runtime,
-     glibc) than the jobs. No failure seen so far, but a notebook result is not strictly the job environment.
-     `/scratch/asr655/envs/README.md` still lists 12.3.2 for `kraken_env`.
-  2. `/scratch/asr655/envs/archive/2026-09-30_c6/` (14 GB: the pre-C6 overlay backup, installer, one log). Its
-     MANIFEST's delete condition (post-C6 jobs run clean) has been met for two weeks. Deleting it is irreversible, so
-     it is the user's call.
-  3. `envs/activate_env.sh` is a third stack (`pylibs`, torch 2.11), used only interactively.
-- **Necessity:** low; hygiene plus 14 GB. Nothing in v3 is blocked by it.
-- **Proposed:** point the kernel wrapper and the envs README at 12.8.1, delete the archive, and document
-  `activate_env.sh` as interactive-only (or retire it). This takes about 10 minutes once approved.
+- Dropped (user 2026-10-15: everything works). On record: the Jupyter kernel still starts the cuda12.3.2 image
+  (jobs use 12.8.1), `envs/archive/2026-09-30_c6/` (14 GB, pre-C6 overlay backup) is past its delete condition, and
+  `envs/activate_env.sh` is a separate interactive stack. Revisit only if a notebook / job mismatch appears.
 
 ### I5 — Joint task-FC infrastructure (for E2) · status: done 2026-10-07 (`01adae6`) · owner: agent:infra
 
@@ -477,6 +471,7 @@ mixtures; fixed reference scales).
 | 2026-10-12 | E2 done: task-FC blocks add no FC → SC signal over rest (raw or predictive residual; −0.005 to −0.018 demeaned r, all seeds); test-oracle bound rules out a selection artifact; edge extension `k_rest` 640 / `k_sc` 8; convergence check OK. I5 done. |
 | 2026-10-14 | E1 done: E1.1 cache gate moved to Spearman + zero pattern (user). FC → SC covariate gain (+0.077 demeaned r, +0.31 top-1) is regional size (area ≈ volumes, overlapping); none in SC → FC; ~40% of it disappears on unnormalised SC, the rest stays. C!1 resolved (reworded). |
 | 2026-10-15 | Stock-take (user): I2 launcher dropped (layout done); I3 → v4 as a nodal-models item; I4 necessity written out; I1 re-scoped to composite-benchmark infrastructure; E3 (composite-loss cross-model benchmark) and E4 (task-FC signature above rest, notebook) added; D3 pending. |
+| 2026-10-15 | D3 decided (user): 4-model roster, per-model data-driven weight grids from the v2:E1 val Pareto fronts, batch 64, both selections reported, autonomous at 80 GPU-h; E3 runs SC → FC first and cites C!2 for FC → SC rank metrics. I4 dropped. |
 | 2026-10-15 | E1.5 node-size follow-up done (CPU): each subject's parcel volumes alone predict held-out SC (demeaned r 0.20, top-1 ~1.0) on normalised and raw counts, beating FC + all covariates; nothing for FC. E1 result reworded (families overlap: ~half of the covariate gain is shared). C!1 reworded and resolved; C!2 (SC dominated by parcel geometry) and D4 (primary analysis direction, user) added. `data/data_viz.py` edgewise predict / evaluate helpers + Glasser atlas support. |
 | 2026-10-12 | E1 specified (user): 4 covariate families (`demo`, `fs_vol`, `fs_area`, `fs_thick`), 10 conditions × 2 directions × 5 seeds with frozen E2.2 configs, plus an unnormalised-SC (`sift_radius2_count`) FC → SC control; 3 figures. D2 (autonomous execution, 6 GPU-h cap) proposed. |
 
