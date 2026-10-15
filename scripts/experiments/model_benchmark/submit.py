@@ -8,6 +8,7 @@ Job name `e2_mse_<Model>_<direction>` is how run.py finds the campaign's task lo
 `--num-samples` / `--seeds` override the roster (e.g. the latent gate uses seeds 0-1 x 12 trials).
 """
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -17,15 +18,32 @@ import yaml
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = next(p for p in HERE.parents if (p / "main.py").exists())
 CONFIGS = REPO_ROOT / "models" / "configs" / "benchmark" / "mse"
+# Campaign config: config.yml (E2.2) by default; MB_CAMPAIGN_CONFIG=config_composite.yml selects spec v3 E3.
+CAMPAIGN_CONFIG = HERE / os.environ.get("MB_CAMPAIGN_CONFIG", "config.yml")
+
+
+def cfg_load():
+    return yaml.safe_load(CAMPAIGN_CONFIG.read_text())
+
+
+def configs_dir(cfg=None):
+    return REPO_ROOT / (cfg or {}).get("configs_dir", "models/configs/benchmark/mse")
+
+
+def launcher_export(cfg):
+    """sbatch --export for launch_model.sh: campaign name, config dir and best-trial report metrics."""
+    return (f"--export=ALL,CAMPAIGN={cfg['campaign']},CONFIG_DIR={cfg.get('configs_dir', 'models/configs/benchmark/mse')},"
+            f"REPORT_METRICS={'+'.join(cfg.get('report_metrics', ['val_demeaned_r']))}")  # '+': --export splits on ','
 
 
 def job_name(cfg, model, direction):
     return f"{cfg['campaign']}_{model}_{direction}"
 
 
-def config_for(model, direction):
-    alt = CONFIGS / f"{model}_fc2sc.yml"
-    return alt if direction == "fc2sc" and alt.exists() else CONFIGS / f"{model}.yml"
+def config_for(model, direction, cfg=None):
+    d = configs_dir(cfg)
+    alt = d / f"{model}_fc2sc.yml"
+    return alt if direction == "fc2sc" and alt.exists() else d / f"{model}.yml"
 
 
 def plan(cfg, direction, stage, models, seeds_override, samples_override):
@@ -37,7 +55,7 @@ def plan(cfg, direction, stage, models, seeds_override, samples_override):
     gate = cfg.get("gate", {})
     jobs = []
     for m in models:
-        bench = yaml.safe_load(config_for(m, direction).read_text())["benchmark"]
+        bench = yaml.safe_load(config_for(m, direction, cfg).read_text())["benchmark"]
         seeds = list(cfg["seeds"])
         samples = bench["num_samples"]
         if stage == "pilot":
@@ -66,14 +84,14 @@ def main():
     ap.add_argument("--dependency", help="e.g. afterok:12345")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
-    cfg = yaml.safe_load((HERE / "config.yml").read_text())
+    cfg = cfg_load()
     jobs = plan(cfg, args.direction, args.stage, args.models, args.seeds, args.num_samples)
     for j in jobs:
         cmd = ["sbatch", "--parsable", f"--job-name={j['name']}", f"--time={j['time']}",
                f"--array={','.join(str(s) for s in j['seeds'])}"]
         if args.dependency:
             cmd += [f"--dependency={args.dependency}", "--kill-on-invalid-dep=yes"]
-        cmd += [str(HERE / "launch_model.sh"), j["model"], args.direction, str(j["samples"]), j["alg"],
+        cmd += [launcher_export(cfg), str(HERE / "launch_model.sh"), j["model"], args.direction, str(j["samples"]), j["alg"],
                 str(j["gpus"]), str(j["conc"])]
         if args.dry_run:
             print(" ".join(cmd))

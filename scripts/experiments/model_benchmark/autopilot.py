@@ -49,7 +49,7 @@ DATE_FMT = "%a %b %d %I:%M:%S %p %Z %Y"
 
 
 def cfg_load():
-    return yaml.safe_load((HERE / "config.yml").read_text())
+    return submit.cfg_load()  # config.yml, or MB_CAMPAIGN_CONFIG (spec v3 E3: config_composite.yml)
 
 
 def _when(line):
@@ -94,7 +94,7 @@ def queued(cfg, model, direction):
 
 
 def full_samples(model, direction):
-    return yaml.safe_load(submit.config_for(model, direction).read_text())["benchmark"]["num_samples"]
+    return yaml.safe_load(submit.config_for(model, direction, cfg_load()).read_text())["benchmark"]["num_samples"]
 
 
 def model_status(cfg, model, direction):
@@ -105,7 +105,7 @@ def model_status(cfg, model, direction):
     walls = [l["wall_h"] for l in logs if l["finished"] and l["wall_h"]
              and (l["samples"] is None or l["samples"] >= full or not any(x["samples"] and x["samples"] >= full for x in logs))]
     # error rate only from tasks run under the current config (older tasks may predate a search fix, e.g. I2.2)
-    since = submit.config_for(model, direction).stat().st_mtime
+    since = submit.config_for(model, direction, cfg).stat().st_mtime
     recent = [l for l in logs if l["finished"] and os.path.getmtime(l["path"]) > since]
     trials = sum(l["n_term"] + l["n_err"] for l in recent)
     errs = sum(l["n_err"] for l in recent)
@@ -227,7 +227,7 @@ def cmd_launch(cfg, args):
         retry = any(st["attempts"].get(s, 0) >= 1 for s in r["missing"])  # a seed that already ran and did not finish
         hours = math.ceil(min(cfg["budget"]["time_cap_h"], r["time_h"] * (2 if retry else 1)) * 4) / 4
         cmd = ["sbatch", "--parsable", f"--job-name={job['name']}", f"--time={int(hours)}:{int(hours % 1 * 60):02d}:00",
-               f"--array={','.join(str(s) for s in r['missing'])}", str(HERE / "launch_model.sh"), r["model"],
+               f"--array={','.join(str(s) for s in r['missing'])}", submit.launcher_export(cfg), str(HERE / "launch_model.sh"), r["model"],
                args.direction, str(job["samples"]), job["alg"], str(job["gpus"]), str(job["conc"])]
         if args.dry_run:
             print(" ".join(cmd[2:]))

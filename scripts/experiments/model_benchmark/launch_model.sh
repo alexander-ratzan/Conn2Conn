@@ -25,8 +25,10 @@ case "${DIRECTION}" in
   *) echo "unknown direction ${DIRECTION}"; exit 1 ;;
 esac
 CONN2CONN_DIR="/scratch/asr655/neuroinformatics/Conn2Conn"
-CONFIG="models/configs/benchmark/mse/${MODEL}.yml"
-[ "${DIRECTION}" = "fc2sc" ] && [ -f "${CONN2CONN_DIR}/models/configs/benchmark/mse/${MODEL}_fc2sc.yml" ] && CONFIG="models/configs/benchmark/mse/${MODEL}_fc2sc.yml"
+# Campaign settings from submit.py / autopilot.py (--export): E2.2 defaults; spec v3 E3 sets the composite ones.
+CAMPAIGN="${CAMPAIGN:-e2_mse}"; CONFIG_DIR="${CONFIG_DIR:-models/configs/benchmark/mse}"; REPORT_METRICS="${REPORT_METRICS:-val_demeaned_r}"
+CONFIG="${CONFIG_DIR}/${MODEL}.yml"
+[ "${DIRECTION}" = "fc2sc" ] && [ -f "${CONN2CONN_DIR}/${CONFIG_DIR}/${MODEL}_fc2sc.yml" ] && CONFIG="${CONFIG_DIR}/${MODEL}_fc2sc.yml"
 CPUS_PER_TRIAL=$(( ${SLURM_CPUS_PER_TASK:-10} / ${MAX_CONCURRENT} ))
 [ "${CPUS_PER_TRIAL}" -lt 1 ] && CPUS_PER_TRIAL=1
 
@@ -35,7 +37,7 @@ cd "${CONN2CONN_DIR}"
 export RAY_worker_register_timeout_seconds=120 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 
 echo "Starting job ${SLURM_JOB_ID} (task ${SLURM_ARRAY_TASK_ID}) on $(hostname) at $(date)"
-echo "Campaign=e2_mse Model=${MODEL} Direction=${DIRECTION} Source=${SOURCE} Target=${TARGET} Config=${CONFIG} Seed=${SEED} (${NUM_SAMPLES} samples, ${SEARCH_ALG}, ${MAX_CONCURRENT} x ${GPUS_PER_TRIAL} GPU)"
+echo "Campaign=${CAMPAIGN} Model=${MODEL} Direction=${DIRECTION} Source=${SOURCE} Target=${TARGET} Config=${CONFIG} Seed=${SEED} (${NUM_SAMPLES} samples, ${SEARCH_ALG}, ${MAX_CONCURRENT} x ${GPUS_PER_TRIAL} GPU)"
 
 singularity exec --nv \
   --overlay "/scratch/$USER/envs/kraken_env/overlay-15GB-500K.ext3:ro" \
@@ -64,7 +66,19 @@ singularity exec --nv \
       --tune_gpus_per_trial ${GPUS_PER_TRIAL} \
       --tune_reuse_actors true \
       --report_best_after_tune \
+      --report_metrics ${REPORT_METRICS//+/,} \
       --store_eval_md
   "
 
+# Ray cleanup (spec v3 backlog; as task_bidirectional_bench/launch.sh): after a finished best-trial report this task's
+# Ray session dir and Tune storage dir are dead weight (run.py reads only this log). Only on success; KEEP_RAY=1 skips.
+LOG="${CONN2CONN_DIR}/results/logs/${SLURM_JOB_NAME}_${SLURM_ARRAY_JOB_ID:-${SLURM_JOB_ID}}_${SLURM_ARRAY_TASK_ID:-0}.out"
+if [ "${KEEP_RAY:-0}" != "1" ] && grep -q "Best Tune trial comprehensive summary:" "${LOG}" 2>/dev/null; then
+  RUN_NAME=$(grep -m1 -oP "^Tune run: \K\S+" "${LOG}" || true)
+  for d in "${CONN2CONN_DIR}/results/ray_tmp/ray_${SLURM_JOB_ID}" \
+           ${RUN_NAME:+"${CONN2CONN_DIR}/results/ray_checkpoints/${RUN_NAME}"}; do
+    if [ -d "${d}" ]; then echo "Ray cleanup: $(du -sh "${d}" | cut -f1) ${d}"; rm -rf "${d}"; fi
+  done
+  rm -f "/tmp/ray_${SLURM_JOB_ID}"
+fi
 echo "Job Over at $(date)"

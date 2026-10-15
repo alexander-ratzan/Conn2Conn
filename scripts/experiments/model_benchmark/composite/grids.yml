@@ -1,0 +1,44 @@
+# Spec v3 E3 weight grids (v2:E1 val Pareto fronts) and reference scales; written by build_composite_configs.py.
+CrossModal_PCA_PLS_learnable:
+  sc2fc:
+    pareto_front: [vm_0.5, vm_0.1, nd_0.1, vm_nd_0.5, alldm_0.1]
+    levels:
+      varmatch: [0.0, 0.1, 0.5]
+      correye_dm: [0.0, 0.1]
+      neidist: [0.0, 0.1, 0.5]
+    scales: {varmatch: 77.01715018277095, correye_dm: 698.599485885761, neidist: 151.9988968572252}
+    scales_from: pca_pls_learnable
+CrossModal_linear_backbone:
+  sc2fc:
+    pareto_front: [mse_only, vm_0.1, vm_0.5, nd_0.1, alldm_0.1, cedm_0.1, vm_cedm_0.5]
+    levels:
+      varmatch: [0.0, 0.1, 0.5]
+      correye_dm: [0.0, 0.1, 0.5]
+      neidist: [0.0, 0.1]
+    scales: {varmatch: 79.33157506785062, correye_dm: 704.6701295180267, neidist: 103.03208876247243}
+    scales_from: linear_backbone
+  fc2sc:
+    pareto_front: [vm_0.1, mse_only, nd_0.1, alldm_0.1]
+    levels:
+      varmatch: [0.0, 0.1]
+      correye_dm: [0.0, 0.1]
+      neidist: [0.0, 0.1]
+    scales: {varmatch: 199.00430896052916, correye_dm: 1968.6706142227802, neidist: 100.28026814604205}
+    scales_from: linear_backbone
+CrossModal_PCA_PLS_CovProjector:
+  sc2fc:
+    pareto_front: [cedm_0.1, nd_0.5, vm_nd_0.5, alldm_0.5, alldm_1.0]
+    levels:
+      varmatch: [0.0, 0.5, 1.0]
+      correye_dm: [0.0, 0.1, 0.5, 1.0]
+      neidist: [0.0, 0.5, 1.0]
+    scales: {varmatch: 77.62566225588695, correye_dm: 1140.8228078619932, neidist: 141.3869355108806}
+    scales_from: pca_pls_covprojector
+  fc2sc:
+    pareto_front: [vm_0.5, mse_only]
+    levels:
+      varmatch: [0.0, 0.5]
+      correye_dm: [0.0]
+      neidist: [0.0]
+    scales: {varmatch: 206.30772976456694, correye_dm: 1921.6130636892408, neidist: 596.5150100752134}
+    scales_from: pca_pls_covprojector

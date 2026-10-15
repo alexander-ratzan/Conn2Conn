@@ -40,18 +40,22 @@ LOWER_IS_BETTER = {"mse"}
 
 
 # ------------------------------------------------------------------------------------------- collection
-def parse_log(path):
-    """(seed, summary dict) from one task log, or None if the task has no finished best-trial report."""
+def parse_log(path, metric=None):
+    """(seed, summary dict) from one task log, or None if the task has no finished best-trial report. With `metric`,
+    the last summary selected on that metric (a task can print one report per selection metric, spec v3 E3)."""
     text = Path(path).read_text(errors="replace")
     seed = re.search(r"Seed=(\d+)", text)
-    i = text.rfind(MARKER)
-    if not seed or i < 0:
+    if not seed:
         return None
-    try:
-        summary, _ = json.JSONDecoder().raw_decode(text[i + len(MARKER):].lstrip())
-    except ValueError:
-        return None
-    return int(seed.group(1)), summary
+    pos = [m.end() for m in re.finditer(re.escape(MARKER), text)]
+    for p in reversed(pos):
+        try:
+            summary, _ = json.JSONDecoder().raw_decode(text[p:].lstrip())
+        except ValueError:
+            continue
+        if metric is None or (summary.get("selected_by") or {}).get("metric") == metric:
+            return int(seed.group(1)), summary
+    return None
 
 
 def gate_dropped(cfg, direction):
@@ -61,14 +65,14 @@ def gate_dropped(cfg, direction):
     return {m: why for m, why in (dcfg.get("gate_failed") or {}).items() if m not in override}
 
 
-def scrape(cfg, direction, log_dir=LOG_DIR):
+def scrape(cfg, direction, log_dir=LOG_DIR, metric=None):
     records = []
     gate_failed = gate_dropped(cfg, direction)
     for model in [m for m in cfg["directions"][direction]["models"] if m not in gate_failed]:
         name = f"{cfg['campaign']}_{model}_{direction}"
         latest = {}
         for path in sorted(glob.glob(str(Path(log_dir) / f"{name}_*_*.out")), key=os.path.getmtime):
-            got = parse_log(path)
+            got = parse_log(path, metric)
             if got:
                 latest[got[0]] = (path, got[1])
         for seed, (path, s) in sorted(latest.items()):
@@ -85,6 +89,8 @@ def scrape(cfg, direction, log_dir=LOG_DIR):
         if not path or not (REPO_ROOT / path).exists():
             continue
         df = pd.read_csv(REPO_ROOT / path)
+        if "model" in df and info.get("model"):  # a row set of another benchmark's seed_records (spec v3 E3: E2.2 MSE rows)
+            df = df[df["model"] == info["model"]]
         if "combo_id" in df and info.get("combo_id"):
             df = df[df["combo_id"] == info["combo_id"]]
         if "stage" in df:
@@ -509,14 +515,17 @@ def panel(cfg, summary, seed_df, out, direction, order):
 
 
 # ------------------------------------------------------------------------------------------- entry
-def build(direction, cached=False, cfg=None, out_root=None, log_dir=LOG_DIR):
-    cfg = cfg or yaml.safe_load((HERE / "config.yml").read_text())
+def build(direction, cached=False, cfg=None, out_root=None, log_dir=LOG_DIR, selection=None):
+    """One direction's outputs. `selection` (a report metric, spec v3 E3) writes to <results_dir>/<direction>/<label>/."""
+    cfg = cfg or campaign_cfg()
     d = Path(out_root or HERE) / cfg.get("results_dir", "") / direction
+    if selection:
+        d = d / cfg["selections"][selection]
     d.mkdir(parents=True, exist_ok=True)
     if cached:
         records = json.loads((d / "records.json").read_text())
     else:
-        records = scrape(cfg, direction, log_dir)
+        records = scrape(cfg, direction, log_dir, metric=selection)
         (d / "records.json").write_text(json.dumps(records, indent=1, sort_keys=True, default=str))
     if not records:
         print(f"{direction}: no records yet")
@@ -562,12 +571,20 @@ def build(direction, cached=False, cfg=None, out_root=None, log_dir=LOG_DIR):
     return 0
 
 
+def campaign_cfg():
+    """config.yml (E2.2) or MB_CAMPAIGN_CONFIG (spec v3 E3: config_composite.yml)."""
+    return yaml.safe_load((HERE / os.environ.get("MB_CAMPAIGN_CONFIG", "config.yml")).read_text())
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--direction", required=True, choices=["sc2fc", "fc2sc"])
     ap.add_argument("--cached", action="store_true")
     args = ap.parse_args()
-    return build(args.direction, cached=args.cached)
+    cfg = campaign_cfg()
+    if cfg.get("selections"):  # one output set per best-trial selection metric
+        return max(build(args.direction, cached=args.cached, cfg=cfg, selection=m) for m in cfg["selections"])
+    return build(args.direction, cached=args.cached, cfg=cfg)
 
 
 if __name__ == "__main__":

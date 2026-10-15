@@ -1,0 +1,70 @@
+# Spec v3 E3: composite-loss cross-model benchmark (v2:E2.2 rerun with composite-loss weights tuned per model and seed).
+# Select this campaign with MB_CAMPAIGN_CONFIG=config_composite.yml for submit.py / autopilot.py / run.py.
+# Configs: models/configs/benchmark/composite/<Model>[_fc2sc].yml (build_composite_configs.py; grids + scales recorded in
+# composite/grids.yml). Every task writes two best-trial reports (val demeaned r, val avg rank) from one tune (D3 d).
+campaign: e3_comp
+results_dir: composite            # model_benchmark/composite/<direction>/<selection>/
+configs_dir: models/configs/benchmark/composite
+report_metrics: [val_demeaned_r, val_avg_rank]
+selections: {val_demeaned_r: by_demeaned_r, val_avg_rank: by_avg_rank}
+seeds: [0, 1, 2, 3, 4]
+selection: {metric: val_demeaned_r, mode: max}
+metrics: [pearson, demeaned_pearson, avg_rank, top1_acc]
+batch_size: 64                    # every composite run (v2:D4, D3 c)
+trials: {per_weight_key: 8, cap: 96}   # num_samples = min(cap, E2.2 trials + 8 x searched weight keys)
+terms: [varmatch, correye_dm, neidist]  # raw correye excluded (v2:D5)
+
+types:
+  linear_closed_form: {label: "Linear (closed-form)", color: "#8DB8E8", header_color: "#3775BA"}
+  linear_learned:     {label: "Linear (learned)",     color: "#0F4D92"}
+  latent_pretrained:  {label: "Latent / pretrained",  color: "#9A4D8E"}
+  deep_baseline:      {label: "Deep-learning baseline", color: "#B64342"}
+  pairwise_nodal:     {label: "Pairwise nodal",       color: "#42949E"}
+  null_ceiling:       {label: "Null / ceiling",       color: "#8C8C8C", header: "Null"}
+
+# Roster (D3 a). grid_from: composite_loss instance whose v2:E1 val Pareto front sets the weight grid; "union" = the
+# union of the three linear instances' grids per direction. scales_from: instance state.yml, or "measured" =
+# composite/reference_scales.yml (composite_scales.py).
+models:
+  CrossModal_PCA_PLS_learnable:    {type: linear_learned, label: "PCA-PLS learnable", packing: [0.25, 4], time: "6:00:00",
+                                    grid_from: pca_pls_learnable, scales_from: pca_pls_learnable}
+  CrossModal_linear_backbone:      {type: linear_learned, label: "Linear backbone", packing: [0.25, 4], time: "5:00:00",
+                                    grid_from: linear_backbone, scales_from: linear_backbone}
+  CrossModal_PCA_PLS_CovProjector: {type: linear_learned, label: "PCA-PLS + covariates", packing: [0.25, 4], time: "6:00:00",
+                                    extra_inputs: "FreeSurfer fs_all + demographics",
+                                    grid_from: pca_pls_covprojector, scales_from: pca_pls_covprojector}
+  Sarwar2020MLP:                   {type: deep_baseline, label: "Sarwar MLP", packing: [0.25, 4], time: "10:00:00",
+                                    grid_from: union, scales_from: measured}
+
+# E2.2 rows reused unchanged (MSE-only; not rerun): models outside the roster, and roster cells whose grid is MSE only.
+reuse:
+  CrossModalPCA_mse:      {type: null_ceiling, label: "PCA null (MSE, E2.2)", role: floor, model: CrossModalPCA,
+                           records: {sc2fc: scripts/experiments/model_benchmark/mse/sc2fc/tables/seed_records.csv, fc2sc: scripts/experiments/model_benchmark/mse/fc2sc/tables/seed_records.csv}}
+  CrossModal_PCA_PLS_mse: {type: linear_closed_form, label: "PCA-PLS (E2.2)", model: CrossModal_PCA_PLS,
+                           records: {sc2fc: scripts/experiments/model_benchmark/mse/sc2fc/tables/seed_records.csv, fc2sc: scripts/experiments/model_benchmark/mse/fc2sc/tables/seed_records.csv}}
+  CrossModal_ConditionalGaussian_mse: {type: linear_closed_form, label: "Conditional Gaussian (E2.2)", model: CrossModal_ConditionalGaussian,
+                           records: {sc2fc: scripts/experiments/model_benchmark/mse/sc2fc/tables/seed_records.csv, fc2sc: scripts/experiments/model_benchmark/mse/fc2sc/tables/seed_records.csv}}
+  CrossModal_PCA_PLS_learnable_mse: {type: linear_learned, label: "PCA-PLS learnable (MSE, E2.2)", model: CrossModal_PCA_PLS_learnable,
+                           records: {fc2sc: scripts/experiments/model_benchmark/mse/fc2sc/tables/seed_records.csv}}
+  Krakencoder_paper:      {type: deep_baseline, label: "Krakencoder (paper loss)", objective: "native (paper loss)",
+                           records: {sc2fc: scripts/experiments/composite_loss/krakencoder/sc2fc/tables/seed_records.csv,
+                                     fc2sc: scripts/experiments/composite_loss/krakencoder/fc2sc/tables/seed_records.csv},
+                           combo_id: kraken_default}
+
+directions:
+  sc2fc:
+    source: SC
+    target: FC
+    models: [CrossModal_PCA_PLS_learnable, CrossModal_linear_backbone, CrossModal_PCA_PLS_CovProjector, Sarwar2020MLP]
+    reuse: [CrossModalPCA_mse, CrossModal_PCA_PLS_mse, CrossModal_ConditionalGaussian_mse, Krakencoder_paper]
+  fc2sc:
+    source: FC
+    target: SC
+    # PCA-PLS learnable FC -> SC: its v2:E1 val Pareto front is MSE only, so its E2.2 row stands (no rerun).
+    models: [CrossModal_linear_backbone, CrossModal_PCA_PLS_CovProjector, Sarwar2020MLP]
+    excluded: {CrossModal_PCA_PLS_learnable: "v2:E1 val Pareto front is MSE only: E2.2 MSE row reused"}
+    reuse: [CrossModalPCA_mse, CrossModal_PCA_PLS_mse, CrossModal_ConditionalGaussian_mse, CrossModal_PCA_PLS_learnable_mse, Krakencoder_paper]
+
+# Autonomy (D3 e): cap 80 GPU-h over both directions; time per model = time_factor x pilot wall (capped).
+budget: {gpu_h_cap: 80, time_factor: 1.5, time_cap_h: 12, min_time_h: 0.5, max_retries: 1, max_error_frac: 0.2}
+gate: {}

@@ -1050,6 +1050,9 @@ class Sim:
                     "val_mse": val_metrics.get("mse", np.nan),
                     "val_pearson_r": val_metrics.get("pearson", np.nan),
                     "val_demeaned_r": val_metrics.get("demeaned_pearson", np.nan),
+                    # identifiability on val, so a best-trial report can also be selected on them (spec v3 I1)
+                    "val_avg_rank": val_metrics.get("avg_rank", np.nan),
+                    "val_top1_acc": val_metrics.get("top1_acc", np.nan),
                 }
 
                 checkpoint = None
@@ -1458,6 +1461,12 @@ def _parse_args():
         help="After Tune completes, report comprehensive train/val/test metrics for the best trial only.",
     )
     p.add_argument(
+        "--report_metrics",
+        default="val_demeaned_r",
+        help="Comma list of val metrics (all maximized) to select best-trial reports on, one report each, e.g. "
+             "val_demeaned_r,val_avg_rank. Trials report val_demeaned_r, val_avg_rank, val_top1_acc, val_pearson_r.",
+    )
+    p.add_argument(
         "--store_eval_md",
         action="store_true",
         help="Store the eval markdown report for the test split for a single run or best Tune trial.",
@@ -1498,13 +1507,15 @@ if __name__ == "__main__":
             reuse_actors=(args.tune_reuse_actors == "true"),
         )
         if args.report_best_after_tune or args.store_eval_md:
-            sim.report_best_tune_trial(
-                tune_results,
-                metric="val_demeaned_r",
-                mode="max",
-                report_to_wandb=args.report_best_after_tune,
-                store_eval_md=args.store_eval_md,
-            )
+            # one best-trial report per selection metric (spec v3 I1 / E3: demeaned r and avg rank from one tune)
+            for report_metric in [m.strip() for m in args.report_metrics.split(",") if m.strip()]:
+                sim.report_best_tune_trial(
+                    tune_results,
+                    metric=report_metric,
+                    mode="max",
+                    report_to_wandb=args.report_best_after_tune,
+                    store_eval_md=args.store_eval_md,
+                )
     else:
         sim.run_single(
             mode=args.mode,

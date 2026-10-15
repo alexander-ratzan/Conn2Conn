@@ -1,0 +1,148 @@
+"""Generate the spec v3 E3 composite-loss benchmark configs into models/configs/benchmark/composite/.
+
+Each config = the model's E2.2 MSE benchmark config (models/configs/benchmark/mse/<Model>[_fc2sc].yml) with:
+  - loss: `mse` (weight 1, raw) + the E3 terms (config_composite.yml `terms`) at fixed reference scales
+    (`kwargs.scale`, v2:D6; `loss_normalize: auto` resolves to `none`), weights 0 by default;
+  - the weights searched as `loss_weight_<term>` choices, one key per term with more than one level;
+  - `batch_size` fixed to config_composite.yml `batch_size` (v2:D4) and removed from the search;
+  - num_samples = min(cap, E2.2 trials + per_weight_key x searched weight keys).
+Weight grid per model x direction (D3 b): the combinations on the seed-mean (val demeaned r, val avg rank) Pareto
+front of the model's v2:E1 composite-loss grid (`composite_loss/<instance>/<direction>/tables/seed_records.csv`, val
+metrics only, raw corr-eye combinations excluded); each term's levels = the weights used on the front, plus 0.
+`grid_from: union` takes the union of the three linear instances' levels per direction.
+Reference scales: the instance's `state.yml` (`reference_scales.c`), or composite/reference_scales.yml (measured).
+A model x direction whose grid is MSE only is skipped (its E2.2 row is reused; config_composite.yml `excluded`).
+
+    python scripts/experiments/model_benchmark/build_composite_configs.py           # write configs + composite/grids.yml
+    python scripts/experiments/model_benchmark/build_composite_configs.py --check   # exit 1 if a config is out of date
+"""
+import argparse
+import copy
+import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import yaml
+
+HERE = Path(__file__).resolve().parent
+REPO_ROOT = next(p for p in HERE.parents if (p / "main.py").exists())
+MSE_DIR = REPO_ROOT / "models" / "configs" / "benchmark" / "mse"
+CL = REPO_ROOT / "scripts" / "experiments" / "composite_loss"
+LINEAR_INSTANCES = ["linear_backbone", "pca_pls_learnable", "pca_pls_covprojector"]
+
+
+def pareto_grid(instance, direction, terms):
+    """{term: sorted levels} from the seed-mean val Pareto front of an instance's v2:E1 grid, and the front itself."""
+    df = pd.read_csv(CL / instance / direction / "tables" / "seed_records.csv")
+    df = df[df["w_correye"] == 0]  # raw corr-eye is not an E3 term (v2:D5)
+    cols = [f"w_{t}" for t in terms]
+    g = df.groupby(["combo_id"] + cols)[["val_demeaned_pearson", "val_avg_rank"]].mean().reset_index()
+    dr, rk = g["val_demeaned_pearson"].to_numpy(), g["val_avg_rank"].to_numpy()
+    on = [i for i in range(len(g)) if not np.any((dr >= dr[i]) & (rk >= rk[i]) & ((dr > dr[i]) | (rk > rk[i])))]
+    front = g.iloc[on].sort_values("val_demeaned_pearson", ascending=False)
+    levels = {t: sorted({0.0, *[float(x) for x in front[f"w_{t}"]]}) for t in terms}
+    return levels, front
+
+
+def instance_scales(instance, direction, terms):
+    st = yaml.safe_load((CL / instance / direction / "state.yml").read_text())
+    return {t: float(st["reference_scales"]["c"][t]) for t in terms}
+
+
+def measured_scales(model, direction, terms):
+    p = HERE / "composite" / "reference_scales.yml"
+    if not p.exists():
+        return None
+    rec = (yaml.safe_load(p.read_text()) or {}).get(model, {}).get(direction)
+    return {t: float(rec["c"][t]) for t in terms} if rec else None
+
+
+def mse_config(model, direction):
+    alt = MSE_DIR / f"{model}_fc2sc.yml"
+    return alt if direction == "fc2sc" and alt.exists() else MSE_DIR / f"{model}.yml"
+
+
+def build_one(cfg, model, direction, levels, scales):
+    src = mse_config(model, direction)
+    y = yaml.safe_load(src.read_text())
+    terms = cfg["terms"]
+    trainer = y["default"]["trainer"]
+    trainer["batch_size"] = int(cfg["batch_size"])
+    trainer["loss_type"] = "composite"
+    trainer["loss_terms"] = [{"name": "mse", "weight": 1.0}] + [
+        {"name": t, "weight": 0.0, "kwargs": {"scale": round(scales[t], 6)}} for t in terms]
+    trainer["loss_normalize"] = "auto"
+    search = {k: v for k, v in (y.get("search_space") or {}).items() if k != "batch_size"}
+    weight_keys = [t for t in terms if len(levels[t]) > 1]
+    for t in weight_keys:
+        search[f"loss_weight_{t}"] = {"type": "choice", "values": [float(v) for v in levels[t]]}
+    y["search_space"] = search
+    trials = min(int(cfg["trials"]["cap"]), int(y["benchmark"]["num_samples"]) + int(cfg["trials"]["per_weight_key"]) * len(weight_keys))
+    y["benchmark"] = {"campaign": cfg["campaign"], "source_config": str(src.relative_to(REPO_ROOT)),
+                      "search_alg": y["benchmark"]["search_alg"], "num_samples": trials, "objective": "composite",
+                      "direction": direction, "weight_grid": {t: levels[t] for t in terms},
+                      "reference_scales": {t: round(scales[t], 6) for t in terms}}
+    head = (f"# Spec v3 E3 composite-loss benchmark config for {model} ({direction}). GENERATED by\n"
+            f"# scripts/experiments/model_benchmark/build_composite_configs.py from {src.relative_to(REPO_ROOT)};\n"
+            f"# weight grid = v2:E1 val Pareto front ({cfg['models'][model]['grid_from']}), scales from "
+            f"{cfg['models'][model]['scales_from']}. Do not edit.\n")
+    return head + yaml.safe_dump(y, sort_keys=False, default_flow_style=None, width=110)
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--check", action="store_true")
+    args = ap.parse_args()
+    cfg = yaml.safe_load((HERE / "config_composite.yml").read_text())
+    out = REPO_ROOT / cfg["configs_dir"]
+    out.mkdir(parents=True, exist_ok=True)
+    terms = cfg["terms"]
+    grids = {d: {i: pareto_grid(i, d, terms) for i in LINEAR_INSTANCES} for d in ("sc2fc", "fc2sc")}
+    record, targets, missing = {}, {}, []
+    for direction in ("sc2fc", "fc2sc"):
+        for model in cfg["directions"][direction]["models"]:
+            m = cfg["models"][model]
+            if m["grid_from"] == "union":
+                levels = {t: sorted({v for i in LINEAR_INSTANCES for v in grids[direction][i][0][t]}) for t in terms}
+                front_ids = "union of " + ", ".join(LINEAR_INSTANCES)
+            else:
+                levels, front = grids[direction][m["grid_from"]]
+                front_ids = list(front["combo_id"])
+            if all(len(v) == 1 for v in levels.values()):
+                raise SystemExit(f"{model} {direction}: grid is MSE only; list it under `excluded`, not the roster")
+            scales = (instance_scales(m["scales_from"], direction, terms) if m["scales_from"] != "measured"
+                      else measured_scales(model, direction, terms))
+            if scales is None:
+                missing.append(f"{model} {direction}")
+                continue
+            fname = f"{model}.yml" if direction == "sc2fc" else f"{model}_fc2sc.yml"
+            targets[fname] = build_one(cfg, model, direction, levels, scales)
+            record.setdefault(model, {})[direction] = {"pareto_front": front_ids, "levels": levels,
+                                                       "scales": scales, "scales_from": m["scales_from"]}
+    if missing:
+        print("no reference scales yet (run composite_scales.py):", missing)
+    bad = []
+    for fname, text in targets.items():
+        p = out / fname
+        if args.check:
+            if not p.exists() or p.read_text() != text:
+                bad.append(fname)
+        else:
+            p.write_text(text)
+    if args.check:
+        print("out of date:" if bad else "all composite configs current", bad or "")
+        return 1 if (bad or missing) else 0
+    (HERE / "composite").mkdir(exist_ok=True)
+    (HERE / "composite" / "grids.yml").write_text(
+        "# Spec v3 E3 weight grids (v2:E1 val Pareto fronts) and reference scales; written by build_composite_configs.py.\n"
+        + yaml.safe_dump(record, sort_keys=False, default_flow_style=None, width=110))
+    for fname, text in targets.items():
+        b = yaml.safe_load(text)["benchmark"]
+        n_w = sum(1 for k in yaml.safe_load(text)["search_space"] if k.startswith("loss_weight_"))
+        print(f"{fname:46s} weight keys {n_w}  trials {b['num_samples']:3d}  grid {b['weight_grid']}")
+    return 1 if missing else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
