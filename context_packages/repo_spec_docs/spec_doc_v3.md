@@ -21,14 +21,17 @@ row to the status table.
 | E0 | Which task FC best predicts SC, and which is best predicted from SC (both directions, both parcellations) | done 2026-10-07 | — | agent:infra |
 | E1 | Covariate family ablation for PCA-PLS + covariates, both directions, + unnormalised-SC control | done 2026-10-14 | D2 | agent:infra |
 | E2 | Joint task-FC → SC: do the 7 task-FC blocks add to rest FC? (E2.1 raw, E2.2 predictive residual) | done 2026-10-12 | I5 | agent:infra |
-| I1 | Composite-loss search infrastructure: 4 candidate weightings per direction as a tuned hyperparameter | planned | — | — |
-| I2 | Config layout: family folders (done), one tune launcher, variants as roster overrides | in progress | — | agent:modeling |
-| I3 | Bidirectional graph / nodal models: FC → SC variants with a tuned FC edge threshold | planned | — | — |
+| E3 | Composite-loss cross-model benchmark: v2:E2.2 rerun with composite-loss weights tuned per model and seed | planned | I1, D3 | — |
+| E4 | Task-FC signature above rest: subject-level task − rest residual connectomes, train / val / test means (notebook) | planned | — | — |
+| I1 | Composite-loss benchmark infrastructure: composite configs per model, reference scales, extra val metrics | planned | D3 | — |
+| I2 | Config layout: family folders (done), one tune launcher, variants as roster overrides | done (layout, `5efe03a`); launcher dropped 2026-10-15 | — | — |
+| I3 | Bidirectional graph / nodal models: FC → SC variants with a tuned FC edge threshold | superseded 2026-10-15 (→ v4 nodal-models item, not as a bidirectionality fix) | — | — |
 | I4 | Environment alignment (Jupyter kernel image) and v2 C6 archive deletion | planned | — | user |
 | I5 | Joint task-FC infrastructure: FC conditions as source modalities, CPU grid runner, predictive-residual PCA-PLS, E2 figures | done 2026-10-07 (`01adae6`) | — | agent:infra |
 | C!1 | PCA-PLS + covariates FC → SC gain is anatomy (regional size), not FC; ~40% of it is the `invnodevol` normalisation | resolved 2026-10-14 (E1) | — | — |
 | D1 | E0.2–E0.4 compute envelope and autonomous execution | decided | — | user |
 | D2 | E1 compute envelope and autonomous execution | decided | — | user |
+| D3 | E3 roster, loss-weight grid, batch size, selection metric(s) and compute envelope | pending | — | user |
 
 Carried-over items C1–C8 are all closed or moved; see §4.
 
@@ -47,6 +50,7 @@ mixtures; fixed reference scales).
 |---|---|---|
 | D1 | **E0.2–E0.4 run autonomously (user 2026-10-06):** cap 55 GPU-h for the three steps, cut by 20% (to 44) if queue waits exceed 2 h. Pilots (rest + wm, seed 0) for E0.2 and E0.3; E0.4 starts without its own pilot once both pass. Gate per pilot task: 16 trials, finite metrics, the log's config / direction / parcellation match, rest val demeaned r > 0.05; E0.2 rest seed-0 test demeaned r within 0.02 of v2:E2.2 SC → FC PCA-PLS learnable seed 0 (0.071). Per-step time limit = pilot wall time × 1.5. Stop and report on a gate failure, > 20% task errors after one retry each, a log mismatch, a budget overrun, two GPU-underuse kills of one task, or a Ray hang `watch_jobs.py` cannot clear; relaxing a threshold needs the user. No split-half reliability ceiling (user). | Lets E0 finish without per-stage approval, with explicit exits (as v2:D3). |
 | D2 | **E1 runs autonomously (user 2026-10-12)** through E1.0–E1.4 (see E1) with a 6 GPU-h cap. Gates: E1.1 cache gate, E1.2 pilot gate. Stop and report on a gate failure; on > 20% task errors after one retry each; on a budget overrun; when a log's config / direction / SC metric / covariate set does not match its condition; on a code change outside the files listed in E1 *Changes*; or when another agent's queued or running job imports `models/` or `data/` at the moment E1.0 needs to edit them (rule: jobs read live files). Per-task time limit = pilot wall time × 1.5. Relaxing a threshold needs the user. Commits stay local (no push). | Small, fully specified ablation with frozen hyperparameters; nothing is tuned, so the exits are mechanical. |
+| D3 | **Pending (user):** E3's (a) roster: the learned edge-space models whose composite terms are meaningful at batch 64 (proposed: PCA-PLS learnable, linear backbone, PCA-PLS + covariates †, Sarwar, Nodal MLP; Chen GCN and Nodal GNN train at batch 4 / 8 and are at the null, so they keep their E2.2 MSE rows); (b) the weight grid (proposed `varmatch` {0, 0.1, 0.5}, `correye_dm` {0, 0.1, 0.5, 1}, `neidist` {0, 0.1, 0.5}; MSE-only inside the grid); (c) batch fixed at 64 for every composite run (v2:D4); (d) selection: val demeaned r (primary, as every benchmark) plus a secondary val-avg-rank best-trial report per seed from the same tune; (e) compute cap (estimate ≈ 60–80 GPU-h) and whether it runs autonomously. | Composite terms trade demeaned r for rank / top-1 (v2:E1); selecting on demeaned r alone is expected to land near MSE-only, so the secondary selection decides whether E3 can show the trade-off. |
 
 **Parcellation:** experiments run on Glasser first; the 4S456Parcels replication uses the same configs with
 `parcellation: 4S456Parcels` (caches exist).
@@ -246,52 +250,119 @@ mixtures; fixed reference scales).
   5. Learnable multi-block model and composite losses; 4S456Parcels replication: deprioritized given no linear
      gain.
 
+### E3 — Composite-loss cross-model benchmark   (slug: `model_benchmark/composite`) · status: planned · owner: —
+
+- **Question:** with composite-loss weights tuned per model and seed alongside the other hyperparameters (on the
+  E2.2 splits and protocol), how much does each model gain over its MSE-only E2.2 result, in each direction? Which
+  metrics move (demeaned r vs average rank / top-1)?
+- **Design:** v2:E2.2 unchanged except the loss: seeds 0–4, the default 957-subject cohort and per-seed splits (paired
+  with E2.2), per-seed Optuna tune, MSE + `varmatch` / `correye_dm` / `neidist` at fixed reference scales with
+  weights searched (I1). MSE-only is inside the grid, so a model can only lose to E2.2 through search noise. Batch 64
+  for every composite run (D3 c). Roster per D3 (a). Excluded models keep their E2.2 MSE rows, marked:
+  - closed-form models (no training loss: PCA null, PLS-SVD, PCA-PLS, Conditional Gaussian);
+  - Masked MLP pretrainer (native latent objective);
+  - Krakencoder (its own composite grid, v2:E2.1; reused as reference rows);
+  - Chen GCN and Nodal GNN if D3 (a) keeps them out.
+- **Selection:** val demeaned r (primary, every benchmark's rule). Secondary (D3 d): a second best-trial report per
+  seed selected on val average rank from the same tune, reported as a separate row set. Neither selects on test.
+- **Outputs** (`scripts/experiments/model_benchmark/composite/{sc2fc,fc2sc}/`, tracked like `mse/`):
+  - records, tables and figures in the E2.2 layout (bars per metric, grouped / performance panels, scatter);
+  - per model × seed paired Δ vs E2.2 MSE (same splits);
+  - the selected weights per model × seed (how often each term is switched on);
+  - for the secondary selection, the demeaned r ↔ average rank trade-off per model.
+- **Accept:** every roster model × direction × seed has a verified best-trial report (both selections); tables and
+  figures; write-up section in `model_benchmark.md` (or `composite.md`); E2.2 rows unchanged.
+- **Budget:** D3 (e). Estimate ≈ 60–80 GPU-h. E2.2's learned models took most of its 111.5 GPU-h; the composite
+  terms add little per step; the trial counts rise to the 64 cap for most models.
+- **Then:** the final reoptimized benchmark (the composite winners as the model set) is a v4 item.
+
+### E4 — Task-FC signature above rest   (slug: notebook `scripts/notebooks/EDA/FC_matrix_analysis.ipynb`) · status: planned · owner: —
+
+- **Question:** does each task have a consistent FC signature above rest? Is it reproducible across independent
+  groups of subjects, and how consistently do individual subjects express it? This bears on task-FC data quality
+  and on why E2's task blocks added nothing.
+- **Design:**
+  - Matched 917-subject Glasser cohort, seed-0 train / val / test labels (659 / 74 / 184).
+  - Per subject and task, the residual connectome `D_i^(c) = F_i^(c) − F_i^(rest)`: their own task FC minus their own
+    rest FC.
+  - The *mean* signature is the same under plain or fitted (predictive) subtraction, since it equals μ_c − μ_rest. The
+    E2 over-subtraction issue only affects individual-level analyses.
+- **Outputs (appended cells; the notebook's existing state and the user's uncommitted edits stay untouched):**
+  1. Per task, the train, val and test mean residual connectomes side by side, on a shared symmetric colour scale.
+  2. **Reproducibility:** correlation of the mean signature between splits (train↔val, train↔test, val↔test) per task.
+     The null is the same statistic for `rest_S1 − rest_S2` (no task), which shows the reproducibility of a pure
+     session difference.
+  3. **Strength:** per-edge effect size (mean / SD of `D` across train subjects), with the share of edges with |d| > 0.5.
+  4. **Individual consistency:** per subject, correlation of their `D` with the train-mean signature (val / test
+     subjects scored against the train mean), as distributions per task.
+- **Code:** reusable functions in `data/data_viz.py` next to the existing condition views (compute + plot); the
+  notebook cells call them. Headless execution through `scripts/sbatch/checks/run_notebook_cells.sh` (CPU).
+- **Accept:** the four outputs for all 7 tasks plus the session null; a short summary cell; figures saved under
+  `results/figures/fc_conditions/`.
+- **Budget:** CPU, under 1 node-hour.
+
 ## 3. Infrastructure
 
-### I1 — Composite-loss search infrastructure · status: planned · owner: —
+### I1 — Composite-loss benchmark infrastructure (for E3) · status: planned · owner: —
 
-- **Goal:** the next cross-model benchmark (a future E) can tune composite-loss weightings alongside the other
-  hyperparameters, without new code. Running that benchmark is not part of I1.
+- **Goal:** everything E3 needs to rerun the v2:E2.2 benchmark with composite losses through the existing campaign
+  machinery (`model_benchmark/{build_configs,submit,autopilot,run}.py`, `launch_model.sh`), no new training code.
+  Replaces the earlier 4-weightings-as-one-categorical design: the weights are searched as the existing flat
+  `loss_weight_<term>` keys.
 - **Changes:**
-  1. **Evaluate** the existing composite-loss results (`composite_loss/<model>/{sc2fc,fc2sc}/tables/combo_summary.csv`
-     for linear backbone, PCA-PLS learnable, PCA-PLS + covariates, and Krakencoder) and choose **4 weightings per
-     direction** spanning the demeaned r ↔ average rank / top-1 trade-off (`mse_only` always included; terms from
-     Demeaned corr-eye, Neighbor dist, Var-match per v2:D5). Record the choice and reasoning in `composite_loss.md`.
-  2. **Search support:** the 4 weightings become one categorical hyperparameter (e.g. `loss_combo`) in the Tune search
-     space, resolved to `loss_terms` before training, so they are tuned with `lr` / `l2_reg` / epochs
-     on val demeaned r, as in every benchmark (`model_benchmark/config.yml` `selection`).
-  3. **Configs:** `models/configs/benchmark/composite/` per model and direction (generated by `build_configs.py`), first
-     for the linear backbone, PCA-PLS learnable and Conditional Gaussian.
-- **Accept:** a one-seed smoke tune per direction samples all 4 combos and logs the chosen combo in W&B and the
-  best-trial report; MSE-only configs are unchanged (loss regression passes).
-- **Notes for I1:** v2 E3 Phase D flags (widen linear backbone PCs past 256, PCA-PLS learnable `lr` floor near
-  3e-5); v2 Phase D found no composite term helps FC → SC, so FC → SC may keep fewer than 4.
+  1. **Composite configs:** `build_configs.py --campaign composite` writes `models/configs/benchmark/composite/<Model>[_fc2sc].yml`
+     from each roster model's E2.2 spec: same search space and trial rule (`clamp(8 × free keys, 16, 64)` with the 3
+     weight keys added), plus `loss_terms` = `mse` (weight 1, raw) + `varmatch`, `correye_dm`, `neidist` with fixed
+     `scale` kwargs (v2:D6, `loss_normalize: auto` → `none`), `batch_size: 64` (v2:D4), and the D3 weight grid as
+     `loss_weight_<term>` choices. Raw `correye` excluded (v2:D5).
+  2. **Reference scales per model × direction:** reuse `composite_loss/<model>/<direction>/state.yml` for the linear
+     backbone, PCA-PLS learnable and PCA-PLS + covariates. For the other roster models (Sarwar, Nodal MLP), one MSE-only
+     run per seed at their E2.2 seed-best config with `loss_monitor_terms: [varmatch, correye_dm, neidist]`, then
+     `loss_grid.reference_scales` (c_t = s_t / s_mse), written to `model_benchmark/composite/reference_scales.yml`.
+  3. **Selection extras (`main.py`, additive):** each Tune trial also reports `val_avg_rank` and `val_top1_acc`; a
+     `--select_metric` option for the best-trial report, so `launch_model.sh` can emit a second report selected on
+     val avg rank from the same tune (D3 d).
+  4. **Campaign config:** a `composite` section in `model_benchmark/config.yml` (or `config_composite.yml`): campaign
+     `e3_comp`, `results_dir: composite`, roster per D3, packing / times from E2.2, budget cap per D3, MSE rows of
+     excluded models reused from `mse/`.
+- **Accept:**
+  - MSE configs unchanged (`build_configs.py --check`; loss regression passes);
+  - a composite config with all weights 0 reproduces the E2.2 seed-0 trial of the same config;
+  - one smoke tune per direction samples non-zero weights, logs `loss_signature`, `val_avg_rank`, `val_top1_acc`,
+    and writes both best-trial reports;
+  - the reference scales of the two new models are within the per-seed spread of the existing instances' values
+    for the same terms (sanity, not a gate).
+- **Budget:** reference-scale runs ≈ 1–2 GPU-h; smoke tunes ≈ 1 GPU-h.
 
-### I2 — Config layout and one tune launcher · status: in progress · owner: agent:modeling
+### I2 — Config layout and one tune launcher · status: done (layout); launcher dropped 2026-10-15 · owner: —
 
-- **Goal:** one generic launcher and roster-driven variants, so experiments stop adding per-model sbatch scripts.
 - **Done:** v2:I2.3 merged 2026-10-05 (`5efe03a`): family folders `models/configs/{null_ceiling,linear,latent,graph_nodal,deep}/`,
-  `variants/<family>/`, name-based lookup; checks pass on `main`.
-- **Changes (remaining):** `scripts/sbatch/launch_tune.sh` + roster `submit.py`; per-model sbatch folders move to
-  `scripts/sbatch/legacy/`; source / covariate variants as `data:` / `model:` roster overrides.
-- **Accept:** one E2.2 model reproduces its seed-0 tune via the new launcher; `build_configs.py --check` passes.
+  `variants/<family>/`, name-based lookup.
+- **Dropped (user 2026-10-15):** the generic `launch_tune.sh` + roster `submit.py`. Every campaign since (v2:E2.2,
+  E0, E1, E2) runs from its experiment folder (`config.yml` + `submit.py` / `autopilot.py` + `launch.sh`), which has
+  replaced it; the per-model `scripts/sbatch/<Model>/` arrays stay as legacy.
 
-### I3 — Bidirectional graph / nodal models · status: planned · owner: —
+### I3 — Bidirectional graph / nodal models · status: superseded 2026-10-15 (→ v4) · owner: —
 
-- **Goal:** every benchmark model runs in both directions. Chen GCN, Nodal GNN and Nodal MLP currently have no
-  FC → SC variant (v2:E2.0) and are excluded from the FC → SC benchmark.
-- **Changes:** for FC → SC, message passing on FC thresholded at `fc_graph_threshold`, a tuned hyperparameter
-  (tuned on val demeaned r like the other hyperparameters); no SC-derived node inputs (`use_r2t: false`); Nodal MLP reads FC rows; a
-  guard refusing `target == "SC"` with SC-derived inputs.
-- **Accept:** small contained check: FC → SC seed-0 tune per model on the E2.2 protocol, results in the E2.2 FC → SC
-  tables (above or at the null is fine; SC → FC they are at the null). Guard covered by a unit check.
-- **Budget:** ≈ 3 GPU-h (3 models × one seed).
+- Moved to v4 (user 2026-10-15) as part of a nodal-models item, not as a bidirectionality fix: the FC → SC variants
+  (FC graph at a tuned threshold, no SC-derived node inputs, `target == "SC"` guard) join the backlog's "graph / nodal
+  models on top of the mean". Chen GCN, Nodal GNN and Nodal MLP stay SC → FC only in v3.
 
 ### I4 — Environment alignment · status: planned · owner: user
 
-- Jobs have run clean on `/ext3/env.sh` + the cuda12.8.1 image since 2026-09-30. Remaining: point the Jupyter kernel
-  wrapper (`~/.local/share/jupyter/kernels/kraken_env/python`, still cuda12.3.2) and `activate_env.sh` at the same
-  image, then delete `/scratch/asr655/envs/archive/2026-09-30_c6/`.
+- Jobs have run clean on `/ext3/env.sh` + the cuda12.8.1 (Ubuntu 24.04) image since 2026-09-30, E0–E2 included.
+- **What is left, and why it matters:**
+  1. The Jupyter kernel wrapper (`~/.local/share/jupyter/kernels/kraken_env/python`) still starts the cuda12.3.2
+     (Ubuntu 22.04) image. Notebooks therefore run the same overlay packages on a different base image (CUDA runtime,
+     glibc) than the jobs. No failure seen so far, but a notebook result is not strictly the job environment.
+     `/scratch/asr655/envs/README.md` still lists 12.3.2 for `kraken_env`.
+  2. `/scratch/asr655/envs/archive/2026-09-30_c6/` (14 GB: the pre-C6 overlay backup, installer, one log). Its
+     MANIFEST's delete condition (post-C6 jobs run clean) has been met for two weeks. Deleting it is irreversible, so
+     it is the user's call.
+  3. `envs/activate_env.sh` is a third stack (`pylibs`, torch 2.11), used only interactively.
+- **Necessity:** low; hygiene plus 14 GB. Nothing in v3 is blocked by it.
+- **Proposed:** point the kernel wrapper and the envs README at 12.8.1, delete the archive, and document
+  `activate_env.sh` as interactive-only (or retire it). This takes about 10 minutes once approved.
 
 ### I5 — Joint task-FC infrastructure (for E2) · status: done 2026-10-07 (`01adae6`) · owner: agent:infra
 
@@ -341,7 +412,8 @@ mixtures; fixed reference scales).
 ## 5. Backlog (not scheduled)
 
 - **Graph / nodal models on top of the mean** (v2:E0): GNNs on the deviation from the train-split mean FC, or on PCA
-  scores / low-rank factors, including an SC-only `NodalGNN`. Pilot per v2:D2 against PCA-PLS learnable. After I3.
+  scores / low-rank factors, including an SC-only `NodalGNN`. Pilot per v2:D2 against PCA-PLS learnable. Absorbs I3
+  (FC → SC variants: FC graph at a tuned threshold, no SC-derived node inputs); a v4 nodal-models item.
 - **Editable install** (`pyproject.toml` + `pip install -e .`) and `conn2conn/` namespacing.
 - **Artifact cleanup / storage** (audit 2026-10-06; repo ≈ 2.3 TB, user wants to revisit it):
   - `results/ray_tmp` 768 GB and `results/ray_checkpoints` 699 GB, mostly sessions and trial storage from Feb–Apr and
@@ -372,6 +444,7 @@ mixtures; fixed reference scales).
 | 2026-10-07 | E2 (joint task-FC → SC, raw vs predictive residual) and I5 specified; grid sized from v2:E2.2 trials and the SC reconstruction ceiling; PLS truncation benchmarked (CPU, ≈ 5–12 s per fit). |
 | 2026-10-12 | E2 done: task-FC blocks add no FC → SC signal over rest (raw or predictive residual; −0.005 to −0.018 demeaned r, all seeds); test-oracle bound rules out a selection artifact; edge extension `k_rest` 640 / `k_sc` 8; convergence check OK. I5 done. |
 | 2026-10-14 | E1 done: E1.1 cache gate moved to Spearman + zero pattern (user). FC → SC covariate gain (+0.077 demeaned r, +0.31 top-1) is regional size (area ≈ volumes, overlapping); none in SC → FC; ~40% of it disappears on unnormalised SC, the rest stays. C!1 resolved (reworded). |
+| 2026-10-15 | Stock-take (user): I2 launcher dropped (layout done); I3 → v4 as a nodal-models item; I4 necessity written out; I1 re-scoped to composite-benchmark infrastructure; E3 (composite-loss cross-model benchmark) and E4 (task-FC signature above rest, notebook) added; D3 pending. |
 | 2026-10-12 | E1 specified (user): 4 covariate families (`demo`, `fs_vol`, `fs_area`, `fs_thick`), 10 conditions × 2 directions × 5 seeds with frozen E2.2 configs, plus an unnormalised-SC (`sift_radius2_count`) FC → SC control; 3 figures. D2 (autonomous execution, 6 GPU-h cap) proposed. |
 
-Last updated at: 2026-10-14 EDT (E1 done)
+Last updated at: 2026-10-15 EDT
