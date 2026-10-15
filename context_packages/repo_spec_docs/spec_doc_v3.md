@@ -21,9 +21,9 @@ row to the status table.
 | E0 | Which task FC best predicts SC, and which is best predicted from SC (both directions, both parcellations) | done 2026-10-07 | — | agent:infra |
 | E1 | Covariate family ablation for PCA-PLS + covariates, both directions, + unnormalised-SC control; E1.5 node-size follow-up | done 2026-10-15 | D2 | agent:infra |
 | E2 | Joint task-FC → SC: do the 7 task-FC blocks add to rest FC? (E2.1 raw, E2.2 predictive residual) | done 2026-10-12 | I5 | agent:infra |
-| E3 | Composite-loss cross-model benchmark: v2:E2.2 rerun with composite-loss weights tuned per model and seed | planned | I1, D3 | agent:infra |
+| E3 | Composite-loss cross-model benchmark: v2:E2.2 rerun with composite-loss weights tuned per model and seed | in progress (SC → FC pilots) | I1, D3 | agent:infra |
 | E4 | Task-FC signature above rest: subject-level task − rest residual connectomes, train / val / test means (notebook) | done 2026-10-15 | — | agent:infra |
-| I1 | Composite-loss benchmark infrastructure: composite configs per model, reference scales, extra val metrics | planned | D3 | agent:infra |
+| I1 | Composite-loss benchmark infrastructure: composite configs per model, reference scales, extra val metrics | done 2026-10-15 (`ff0c9aa`; Sarwar scales running) | D3 | agent:infra |
 | I2 | Config layout: family folders (done), one tune launcher, variants as roster overrides | done (layout, `5efe03a`); launcher dropped 2026-10-15 | — | — |
 | I3 | Bidirectional graph / nodal models: FC → SC variants with a tuned FC edge threshold | superseded 2026-10-15 (→ v4 nodal-models item, not as a bidirectionality fix) | — | — |
 | I4 | Environment alignment (Jupyter kernel image) and v2 C6 archive deletion | dropped 2026-10-15 (user: everything works) | — | — |
@@ -281,7 +281,7 @@ mixtures; fixed reference scales).
   5. Learnable multi-block model and composite losses; 4S456Parcels replication: deprioritized given no linear
      gain.
 
-### E3 — Composite-loss cross-model benchmark   (slug: `model_benchmark/composite`) · status: planned · owner: —
+### E3 — Composite-loss cross-model benchmark   (slug: `model_benchmark/composite`) · status: in progress · owner: agent:infra
 
 - **Question:** with composite-loss weights tuned per model and seed alongside the other hyperparameters (on the
   E2.2 splits and protocol), how much does each model gain over its MSE-only E2.2 result, in each direction? Which
@@ -363,7 +363,7 @@ mixtures; fixed reference scales).
 
 ## 3. Infrastructure
 
-### I1 — Composite-loss benchmark infrastructure (for E3) · status: planned · owner: —
+### I1 — Composite-loss benchmark infrastructure (for E3) · status: done 2026-10-15 (`ff0c9aa`) · owner: agent:infra
 
 - **Goal:** everything E3 needs to rerun the v2:E2.2 benchmark with composite losses through the existing campaign
   machinery (`model_benchmark/{build_configs,submit,autopilot,run}.py`, `launch_model.sh`), no new training code.
@@ -392,6 +392,15 @@ mixtures; fixed reference scales).
     and writes both best-trial reports;
   - the reference scales of the two new models are within the per-seed spread of the existing instances' values
     for the same terms (sanity, not a gate).
+- **Result:** `ff0c9aa`. Grids (`model_benchmark/composite/grids.yml`, val Pareto fronts):
+  - linear backbone: SC → FC 3 keys / 72 trials; FC → SC 3 keys / 72 trials;
+  - PCA-PLS learnable: SC → FC 3 keys / 88 trials; FC → SC front is MSE only, so its E2.2 row is reused;
+  - CovProjector: SC → FC 3 keys / 88 trials; FC → SC varmatch only / 72 trials;
+  - Sarwar: union grid + measured scales (job `19954909`).
+
+  Checks: E2.2 `mse/` outputs re-render byte-identical after the tooling refactor. `check_composite` (job `19954918`): a
+  composite config with all weights 0 trains identically to the E2.2 MSE config (diff 0; test demeaned r 0.071336 vs
+  the E2.2 record 0.071332). `sbatch --export` comma splitting caught in a dry run (metrics passed `+`-joined).
 - **Budget:** reference-scale runs ≈ 1–2 GPU-h; smoke tunes ≈ 1 GPU-h.
 
 ### I2 — Config layout and one tune launcher · status: done (layout); launcher dropped 2026-10-15 · owner: —
