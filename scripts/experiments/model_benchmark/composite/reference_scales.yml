@@ -1,0 +1,50 @@
+# Spec v3 E3 measured reference scales (composite_scales.py --combine); c_t = s_t / s_mse over seeds.
+Sarwar2020MLP:
+  fc2sc:
+    c:
+      varmatch: 175.4327027052189
+      correye: 12553.941698311715
+      correye_dm: 2036.072111764073
+      neidist: 87.76113063280326
+    spread_cv:
+      varmatch: 0.012053108855274436
+      correye: 0.03985524497514579
+      correye_dm: 0.018901061143572002
+      neidist: 0.691732851363536
+    s_abs_mean:
+      mse: 0.00458662318997085
+      varmatch: 0.804643702507019
+      correye: 57.580200119018556
+      correye_dm: 9.338695564270019
+      neidist: 0.4025272369384766
+    neidist_signed_mean: -0.13526618957519532
+    seeds:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+  sc2fc:
+    c:
+      varmatch: 62.56196337261524
+      correye: 5948.939546873214
+      correye_dm: 1373.593656254241
+      neidist: 524.7377162366913
+    spread_cv:
+      varmatch: 0.04478812489119248
+      correye: 0.4259893604196243
+      correye_dm: 0.2622889008706027
+      neidist: 1.621422148254892
+    s_abs_mean:
+      mse: 0.008432184886187315
+      varmatch: 0.5275340420007706
+      correye: 50.16255813598633
+      correye_dm: 11.582395668029786
+      neidist: 4.4246854400634765
+    neidist_signed_mean: -4.4246854400634765
+    seeds:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4

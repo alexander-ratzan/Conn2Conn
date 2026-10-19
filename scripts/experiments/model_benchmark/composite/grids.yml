@@ -42,3 +42,20 @@ CrossModal_PCA_PLS_CovProjector:
       neidist: [0.0]
     scales: {varmatch: 206.30772976456694, correye_dm: 1921.6130636892408, neidist: 596.5150100752134}
     scales_from: pca_pls_covprojector
+Sarwar2020MLP:
+  sc2fc:
+    pareto_front: union of linear_backbone, pca_pls_learnable, pca_pls_covprojector
+    levels:
+      varmatch: [0.0, 0.1, 0.5, 1.0]
+      correye_dm: [0.0, 0.1, 0.5, 1.0]
+      neidist: [0.0, 0.1, 0.5, 1.0]
+    scales: {varmatch: 62.56196337261524, correye_dm: 1373.593656254241, neidist: 524.7377162366913}
+    scales_from: measured
+  fc2sc:
+    pareto_front: union of linear_backbone, pca_pls_learnable, pca_pls_covprojector
+    levels:
+      varmatch: [0.0, 0.1, 0.5]
+      correye_dm: [0.0, 0.1]
+      neidist: [0.0, 0.1]
+    scales: {varmatch: 175.4327027052189, correye_dm: 2036.072111764073, neidist: 87.76113063280326}
+    scales_from: measured

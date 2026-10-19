@@ -1,0 +1,61 @@
+{
+ "model": "Sarwar2020MLP",
+ "direction": "sc2fc",
+ "seed": 4,
+ "batch_size": 64,
+ "config": {
+  "model": {
+   "dropout": 0.141982504992257,
+   "hidden_dim": 512,
+   "l2_reg": 3.4539976577365114e-06,
+   "num_hidden_layers": 3
+  },
+  "trainer": {
+   "lr": 2.976041847755615e-05,
+   "max_epochs": 300,
+   "loss_type": "composite",
+   "loss_terms": [
+    {
+     "name": "mse",
+     "weight": 1.0
+    }
+   ],
+   "loss_normalize": "none",
+   "loss_monitor_terms": [
+    "varmatch",
+    "correye",
+    "correye_dm",
+    "neidist"
+   ],
+   "batch_size": 64,
+   "log_every": 1
+  }
+ },
+ "term_scales": {
+  "mse": {
+   "abs_mean": 0.010180412884801626,
+   "mean": 0.010180412884801626,
+   "n_batches": 10
+  },
+  "varmatch": {
+   "abs_mean": 0.6505792379379273,
+   "mean": 0.6505792379379273,
+   "n_batches": 10
+  },
+  "correye": {
+   "abs_mean": 51.222399139404295,
+   "mean": 51.222399139404295,
+   "n_batches": 10
+  },
+  "correye_dm": {
+   "abs_mean": 13.250571250915527,
+   "mean": 13.250571250915527,
+   "n_batches": 10
+  },
+  "neidist": {
+   "abs_mean": 0.8485292434692383,
+   "mean": -0.8485292434692383,
+   "n_batches": 10
+  }
+ }
+}
