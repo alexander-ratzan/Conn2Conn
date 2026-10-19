@@ -13,6 +13,8 @@ from models.eval.metrics import (
     compute_pearson_r,
     compute_prediction_norm_ratio,
     compute_prediction_variance_ratio,
+    corr_avg_rank,
+    corr_topn_accuracy,
 )
 
 def evaluate_model(model, data_loader, target_train_mean, device):
@@ -20,7 +22,8 @@ def evaluate_model(model, data_loader, target_train_mean, device):
     Evaluate model predictions over a data loader.
 
     Returns batch-averaged MSE, correlation, demeaned correlation, variance ratio,
-    and norm ratio metrics.
+    and norm ratio metrics, plus the split-level average rank and top-1 accuracy of the subject x subject
+    correlation matrix (rows = targets, as Evaluator; spec v3 I1: selectable in Tune).
     """
     model.eval()
     total_mse = 0.0
@@ -29,6 +32,7 @@ def evaluate_model(model, data_loader, target_train_mean, device):
     total_variance_ratio = 0.0
     total_norm_ratio = 0.0
     n_batches = 0
+    all_pred, all_true = [], []
 
     target_mean_tensor = torch.tensor(target_train_mean, dtype=torch.float32, device=device)
 
@@ -56,8 +60,13 @@ def evaluate_model(model, data_loader, target_train_mean, device):
             total_variance_ratio += compute_prediction_variance_ratio(y_pred, y)
             total_norm_ratio += compute_prediction_norm_ratio(y_pred, y)
             n_batches += 1
+            all_pred.append(y_pred.detach().float().cpu())
+            all_true.append(y.detach().float().cpu())
 
+    cc = compute_corr_matrix(torch.cat(all_true).numpy(), torch.cat(all_pred).numpy())
     return {
+        "avg_rank": float(corr_avg_rank(cc=cc)),
+        "top1_acc": float(corr_topn_accuracy(cc=cc, topn=1)),
         "mse": total_mse / n_batches,
         "pearson_r": total_pearson_r / n_batches,
         "demeaned_r": total_demeaned_r / n_batches,

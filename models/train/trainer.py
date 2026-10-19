@@ -75,6 +75,8 @@ class ValidationEvalCallback(pl.Callback):
             "val_demeaned_r": val_metrics["demeaned_r"],
             "val_variance_ratio": val_metrics["variance_ratio"],
             "val_norm_ratio": val_metrics["norm_ratio"],
+            "val_avg_rank": val_metrics["avg_rank"],
+            "val_top1_acc": val_metrics["top1_acc"],
         }
         for key, value in cm.items():
             if key.startswith(("train_loss_term_", "val_loss_term_", "train_loss_raw_", "val_loss_raw_", "train_loss_ref_", "val_loss_ref_")):
@@ -84,6 +86,8 @@ class ValidationEvalCallback(pl.Callback):
         pl_module.log("val_demeaned_r", val_metrics["demeaned_r"], on_epoch=True, prog_bar=True)
         pl_module.log("val_variance_ratio", val_metrics["variance_ratio"], on_epoch=True)
         pl_module.log("val_norm_ratio", val_metrics["norm_ratio"], on_epoch=True)
+        pl_module.log("val_avg_rank", val_metrics["avg_rank"], on_epoch=True)
+        pl_module.log("val_top1_acc", val_metrics["top1_acc"], on_epoch=True)
         if trainer.current_epoch % self.log_every == 0 or trainer.current_epoch == 0:
             if self.log_train and self.train_loader is not None:
                 train_metrics = evaluate_model(

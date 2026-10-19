@@ -1003,6 +1003,8 @@ class Sim:
                     "val_loss": "val_loss",
                     "val_demeaned_r": "val_demeaned_r",
                     "val_pearson_r": "val_pearson_r",
+                    "val_avg_rank": "val_avg_rank",  # spec v3 I1: best-trial reports selectable on these
+                    "val_top1_acc": "val_top1_acc",
                 }
                 # Per-term composite losses, so Tune trial W&B runs carry the term breakdown.
                 tune_metrics.update({

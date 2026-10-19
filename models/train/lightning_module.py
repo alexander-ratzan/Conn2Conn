@@ -22,6 +22,9 @@ from models.eval.metrics import (
     compute_demeaned_pearson_r,
     compute_prediction_variance_ratio,
     compute_prediction_norm_ratio,
+    compute_corr_matrix,
+    corr_avg_rank,
+    corr_topn_accuracy,
 )
 from models.architectures.utils import get_model_input
 
@@ -105,6 +108,7 @@ class CrossModalLightningModule(pl.LightningModule):
         self.cosine_t_mult = int(cosine_t_mult)
         self.cosine_eta_min_ratio = float(cosine_eta_min_ratio)
         self._target_train_mean = None
+        self._val_epoch_preds, self._val_epoch_targets = [], []
         self.loss_fn = None
 
     def setup(self, stage=None):
@@ -290,6 +294,8 @@ class CrossModalLightningModule(pl.LightningModule):
         vr = compute_prediction_variance_ratio(y_pred, y)
         nr = compute_prediction_norm_ratio(y_pred, y)
         aux_losses = self._compute_aux_losses(batch, y_pred, y)
+        self._val_epoch_preds.append(y_pred.detach().float().cpu())
+        self._val_epoch_targets.append(y.detach().float().cpu())
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log("val_pearson_r", pr, on_step=False, on_epoch=True, prog_bar=True)
         self.log("val_demeaned_r", dr, on_step=False, on_epoch=True, prog_bar=True)
@@ -305,6 +311,18 @@ class CrossModalLightningModule(pl.LightningModule):
             self.log("val_latent_weighted_mse", aux_losses["latent_weighted_mse"], on_step=False, on_epoch=True)
 
         return loss
+
+    def on_validation_epoch_start(self):
+        self._val_epoch_preds, self._val_epoch_targets = [], []
+
+    def on_validation_epoch_end(self):
+        # Split-level identifiability (spec v3 I1 / E3): average rank and top-1 of the val subject x subject correlation
+        # matrix (rows = targets, as Evaluator), so Tune trials can be selected on val_avg_rank.
+        if self._val_epoch_preds:
+            cc = compute_corr_matrix(torch.cat(self._val_epoch_targets).numpy(), torch.cat(self._val_epoch_preds).numpy())
+            self.log("val_avg_rank", float(corr_avg_rank(cc=cc)), on_step=False, on_epoch=True)
+            self.log("val_top1_acc", float(corr_topn_accuracy(cc=cc, topn=1)), on_step=False, on_epoch=True)
+        self._val_epoch_preds, self._val_epoch_targets = [], []
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
