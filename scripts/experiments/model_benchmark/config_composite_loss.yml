@@ -23,6 +23,8 @@ weight_grid:
 # Ray actor reuse off (E3 only): with composite terms, reused actors failed reset_config and left Tune idle until the
 # cluster's GPU-underuse policy killed the task (2026-10-19 pilots). E2.2 keeps its default (on).
 tune_reuse_actors: false
+# Lightning's default per-trial ModelCheckpoint (unused weights in Ray's working dir); off unless set true here.
+tune_lightning_checkpoints: false
 
 types:
   linear_closed_form: {label: "Linear (closed-form)", color: "#8DB8E8", header_color: "#3775BA"}

@@ -26,7 +26,7 @@ case "${DIRECTION}" in
 esac
 CONN2CONN_DIR="/scratch/asr655/neuroinformatics/Conn2Conn"
 # Campaign settings from submit.py / autopilot.py (--export): E2.2 defaults; spec v3 E3 sets the composite ones.
-TUNE_REUSE_ACTORS="${TUNE_REUSE_ACTORS:-true}"
+TUNE_REUSE_ACTORS="${TUNE_REUSE_ACTORS:-true}"; TUNE_LIGHTNING_CHECKPOINTS="${TUNE_LIGHTNING_CHECKPOINTS:-false}"
 CAMPAIGN="${CAMPAIGN:-e2_mse}"; CONFIG_DIR="${CONFIG_DIR:-models/configs/benchmark/mse}"; REPORT_METRICS="${REPORT_METRICS:-val_demeaned_r}"
 CONFIG="${CONFIG_DIR}/${MODEL}.yml"
 [ "${DIRECTION}" = "fc2sc" ] && [ -f "${CONN2CONN_DIR}/${CONFIG_DIR}/${MODEL}_fc2sc.yml" ] && CONFIG="${CONFIG_DIR}/${MODEL}_fc2sc.yml"
@@ -38,7 +38,7 @@ cd "${CONN2CONN_DIR}"
 export RAY_worker_register_timeout_seconds=120 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 
 echo "Starting job ${SLURM_JOB_ID} (task ${SLURM_ARRAY_TASK_ID}) on $(hostname) at $(date)"
-echo "Campaign=${CAMPAIGN} Model=${MODEL} Direction=${DIRECTION} Source=${SOURCE} Target=${TARGET} Config=${CONFIG} Seed=${SEED} (${NUM_SAMPLES} samples, ${SEARCH_ALG}, ${MAX_CONCURRENT} x ${GPUS_PER_TRIAL} GPU, reuse_actors=${TUNE_REUSE_ACTORS})"
+echo "Campaign=${CAMPAIGN} Model=${MODEL} Direction=${DIRECTION} Source=${SOURCE} Target=${TARGET} Config=${CONFIG} Seed=${SEED} (${NUM_SAMPLES} samples, ${SEARCH_ALG}, ${MAX_CONCURRENT} x ${GPUS_PER_TRIAL} GPU, reuse_actors=${TUNE_REUSE_ACTORS}, lightning_ckpt=${TUNE_LIGHTNING_CHECKPOINTS})"
 
 # GPU utilisation log (the cluster cancels jobs averaging < 50% GPU use for > 2 h, warns below 70%): one sample per
 # 30 s next to this task's log (<log>.gpu.csv); the mean is printed when the task exits.
@@ -82,6 +82,7 @@ singularity exec --nv \
       --tune_cpus_per_trial ${CPUS_PER_TRIAL} \
       --tune_gpus_per_trial ${GPUS_PER_TRIAL} \
       --tune_reuse_actors ${TUNE_REUSE_ACTORS:-true} \
+      --tune_lightning_checkpoints ${TUNE_LIGHTNING_CHECKPOINTS} \
       --report_best_after_tune \
       --report_metrics ${REPORT_METRICS//+/,} \
       --store_eval_md

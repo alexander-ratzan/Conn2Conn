@@ -31,10 +31,12 @@ def configs_dir(cfg=None):
 
 
 def launcher_export(cfg):
-    """sbatch --export for launch_model.sh: campaign name, config dir, best-trial report metrics, Ray actor reuse."""
+    """sbatch --export for launch_model.sh: campaign name, config dir, best-trial report metrics, Ray actor reuse,
+    Lightning per-trial checkpoints (off unless the campaign sets `tune_lightning_checkpoints: true`)."""
     return (f"--export=ALL,CAMPAIGN={cfg['campaign']},CONFIG_DIR={cfg.get('configs_dir', 'models/configs/benchmark/mse')},"
             f"REPORT_METRICS={'+'.join(cfg.get('report_metrics', ['val_demeaned_r']))},"
-            f"TUNE_REUSE_ACTORS={'true' if cfg.get('tune_reuse_actors', True) else 'false'}")  # '+': --export splits on ','
+            f"TUNE_REUSE_ACTORS={'true' if cfg.get('tune_reuse_actors', True) else 'false'},"
+            f"TUNE_LIGHTNING_CHECKPOINTS={'true' if cfg.get('tune_lightning_checkpoints', False) else 'false'}")  # '+': --export splits on ','
 
 
 def job_name(cfg, model, direction, prefix=None):

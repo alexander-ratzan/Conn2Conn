@@ -715,6 +715,7 @@ class Sim:
         search_alg: str = "random",
         persist_final_artifacts: bool = False,
         reuse_actors: bool = True,
+        trial_lightning_checkpoints: bool = False,
     ):
         """
         Run Ray Tune for this model. Returns ResultGrid.
@@ -722,6 +723,10 @@ class Sim:
         reuse_actors=True keeps each Ray worker process across trials, so the worker's
         _WORKER_CACHE (HCP_Base, partitions, DataLoaders) is built once per worker instead
         of once per trial.
+
+        trial_lightning_checkpoints=False turns off Lightning's default per-trial ModelCheckpoint (a weights file per
+        trial in Ray's working dir, never read: selection uses Tune's metrics, the reported model is the best-trial
+        retrain, and TuneReportCheckpointCallback saves its own checkpoint via trainer.save_checkpoint).
 
         For a single run with wandb logging (no Ray), use run_single(mode="prod") instead.
         """
@@ -1016,7 +1021,8 @@ class Sim:
                 callbacks = [TuneReportCallback(metrics=tune_metrics, on="validation_end"),
                             TuneReportCheckpointCallback(metrics=tune_metrics, filename="checkpoint",on="fit_end")] # train_end, fit_end
                 
-                trainer = pl.Trainer(max_epochs=epochs, logger=False, callbacks=callbacks, enable_progress_bar=False)
+                trainer = pl.Trainer(max_epochs=epochs, logger=False, callbacks=callbacks, enable_progress_bar=False,
+                                     enable_checkpointing=trial_lightning_checkpoints)
                 trainer.fit(pl_module, train_dataloaders=train_loader, val_dataloaders=val_loader)
                 final_report = {}
                 for metric_name in tune_metrics:
@@ -1468,6 +1474,12 @@ def _parse_args():
         help="Reuse Ray Tune worker processes across trials (keeps the per-worker data cache). Default true.",
     )
     p.add_argument(
+        "--tune_lightning_checkpoints",
+        choices=["true", "false"],
+        default=os.environ.get("TUNE_LIGHTNING_CHECKPOINTS", "false").strip().lower(),
+        help="Keep Lightning's default per-trial ModelCheckpoint in Tune trials (unused weights files). Default false.",
+    )
+    p.add_argument(
         "--report_best_after_tune",
         action="store_true",
         help="After Tune completes, report comprehensive train/val/test metrics for the best trial only.",
@@ -1517,6 +1529,7 @@ if __name__ == "__main__":
             search_alg=args.search_alg,
             persist_final_artifacts=(args.save_checkpoint or args.report_best_after_tune or args.store_eval_md),
             reuse_actors=(args.tune_reuse_actors == "true"),
+            trial_lightning_checkpoints=(args.tune_lightning_checkpoints == "true"),
         )
         if args.report_best_after_tune or args.store_eval_md:
             # one best-trial report per selection metric (spec v3 I1 / E3: demeaned r and avg rank from one tune)
