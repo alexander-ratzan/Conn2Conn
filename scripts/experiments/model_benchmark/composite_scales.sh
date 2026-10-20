@@ -1,6 +1,6 @@
 #!/bin/bash
-# Spec v3 E3 / I1: Sarwar reference scales, array task i -> direction [sc2fc, fc2sc][i / 5], seed i % 5.
-#   sbatch scripts/experiments/model_benchmark/composite_scales.sh        (then: composite_scales.py --combine)
+# Spec v3 E3 / I1: reference scales for MODEL (default Sarwar2020MLP), array task i -> direction [sc2fc, fc2sc][i / 5], seed i % 5.
+#   sbatch --export=ALL,MODEL=<Model> scripts/experiments/model_benchmark/composite_scales.sh   (then: composite_scales.py --combine)
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced
 #SBATCH --ntasks-per-node=1

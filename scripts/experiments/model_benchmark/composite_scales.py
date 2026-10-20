@@ -1,9 +1,9 @@
-"""Spec v3 E3 / I1: fixed reference scales for roster models without a v2:E1 composite-loss instance (Sarwar).
+"""Spec v3 E3 / I1: fixed reference scales for every E3 roster model, measured the same way for each.
 
 As v2:E1.3 (`loss_grid.measure_term_scales` / `reference_scales`): per seed, train the model MSE-only at its E2.2
 seed-best config (model_benchmark/mse/<direction>/records.json) at batch 64, measure each term's mean |raw| over full
 training batches, then c_t = mean_seeds(s_t) / mean_seeds(s_mse). One (direction, seed) per call; --combine writes
-composite/reference_scales.yml, which build_composite_configs.py reads (`scales_from: measured`).
+composite_loss/reference_scales.yml, which build_composite_configs.py reads.
 
     python scripts/experiments/model_benchmark/composite_scales.py --model Sarwar2020MLP --direction sc2fc --seed 0
     python scripts/experiments/model_benchmark/composite_scales.py --combine
@@ -18,7 +18,7 @@ import yaml
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = next(p for p in HERE.parents if (p / "main.py").exists())
 sys.path.insert(0, str(REPO_ROOT))
-PARTS = HERE / "composite" / "reference_scales_parts"
+PARTS = HERE / "composite_loss" / "reference_scales_parts"
 DIRS = {"sc2fc": ("SC", "FC"), "fc2sc": ("FC", "SC")}
 
 
@@ -54,7 +54,7 @@ def combine():
         r = json.loads(p.read_text())
         by.setdefault(r["model"], {}).setdefault(r["direction"], {})[int(r["seed"])] = r["term_scales"]
     out = {m: {d: reference_scales(s) for d, s in ds.items()} for m, ds in by.items()}
-    (HERE / "composite" / "reference_scales.yml").write_text(
+    (HERE / "composite_loss" / "reference_scales.yml").write_text(
         "# Spec v3 E3 measured reference scales (composite_scales.py --combine); c_t = s_t / s_mse over seeds.\n"
         + yaml.safe_dump(json.loads(json.dumps(out)), sort_keys=False, width=110))
     for m, ds in out.items():

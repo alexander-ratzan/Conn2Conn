@@ -1244,7 +1244,15 @@ class Sim:
             with open(os.path.join(canonical_artifact_dir, "artifact_manifest.json")) as f:
                 manifest = json.load(f)
 
-        if self.learned:
+        # One tune can be reported under several selection metrics (spec v3 E3); a trial already retrained for an
+        # earlier metric is reused, not retrained (the retrain tail is GPU-idle time on the cluster's usage policy).
+        reused = getattr(self, "_best_trial_runs", {}).get(best_trial_id) if self.learned else None
+        if reused is not None:
+            run_out, best_checkpoint_path = reused
+            checkpoint_dir = report_dir
+            print(f"Best trial {best_trial_id} was already retrained for another selection metric; reusing that run.",
+                  flush=True)
+        elif self.learned:
             # Retrain the best learned-config once in a clean prod run on the driver,
             # and save the final checkpoint alongside the eval report under RAY_RESULTS_DIR.
             os.makedirs(report_dir, exist_ok=True)
@@ -1275,6 +1283,7 @@ class Sim:
             best_checkpoint_path = final_ckpt if os.path.isfile(final_ckpt) else None
             # For learned models, treat the report_dir as the effective checkpoint directory.
             checkpoint_dir = report_dir
+            self._best_trial_runs = {**getattr(self, "_best_trial_runs", {}), best_trial_id: (run_out, best_checkpoint_path)}
         else:
             os.makedirs(checkpoint_dir, exist_ok=True)
             config_path = os.path.join(checkpoint_dir, "best_model_config.json")
@@ -1357,7 +1366,8 @@ class Sim:
         }
         summary = _to_serializable(summary)
 
-        if store_eval_md and summary["paths"]["test_report_md"] and os.path.isfile(summary["paths"]["test_report_md"]):
+        if (store_eval_md and reused is None and summary["paths"]["test_report_md"]
+                and os.path.isfile(summary["paths"]["test_report_md"])):
             with open(summary["paths"]["test_report_md"], "r") as f:
                 report_body = f.read()
             run_info = summary["run"]

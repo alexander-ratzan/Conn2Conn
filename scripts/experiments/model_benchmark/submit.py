@@ -18,7 +18,7 @@ import yaml
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = next(p for p in HERE.parents if (p / "main.py").exists())
 CONFIGS = REPO_ROOT / "models" / "configs" / "benchmark" / "mse"
-# Campaign config: config.yml (E2.2) by default; MB_CAMPAIGN_CONFIG=config_composite.yml selects spec v3 E3.
+# Campaign config: config.yml (E2.2) by default; MB_CAMPAIGN_CONFIG=config_composite_loss.yml selects spec v3 E3.
 CAMPAIGN_CONFIG = HERE / os.environ.get("MB_CAMPAIGN_CONFIG", "config.yml")
 
 
@@ -31,13 +31,21 @@ def configs_dir(cfg=None):
 
 
 def launcher_export(cfg):
-    """sbatch --export for launch_model.sh: campaign name, config dir and best-trial report metrics."""
+    """sbatch --export for launch_model.sh: campaign name, config dir, best-trial report metrics, Ray actor reuse."""
     return (f"--export=ALL,CAMPAIGN={cfg['campaign']},CONFIG_DIR={cfg.get('configs_dir', 'models/configs/benchmark/mse')},"
-            f"REPORT_METRICS={'+'.join(cfg.get('report_metrics', ['val_demeaned_r']))}")  # '+': --export splits on ','
+            f"REPORT_METRICS={'+'.join(cfg.get('report_metrics', ['val_demeaned_r']))},"
+            f"TUNE_REUSE_ACTORS={'true' if cfg.get('tune_reuse_actors', True) else 'false'}")  # '+': --export splits on ','
 
 
-def job_name(cfg, model, direction):
-    return f"{cfg['campaign']}_{model}_{direction}"
+def job_name(cfg, model, direction, prefix=None):
+    """`<campaign>_<Model>_<direction>`: how run.py / autopilot.py find a campaign's task logs. A `prefix` (probe /
+    smoke runs) keeps those logs out of the campaign."""
+    return f"{prefix or cfg['campaign']}_{model}_{direction}"
+
+
+def sbatch_resources(job):
+    """Per-model sbatch resources from the campaign config (`cpus`, default the launcher's 10)."""
+    return [f"--cpus-per-task={job['cpus']}"]
 
 
 def config_for(model, direction, cfg=None):
@@ -46,7 +54,7 @@ def config_for(model, direction, cfg=None):
     return alt if direction == "fc2sc" and alt.exists() else d / f"{model}.yml"
 
 
-def plan(cfg, direction, stage, models, seeds_override, samples_override):
+def plan(cfg, direction, stage, models, seeds_override, samples_override, prefix=None):
     roster = cfg["directions"][direction]["models"]
     models = models or roster
     unknown = [m for m in models if m not in roster]
@@ -70,7 +78,7 @@ def plan(cfg, direction, stage, models, seeds_override, samples_override):
         info = cfg["models"][m]
         gpus, conc = info["packing"]
         jobs.append(dict(model=m, seeds=seeds, samples=samples, alg=bench["search_alg"], gpus=gpus, conc=conc,
-                         time=info["time"], name=job_name(cfg, m, direction)))
+                         cpus=int(info.get("cpus", 10)), time=info["time"], name=job_name(cfg, m, direction, prefix)))
     return jobs
 
 
@@ -82,13 +90,15 @@ def main():
     ap.add_argument("--seeds", type=int, nargs="*")
     ap.add_argument("--num-samples", type=int)
     ap.add_argument("--dependency", help="e.g. afterok:12345")
+    ap.add_argument("--job-prefix", help="job-name prefix instead of the campaign (probe / smoke runs; not scraped)")
+    ap.add_argument("--time", help="override the config --time (e.g. 0:30:00 for a probe)")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
     cfg = cfg_load()
-    jobs = plan(cfg, args.direction, args.stage, args.models, args.seeds, args.num_samples)
+    jobs = plan(cfg, args.direction, args.stage, args.models, args.seeds, args.num_samples, args.job_prefix)
     for j in jobs:
-        cmd = ["sbatch", "--parsable", f"--job-name={j['name']}", f"--time={j['time']}",
-               f"--array={','.join(str(s) for s in j['seeds'])}"]
+        cmd = ["sbatch", "--parsable", f"--job-name={j['name']}", f"--time={args.time or j['time']}",
+               f"--array={','.join(str(s) for s in j['seeds'])}", *sbatch_resources(j)]
         if args.dependency:
             cmd += [f"--dependency={args.dependency}", "--kill-on-invalid-dep=yes"]
         cmd += [launcher_export(cfg), str(HERE / "launch_model.sh"), j["model"], args.direction, str(j["samples"]), j["alg"],

@@ -572,7 +572,7 @@ def build(direction, cached=False, cfg=None, out_root=None, log_dir=LOG_DIR, sel
 
 
 def campaign_cfg():
-    """config.yml (E2.2) or MB_CAMPAIGN_CONFIG (spec v3 E3: config_composite.yml)."""
+    """config.yml (E2.2) or MB_CAMPAIGN_CONFIG (spec v3 E3: config_composite_loss.yml)."""
     return yaml.safe_load((HERE / os.environ.get("MB_CAMPAIGN_CONFIG", "config.yml")).read_text())
 
 

@@ -49,7 +49,7 @@ DATE_FMT = "%a %b %d %I:%M:%S %p %Z %Y"
 
 
 def cfg_load():
-    return submit.cfg_load()  # config.yml, or MB_CAMPAIGN_CONFIG (spec v3 E3: config_composite.yml)
+    return submit.cfg_load()  # config.yml, or MB_CAMPAIGN_CONFIG (spec v3 E3: config_composite_loss.yml)
 
 
 def _when(line):
@@ -223,11 +223,17 @@ def cmd_launch(cfg, args):
         if not r.get("time_h"):
             stop.append(f"{r['model']}: no pilot wall time yet")
             continue
+        max_wall = cfg["budget"].get("max_wall_h")
+        if max_wall and r["wall_h"] > max_wall:
+            # the cluster cancels jobs averaging < 50% GPU use for > 2 h; a task this long is at risk (spec v3 E3)
+            stop.append(f"{r['model']}: pilot wall {r['wall_h']:.2f} h exceeds max_wall_h {max_wall} h (repack first)")
+            continue
         job = submit.plan(cfg, args.direction, "full", [r["model"]], r["missing"], None)[0]
         retry = any(st["attempts"].get(s, 0) >= 1 for s in r["missing"])  # a seed that already ran and did not finish
         hours = math.ceil(min(cfg["budget"]["time_cap_h"], r["time_h"] * (2 if retry else 1)) * 4) / 4
         cmd = ["sbatch", "--parsable", f"--job-name={job['name']}", f"--time={int(hours)}:{int(hours % 1 * 60):02d}:00",
-               f"--array={','.join(str(s) for s in r['missing'])}", submit.launcher_export(cfg), str(HERE / "launch_model.sh"), r["model"],
+               f"--array={','.join(str(s) for s in r['missing'])}", *submit.sbatch_resources(job), submit.launcher_export(cfg),
+               str(HERE / "launch_model.sh"), r["model"],
                args.direction, str(job["samples"]), job["alg"], str(job["gpus"]), str(job["conc"])]
         if args.dry_run:
             print(" ".join(cmd[2:]))

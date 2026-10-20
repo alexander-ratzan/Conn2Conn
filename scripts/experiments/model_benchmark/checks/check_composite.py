@@ -42,7 +42,7 @@ def main():
     best = {"model": {k: v for k, v in rec["config"]["model"].items() if k != "name"},
             "trainer": dict(rec["config"].get("trainer") or {})}
     sig_a, a = train(REPO_ROOT / "models/configs/benchmark/mse" / f"{MODEL}.yml", best)
-    sig_b, b = train(REPO_ROOT / "models/configs/benchmark/composite" / f"{MODEL}.yml", best)
+    sig_b, b = train(REPO_ROOT / "models/configs/benchmark/composite_loss" / f"{MODEL}.yml", best)
     diff = max(abs(a[s][k] - b[s][k]) for s in a for k in KEYS)
     same = sig_a == sig_b == "mse" and diff <= 1e-6
     print(f"A (E2.2 MSE config): {sig_a} val dr {a['val']['demeaned_pearson']:.6f} test dr {a['test']['demeaned_pearson']:.6f}")
