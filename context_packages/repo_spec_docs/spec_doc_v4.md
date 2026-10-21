@@ -75,7 +75,7 @@ passed), and the linear references for all 72 pairs (A1: L1–L4, 5 seeds).
 
 | ID | Question | Comparison (test, paired by seed) | Primary metric | Supported if |
 |---|---|---|---|---|
-| H1 | Does a nonlinear model predict the latent from SC better than ridge? | MLP − ridge (E2's SC PCA → consensus latent model) | demeaned r of the decoded FC, averaged over the 8 conditions | support rule |
+| H1 | Is there nonlinear structure in SC → latent beyond the linear map? | nonlinear corrector (ridge + MLP) − ridge (E2's SC PCA → consensus latent model) | demeaned r of the decoded FC, averaged over the 8 conditions | support rule |
 | H2 | Does an identity-aware loss make the predicted latent more subject-specific? | MLP + identity loss − MLP | average rank of the decoded FC (mean of 8 conditions); demeaned r must not drop by more than 0.005 | support rule, plus the non-inferiority margin |
 | H3 | Does a flow add individual detail beyond regression? | flow, integrated − flow, one step; and − ridge | average rank (demeaned r and top-1 reported) | support rule against both |
 | H4 | (secondary) Does a nonlinear model improve the reverse, latent → SC? | MLP − ridge, inputs: 8-condition consensus and each task's encoding | SC demeaned r | support rule |
@@ -97,8 +97,8 @@ to condition $m$ uses that condition's fixed CCA decoder; nothing about the deco
 | Model | What it does | Detail |
 |---|---|---|
 | Ridge (reference) | linear map SC codes → latent | E2's model, re-scored in E1's pipeline (must reproduce E2's numbers exactly; gate G0b) |
-| MLP | nonlinear regression SC codes → latent, squared error | residual MLP, small (width 128–512, 1–3 blocks), dropout and weight decay searched |
-| MLP + identity loss | the same, trained with squared error + demeaned corr-eye (`compute_correye_dm_loss` in `models/train/loss.py`, imported, not modified) on the latent predictions | loss weight ∈ {0.1, 0.3, 1}; selected on val average rank, demeaned r reported |
+| MLP (nonlinear corrector) | the ridge prediction plus a learned nonlinear correction, $\hat g = \mathrm{ridge}(s) + f(s)$, squared error | `TokenBackbone` (`models/architectures/crossmodal_flow_matching.py`) without tokens, with a new output-size argument (SC codes 64–512 in, 32 out; existing calls unchanged); output layer starts at zero, so training starts exactly at the ridge solution; train-time ridge term from cross-fitted (5-fold) predictions; width 128–512, 1–3 residual blocks, dropout and weight decay searched. Secondary arm: direct prediction $\hat g = f(s)$ (no ridge term) |
+| MLP + identity loss | the corrector, trained with squared error + demeaned corr-eye (`compute_correye_dm_loss` in `models/train/loss.py`, imported, not modified) on the latent predictions | loss weight ∈ {0.1, 0.3, 1}; selected on val average rank, demeaned r reported |
 | Flow (paired bridge) | starts from the ridge prediction and learns a velocity field that carries it to the true latent; one Euler step is a learned correction of the ridge prediction, full integration transports the distribution | start points on train are **cross-fitted** ridge predictions (5 folds), so they look like test-time predictions; scored at 1 step and at 4 / 16 / 64 RK4 steps |
 
 **Training fix (from the failed synthetic gate).** The first gate failed because the flow was trained with flow time
@@ -421,5 +421,6 @@ identifiability dominated by parcel geometry) as a standing caveat; v3 backlog i
 | 2026-10-20 | E1.2 gate G1 failed (synthetic): A3 / A4 one-step R² against the true conditional mean 0.865 / 0.712 (< 0.9); G1b passed. E1 stopped at the gate per D3 (already on hold for E2). Smoke trials: A3 13–44 s, A4 18–33 s per trial on one GPU. |
 | 2026-10-20 | E2 done (autonomous, CPU): H2 and H4 supported, H1 reversed, H3 not; tasks through the latent beat every v3:E0 task row for FC → SC; SC → latent → FC beats v3:E0 on all conditions. I2 done. Follow-ups: SC dimension grid edge, hybrid input. E1 still stopped at its synthetic gate. |
 | 2026-10-21 | E1 rewritten around the consensus latent (D5): Part 1 SC ↔ latent with MLP, identity-aware loss and flow (H1–H4), training fix for the synthetic gate, optional Part 2 FC → FC; D3 revised (Part 1 cap 10 GPU-h). D6 housekeeping. E2 follow-ups recorded as potential next steps. |
+| 2026-10-21 | E1 Part 1 MLP set as a nonlinear corrector of ridge (user): ridge prediction + learned correction, starting at the ridge solution; direct MLP as a secondary arm. |
 
 Last updated at: 2026-10-21 EDT
