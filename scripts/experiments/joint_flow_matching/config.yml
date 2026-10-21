@@ -1,0 +1,62 @@
+# Spec v4 E1 — joint multidirectional translation (regression vs deterministic flow) in a shared code space.
+#   python scripts/experiments/joint_flow_matching/linear_arms.py --seed S            # A1 (L1-L4) + references, CPU
+#   python scripts/experiments/joint_flow_matching/tune.py --arm A3 --seed S          # A2 / A3 / A4 search, GPU
+#   python3 scripts/experiments/joint_flow_matching/submit.py ...                     # sbatch arrays (host python)
+parcellation: Glasser
+seeds: [0, 1, 2, 3, 4]
+cohort: 917                      # v3:E0 matched all-condition cohort
+
+# D1: views and pair mask. `rest` = 4-run xcp-d combined FC; sessions only in the E1.5c arm.
+views: [SC, rest, emotion, gambling, language, motor, relational, social, wm]
+session_views: [SC, rest, rest_S1, rest_S2, emotion, gambling, language, motor, relational, social, wm]
+fc_views: [rest, rest_S1, rest_S2, emotion, gambling, language, motor, relational, social, wm]
+nested: [[rest, rest_S1], [rest, rest_S2]]     # excluded in both directions (a session is half of rest)
+
+# D2: code space
+code_space: {scaling: frob, k_max: 512}
+k_grid: [64, 128, 256, 512]
+
+# A1 linear references (closed form, CPU)
+linear:
+  ridge_alphas: [1.0e-3, 1.0e-2, 1.0e-1, 1, 10, 100, 1000, 1.0e+4]   # x mean eigenvalue of X^T X; GCV on train per pair (L1, L2)
+  maxvar_d: [16, 32, 64, 128]
+  maxvar_lambda: [1.0e-2, 1.0e-1, 1, 10, 100]                      # relative to mean eigenvalue of Z_m^T Z_m
+  # L4 (d, lambda) chosen on mean val demeaned r over the 72 pairs
+
+# A2-A4 training and search
+train:
+  batch_size: 512
+  max_epochs: 200
+  patience: 20
+  grad_clip: 1.0
+a2_train: {batch_size: 64, max_epochs: 1000, patience: 100}   # one pair has 1/72 of the triples: more, smaller steps
+search:
+  n_trials: 24
+  prune_from_epoch: 20
+  lr: [1.0e-4, 3.0e-3]           # log-uniform
+  weight_decay: [1.0e-6, 1.0e-1] # log-uniform
+  width: [256, 512, 1024]
+  depth: [2, 3, 4]
+  dropout: [0.0, 0.4]
+  token_dim: [16, 32, 64]
+  k: [64, 128, 256, 512]
+flow:
+  tune_steps: 16                 # A4 selection metric uses RK4 at this many steps
+  eval_steps: [1, 4, 16, 64]     # 1 = one Euler step; others RK4
+a2_pairs: [[rest, SC], [SC, rest], [wm, SC], [SC, wm]]
+
+# Gates (spec v4 E1.C)
+gates:
+  g1_min_r2: 0.9
+  g1_max_shuffled_dr: 0.02
+  g3_min_onestep_corr: 0.95
+  g3_a0_rest_fc2sc_val_dr: 0.153702   # v3:E0 rest -> SC seed 0 val demeaned r (seed_records.csv)
+  g3_tolerance: 0.02
+
+budget: {gpu_h_cap: 25, time_factor: 1.5, max_retries: 1, max_error_frac: 0.2}
+bench: scripts/experiments/task_bidirectional_bench/results/Glasser     # A0 (v3:E0) seed_records
+cache_dir: /scratch/asr655/neuroinformatics/Conn2Conn/results/experiments/joint_flow_matching/cache
+records_dir: scripts/experiments/joint_flow_matching/results/Glasser/records
+log_dir: /scratch/asr655/neuroinformatics/Conn2Conn/results/logs
+volumes: {rest: 4800, rest_S1: 2400, rest_S2: 2400, emotion: 352, gambling: 506, language: 632, motor: 568,
+          relational: 464, social: 548, wm: 810}

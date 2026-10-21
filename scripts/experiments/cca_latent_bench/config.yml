@@ -1,0 +1,31 @@
+# Spec v4 E2 — CCA-latent bidirectional benchmark (closed form, CPU).
+#   python scripts/experiments/cca_latent_bench/run_seed.py --seed S [--check]     # one seed (kraken env)
+#   sbatch --array=0-4 scripts/experiments/cca_latent_bench/launch/run_seeds.sh   # all seeds
+#   python scripts/experiments/cca_latent_bench/run.py                              # tables + figures
+# Data: E1's per-seed cache (scripts/experiments/joint_flow_matching/common.py; equal-variance pooled FC basis + SC basis).
+seeds: [0, 1, 2, 3, 4]
+fc_views: [rest, emotion, gambling, language, motor, relational, social, wm]
+tasks: [emotion, gambling, language, motor, relational, social, wm]
+
+latent:                      # SC-blind selection on val cross-condition identification (mean avg rank, 56 ordered pairs)
+  k_fc: [128, 256, 512]
+  d: [8, 16, 32, 64, 128]
+  lambda_rel: [0.01, 0.1, 1.0, 10.0]
+
+fc2sc:
+  pca_k: [64, 128, 256, 512]   # rest PCA-code baseline inputs
+  k_sc: [64, 128, 256, 512]    # SC target code dimension, chosen on val per input x readout
+sc2fc:
+  k_sc: [64, 128, 256, 512]    # SC input code dimension, chosen on val per route x condition x readout
+
+readouts:
+  ridge_alphas: [1.0e-3, 1.0e-2, 1.0e-1, 1.0, 10.0, 100.0, 1000.0, 1.0e+4]   # x mean eigenvalue; GCV on train
+  pls_components: [2, 4, 8, 16, 32]
+
+gates:
+  l1_match_tol: 1.0e-6         # G1: rest PCA k=64 -> SC k=64 ridge == E1 L1 test demeaned r
+
+bench: scripts/experiments/task_bidirectional_bench/results/Glasser    # v3:E0 seed_records (fc2sc, sc2fc)
+e1_linear: scripts/experiments/joint_flow_matching/results/Glasser/records/linear
+records_dir: scripts/experiments/cca_latent_bench/results/Glasser/records
+budget: {cpu_node_h_cap: 15, max_retries: 1, max_error_frac: 0.2}

@@ -1,0 +1,2090 @@
+{
+ "arm": "A3",
+ "seed": 0,
+ "variant": "main",
+ "views": [
+  "SC",
+  "rest",
+  "emotion",
+  "gambling",
+  "language",
+  "motor",
+  "relational",
+  "social",
+  "wm"
+ ],
+ "pairs": [
+  [
+   "SC",
+   "rest"
+  ],
+  [
+   "SC",
+   "emotion"
+  ],
+  [
+   "SC",
+   "gambling"
+  ],
+  [
+   "SC",
+   "language"
+  ],
+  [
+   "SC",
+   "motor"
+  ],
+  [
+   "SC",
+   "relational"
+  ],
+  [
+   "SC",
+   "social"
+  ],
+  [
+   "SC",
+   "wm"
+  ],
+  [
+   "rest",
+   "SC"
+  ],
+  [
+   "rest",
+   "emotion"
+  ],
+  [
+   "rest",
+   "gambling"
+  ],
+  [
+   "rest",
+   "language"
+  ],
+  [
+   "rest",
+   "motor"
+  ],
+  [
+   "rest",
+   "relational"
+  ],
+  [
+   "rest",
+   "social"
+  ],
+  [
+   "rest",
+   "wm"
+  ],
+  [
+   "emotion",
+   "SC"
+  ],
+  [
+   "emotion",
+   "rest"
+  ],
+  [
+   "emotion",
+   "gambling"
+  ],
+  [
+   "emotion",
+   "language"
+  ],
+  [
+   "emotion",
+   "motor"
+  ],
+  [
+   "emotion",
+   "relational"
+  ],
+  [
+   "emotion",
+   "social"
+  ],
+  [
+   "emotion",
+   "wm"
+  ],
+  [
+   "gambling",
+   "SC"
+  ],
+  [
+   "gambling",
+   "rest"
+  ],
+  [
+   "gambling",
+   "emotion"
+  ],
+  [
+   "gambling",
+   "language"
+  ],
+  [
+   "gambling",
+   "motor"
+  ],
+  [
+   "gambling",
+   "relational"
+  ],
+  [
+   "gambling",
+   "social"
+  ],
+  [
+   "gambling",
+   "wm"
+  ],
+  [
+   "language",
+   "SC"
+  ],
+  [
+   "language",
+   "rest"
+  ],
+  [
+   "language",
+   "emotion"
+  ],
+  [
+   "language",
+   "gambling"
+  ],
+  [
+   "language",
+   "motor"
+  ],
+  [
+   "language",
+   "relational"
+  ],
+  [
+   "language",
+   "social"
+  ],
+  [
+   "language",
+   "wm"
+  ],
+  [
+   "motor",
+   "SC"
+  ],
+  [
+   "motor",
+   "rest"
+  ],
+  [
+   "motor",
+   "emotion"
+  ],
+  [
+   "motor",
+   "gambling"
+  ],
+  [
+   "motor",
+   "language"
+  ],
+  [
+   "motor",
+   "relational"
+  ],
+  [
+   "motor",
+   "social"
+  ],
+  [
+   "motor",
+   "wm"
+  ],
+  [
+   "relational",
+   "SC"
+  ],
+  [
+   "relational",
+   "rest"
+  ],
+  [
+   "relational",
+   "emotion"
+  ],
+  [
+   "relational",
+   "gambling"
+  ],
+  [
+   "relational",
+   "language"
+  ],
+  [
+   "relational",
+   "motor"
+  ],
+  [
+   "relational",
+   "social"
+  ],
+  [
+   "relational",
+   "wm"
+  ],
+  [
+   "social",
+   "SC"
+  ],
+  [
+   "social",
+   "rest"
+  ],
+  [
+   "social",
+   "emotion"
+  ],
+  [
+   "social",
+   "gambling"
+  ],
+  [
+   "social",
+   "language"
+  ],
+  [
+   "social",
+   "motor"
+  ],
+  [
+   "social",
+   "relational"
+  ],
+  [
+   "social",
+   "wm"
+  ],
+  [
+   "wm",
+   "SC"
+  ],
+  [
+   "wm",
+   "rest"
+  ],
+  [
+   "wm",
+   "emotion"
+  ],
+  [
+   "wm",
+   "gambling"
+  ],
+  [
+   "wm",
+   "language"
+  ],
+  [
+   "wm",
+   "motor"
+  ],
+  [
+   "wm",
+   "relational"
+  ],
+  [
+   "wm",
+   "social"
+  ]
+ ],
+ "tag": "main_smoke",
+ "shuffle_pairs": false,
+ "fixed": null,
+ "selected": {
+  "hp": {
+   "lr": 0.00010711863369746439,
+   "weight_decay": 0.014557916623227784,
+   "width": 1024,
+   "depth": 2,
+   "dropout": 0.04730977034757329,
+   "token_dim": 64,
+   "k": 512
+  },
+  "val_mean_dr": 0.10406628492960913
+ },
+ "trials": [
+  {
+   "number": 0,
+   "hp": {
+    "lr": 0.0006466422717414558,
+    "weight_decay": 0.0037665768415992965,
+    "width": 256,
+    "depth": 4,
+    "dropout": 0.38546510420041175,
+    "token_dim": 32,
+    "k": 128
+   },
+   "val_mean_dr": 0.10079615356193648,
+   "seconds": 44.453272581100464,
+   "best_val_loss": 0.0021241887006908655,
+   "best_epoch": 95,
+   "epochs_run": 116
+  },
+  {
+   "number": 1,
+   "hp": {
+    "lr": 0.00010711863369746439,
+    "weight_decay": 0.014557916623227784,
+    "width": 1024,
+    "depth": 2,
+    "dropout": 0.04730977034757329,
+    "token_dim": 64,
+    "k": 512
+   },
+   "val_mean_dr": 0.10406628492960913,
+   "seconds": 13.08055567741394,
+   "best_val_loss": 0.000806407886557281,
+   "best_epoch": 32,
+   "epochs_run": 53
+  }
+ ],
+ "per_pair": [
+  {
+   "source": "SC",
+   "target": "rest",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.015059950516131477,
+   "pearson": 0.8221049293078747,
+   "avg_rank": 0.5964207450693937,
+   "top1_acc": 0.02702702702702703,
+   "demeaned_pearson": 0.04369580915352251,
+   "spread_ratio": 0.25221193846068224
+  },
+  {
+   "source": "SC",
+   "target": "rest",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.013867046937330634,
+   "pearson": 0.8312355349103574,
+   "avg_rank": 0.6648452268431002,
+   "top1_acc": 0.021739130434782608,
+   "demeaned_pearson": 0.0488951524075213,
+   "spread_ratio": 0.2704097714516598
+  },
+  {
+   "source": "SC",
+   "target": "emotion",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.11147535102005052,
+   "pearson": 0.4155608881048634,
+   "avg_rank": 0.591672753834916,
+   "top1_acc": 0.0,
+   "demeaned_pearson": 0.017681070057976846,
+   "spread_ratio": 0.23401727230743327
+  },
+  {
+   "source": "SC",
+   "target": "emotion",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.11206631663560108,
+   "pearson": 0.40761692749985695,
+   "avg_rank": 0.5925094517958411,
+   "top1_acc": 0.005434782608695652,
+   "demeaned_pearson": 0.01544029337560852,
+   "spread_ratio": 0.24037031259146432
+  },
+  {
+   "source": "SC",
+   "target": "gambling",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.07613659554516682,
+   "pearson": 0.5185351071027018,
+   "avg_rank": 0.6539444850255661,
+   "top1_acc": 0.013513513513513514,
+   "demeaned_pearson": 0.030714807815846946,
+   "spread_ratio": 0.23101955716783776
+  },
+  {
+   "source": "SC",
+   "target": "gambling",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.07455193616804145,
+   "pearson": 0.5122778333255573,
+   "avg_rank": 0.6275106332703213,
+   "top1_acc": 0.010869565217391304,
+   "demeaned_pearson": 0.022646532349067473,
+   "spread_ratio": 0.23976426887552693
+  },
+  {
+   "source": "SC",
+   "target": "language",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.05695929584125773,
+   "pearson": 0.5643861352235939,
+   "avg_rank": 0.5807158509861212,
+   "top1_acc": 0.02702702702702703,
+   "demeaned_pearson": 0.01790819314734139,
+   "spread_ratio": 0.24118638171613593
+  },
+  {
+   "source": "SC",
+   "target": "language",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.056911545469548123,
+   "pearson": 0.5614180297097908,
+   "avg_rank": 0.5956108223062382,
+   "top1_acc": 0.010869565217391304,
+   "demeaned_pearson": 0.014704021107215817,
+   "spread_ratio": 0.24899175528111137
+  },
+  {
+   "source": "SC",
+   "target": "motor",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.06548557545926201,
+   "pearson": 0.5163842120547643,
+   "avg_rank": 0.6588750913075238,
+   "top1_acc": 0.05405405405405406,
+   "demeaned_pearson": 0.02504811468168323,
+   "spread_ratio": 0.23701661761306456
+  },
+  {
+   "source": "SC",
+   "target": "motor",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.06545021730791184,
+   "pearson": 0.5164522701333143,
+   "avg_rank": 0.6202150283553876,
+   "top1_acc": 0.02717391304347826,
+   "demeaned_pearson": 0.013801496626748238,
+   "spread_ratio": 0.2435526959952811
+  },
+  {
+   "source": "SC",
+   "target": "relational",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.08211040518576973,
+   "pearson": 0.4949510635121591,
+   "avg_rank": 0.5944119795471148,
+   "top1_acc": 0.0,
+   "demeaned_pearson": 0.015561459555209123,
+   "spread_ratio": 0.2305368730870265
+  },
+  {
+   "source": "SC",
+   "target": "relational",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.08217641880147994,
+   "pearson": 0.49865779669939675,
+   "avg_rank": 0.6008093100189036,
+   "top1_acc": 0.016304347826086956,
+   "demeaned_pearson": 0.018019732758480247,
+   "spread_ratio": 0.23602412008155985
+  },
+  {
+   "source": "SC",
+   "target": "social",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.06903970619162976,
+   "pearson": 0.5760890002257408,
+   "avg_rank": 0.6062819576333089,
+   "top1_acc": 0.02702702702702703,
+   "demeaned_pearson": 0.01860768493354609,
+   "spread_ratio": 0.23019736982602385
+  },
+  {
+   "source": "SC",
+   "target": "social",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.06748137294029864,
+   "pearson": 0.5756986549547704,
+   "avg_rank": 0.605594281663516,
+   "top1_acc": 0.010869565217391304,
+   "demeaned_pearson": 0.014380832316793695,
+   "spread_ratio": 0.23880304405689634
+  },
+  {
+   "source": "SC",
+   "target": "wm",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.03975465604896693,
+   "pearson": 0.6379840044365997,
+   "avg_rank": 0.6546749452154857,
+   "top1_acc": 0.013513513513513514,
+   "demeaned_pearson": 0.03315470751729868,
+   "spread_ratio": 0.23976973548206632
+  },
+  {
+   "source": "SC",
+   "target": "wm",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.039443811441164316,
+   "pearson": 0.6362232133975988,
+   "avg_rank": 0.6299326559546314,
+   "top1_acc": 0.03804347826086957,
+   "demeaned_pearson": 0.02458914815717797,
+   "spread_ratio": 0.24521776248204677
+  },
+  {
+   "source": "rest",
+   "target": "SC",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.005355762273211421,
+   "pearson": 0.9135610807131761,
+   "avg_rank": 0.8303506208911614,
+   "top1_acc": 0.10810810810810811,
+   "demeaned_pearson": 0.10457753200448294,
+   "spread_ratio": 0.3028673222142181
+  },
+  {
+   "source": "rest",
+   "target": "SC",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.0055274863150977455,
+   "pearson": 0.9127684828773613,
+   "avg_rank": 0.8379312381852552,
+   "top1_acc": 0.10869565217391304,
+   "demeaned_pearson": 0.1071113125621661,
+   "spread_ratio": 0.2846667609522928
+  },
+  {
+   "source": "rest",
+   "target": "emotion",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.10735198086422311,
+   "pearson": 0.4447435211600225,
+   "avg_rank": 0.960372534696859,
+   "top1_acc": 0.5945945945945946,
+   "demeaned_pearson": 0.10875381148315148,
+   "spread_ratio": 0.2491401683808211
+  },
+  {
+   "source": "rest",
+   "target": "emotion",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.10784828880012466,
+   "pearson": 0.4366419753256529,
+   "avg_rank": 0.9358459357277883,
+   "top1_acc": 0.43478260869565216,
+   "demeaned_pearson": 0.1009284811132841,
+   "spread_ratio": 0.24475524777257812
+  },
+  {
+   "source": "rest",
+   "target": "gambling",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.07335427073134547,
+   "pearson": 0.5428874770187165,
+   "avg_rank": 0.9572680788897006,
+   "top1_acc": 0.5675675675675675,
+   "demeaned_pearson": 0.13055365036236086,
+   "spread_ratio": 0.26441916228090634
+  },
+  {
+   "source": "rest",
+   "target": "gambling",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.07098849779226148,
+   "pearson": 0.5413672304033798,
+   "avg_rank": 0.9636696597353497,
+   "top1_acc": 0.5706521739130435,
+   "demeaned_pearson": 0.1369700138053183,
+   "spread_ratio": 0.26350455780924975
+  },
+  {
+   "source": "rest",
+   "target": "language",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.05390330626759491,
+   "pearson": 0.5935682566453973,
+   "avg_rank": 0.9873995617238861,
+   "top1_acc": 0.7972972972972973,
+   "demeaned_pearson": 0.14702225166333116,
+   "spread_ratio": 0.26916820252641116
+  },
+  {
+   "source": "rest",
+   "target": "language",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.053504070884346,
+   "pearson": 0.5917255484963835,
+   "avg_rank": 0.9822483459357277,
+   "top1_acc": 0.6358695652173914,
+   "demeaned_pearson": 0.14662929148848702,
+   "spread_ratio": 0.2650950791165125
+  },
+  {
+   "source": "rest",
+   "target": "motor",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.06238258060171689,
+   "pearson": 0.5440807742467623,
+   "avg_rank": 0.9912344777209642,
+   "top1_acc": 0.7972972972972973,
+   "demeaned_pearson": 0.14135052126167258,
+   "spread_ratio": 0.2646485686678147
+  },
+  {
+   "source": "rest",
+   "target": "motor",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.06180762301614455,
+   "pearson": 0.5478629622542014,
+   "avg_rank": 0.9801512287334594,
+   "top1_acc": 0.6902173913043478,
+   "demeaned_pearson": 0.14158068591302125,
+   "spread_ratio": 0.26224618867793453
+  },
+  {
+   "source": "rest",
+   "target": "relational",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.079145436999491,
+   "pearson": 0.5204257723649497,
+   "avg_rank": 0.9680423666910153,
+   "top1_acc": 0.5540540540540541,
+   "demeaned_pearson": 0.11081816148387313,
+   "spread_ratio": 0.2521274677994282
+  },
+  {
+   "source": "rest",
+   "target": "relational",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.078869608788673,
+   "pearson": 0.523219075100257,
+   "avg_rank": 0.9296727315689981,
+   "top1_acc": 0.5,
+   "demeaned_pearson": 0.11331924672723392,
+   "spread_ratio": 0.2475672242558346
+  },
+  {
+   "source": "rest",
+   "target": "social",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.06564625057388662,
+   "pearson": 0.6021639766133912,
+   "avg_rank": 0.9799123447772097,
+   "top1_acc": 0.7297297297297297,
+   "demeaned_pearson": 0.14241511813438334,
+   "spread_ratio": 0.25949258637193007
+  },
+  {
+   "source": "rest",
+   "target": "social",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.06423211926090658,
+   "pearson": 0.5999764720758851,
+   "avg_rank": 0.9619860586011342,
+   "top1_acc": 0.5380434782608695,
+   "demeaned_pearson": 0.12978995509446853,
+   "spread_ratio": 0.2575147629547204
+  },
+  {
+   "source": "rest",
+   "target": "wm",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.0372758589029253,
+   "pearson": 0.6627432587931384,
+   "avg_rank": 0.9912344777209642,
+   "top1_acc": 0.7972972972972973,
+   "demeaned_pearson": 0.17951243471578976,
+   "spread_ratio": 0.2806955569244101
+  },
+  {
+   "source": "rest",
+   "target": "wm",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.036864975553725525,
+   "pearson": 0.6616698244502685,
+   "avg_rank": 0.9848180529300568,
+   "top1_acc": 0.7391304347826086,
+   "demeaned_pearson": 0.17380942877139935,
+   "spread_ratio": 0.2753841454472011
+  },
+  {
+   "source": "emotion",
+   "target": "SC",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.005371544488786086,
+   "pearson": 0.9138086820409878,
+   "avg_rank": 0.7005113221329438,
+   "top1_acc": 0.06756756756756757,
+   "demeaned_pearson": 0.05534759622046506,
+   "spread_ratio": 0.23149062010627616
+  },
+  {
+   "source": "emotion",
+   "target": "SC",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.005573787881369663,
+   "pearson": 0.9126885142321192,
+   "avg_rank": 0.7271680056710774,
+   "top1_acc": 0.03260869565217391,
+   "demeaned_pearson": 0.059573274568246466,
+   "spread_ratio": 0.2216105478979033
+  },
+  {
+   "source": "emotion",
+   "target": "rest",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.01386433995308788,
+   "pearson": 0.836248890157076,
+   "avg_rank": 0.8725346968590212,
+   "top1_acc": 0.3918918918918919,
+   "demeaned_pearson": 0.2081408281401837,
+   "spread_ratio": 0.2803485172975985
+  },
+  {
+   "source": "emotion",
+   "target": "rest",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.013171301367397536,
+   "pearson": 0.8397928648561899,
+   "avg_rank": 0.8325259924385633,
+   "top1_acc": 0.25,
+   "demeaned_pearson": 0.1612822606026478,
+   "spread_ratio": 0.2877781161485106
+  },
+  {
+   "source": "emotion",
+   "target": "gambling",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.0738013632174752,
+   "pearson": 0.5386171584347044,
+   "avg_rank": 0.8504382761139517,
+   "top1_acc": 0.25675675675675674,
+   "demeaned_pearson": 0.08306750289234432,
+   "spread_ratio": 0.2016782068485788
+  },
+  {
+   "source": "emotion",
+   "target": "gambling",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.07180664082252171,
+   "pearson": 0.5348706245774192,
+   "avg_rank": 0.8568052930056711,
+   "top1_acc": 0.14130434782608695,
+   "demeaned_pearson": 0.08043895444691182,
+   "spread_ratio": 0.20305165495559724
+  },
+  {
+   "source": "emotion",
+   "target": "language",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.05476521958581617,
+   "pearson": 0.5846179230494146,
+   "avg_rank": 0.8599342585829073,
+   "top1_acc": 0.1891891891891892,
+   "demeaned_pearson": 0.07743728361626105,
+   "spread_ratio": 0.19926157750242834
+  },
+  {
+   "source": "emotion",
+   "target": "language",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.05448387376477413,
+   "pearson": 0.5822908954223255,
+   "avg_rank": 0.8558010396975425,
+   "top1_acc": 0.1956521739130435,
+   "demeaned_pearson": 0.0718883005176808,
+   "spread_ratio": 0.19682569745100234
+  },
+  {
+   "source": "emotion",
+   "target": "motor",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.0632035486641408,
+   "pearson": 0.5350391011619503,
+   "avg_rank": 0.8714390065741418,
+   "top1_acc": 0.2702702702702703,
+   "demeaned_pearson": 0.0777636423080393,
+   "spread_ratio": 0.19590270653198977
+  },
+  {
+   "source": "emotion",
+   "target": "motor",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.0627120453705283,
+   "pearson": 0.5379085395990407,
+   "avg_rank": 0.8781604442344045,
+   "top1_acc": 0.20652173913043478,
+   "demeaned_pearson": 0.07441168741966095,
+   "spread_ratio": 0.19540866668471613
+  },
+  {
+   "source": "emotion",
+   "target": "relational",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.0792687639680923,
+   "pearson": 0.5174802541621192,
+   "avg_rank": 0.881300219138057,
+   "top1_acc": 0.25675675675675674,
+   "demeaned_pearson": 0.0683167622280047,
+   "spread_ratio": 0.18763660881325028
+  },
+  {
+   "source": "emotion",
+   "target": "relational",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.07915370985794686,
+   "pearson": 0.5205578519813399,
+   "avg_rank": 0.8382856805293006,
+   "top1_acc": 0.14130434782608695,
+   "demeaned_pearson": 0.07052145054483262,
+   "spread_ratio": 0.18755943035636413
+  },
+  {
+   "source": "emotion",
+   "target": "social",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.06650516032451172,
+   "pearson": 0.5961784208175873,
+   "avg_rank": 0.8849525200876552,
+   "top1_acc": 0.25675675675675674,
+   "demeaned_pearson": 0.07908136771688408,
+   "spread_ratio": 0.1928181279339288
+  },
+  {
+   "source": "emotion",
+   "target": "social",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.06494447021119715,
+   "pearson": 0.5941695473078628,
+   "avg_rank": 0.8249054820415879,
+   "top1_acc": 0.14130434782608695,
+   "demeaned_pearson": 0.07055395040923547,
+   "spread_ratio": 0.19567006519182542
+  },
+  {
+   "source": "emotion",
+   "target": "wm",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.037958611255609405,
+   "pearson": 0.6547586307244536,
+   "avg_rank": 0.9240321402483564,
+   "top1_acc": 0.40540540540540543,
+   "demeaned_pearson": 0.11492360984729645,
+   "spread_ratio": 0.20985624716164278
+  },
+  {
+   "source": "emotion",
+   "target": "wm",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.03770417794125895,
+   "pearson": 0.6527479132898261,
+   "avg_rank": 0.8923972117202268,
+   "top1_acc": 0.18478260869565216,
+   "demeaned_pearson": 0.10035472415288935,
+   "spread_ratio": 0.20989104867996353
+  },
+  {
+   "source": "gambling",
+   "target": "SC",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.005354357658608857,
+   "pearson": 0.9139771328986829,
+   "avg_rank": 0.7505478451424398,
+   "top1_acc": 0.04054054054054054,
+   "demeaned_pearson": 0.07128668665445494,
+   "spread_ratio": 0.2430568450778815
+  },
+  {
+   "source": "gambling",
+   "target": "SC",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.005555385268630634,
+   "pearson": 0.9127848843279712,
+   "avg_rank": 0.7614307655954631,
+   "top1_acc": 0.03804347826086957,
+   "demeaned_pearson": 0.07164499930666807,
+   "spread_ratio": 0.23482531837301515
+  },
+  {
+   "source": "gambling",
+   "target": "rest",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.01370883717102006,
+   "pearson": 0.8385202379215266,
+   "avg_rank": 0.9013878743608473,
+   "top1_acc": 0.5135135135135135,
+   "demeaned_pearson": 0.21979446562662044,
+   "spread_ratio": 0.302249949743399
+  },
+  {
+   "source": "gambling",
+   "target": "rest",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.012763867547839716,
+   "pearson": 0.8444597678272195,
+   "avg_rank": 0.9069588846880907,
+   "top1_acc": 0.4673913043478261,
+   "demeaned_pearson": 0.2103380810319924,
+   "spread_ratio": 0.3057695263557994
+  },
+  {
+   "source": "gambling",
+   "target": "emotion",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.10761981210868822,
+   "pearson": 0.44373588855634744,
+   "avg_rank": 0.8838568298027758,
+   "top1_acc": 0.28378378378378377,
+   "demeaned_pearson": 0.07544675325816702,
+   "spread_ratio": 0.20178417578386912
+  },
+  {
+   "source": "gambling",
+   "target": "emotion",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.10771522448386495,
+   "pearson": 0.437049462813858,
+   "avg_rank": 0.876890359168242,
+   "top1_acc": 0.16304347826086957,
+   "demeaned_pearson": 0.0758675813696757,
+   "spread_ratio": 0.19955509363458668
+  },
+  {
+   "source": "gambling",
+   "target": "language",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.05460437736168528,
+   "pearson": 0.586009440885824,
+   "avg_rank": 0.8948137326515705,
+   "top1_acc": 0.40540540540540543,
+   "demeaned_pearson": 0.08984643435125138,
+   "spread_ratio": 0.21168139928657725
+  },
+  {
+   "source": "gambling",
+   "target": "language",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.05415822122384072,
+   "pearson": 0.5849731854967881,
+   "avg_rank": 0.9183305765595463,
+   "top1_acc": 0.2608695652173913,
+   "demeaned_pearson": 0.09531881058508217,
+   "spread_ratio": 0.2106641039058035
+  },
+  {
+   "source": "gambling",
+   "target": "motor",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.062947140243872,
+   "pearson": 0.5382749282001144,
+   "avg_rank": 0.9176406135865596,
+   "top1_acc": 0.35135135135135137,
+   "demeaned_pearson": 0.09625802136047476,
+   "spread_ratio": 0.21215354718059445
+  },
+  {
+   "source": "gambling",
+   "target": "motor",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.062429809568442324,
+   "pearson": 0.5418041979351504,
+   "avg_rank": 0.920398156899811,
+   "top1_acc": 0.29891304347826086,
+   "demeaned_pearson": 0.09498662813323976,
+   "spread_ratio": 0.21157399310855382
+  },
+  {
+   "source": "gambling",
+   "target": "relational",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.0792700519427104,
+   "pearson": 0.5182650482337328,
+   "avg_rank": 0.8849525200876552,
+   "top1_acc": 0.3108108108108108,
+   "demeaned_pearson": 0.08505332181774025,
+   "spread_ratio": 0.21234766008728936
+  },
+  {
+   "source": "gambling",
+   "target": "relational",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.07884790142117555,
+   "pearson": 0.5235290879343945,
+   "avg_rank": 0.9025578922495274,
+   "top1_acc": 0.22282608695652173,
+   "demeaned_pearson": 0.09343100462930654,
+   "spread_ratio": 0.2098595085455631
+  },
+  {
+   "source": "gambling",
+   "target": "social",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.06661840749413757,
+   "pearson": 0.5960934399396332,
+   "avg_rank": 0.9081446311176041,
+   "top1_acc": 0.35135135135135137,
+   "demeaned_pearson": 0.08670586212192372,
+   "spread_ratio": 0.20921539743795523
+  },
+  {
+   "source": "gambling",
+   "target": "social",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.06465589512216269,
+   "pearson": 0.5964174147246958,
+   "avg_rank": 0.8872873345935728,
+   "top1_acc": 0.2608695652173913,
+   "demeaned_pearson": 0.08935663723832665,
+   "spread_ratio": 0.20931006616506245
+  },
+  {
+   "source": "gambling",
+   "target": "wm",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.03739577794231784,
+   "pearson": 0.6604428034550299,
+   "avg_rank": 0.9517896274653032,
+   "top1_acc": 0.5405405405405406,
+   "demeaned_pearson": 0.15710231010243422,
+   "spread_ratio": 0.23956449806018576
+  },
+  {
+   "source": "gambling",
+   "target": "wm",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.036792772906836906,
+   "pearson": 0.6623303783508817,
+   "avg_rank": 0.9655600189035917,
+   "top1_acc": 0.6521739130434783,
+   "demeaned_pearson": 0.16400306600509734,
+   "spread_ratio": 0.23818294887072672
+  },
+  {
+   "source": "language",
+   "target": "SC",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.005331623972343784,
+   "pearson": 0.9142683285175753,
+   "avg_rank": 0.7688093498904309,
+   "top1_acc": 0.06756756756756757,
+   "demeaned_pearson": 0.08430597818690289,
+   "spread_ratio": 0.24888417419985356
+  },
+  {
+   "source": "language",
+   "target": "SC",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.005538542461420833,
+   "pearson": 0.9129801248304288,
+   "avg_rank": 0.75,
+   "top1_acc": 0.02717391304347826,
+   "demeaned_pearson": 0.08088050497584594,
+   "spread_ratio": 0.23918928897297786
+  },
+  {
+   "source": "language",
+   "target": "rest",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.013463948188790993,
+   "pearson": 0.8419664943789744,
+   "avg_rank": 0.9258582907231556,
+   "top1_acc": 0.5,
+   "demeaned_pearson": 0.24889106749244885,
+   "spread_ratio": 0.3052553160072699
+  },
+  {
+   "source": "language",
+   "target": "rest",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.012781064380377127,
+   "pearson": 0.8442067395632888,
+   "avg_rank": 0.906781663516068,
+   "top1_acc": 0.45108695652173914,
+   "demeaned_pearson": 0.20715959252951716,
+   "spread_ratio": 0.29898899085290026
+  },
+  {
+   "source": "language",
+   "target": "emotion",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.10790713657565967,
+   "pearson": 0.44093712879533037,
+   "avg_rank": 0.8469685902118335,
+   "top1_acc": 0.3108108108108108,
+   "demeaned_pearson": 0.06612025398929652,
+   "spread_ratio": 0.19880069265975048
+  },
+  {
+   "source": "language",
+   "target": "emotion",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.10792640098610023,
+   "pearson": 0.434601328457613,
+   "avg_rank": 0.852227079395085,
+   "top1_acc": 0.14673913043478262,
+   "demeaned_pearson": 0.06730475150043104,
+   "spread_ratio": 0.19678729827047448
+  },
+  {
+   "source": "language",
+   "target": "gambling",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.07359358488135155,
+   "pearson": 0.5399356102123313,
+   "avg_rank": 0.8915266617969321,
+   "top1_acc": 0.2972972972972973,
+   "demeaned_pearson": 0.0935073319854077,
+   "spread_ratio": 0.21061127574429636
+  },
+  {
+   "source": "language",
+   "target": "gambling",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.07137055352698196,
+   "pearson": 0.5385405762340963,
+   "avg_rank": 0.9025283553875236,
+   "top1_acc": 0.32608695652173914,
+   "demeaned_pearson": 0.09946816105781985,
+   "spread_ratio": 0.20987063403512257
+  },
+  {
+   "source": "language",
+   "target": "motor",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.06314800265132224,
+   "pearson": 0.5362797662834748,
+   "avg_rank": 0.9094229364499635,
+   "top1_acc": 0.35135135135135137,
+   "demeaned_pearson": 0.0844424750679183,
+   "spread_ratio": 0.20539467763303004
+  },
+  {
+   "source": "language",
+   "target": "motor",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.06239856399465943,
+   "pearson": 0.5412751078373936,
+   "avg_rank": 0.9102965500945179,
+   "top1_acc": 0.32065217391304346,
+   "demeaned_pearson": 0.09198212401676263,
+   "spread_ratio": 0.2041102679332737
+  },
+  {
+   "source": "language",
+   "target": "relational",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.07932788660374812,
+   "pearson": 0.5178109689471909,
+   "avg_rank": 0.8973703433162893,
+   "top1_acc": 0.2702702702702703,
+   "demeaned_pearson": 0.07704636380427446,
+   "spread_ratio": 0.2023125818936565
+  },
+  {
+   "source": "language",
+   "target": "relational",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.07890622142288352,
+   "pearson": 0.5227662963582373,
+   "avg_rank": 0.8976547731568998,
+   "top1_acc": 0.23369565217391305,
+   "demeaned_pearson": 0.08599479509405986,
+   "spread_ratio": 0.20011849378025448
+  },
+  {
+   "source": "language",
+   "target": "social",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.0665580381481651,
+   "pearson": 0.5958597261785443,
+   "avg_rank": 0.8718042366691016,
+   "top1_acc": 0.36486486486486486,
+   "demeaned_pearson": 0.08783323102792646,
+   "spread_ratio": 0.20386882034822915
+  },
+  {
+   "source": "language",
+   "target": "social",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.06466650405274155,
+   "pearson": 0.5964014478727424,
+   "avg_rank": 0.8827681947069943,
+   "top1_acc": 0.19021739130434784,
+   "demeaned_pearson": 0.08586663299816738,
+   "spread_ratio": 0.20373897209430203
+  },
+  {
+   "source": "language",
+   "target": "wm",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.03780027884620922,
+   "pearson": 0.656873464446679,
+   "avg_rank": 0.9453981008035062,
+   "top1_acc": 0.5,
+   "demeaned_pearson": 0.13219108194913867,
+   "spread_ratio": 0.22606099624399267
+  },
+  {
+   "source": "language",
+   "target": "wm",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.03746229742801929,
+   "pearson": 0.6558320142806016,
+   "avg_rank": 0.9434073724007561,
+   "top1_acc": 0.41304347826086957,
+   "demeaned_pearson": 0.12260546648101651,
+   "spread_ratio": 0.22397755562084268
+  },
+  {
+   "source": "motor",
+   "target": "SC",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.005319230735470335,
+   "pearson": 0.9143533286426994,
+   "avg_rank": 0.7744704163623083,
+   "top1_acc": 0.12162162162162163,
+   "demeaned_pearson": 0.08232007125455044,
+   "spread_ratio": 0.24731298584957287
+  },
+  {
+   "source": "motor",
+   "target": "SC",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.005578861632030181,
+   "pearson": 0.9125103152112924,
+   "avg_rank": 0.7433837429111532,
+   "top1_acc": 0.043478260869565216,
+   "demeaned_pearson": 0.06600923887589415,
+   "spread_ratio": 0.23703689265661015
+  },
+  {
+   "source": "motor",
+   "target": "rest",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.013658153735905926,
+   "pearson": 0.8398737198129222,
+   "avg_rank": 0.9070489408327246,
+   "top1_acc": 0.5135135135135135,
+   "demeaned_pearson": 0.23477288193343268,
+   "spread_ratio": 0.3128165288370128
+  },
+  {
+   "source": "motor",
+   "target": "rest",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.012810224615907395,
+   "pearson": 0.8435445610671674,
+   "avg_rank": 0.8788693289224953,
+   "top1_acc": 0.4673913043478261,
+   "demeaned_pearson": 0.20903289384199042,
+   "spread_ratio": 0.30717171382978425
+  },
+  {
+   "source": "motor",
+   "target": "emotion",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.1074575876992953,
+   "pearson": 0.4449403108530786,
+   "avg_rank": 0.8873265157048941,
+   "top1_acc": 0.22972972972972974,
+   "demeaned_pearson": 0.07791371851075261,
+   "spread_ratio": 0.20045466260523975
+  },
+  {
+   "source": "motor",
+   "target": "emotion",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.10785915482863992,
+   "pearson": 0.4353322741133326,
+   "avg_rank": 0.8645439508506616,
+   "top1_acc": 0.16304347826086957,
+   "demeaned_pearson": 0.06932943844822961,
+   "spread_ratio": 0.19817443254864192
+  },
+  {
+   "source": "motor",
+   "target": "gambling",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.07316416629610621,
+   "pearson": 0.5442008703389536,
+   "avg_rank": 0.9010226442658875,
+   "top1_acc": 0.32432432432432434,
+   "demeaned_pearson": 0.10790327029594665,
+   "spread_ratio": 0.21366479973130106
+  },
+  {
+   "source": "motor",
+   "target": "gambling",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.0712949469010671,
+   "pearson": 0.5392167732047105,
+   "avg_rank": 0.8984522684310019,
+   "top1_acc": 0.29347826086956524,
+   "demeaned_pearson": 0.10376383047068875,
+   "spread_ratio": 0.21446409408919262
+  },
+  {
+   "source": "motor",
+   "target": "language",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.05439967713102451,
+   "pearson": 0.5887169021138158,
+   "avg_rank": 0.9346238130021913,
+   "top1_acc": 0.43243243243243246,
+   "demeaned_pearson": 0.09815544047277801,
+   "spread_ratio": 0.20833362044126566
+  },
+  {
+   "source": "motor",
+   "target": "language",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.054172391699275166,
+   "pearson": 0.5850082740647546,
+   "avg_rank": 0.8992202268431002,
+   "top1_acc": 0.2717391304347826,
+   "demeaned_pearson": 0.09304122056701485,
+   "spread_ratio": 0.209175039302859
+  },
+  {
+   "source": "motor",
+   "target": "relational",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.07959931051513391,
+   "pearson": 0.5164169472632321,
+   "avg_rank": 0.8623082542001461,
+   "top1_acc": 0.22972972972972974,
+   "demeaned_pearson": 0.06704315622179113,
+   "spread_ratio": 0.2015658725139845
+  },
+  {
+   "source": "motor",
+   "target": "relational",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.07907384598495139,
+   "pearson": 0.5215879464482052,
+   "avg_rank": 0.8739366729678639,
+   "top1_acc": 0.20108695652173914,
+   "demeaned_pearson": 0.07901943081530724,
+   "spread_ratio": 0.19840884989176716
+  },
+  {
+   "source": "motor",
+   "target": "social",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.06655153848440012,
+   "pearson": 0.5949880604339469,
+   "avg_rank": 0.8814828341855369,
+   "top1_acc": 0.2972972972972973,
+   "demeaned_pearson": 0.08499552816473392,
+   "spread_ratio": 0.20583991320223366
+  },
+  {
+   "source": "motor",
+   "target": "social",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.06494827410470544,
+   "pearson": 0.5945509467280666,
+   "avg_rank": 0.8462310964083175,
+   "top1_acc": 0.20108695652173914,
+   "demeaned_pearson": 0.07747862566502883,
+   "spread_ratio": 0.206407733421672
+  },
+  {
+   "source": "motor",
+   "target": "wm",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.03776481383999454,
+   "pearson": 0.6574333149602987,
+   "avg_rank": 0.9441197954711468,
+   "top1_acc": 0.581081081081081,
+   "demeaned_pearson": 0.1361424540384379,
+   "spread_ratio": 0.231594378272904
+  },
+  {
+   "source": "motor",
+   "target": "wm",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.037362187450639975,
+   "pearson": 0.655665015601136,
+   "avg_rank": 0.9338965028355387,
+   "top1_acc": 0.42391304347826086,
+   "demeaned_pearson": 0.12972084909783416,
+   "spread_ratio": 0.2304322686829419
+  },
+  {
+   "source": "relational",
+   "target": "SC",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.0053395640216857086,
+   "pearson": 0.9140425488127949,
+   "avg_rank": 0.7463476990504018,
+   "top1_acc": 0.0945945945945946,
+   "demeaned_pearson": 0.07808674428742282,
+   "spread_ratio": 0.2513411454010607
+  },
+  {
+   "source": "relational",
+   "target": "SC",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.005574187917207882,
+   "pearson": 0.9125071072708243,
+   "avg_rank": 0.7219104442344045,
+   "top1_acc": 0.03260869565217391,
+   "demeaned_pearson": 0.06927215201266908,
+   "spread_ratio": 0.2387684400578196
+  },
+  {
+   "source": "relational",
+   "target": "rest",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.013862951364256956,
+   "pearson": 0.8381263695675998,
+   "avg_rank": 0.860299488677867,
+   "top1_acc": 0.5135135135135135,
+   "demeaned_pearson": 0.20844761454883143,
+   "spread_ratio": 0.30666479940437624
+  },
+  {
+   "source": "relational",
+   "target": "rest",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.013052389307332322,
+   "pearson": 0.8404162855100857,
+   "avg_rank": 0.8292474007561437,
+   "top1_acc": 0.30978260869565216,
+   "demeaned_pearson": 0.17709108085797567,
+   "spread_ratio": 0.30219178094763816
+  },
+  {
+   "source": "relational",
+   "target": "emotion",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.10783028982104718,
+   "pearson": 0.44196918711058136,
+   "avg_rank": 0.8685171658144631,
+   "top1_acc": 0.22972972972972974,
+   "demeaned_pearson": 0.06507700179945315,
+   "spread_ratio": 0.19637307369703144
+  },
+  {
+   "source": "relational",
+   "target": "emotion",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.10803137663896659,
+   "pearson": 0.4339984211152612,
+   "avg_rank": 0.8407963137996219,
+   "top1_acc": 0.15217391304347827,
+   "demeaned_pearson": 0.06530233462005929,
+   "spread_ratio": 0.19614283976338817
+  },
+  {
+   "source": "relational",
+   "target": "gambling",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.07339546269637777,
+   "pearson": 0.5418734892577323,
+   "avg_rank": 0.8959094229364499,
+   "top1_acc": 0.32432432432432434,
+   "demeaned_pearson": 0.10291849935192598,
+   "spread_ratio": 0.20966728950634578
+  },
+  {
+   "source": "relational",
+   "target": "gambling",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.07129336901989085,
+   "pearson": 0.5386212542561666,
+   "avg_rank": 0.90382797731569,
+   "top1_acc": 0.2826086956521739,
+   "demeaned_pearson": 0.10323178141918339,
+   "spread_ratio": 0.21235387774194633
+  },
+  {
+   "source": "relational",
+   "target": "language",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.054545584729125435,
+   "pearson": 0.5857578378387731,
+   "avg_rank": 0.8831263696128561,
+   "top1_acc": 0.43243243243243246,
+   "demeaned_pearson": 0.09122822976750475,
+   "spread_ratio": 0.20610097886484668
+  },
+  {
+   "source": "relational",
+   "target": "language",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.05429603596272067,
+   "pearson": 0.583518380969383,
+   "avg_rank": 0.8779241493383743,
+   "top1_acc": 0.2554347826086957,
+   "demeaned_pearson": 0.08678035848562997,
+   "spread_ratio": 0.20616432200249285
+  },
+  {
+   "source": "relational",
+   "target": "motor",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.06328276144075413,
+   "pearson": 0.5349014930344188,
+   "avg_rank": 0.8931701972242513,
+   "top1_acc": 0.36486486486486486,
+   "demeaned_pearson": 0.0804361456352773,
+   "spread_ratio": 0.20389824691870528
+  },
+  {
+   "source": "relational",
+   "target": "motor",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.0627517510133734,
+   "pearson": 0.5382047415253843,
+   "avg_rank": 0.8785444234404537,
+   "top1_acc": 0.23369565217391305,
+   "demeaned_pearson": 0.07869094209518543,
+   "spread_ratio": 0.20505741108396738
+  },
+  {
+   "source": "relational",
+   "target": "social",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.06602894184535593,
+   "pearson": 0.5984087426019787,
+   "avg_rank": 0.9220233747260774,
+   "top1_acc": 0.40540540540540543,
+   "demeaned_pearson": 0.10278855090674416,
+   "spread_ratio": 0.2022911162775205
+  },
+  {
+   "source": "relational",
+   "target": "social",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.06469789053019613,
+   "pearson": 0.5958134039419328,
+   "avg_rank": 0.872843809073724,
+   "top1_acc": 0.21739130434782608,
+   "demeaned_pearson": 0.08500201883888754,
+   "spread_ratio": 0.2039641053274577
+  },
+  {
+   "source": "relational",
+   "target": "wm",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.037435885683486145,
+   "pearson": 0.6613658904392749,
+   "avg_rank": 0.9592768444119796,
+   "top1_acc": 0.7162162162162162,
+   "demeaned_pearson": 0.15266697870931575,
+   "spread_ratio": 0.22808674970097267
+  },
+  {
+   "source": "relational",
+   "target": "wm",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.03715806614993371,
+   "pearson": 0.6586620904842941,
+   "avg_rank": 0.9484877126654064,
+   "top1_acc": 0.483695652173913,
+   "demeaned_pearson": 0.14110658946483212,
+   "spread_ratio": 0.22949781474345773
+  },
+  {
+   "source": "social",
+   "target": "SC",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.0053243198608886565,
+   "pearson": 0.9143255114275736,
+   "avg_rank": 0.7737399561723886,
+   "top1_acc": 0.08108108108108109,
+   "demeaned_pearson": 0.08018867470084415,
+   "spread_ratio": 0.24342197597882395
+  },
+  {
+   "source": "social",
+   "target": "SC",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.005538854089470405,
+   "pearson": 0.9129008758424202,
+   "avg_rank": 0.7554938563327032,
+   "top1_acc": 0.043478260869565216,
+   "demeaned_pearson": 0.07890185309313731,
+   "spread_ratio": 0.23703513150327551
+  },
+  {
+   "source": "social",
+   "target": "rest",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.013540874900970007,
+   "pearson": 0.8418402879208007,
+   "avg_rank": 0.922753834915997,
+   "top1_acc": 0.6081081081081081,
+   "demeaned_pearson": 0.2378457287851259,
+   "spread_ratio": 0.29474568636153353
+  },
+  {
+   "source": "social",
+   "target": "rest",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.012862023553657858,
+   "pearson": 0.8433316361871451,
+   "avg_rank": 0.8841859640831758,
+   "top1_acc": 0.375,
+   "demeaned_pearson": 0.20397039502850597,
+   "spread_ratio": 0.31269036343438555
+  },
+  {
+   "source": "social",
+   "target": "emotion",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.1075132388573976,
+   "pearson": 0.44330668111638444,
+   "avg_rank": 0.8571950328707085,
+   "top1_acc": 0.3918918918918919,
+   "demeaned_pearson": 0.07445020711962433,
+   "spread_ratio": 0.19877836723408632
+  },
+  {
+   "source": "social",
+   "target": "emotion",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.10773702900026533,
+   "pearson": 0.43551494852831124,
+   "avg_rank": 0.8762996219281664,
+   "top1_acc": 0.13043478260869565,
+   "demeaned_pearson": 0.07196284128672562,
+   "spread_ratio": 0.19720336825019905
+  },
+  {
+   "source": "social",
+   "target": "gambling",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.07367678243081387,
+   "pearson": 0.5413513255191642,
+   "avg_rank": 0.8904309715120526,
+   "top1_acc": 0.4189189189189189,
+   "demeaned_pearson": 0.09179556767606527,
+   "spread_ratio": 0.21147290955607062
+  },
+  {
+   "source": "social",
+   "target": "gambling",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.07129129661290234,
+   "pearson": 0.5381544574690964,
+   "avg_rank": 0.8940512759924386,
+   "top1_acc": 0.266304347826087,
+   "demeaned_pearson": 0.10237279222068063,
+   "spread_ratio": 0.21124035976004488
+  },
+  {
+   "source": "social",
+   "target": "language",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.05465074442331321,
+   "pearson": 0.5848734113787012,
+   "avg_rank": 0.8898831263696129,
+   "top1_acc": 0.36486486486486486,
+   "demeaned_pearson": 0.08755286932277223,
+   "spread_ratio": 0.20925904070738438
+  },
+  {
+   "source": "social",
+   "target": "language",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.054126650170953736,
+   "pearson": 0.5846827414731998,
+   "avg_rank": 0.8906840737240076,
+   "top1_acc": 0.2826086956521739,
+   "demeaned_pearson": 0.09411263570414072,
+   "spread_ratio": 0.2064585996052869
+  },
+  {
+   "source": "social",
+   "target": "motor",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.06296164617223325,
+   "pearson": 0.5363975312546786,
+   "avg_rank": 0.8931701972242513,
+   "top1_acc": 0.33783783783783783,
+   "demeaned_pearson": 0.09232421004216665,
+   "spread_ratio": 0.20628618912326196
+  },
+  {
+   "source": "social",
+   "target": "motor",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.06259086112477552,
+   "pearson": 0.5395435790236055,
+   "avg_rank": 0.8895321361058601,
+   "top1_acc": 0.21195652173913043,
+   "demeaned_pearson": 0.08457033866895695,
+   "spread_ratio": 0.20403454474158317
+  },
+  {
+   "source": "social",
+   "target": "relational",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.07882973924688855,
+   "pearson": 0.5201932805271621,
+   "avg_rank": 0.9108838568298028,
+   "top1_acc": 0.28378378378378377,
+   "demeaned_pearson": 0.08862020773179066,
+   "spread_ratio": 0.20204495922203436
+  },
+  {
+   "source": "social",
+   "target": "relational",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.07896704424614662,
+   "pearson": 0.5219108075099628,
+   "avg_rank": 0.8877008506616257,
+   "top1_acc": 0.19021739130434784,
+   "demeaned_pearson": 0.08248010804827495,
+   "spread_ratio": 0.19906506749012753
+  },
+  {
+   "source": "social",
+   "target": "wm",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.0379288717476444,
+   "pearson": 0.6559853166867856,
+   "avg_rank": 0.9306062819576333,
+   "top1_acc": 0.47297297297297297,
+   "demeaned_pearson": 0.12449694398122746,
+   "spread_ratio": 0.22475115724128117
+  },
+  {
+   "source": "social",
+   "target": "wm",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.03752811119661733,
+   "pearson": 0.6544326846936561,
+   "avg_rank": 0.9226724952741021,
+   "top1_acc": 0.30434782608695654,
+   "demeaned_pearson": 0.1173860018066614,
+   "spread_ratio": 0.22263433603141428
+  },
+  {
+   "source": "wm",
+   "target": "SC",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.005338797354344077,
+   "pearson": 0.9141104039307496,
+   "avg_rank": 0.787436084733382,
+   "top1_acc": 0.13513513513513514,
+   "demeaned_pearson": 0.08747035179391065,
+   "spread_ratio": 0.2643355137952432
+  },
+  {
+   "source": "wm",
+   "target": "SC",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.005531104042809854,
+   "pearson": 0.9129531347314896,
+   "avg_rank": 0.7904950378071833,
+   "top1_acc": 0.07065217391304347,
+   "demeaned_pearson": 0.09220809605792554,
+   "spread_ratio": 0.2542232920464978
+  },
+  {
+   "source": "wm",
+   "target": "rest",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.013383911433345351,
+   "pearson": 0.843189571585786,
+   "avg_rank": 0.9391891891891891,
+   "top1_acc": 0.6081081081081081,
+   "demeaned_pearson": 0.255905478050024,
+   "spread_ratio": 0.32461410827536924
+  },
+  {
+   "source": "wm",
+   "target": "rest",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.012644020332107797,
+   "pearson": 0.8464333724943146,
+   "avg_rank": 0.9227906427221172,
+   "top1_acc": 0.5163043478260869,
+   "demeaned_pearson": 0.23023242234717956,
+   "spread_ratio": 0.33478920878915774
+  },
+  {
+   "source": "wm",
+   "target": "emotion",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.10752303076004616,
+   "pearson": 0.44556915196445046,
+   "avg_rank": 0.9075967859751644,
+   "top1_acc": 0.36486486486486486,
+   "demeaned_pearson": 0.08788849619097143,
+   "spread_ratio": 0.2208270805288982
+  },
+  {
+   "source": "wm",
+   "target": "emotion",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.1080094745724922,
+   "pearson": 0.4374488094042696,
+   "avg_rank": 0.9044777882797732,
+   "top1_acc": 0.27717391304347827,
+   "demeaned_pearson": 0.0795576137639181,
+   "spread_ratio": 0.2172518568337735
+  },
+  {
+   "source": "wm",
+   "target": "gambling",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.07190619672894599,
+   "pearson": 0.5539803514937245,
+   "avg_rank": 0.9638422205989774,
+   "top1_acc": 0.6486486486486487,
+   "demeaned_pearson": 0.15903307724499804,
+   "spread_ratio": 0.24681654596725877
+  },
+  {
+   "source": "wm",
+   "target": "gambling",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.07011355676080634,
+   "pearson": 0.5494874242258213,
+   "avg_rank": 0.9596526465028355,
+   "top1_acc": 0.6413043478260869,
+   "demeaned_pearson": 0.15298975039993656,
+   "spread_ratio": 0.24667066284107583
+  },
+  {
+   "source": "wm",
+   "target": "language",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.054232928525001715,
+   "pearson": 0.5907622431540331,
+   "avg_rank": 0.9453981008035062,
+   "top1_acc": 0.527027027027027,
+   "demeaned_pearson": 0.11609228222480135,
+   "spread_ratio": 0.2298197392340819
+  },
+  {
+   "source": "wm",
+   "target": "language",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.05392160851381957,
+   "pearson": 0.5881852374512136,
+   "avg_rank": 0.9364957466918714,
+   "top1_acc": 0.41304347826086957,
+   "demeaned_pearson": 0.11496674238520936,
+   "spread_ratio": 0.22784340388149266
+  },
+  {
+   "source": "wm",
+   "target": "motor",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.06269968276869944,
+   "pearson": 0.5409278281561843,
+   "avg_rank": 0.9470416362308254,
+   "top1_acc": 0.47297297297297297,
+   "demeaned_pearson": 0.11411277893973222,
+   "spread_ratio": 0.22954152955799995
+  },
+  {
+   "source": "wm",
+   "target": "motor",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.062121090035490614,
+   "pearson": 0.5446124922284374,
+   "avg_rank": 0.9412216446124764,
+   "top1_acc": 0.5108695652173914,
+   "demeaned_pearson": 0.11387622259594528,
+   "spread_ratio": 0.22718547557699564
+  },
+  {
+   "source": "wm",
+   "target": "relational",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.07800498307848823,
+   "pearson": 0.5305124694445881,
+   "avg_rank": 0.9663988312636961,
+   "top1_acc": 0.6621621621621622,
+   "demeaned_pearson": 0.12913814510981939,
+   "spread_ratio": 0.23332863561431066
+  },
+  {
+   "source": "wm",
+   "target": "relational",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.07806878427107396,
+   "pearson": 0.5306005133208316,
+   "avg_rank": 0.9581167296786389,
+   "top1_acc": 0.4782608695652174,
+   "demeaned_pearson": 0.1242269705049578,
+   "spread_ratio": 0.22871723742316308
+  },
+  {
+   "source": "wm",
+   "target": "social",
+   "split": "val",
+   "steps": 0,
+   "mse": 0.06624441827045215,
+   "pearson": 0.5990382319619872,
+   "avg_rank": 0.9260409057706355,
+   "top1_acc": 0.47297297297297297,
+   "demeaned_pearson": 0.10767549470071122,
+   "spread_ratio": 0.22471169890786494
+  },
+  {
+   "source": "wm",
+   "target": "social",
+   "split": "test",
+   "steps": 0,
+   "mse": 0.06433233025102139,
+   "pearson": 0.5997920032049509,
+   "avg_rank": 0.9370274102079394,
+   "top1_acc": 0.32608695652173914,
+   "demeaned_pearson": 0.1095603492940971,
+   "spread_ratio": 0.22511707932036784
+  }
+ ],
+ "seconds_total": 128.9770176410675,
+ "host": "gh120.hpc.nyu.edu",
+ "gpu": "NVIDIA H200"
+}

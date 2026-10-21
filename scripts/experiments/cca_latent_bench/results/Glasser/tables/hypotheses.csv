@@ -1,0 +1,10 @@
+H,comparison,metric,note,mean,se,n_pos,n,supported
+H1,rest CCA encoding − rest PCA codes (FC → SC),demeaned_pearson,,-0.009480665722543044,0.0019753171902591685,0,5,False
+H1,rest CCA encoding − rest PCA codes (FC → SC),avg_rank,,-0.033578170100817054,0.007012928779855248,0,5,False
+H1,rest CCA encoding − rest PCA codes (FC → SC),top1_acc,,-0.033328557635829426,0.016824199683327337,1,5,False
+H2,8-condition consensus − rest encoding (FC → SC),demeaned_pearson,,0.00751945050276108,0.0016937543513532128,5,5,True
+H2 (reported),7-task consensus − rest encoding,demeaned_pearson,,0.004507067752414143,0.0017510697432016945,4,5,True
+H2 (reported),concatenated encodings − consensus,demeaned_pearson,,-0.0011714058564591568,0.0006410820346728795,1,5,False
+H3,8-condition consensus − v3:E0 rest (PCA-PLS learnable),demeaned_pearson,non-inferior (margin 0.01): False,-0.009446682119539996,0.005102061123770467,1,5,False
+H4,SC → consensus latent → each FC condition − v3:E0 SC → FC (mean over 8 conditions),demeaned_pearson,,0.02023947801675578,0.0024792827229343025,5,5,True
+H4,SC → consensus latent → condition − direct SC → condition ridge (mean over 8),demeaned_pearson,,0.006172592207596282,0.0014568656496528093,5,5,True

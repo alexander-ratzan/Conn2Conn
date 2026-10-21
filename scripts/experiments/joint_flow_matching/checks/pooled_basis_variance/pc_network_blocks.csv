@@ -1,0 +1,141 @@
+pc,block,mean_loading
+1,default mode - default mode,0.9303820855999312
+1,default mode - dorsal attention,-1.3121844381156806
+1,default mode - frontoparietal,0.15451164273603182
+1,default mode - limbic,0.5604082644559719
+1,default mode - somatosensory,-0.42501032474773925
+1,default mode - ventral attention,-0.866551641161364
+1,default mode - visual,-0.985901185986548
+1,dorsal attention - dorsal attention,1.4368990597282068
+1,dorsal attention - frontoparietal,-0.27124343644030263
+1,dorsal attention - limbic,-0.8010201303539584
+1,dorsal attention - somatosensory,0.6100669930209512
+1,dorsal attention - ventral attention,1.1127672852712085
+1,dorsal attention - visual,1.1993774882955566
+1,frontoparietal - frontoparietal,-0.06682619220379915
+1,frontoparietal - limbic,0.07311886344650219
+1,frontoparietal - somatosensory,-0.07879485546620593
+1,frontoparietal - ventral attention,-0.22741400148395025
+1,frontoparietal - visual,-0.22545486130906442
+1,limbic - limbic,0.28908152489853584
+1,limbic - somatosensory,-0.18367920795619516
+1,limbic - ventral attention,-0.5096905432883267
+1,limbic - visual,-0.5843758977219551
+1,somatosensory - somatosensory,0.13131081589295104
+1,somatosensory - ventral attention,0.15289103791107175
+1,somatosensory - visual,0.5841417667057295
+1,ventral attention - ventral attention,0.5377269728917424
+1,ventral attention - visual,1.0276869580751062
+1,visual - visual,0.9138605828577081
+2,default mode - default mode,0.3734434741994862
+2,default mode - dorsal attention,-0.44146479824891255
+2,default mode - frontoparietal,-0.5299514634987905
+2,default mode - limbic,0.4262751624044388
+2,default mode - somatosensory,1.025862308180492
+2,default mode - ventral attention,0.4181569188855192
+2,default mode - visual,-0.4943331909651226
+2,dorsal attention - dorsal attention,0.46411544703604096
+2,dorsal attention - frontoparietal,0.7498467349100251
+2,dorsal attention - limbic,-0.4972300884203452
+2,dorsal attention - somatosensory,-1.4026470545449645
+2,dorsal attention - ventral attention,-0.494787717030828
+2,dorsal attention - visual,0.49107805098430923
+2,frontoparietal - frontoparietal,-0.24942151239461915
+2,frontoparietal - limbic,-0.20469411315868205
+2,frontoparietal - somatosensory,0.3818095202177508
+2,frontoparietal - ventral attention,0.39248270285171366
+2,frontoparietal - visual,0.8905662853372808
+2,limbic - limbic,0.3062613876885375
+2,limbic - somatosensory,0.49165987936407896
+2,limbic - ventral attention,0.1411081984947044
+2,limbic - visual,-0.5763128991814198
+2,somatosensory - somatosensory,-0.2356180022046037
+2,somatosensory - ventral attention,-0.34793629314231916
+2,somatosensory - visual,-1.4993147187009874
+2,ventral attention - ventral attention,-0.4015547751585131
+2,ventral attention - visual,-0.49442266204687396
+2,visual - visual,0.049561075156939145
+3,default mode - default mode,0.031001660877967456
+3,default mode - dorsal attention,-0.027266940347764945
+3,default mode - frontoparietal,-1.0784903141190114
+3,default mode - limbic,0.2258015560565987
+3,default mode - somatosensory,-0.09612787761140805
+3,default mode - ventral attention,-0.6849162357991561
+3,default mode - visual,1.046608566596877
+3,dorsal attention - dorsal attention,-0.1489229140667004
+3,dorsal attention - frontoparietal,1.1113469579843152
+3,dorsal attention - limbic,-0.29795835050489355
+3,dorsal attention - somatosensory,0.24971184530127002
+3,dorsal attention - ventral attention,0.8412138995963335
+3,dorsal attention - visual,-1.5349325907940838
+3,frontoparietal - frontoparietal,0.12042890328846963
+3,frontoparietal - limbic,-0.7057871357117886
+3,frontoparietal - somatosensory,-0.1849835406816072
+3,frontoparietal - ventral attention,0.23782800060812312
+3,frontoparietal - visual,0.6244142437628333
+3,limbic - limbic,0.21470940856841864
+3,limbic - somatosensory,0.11439377667353318
+3,limbic - ventral attention,-0.4903200681729572
+3,limbic - visual,0.4553934110531289
+3,somatosensory - somatosensory,0.18908641686640348
+3,somatosensory - ventral attention,-0.004917132304561969
+3,somatosensory - visual,0.30419170745054
+3,ventral attention - ventral attention,0.5673361148288143
+3,ventral attention - visual,0.24095786060198193
+3,visual - visual,-1.2442915274821444
+4,default mode - default mode,0.12414594282963894
+4,default mode - dorsal attention,0.0038084738060223658
+4,default mode - frontoparietal,0.011743282406086679
+4,default mode - limbic,0.09377723845496279
+4,default mode - somatosensory,0.2976315568933518
+4,default mode - ventral attention,0.23282156709652213
+4,default mode - visual,-0.3092630562141185
+4,dorsal attention - dorsal attention,-0.08502884758478876
+4,dorsal attention - frontoparietal,-0.20220807529816243
+4,dorsal attention - limbic,0.1138805362047391
+4,dorsal attention - somatosensory,-0.1721096808658531
+4,dorsal attention - ventral attention,-0.34155357256093877
+4,dorsal attention - visual,0.39476408472000896
+4,frontoparietal - frontoparietal,1.0344531704569773
+4,frontoparietal - limbic,-0.39832368207677976
+4,frontoparietal - somatosensory,-1.6139191937177222
+4,frontoparietal - ventral attention,-0.5399840388476799
+4,frontoparietal - visual,-0.5057056938332984
+4,limbic - limbic,0.22939331518438696
+4,limbic - somatosensory,0.6360217191166848
+4,limbic - ventral attention,0.3441082321075346
+4,limbic - visual,0.061100751826099683
+4,somatosensory - somatosensory,2.031707769722373
+4,somatosensory - ventral attention,0.5724457265392975
+4,somatosensory - visual,0.5669652718947679
+4,ventral attention - ventral attention,0.3176390572619936
+4,ventral attention - visual,0.04830379871217561
+4,visual - visual,0.6317968655341003
+5,default mode - default mode,0.41285886986412235
+5,default mode - dorsal attention,-0.23131097757153724
+5,default mode - frontoparietal,0.22162871602784104
+5,default mode - limbic,0.3947489090677967
+5,default mode - somatosensory,-0.5871896761009124
+5,default mode - ventral attention,-0.45528784191887256
+5,default mode - visual,0.21982159716001817
+5,dorsal attention - dorsal attention,0.12943275380179411
+5,dorsal attention - frontoparietal,-0.07432777009641717
+5,dorsal attention - limbic,-0.20292913007165683
+5,dorsal attention - somatosensory,0.23459705681709667
+5,dorsal attention - ventral attention,0.311924654132346
+5,dorsal attention - visual,-0.3203328748227472
+5,frontoparietal - frontoparietal,0.026882932523252738
+5,frontoparietal - limbic,0.19598574560816726
+5,frontoparietal - somatosensory,-0.06995635474221375
+5,frontoparietal - ventral attention,-0.36327741043391043
+5,frontoparietal - visual,0.4498361724470198
+5,limbic - limbic,0.41444896468203735
+5,limbic - somatosensory,-0.548768710156964
+5,limbic - ventral attention,-0.37724280860082715
+5,limbic - visual,-0.07294717119866961
+5,somatosensory - somatosensory,0.8783561120208444
+5,somatosensory - ventral attention,1.4843397037071655
+5,somatosensory - visual,-1.129777304476084
+5,ventral attention - ventral attention,1.27204810251184
+5,ventral attention - visual,-0.861287077832287
+5,visual - visual,-0.0494387843788044
