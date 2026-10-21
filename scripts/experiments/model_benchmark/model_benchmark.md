@@ -3,6 +3,8 @@
 **Status:** complete 2026-10-04 (SC → FC and FC → SC, seeds 0–4); Masked MLP FC → SC added 2026-10-05 (spec v3 C8) · **Owner:** agent:modeling ·
 **Spec:** `context_packages/repo_spec_docs/spec_doc_v2.md` E2.2 (closed); follow-ups carried to `spec_doc_v3.md`
 
+**Composite-loss rerun (spec v3 E3, 2026-10-21):** [`composite_loss/composite_loss.md`](composite_loss/composite_loss.md): same roster splits, composite-loss weights tuned per model and seed, paired with these MSE rows.
+
 ## Question
 
 With every model tuned on the same splits under MSE only, how are test Pearson r, demeaned r, average rank and top-1

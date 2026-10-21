@@ -1,0 +1,9 @@
+model,label,type,reference,n_shared_seeds,d_pearson_mean,d_pearson_se,d_demeaned_pearson_mean,d_demeaned_pearson_se,d_avg_rank_mean,d_avg_rank_se,d_top1_acc_mean,d_top1_acc_se
+CrossModal_ConditionalGaussian_mse,Conditional Gaussian (E2.2),linear_closed_form,CrossModal_ConditionalGaussian_mse,5,0,0,0,0,0,0,0,0
+CrossModal_PCA_PLS_mse,PCA-PLS (E2.2),linear_closed_form,CrossModal_ConditionalGaussian_mse,5,0.002028,0.00325729,-0.0012052,0.00795405,-0.0345668,0.0233717,-0.0194872,0.00714278
+CrossModal_PCA_PLS_CovProjector,PCA-PLS + covariates †,linear_learned,CrossModal_ConditionalGaussian_mse,5,0.00253935,0.00284632,-0.00926815,0.00992468,0.123156,0.0224418,0.0635897,0.0188841
+Krakencoder_paper,Krakencoder (paper loss),deep_baseline,CrossModal_ConditionalGaussian_mse,5,-0.000929,0.00284294,-0.013334,0.00723151,0.0577198,0.0236612,0.0112821,0.0158394
+CrossModal_linear_backbone,Linear backbone,linear_learned,CrossModal_ConditionalGaussian_mse,5,0.00227399,0.00289594,-0.0187092,0.005243,0.131445,0.0261401,0.0471795,0.0174208
+CrossModal_PCA_PLS_learnable,PCA-PLS learnable,linear_learned,CrossModal_ConditionalGaussian_mse,5,0.00179232,0.0029722,-0.0191959,0.0109914,0.112089,0.0261573,0.0492308,0.0148275
+Sarwar2020MLP,Sarwar MLP,deep_baseline,CrossModal_ConditionalGaussian_mse,5,-0.0214494,0.00524427,-0.0408833,0.00934885,0.00899392,0.0249066,-0.00615385,0.0149863
+CrossModalPCA_mse,"PCA null (MSE, E2.2)",null_ceiling,CrossModal_ConditionalGaussian_mse,5,-0.0081956,0.00353667,-0.0824525,0.0112561,-0.228208,0.0330411,-0.0430769,0.010708

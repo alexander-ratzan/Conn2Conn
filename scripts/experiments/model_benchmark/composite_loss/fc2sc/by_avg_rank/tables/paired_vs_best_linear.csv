@@ -1,0 +1,9 @@
+model,label,type,reference,n_shared_seeds,d_pearson_mean,d_pearson_se,d_demeaned_pearson_mean,d_demeaned_pearson_se,d_avg_rank_mean,d_avg_rank_se,d_top1_acc_mean,d_top1_acc_se
+CrossModal_PCA_PLS_CovProjector,PCA-PLS + covariates †,linear_learned,CrossModal_PCA_PLS_mse,5,-0.00370915,0.00147465,0.0421202,0.00443926,0.0949428,0.00926691,0.288205,0.0322466
+CrossModal_PCA_PLS_mse,PCA-PLS (E2.2),linear_closed_form,CrossModal_PCA_PLS_mse,5,0,0,0,0,0,0,0,0
+CrossModal_PCA_PLS_learnable,PCA-PLS learnable,linear_learned,CrossModal_PCA_PLS_mse,5,-0.000170544,0.000937032,-0.00625131,0.00717656,0.0256148,0.00663084,0.043077,0.0140066
+CrossModal_ConditionalGaussian_mse,Conditional Gaussian (E2.2),linear_closed_form,CrossModal_PCA_PLS_mse,5,0.0002654,0.000352209,-0.015446,0.00204484,0.0174726,0.00675849,0.0574359,0.0115128
+CrossModal_linear_backbone,Linear backbone,linear_learned,CrossModal_PCA_PLS_mse,5,0.000328954,0.000507317,-0.0229701,0.014062,0.0260145,0.0110786,0.0451283,0.00571047
+Krakencoder_paper,Krakencoder (paper loss),deep_baseline,CrossModal_PCA_PLS_mse,5,-0.0002846,0.000311223,-0.0425396,0.00375986,0.030969,0.0109682,0.0523077,0.0103075
+Sarwar2020MLP,Sarwar MLP,deep_baseline,CrossModal_PCA_PLS_mse,5,-0.0376191,0.00665803,-0.0702808,0.00810896,0.0153058,0.00977784,0.0379488,0.0241951
+CrossModalPCA_mse,"PCA null (MSE, E2.2)",null_ceiling,CrossModal_PCA_PLS_mse,5,-0.051653,0.00340295,-0.140773,0.00400755,-0.354009,0.00511465,-0.0841025,0.0111884

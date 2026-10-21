@@ -4,7 +4,7 @@
 (E2, infrastructure I5), composite-loss and bidirectional infrastructure for the next benchmark (I1–I3), and a late
 covariate ablation (E1). New experiments are added once
 their scope is set by the user.
-**Status:** active · **Started:** 2026-10-04 · **Predecessor:** [`spec_doc_v2.md`](spec_doc_v2.md) (closed 2026-10-04) ·
+**Status:** closed 2026-10-21 · **Started:** 2026-10-04 · **Predecessor:** [`spec_doc_v2.md`](spec_doc_v2.md) (closed 2026-10-04) · **Successor:** [`spec_doc_v4.md`](spec_doc_v4.md) ·
 **Format:** [`spec_conventions.md`](spec_conventions.md)
 
 **Contents:** [Status](#status) · [1. Conventions](#1-conventions) · [2. Experiments](#2-experiments) ·
@@ -21,7 +21,7 @@ row to the status table.
 | E0 | Which task FC best predicts SC, and which is best predicted from SC (both directions, both parcellations) | done 2026-10-07 | — | agent:infra |
 | E1 | Covariate family ablation for PCA-PLS + covariates, both directions, + unnormalised-SC control; E1.5 node-size follow-up | done 2026-10-15 | D2 | agent:infra |
 | E2 | Joint task-FC → SC: do the 7 task-FC blocks add to rest FC? (E2.1 raw, E2.2 predictive residual) | done 2026-10-12 | I5 | agent:infra |
-| E3 | Composite-loss cross-model benchmark: v2:E2.2 rerun with composite-loss weights tuned per model and seed | in progress (re-aligned 2026-10-20: scales for all models, then pilots) | I1, D3 | agent:infra |
+| E3 | Composite-loss cross-model benchmark: v2:E2.2 rerun with composite-loss weights tuned per model and seed | done 2026-10-21 | I1, D3 | agent:infra |
 | E4 | Task-FC signature above rest: subject-level task − rest residual connectomes, train / val / test means (notebook) | done 2026-10-15 | — | agent:infra |
 | I1 | Composite-loss benchmark infrastructure: composite configs per model, reference scales, extra val metrics | done 2026-10-15 (`ff0c9aa`; Sarwar scales running) | D3 | agent:infra |
 | I2 | Config layout: family folders (done), one tune launcher, variants as roster overrides | done (layout, `5efe03a`); launcher dropped 2026-10-15 | — | — |
@@ -281,7 +281,7 @@ mixtures; fixed reference scales).
   5. Learnable multi-block model and composite losses; 4S456Parcels replication: deprioritized given no linear
      gain.
 
-### E3 — Composite-loss cross-model benchmark   (slug: `model_benchmark/composite_loss`) · status: in progress · owner: agent:infra
+### E3 — Composite-loss cross-model benchmark   (slug: `model_benchmark/composite_loss`) · status: done 2026-10-21 · owner: agent:infra
 
 - **Question:** with composite-loss weights tuned per model and seed alongside the other hyperparameters (on the
   E2.2 splits and protocol), how much does each model gain over its MSE-only E2.2 result, in each direction? Which
@@ -321,6 +321,23 @@ mixtures; fixed reference scales).
   pilot wall exceeds `max_wall_h` 1.75 h; `launch_model.sh` logs GPU utilisation every 30 s (`<task log>.gpu.csv`, mean
   printed at exit); the second best-trial report reuses the first retrain when both selections pick the same trial
   (`main.py`); `submit.py --job-prefix` keeps smoke / probe runs out of the campaign logs.
+- **Result:** [`composite_loss.md`](../../scripts/experiments/model_benchmark/composite_loss/composite_loss.md);
+  40 / 40 tasks with both reports (25.5 GPU-h, ~30–45 min per task, no stalls after the 2026-10-21 fixes). Δ vs each
+  model's own E2.2 MSE row, same seeds:
+  - **SC → FC, selected on val demeaned r:** composite loss keeps or improves accuracy for every model (demeaned r
+    +0.000 to +0.008; PCA-PLS + covariates † 5/5 seeds) and raises average rank (+0.016 to +0.065) and top-1.
+  - **SC → FC, selected on val avg rank:** average rank +0.11 to +0.19 and top-1 +0.02 to +0.08 in 5/5 seeds for
+    every model, for −0.012 to −0.024 demeaned r; the linear models (0.86–0.88 avg rank) beat Krakencoder's paper loss
+    (0.80) on identifiability.
+  - **FC → SC:** no gain. Selected on demeaned r every model loses demeaned r (−0.004 to −0.016) and mostly rank;
+    selected on avg rank only the linear backbone gains identifiability (+0.034 rank, +0.063 top-1) at −0.033
+    demeaned r. MSE-only was in every grid, so validation selection preferred composite-weighted trials that
+    generalise slightly worse; read FC → SC rank metrics with C!2.
+  - Caveat: batch fixed at 64 (D3 c); E2.2 used 128 (linear backbone) and 32 (Sarwar), so their Δ includes a batch
+    change; PCA-PLS learnable and PCA-PLS + covariates are batch-matched.
+- **Infrastructure fixes during the run (2026-10-21):** per-epoch val rank computed on the GPU (`9fbf35e`; the CPU
+  path did not reproduce the stall in a 2 × 24-trial A/B); packing back to E2.2's 0.25 × 4 (`40fc700`); non-fatal Ray
+  cleanup (`f2f4b90`); autopilot without a gate (`0795c35`); Lightning per-trial checkpoints off (`d7abd72`).
 - **Then:** the final reoptimized benchmark (the composite winners as the model set) is a v4 item.
 
 ### E4 — Task-FC signature above rest   (slug: notebook `scripts/notebooks/EDA/FC_matrix_analysis.ipynb`) · status: done 2026-10-15 · owner: agent:infra
@@ -520,10 +537,11 @@ mixtures; fixed reference scales).
 | 2026-10-14 | E1 done: E1.1 cache gate moved to Spearman + zero pattern (user). FC → SC covariate gain (+0.077 demeaned r, +0.31 top-1) is regional size (area ≈ volumes, overlapping); none in SC → FC; ~40% of it disappears on unnormalised SC, the rest stays. C!1 resolved (reworded). |
 | 2026-10-15 | Stock-take (user): I2 launcher dropped (layout done); I3 → v4 as a nodal-models item; I4 necessity written out; I1 re-scoped to composite-benchmark infrastructure; E3 (composite-loss cross-model benchmark) and E4 (task-FC signature above rest, notebook) added; D3 pending. |
 | 2026-10-15 | D3 decided (user): 4-model roster, per-model data-driven weight grids from the v2:E1 val Pareto fronts, batch 64, both selections reported, autonomous at 80 GPU-h; E3 runs SC → FC first and cites C!2 for FC → SC rank metrics. I4 dropped. |
+| 2026-10-21 | E3 done: composite loss helps every model SC → FC (accuracy kept or +0.008 demeaned r selected on demeaned r; +0.11 to +0.19 average rank selected on avg rank) and none FC → SC. v3 closed (user: close after E3); successor `spec_doc_v4.md`. Open notebook item: `FC_matrix_analysis.ipynb` (E4 cells + user edits) uncommitted. |
 | 2026-10-20 | D3 revised (user): E3 retunes all four roster models in both directions with one declared weight grid per direction (same for every model), reference scales measured for every model in the E3 pipeline, Ray actor reuse off; moved to `model_benchmark/composite_loss/` (configs `models/configs/benchmark/composite_loss/`, `config_composite_loss.yml`). 2026-10-19 pilots superseded (actor-reuse stalls, GPU-underuse kills). |
 | 2026-10-19 | D4 decided (user): SC stays a valid prediction target; E1.5 / C!2 guide interpretation of FC → SC results (standing caveat, not a blocker). |
 | 2026-10-15 | E4 done (CPU, notebook §4): all 7 tasks have a strong, split-reproducible signature above rest (r 0.86–0.99; session null 0.48–0.76, ~8× weaker) that every held-out subject expresses (median r 0.23–0.48); WM strongest, emotion weakest. Task-FC quality is not why E2's task blocks added nothing. `data/data_viz.py` task-signature compute + plots. |
 | 2026-10-15 | E1.5 node-size follow-up done (CPU): each subject's parcel volumes alone predict held-out SC (demeaned r 0.20, top-1 ~1.0) on normalised and raw counts, beating FC + all covariates; nothing for FC. E1 result reworded (families overlap: ~half of the covariate gain is shared). C!1 reworded and resolved; C!2 (SC dominated by parcel geometry) and D4 (primary analysis direction, user) added. `data/data_viz.py` edgewise predict / evaluate helpers + Glasser atlas support. |
 | 2026-10-12 | E1 specified (user): 4 covariate families (`demo`, `fs_vol`, `fs_area`, `fs_thick`), 10 conditions × 2 directions × 5 seeds with frozen E2.2 configs, plus an unnormalised-SC (`sift_radius2_count`) FC → SC control; 3 figures. D2 (autonomous execution, 6 GPU-h cap) proposed. |
 
-Last updated at: 2026-10-20 EDT (E3 re-aligned: grids, scales, GPU-usage infrastructure)
+Last updated at: 2026-10-21 EDT (E3 done; v3 closed)
