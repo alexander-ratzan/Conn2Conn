@@ -1,4 +1,151 @@
 # Spec v3 E3 measured reference scales (composite_scales.py --combine); c_t = s_t / s_mse over seeds.
+CrossModal_PCA_PLS_CovProjector:
+  fc2sc:
+    c:
+      varmatch: 196.49858812505764
+      correye: 12640.344556464797
+      correye_dm: 2014.4319278311898
+      neidist: 31.59843378550469
+    spread_cv:
+      varmatch: 0.009728717513333887
+      correye: 0.013137263165575092
+      correye_dm: 0.015531940663772212
+      neidist: 0.18747506728984725
+    s_abs_mean:
+      mse: 0.00457838031463325
+      varmatch: 0.8996452677249908
+      correye: 57.87230468749999
+      correye_dm: 9.222835483551027
+      neidist: 0.14466964721679687
+    neidist_signed_mean: -0.00658744812011719
+    seeds:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+  sc2fc:
+    c:
+      varmatch: 77.2382118657023
+      correye: 4258.360929871199
+      correye_dm: 989.4509442421958
+      neidist: 139.49284386480903
+    spread_cv:
+      varmatch: 0.029974959260477607
+      correye: 0.05127824163046164
+      correye_dm: 0.14760490831068238
+      neidist: 0.31199806844488703
+    s_abs_mean:
+      mse: 0.012415425032377244
+      varmatch: 0.9589452290534973
+      correye: 52.86936088562012
+      correye_dm: 12.284454021453858
+      neidist: 1.7318629455566406
+    neidist_signed_mean: 1.7318629455566406
+    seeds:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+CrossModal_PCA_PLS_learnable:
+  fc2sc:
+    c:
+      varmatch: 191.85587552326584
+      correye: 12423.873218737357
+      correye_dm: 1979.1314866749567
+      neidist: 118.23975865878722
+    spread_cv:
+      varmatch: 0.04370857070255524
+      correye: 0.07031245208873965
+      correye_dm: 0.06848929263515013
+      neidist: 0.7810346699250137
+    s_abs_mean:
+      mse: 0.004655771376565099
+      varmatch: 0.8932370936870576
+      correye: 57.84271331787109
+      correye_dm: 9.214383726119994
+      neidist: 0.5504972839355469
+    neidist_signed_mean: 0.08570106506347655
+    seeds:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+  sc2fc:
+    c:
+      varmatch: 73.84310181047313
+      correye: 4054.2353463076056
+      correye_dm: 926.6194981229809
+      neidist: 159.49023696792364
+    spread_cv:
+      varmatch: 0.016966088426448204
+      correye: 0.06024253104042009
+      correye_dm: 0.11338713467743852
+      neidist: 0.43022716243421666
+    s_abs_mean:
+      mse: 0.013044635578989983
+      varmatch: 0.9632563531398773
+      correye: 52.88602264404297
+      correye_dm: 12.087413673400878
+      neidist: 2.0804920196533203
+    neidist_signed_mean: 2.0804920196533203
+    seeds:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+CrossModal_linear_backbone:
+  fc2sc:
+    c:
+      varmatch: 193.38160910887927
+      correye: 11560.47256811625
+      correye_dm: 2014.6340378869338
+      neidist: 165.08935755992124
+    spread_cv:
+      varmatch: 0.026416943618261513
+      correye: 0.039893641640577085
+      correye_dm: 0.030865316423384158
+      neidist: 0.36580458515714315
+    s_abs_mean:
+      mse: 0.005020665097981691
+      varmatch: 0.9709042954444884
+      correye: 58.04126113891603
+      correye_dm: 10.114802799224853
+      neidist: 0.8288583755493164
+    neidist_signed_mean: 0.8288583755493164
+    seeds:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+  sc2fc:
+    c:
+      varmatch: 75.94814821546831
+      correye: 4073.791994269716
+      correye_dm: 761.1452869264698
+      neidist: 164.00827659485876
+    spread_cv:
+      varmatch: 0.023457469941893804
+      correye: 0.029437516240260322
+      correye_dm: 0.08486253716182672
+      neidist: 0.14744118806706902
+    s_abs_mean:
+      mse: 0.013016469273716214
+      varmatch: 0.9885767376422882
+      correye: 53.026388320922855
+      correye_dm: 9.907424240112306
+      neidist: 2.134808692932129
+    neidist_signed_mean: 2.134808692932129
+    seeds:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
 Sarwar2020MLP:
   fc2sc:
     c:

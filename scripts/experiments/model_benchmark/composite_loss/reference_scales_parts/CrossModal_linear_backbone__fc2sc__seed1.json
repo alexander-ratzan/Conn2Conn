@@ -1,0 +1,61 @@
+{
+ "model": "CrossModal_linear_backbone",
+ "direction": "fc2sc",
+ "seed": 1,
+ "batch_size": 64,
+ "config": {
+  "model": {
+   "l1_reg": 0.0,
+   "l2_reg": 0.00012583673379957725,
+   "n_components_pca_source": 256,
+   "zscore_pca_scores": true
+  },
+  "trainer": {
+   "lr": 0.001927977106616836,
+   "max_epochs": 150,
+   "loss_type": "composite",
+   "loss_terms": [
+    {
+     "name": "mse",
+     "weight": 1.0
+    }
+   ],
+   "loss_normalize": "none",
+   "loss_monitor_terms": [
+    "varmatch",
+    "correye",
+    "correye_dm",
+    "neidist"
+   ],
+   "batch_size": 64,
+   "log_every": 1
+  }
+ },
+ "term_scales": {
+  "mse": {
+   "abs_mean": 0.004750772565603256,
+   "mean": 0.004750772565603256,
+   "n_batches": 10
+  },
+  "varmatch": {
+   "abs_mean": 0.9502623021602631,
+   "mean": 0.9502623021602631,
+   "n_batches": 10
+  },
+  "correye": {
+   "abs_mean": 57.999702072143556,
+   "mean": 57.999702072143556,
+   "n_batches": 10
+  },
+  "correye_dm": {
+   "abs_mean": 9.271233081817627,
+   "mean": 9.271233081817627,
+   "n_batches": 10
+  },
+  "neidist": {
+   "abs_mean": 0.37137374877929685,
+   "mean": 0.37137374877929685,
+   "n_batches": 10
+  }
+ }
+}

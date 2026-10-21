@@ -1,61 +1,35 @@
-# Spec v3 E3 weight grids (v2:E1 val Pareto fronts) and reference scales; written by build_composite_configs.py.
+# Spec v3 E3 weight grids (declared per direction) and reference scales; written by build_composite_configs.py.
 CrossModal_PCA_PLS_learnable:
   sc2fc:
-    pareto_front: [vm_0.5, vm_0.1, nd_0.1, vm_nd_0.5, alldm_0.1]
-    levels:
-      varmatch: [0.0, 0.1, 0.5]
-      correye_dm: [0.0, 0.1]
-      neidist: [0.0, 0.1, 0.5]
-    scales: {varmatch: 77.01715018277095, correye_dm: 698.599485885761, neidist: 151.9988968572252}
-    scales_from: pca_pls_learnable
+    levels: &id001
+      varmatch: [0.0, 0.1, 0.3, 1.0]
+      correye_dm: [0.0, 0.1, 0.3, 1.0]
+      neidist: [0.0, 0.1, 0.3, 1.0]
+    scales: {varmatch: 73.84310181047313, correye_dm: 926.6194981229809, neidist: 159.49023696792364}
+  fc2sc:
+    levels: &id002
+      varmatch: [0.0, 0.1, 0.3, 0.5]
+      correye_dm: [0.0, 0.1, 0.3, 0.5]
+      neidist: [0.0, 0.1, 0.3, 0.5]
+    scales: {varmatch: 191.85587552326584, correye_dm: 1979.1314866749567, neidist: 118.23975865878722}
 CrossModal_linear_backbone:
   sc2fc:
-    pareto_front: [mse_only, vm_0.1, vm_0.5, nd_0.1, alldm_0.1, cedm_0.1, vm_cedm_0.5]
-    levels:
-      varmatch: [0.0, 0.1, 0.5]
-      correye_dm: [0.0, 0.1, 0.5]
-      neidist: [0.0, 0.1]
-    scales: {varmatch: 79.33157506785062, correye_dm: 704.6701295180267, neidist: 103.03208876247243}
-    scales_from: linear_backbone
+    levels: *id001
+    scales: {varmatch: 75.94814821546831, correye_dm: 761.1452869264698, neidist: 164.00827659485876}
   fc2sc:
-    pareto_front: [vm_0.1, mse_only, nd_0.1, alldm_0.1]
-    levels:
-      varmatch: [0.0, 0.1]
-      correye_dm: [0.0, 0.1]
-      neidist: [0.0, 0.1]
-    scales: {varmatch: 199.00430896052916, correye_dm: 1968.6706142227802, neidist: 100.28026814604205}
-    scales_from: linear_backbone
+    levels: *id002
+    scales: {varmatch: 193.38160910887927, correye_dm: 2014.6340378869338, neidist: 165.08935755992124}
 CrossModal_PCA_PLS_CovProjector:
   sc2fc:
-    pareto_front: [cedm_0.1, nd_0.5, vm_nd_0.5, alldm_0.5, alldm_1.0]
-    levels:
-      varmatch: [0.0, 0.5, 1.0]
-      correye_dm: [0.0, 0.1, 0.5, 1.0]
-      neidist: [0.0, 0.5, 1.0]
-    scales: {varmatch: 77.62566225588695, correye_dm: 1140.8228078619932, neidist: 141.3869355108806}
-    scales_from: pca_pls_covprojector
+    levels: *id001
+    scales: {varmatch: 77.2382118657023, correye_dm: 989.4509442421958, neidist: 139.49284386480903}
   fc2sc:
-    pareto_front: [vm_0.5, mse_only]
-    levels:
-      varmatch: [0.0, 0.5]
-      correye_dm: [0.0]
-      neidist: [0.0]
-    scales: {varmatch: 206.30772976456694, correye_dm: 1921.6130636892408, neidist: 596.5150100752134}
-    scales_from: pca_pls_covprojector
+    levels: *id002
+    scales: {varmatch: 196.49858812505764, correye_dm: 2014.4319278311898, neidist: 31.59843378550469}
 Sarwar2020MLP:
   sc2fc:
-    pareto_front: union of linear_backbone, pca_pls_learnable, pca_pls_covprojector
-    levels:
-      varmatch: [0.0, 0.1, 0.5, 1.0]
-      correye_dm: [0.0, 0.1, 0.5, 1.0]
-      neidist: [0.0, 0.1, 0.5, 1.0]
+    levels: *id001
     scales: {varmatch: 62.56196337261524, correye_dm: 1373.593656254241, neidist: 524.7377162366913}
-    scales_from: measured
   fc2sc:
-    pareto_front: union of linear_backbone, pca_pls_learnable, pca_pls_covprojector
-    levels:
-      varmatch: [0.0, 0.1, 0.5]
-      correye_dm: [0.0, 0.1]
-      neidist: [0.0, 0.1]
+    levels: *id002
     scales: {varmatch: 175.4327027052189, correye_dm: 2036.072111764073, neidist: 87.76113063280326}
-    scales_from: measured

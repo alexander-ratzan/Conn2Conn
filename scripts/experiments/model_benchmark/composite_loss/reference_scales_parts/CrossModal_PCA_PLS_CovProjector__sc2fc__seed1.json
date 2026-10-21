@@ -1,0 +1,88 @@
+{
+ "model": "CrossModal_PCA_PLS_CovProjector",
+ "direction": "sc2fc",
+ "seed": 1,
+ "batch_size": 64,
+ "config": {
+  "model": {
+   "cov_fusion": {
+    "dropout": 0.1,
+    "hidden_dims": [
+     128
+    ],
+    "layer_norm": true,
+    "type": "mlp"
+   },
+   "cov_projectors": {
+    "age": {
+     "out_dim": 8,
+     "type": "linear"
+    },
+    "fs_all": {
+     "out_dim": 128,
+     "type": "linear"
+    },
+    "race_eth": {
+     "out_dim": 16,
+     "type": "linear"
+    },
+    "sex": {
+     "out_dim": 4,
+     "type": "linear"
+    }
+   },
+   "dropout": 0.27640245547723385,
+   "learn_mid": true,
+   "n_components_pca_source": 256,
+   "n_components_pca_target": 256,
+   "n_components_pls": 8
+  },
+  "trainer": {
+   "lr": 0.00011546891874339053,
+   "max_epochs": 101,
+   "loss_type": "composite",
+   "loss_terms": [
+    {
+     "name": "mse",
+     "weight": 1.0
+    }
+   ],
+   "loss_normalize": "none",
+   "loss_monitor_terms": [
+    "varmatch",
+    "correye",
+    "correye_dm",
+    "neidist"
+   ],
+   "batch_size": 64,
+   "log_every": 1
+  }
+ },
+ "term_scales": {
+  "mse": {
+   "abs_mean": 0.011486439313739539,
+   "mean": 0.011486439313739539,
+   "n_batches": 10
+  },
+  "varmatch": {
+   "abs_mean": 0.9299376010894775,
+   "mean": 0.9299376010894775,
+   "n_batches": 10
+  },
+  "correye": {
+   "abs_mean": 52.81025428771973,
+   "mean": 52.81025428771973,
+   "n_batches": 10
+  },
+  "correye_dm": {
+   "abs_mean": 13.039963436126708,
+   "mean": 13.039963436126708,
+   "n_batches": 10
+  },
+  "neidist": {
+   "abs_mean": 0.8554925918579102,
+   "mean": 0.8554925918579102,
+   "n_batches": 10
+  }
+ }
+}

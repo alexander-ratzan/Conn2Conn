@@ -1,0 +1,67 @@
+{
+ "model": "CrossModal_PCA_PLS_learnable",
+ "direction": "fc2sc",
+ "seed": 2,
+ "batch_size": 64,
+ "config": {
+  "model": {
+   "dropout": 0.26078708802192363,
+   "l1_reg": 0.0,
+   "l2_reg": 1.4772598237933299e-05,
+   "learn_decoder": false,
+   "learn_encoder": false,
+   "learn_mid": false,
+   "n_components_pca_source": 512,
+   "n_components_pca_target": 256,
+   "n_components_pls": 32,
+   "random_init": false
+  },
+  "trainer": {
+   "lr": 0.003138029344633063,
+   "max_epochs": 51,
+   "loss_type": "composite",
+   "loss_terms": [
+    {
+     "name": "mse",
+     "weight": 1.0
+    }
+   ],
+   "loss_normalize": "none",
+   "loss_monitor_terms": [
+    "varmatch",
+    "correye",
+    "correye_dm",
+    "neidist"
+   ],
+   "batch_size": 64,
+   "log_every": 1
+  }
+ },
+ "term_scales": {
+  "mse": {
+   "abs_mean": 0.0049426244571805,
+   "mean": 0.0049426244571805,
+   "n_batches": 10
+  },
+  "varmatch": {
+   "abs_mean": 0.9266648590564728,
+   "mean": 0.9266648590564728,
+   "n_batches": 10
+  },
+  "correye": {
+   "abs_mean": 57.9448429107666,
+   "mean": 57.9448429107666,
+   "n_batches": 10
+  },
+  "correye_dm": {
+   "abs_mean": 10.224810028076172,
+   "mean": 10.224810028076172,
+   "n_batches": 10
+  },
+  "neidist": {
+   "abs_mean": 0.6795507431030273,
+   "mean": 0.6795507431030273,
+   "n_batches": 10
+  }
+ }
+}
