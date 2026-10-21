@@ -120,6 +120,8 @@ def model_status(cfg, model, direction):
 def gate(cfg, direction):
     """(passed, detail) for the latent gate in this direction; None if its runs are not finished."""
     g = cfg.get("gate") or {}
+    if not g.get("models"):  # no gated model in this campaign (spec v3 E3: gate {})
+        return {}, "no gate"
     res = {}
     for model in g.get("models", []) + [g.get("reference")]:
         vals = {}
