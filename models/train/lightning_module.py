@@ -2,6 +2,8 @@
 
 Defines batch-level train/validation behavior, optimizer setup, and metric logging.
 """
+import os
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -109,10 +111,15 @@ class CrossModalLightningModule(pl.LightningModule):
         self.cosine_eta_min_ratio = float(cosine_eta_min_ratio)
         self._target_train_mean = None
         self._val_epoch_preds, self._val_epoch_targets = [], []
+        # Split-level val rank / top-1 on the GPU by default (no per-batch CPU copies). CONN2CONN_VAL_RANK_CPU=1 restores
+        # the 2026-10-19 CPU path (spec v3 E3 A/B: suspected cause of Ray reset_config stalls with actor reuse).
+        self._val_rank_cpu = os.environ.get("CONN2CONN_VAL_RANK_CPU", "0") == "1"
         self.loss_fn = None
 
     def setup(self, stage=None):
         self._target_train_mean = get_target_train_mean(self.base)
+        if stage == "fit":
+            print(f"[val rank] split-level avg rank / top-1 computed on {'CPU' if self._val_rank_cpu else 'GPU'}", flush=True)
         if self.loss_type in LATENT_LOSS_TYPES:
             self.loss_fn = None
         else:
@@ -294,8 +301,12 @@ class CrossModalLightningModule(pl.LightningModule):
         vr = compute_prediction_variance_ratio(y_pred, y)
         nr = compute_prediction_norm_ratio(y_pred, y)
         aux_losses = self._compute_aux_losses(batch, y_pred, y)
-        self._val_epoch_preds.append(y_pred.detach().float().cpu())
-        self._val_epoch_targets.append(y.detach().float().cpu())
+        if self._val_rank_cpu:
+            self._val_epoch_preds.append(y_pred.detach().float().cpu())
+            self._val_epoch_targets.append(y.detach().float().cpu())
+        else:
+            self._val_epoch_preds.append(y_pred.detach().float())
+            self._val_epoch_targets.append(y.detach().float())
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log("val_pearson_r", pr, on_step=False, on_epoch=True, prog_bar=True)
         self.log("val_demeaned_r", dr, on_step=False, on_epoch=True, prog_bar=True)
@@ -319,7 +330,8 @@ class CrossModalLightningModule(pl.LightningModule):
         # Split-level identifiability (spec v3 I1 / E3): average rank and top-1 of the val subject x subject correlation
         # matrix (rows = targets, as Evaluator), so Tune trials can be selected on val_avg_rank.
         if self._val_epoch_preds:
-            cc = compute_corr_matrix(torch.cat(self._val_epoch_targets).numpy(), torch.cat(self._val_epoch_preds).numpy())
+            targets, preds = torch.cat(self._val_epoch_targets), torch.cat(self._val_epoch_preds)
+            cc = compute_corr_matrix(targets.numpy(), preds.numpy()) if self._val_rank_cpu else compute_corr_matrix(targets, preds)
             self.log("val_avg_rank", float(corr_avg_rank(cc=cc)), on_step=False, on_epoch=True)
             self.log("val_top1_acc", float(corr_topn_accuracy(cc=cc, topn=1)), on_step=False, on_epoch=True)
         self._val_epoch_preds, self._val_epoch_targets = [], []
