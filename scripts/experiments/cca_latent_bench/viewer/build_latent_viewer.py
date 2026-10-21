@@ -37,7 +37,7 @@ from sklearn.metrics import silhouette_samples  # noqa: E402
 REPO_ROOT = next(p for p in EXP.parents if (p / "main.py").exists())
 OUT_FIG = EXP / "results" / "Glasser" / "figures" / "latent_viewer.html"
 OUT_JSON = EXP / "results" / "Glasser" / "tables" / "latent_viewer_data.json"
-TEMPLATE = HERE / "latent_viewer_template.html"
+TEMPLATE = HERE / "latent_viewer.template"   # page template (not a viewer itself); __DATA__ is replaced
 N_DIMS = 10
 TASKS = [v for v in FC if v != "rest"]
 

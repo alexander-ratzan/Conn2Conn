@@ -89,7 +89,10 @@ __DATA__
 <script>
 (()=>{
 let DATA;
-try{DATA=JSON.parse(document.getElementById('viewer-data').textContent)}
+const raw=document.getElementById('viewer-data').textContent.trim();
+if(raw==='__'+'DATA__'){const el=document.getElementById('err');el.style.display='block';
+ el.textContent='This is the template, not the viewer. Open scripts/experiments/cca_latent_bench/results/Glasser/figures/latent_viewer.html (built by viewer/build_latent_viewer.py).';return}
+try{DATA=JSON.parse(raw)}
 catch(e){const el=document.getElementById('err');el.style.display='block';
  el.textContent='Viewer error: could not read the embedded data block ('+e.message+'). Rebuild with viewer/build_latent_viewer.py.';return}
 const COND=DATA.conditions, CI_REST=COND.indexOf('rest');
