@@ -1,0 +1,182 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FC encodings: CCA vs PCA</title><style>
+:root{--bg:#fff;--fg:#1f2328;--muted:#57606a;--card:#f6f8fa;--grid:#d0d7de;--ring:#1f2328}
+@media (prefers-color-scheme: dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--card:#161b22;--grid:#30363d;--ring:#e6edf3}}
+body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:14px/1.45 "DejaVu Sans",Helvetica,Arial,sans-serif}
+h1{font-size:18px;margin:0 0 4px} h2{font-size:15px;margin:0 0 2px} .sub{color:var(--muted);margin:0 0 12px;max-width:1100px}
+#controls{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;margin:0 0 10px}
+#controls label{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+select,button,input[type=number]{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--grid);border-radius:6px;padding:2px 6px}
+button{cursor:pointer}
+.panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:900px){.panels{grid-template-columns:1fr}}
+.panel{background:var(--card);border-radius:8px;padding:10px}
+.stat{color:var(--muted);font-size:12.5px;margin:0 0 4px}
+svg{width:100%;height:auto;display:block} svg text{fill:var(--muted);font-size:11px}
+.ax{stroke:var(--muted);stroke-width:1.2} .gl{stroke:var(--grid);stroke-dasharray:3 3}
+.spoke{stroke-width:0.9;opacity:.55} .cpt{stroke:none;opacity:.85} .cen{stroke:var(--ring);stroke-width:1.6}
+.rest{stroke:var(--ring);stroke-width:1.1} .hl{opacity:1!important} .dim{opacity:.12!important}
+#legend{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:center;margin:12px 0;max-width:1100px}
+#legend svg{width:34px;height:22px}
+table{border-collapse:collapse;width:100%;font-size:12.5px} td,th{padding:3px 6px;text-align:right;border-bottom:1px solid var(--grid)}
+th{color:var(--muted);font-weight:600} td:first-child,th:first-child{text-align:left}
+tr.row{cursor:pointer} tr.row:hover td{background:var(--bg)}
+.sw{width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:-1px}
+#tip{position:fixed;pointer-events:none;background:var(--card);border:1px solid var(--grid);border-radius:6px;padding:6px 8px;font-size:12.5px;display:none;max-width:320px}
+details{background:var(--card);border-radius:8px;padding:8px 12px;margin:14px 0;max-width:1100px}
+summary{cursor:pointer;font-weight:600} code{font-size:12.5px} .eq{font-family:"DejaVu Serif",Georgia,serif;margin:6px 0 6px 14px}
+#picker{max-height:180px;overflow:auto;columns:4 140px;font-size:12.5px;margin:6px 0}
+small{color:var(--muted)}
+</style></head><body>
+<h1>Subject-wise FC encodings: multitask CCA latent vs pooled block-PCA codes</h1>
+<p class="sub">Each held-out subject is encoded separately from each of their 8 FC conditions (rest + 7 HCP tasks) in two
+spaces of the same dimension <i>d</i>. A subject whose 8 encodings form a tight, well-separated cluster is identifiable
+across conditions. Left: the multitask CCA latent (E2's SC-blind MAXVAR latent, fit on the train split). Right: the
+first <i>d</i> pooled block-PCA codes. Statistics are computed in the full <i>d</i>-dimensional space over <b>all</b>
+subjects of the split; the scatter shows a 2-D view of up to 15 of them.</p>
+<div id="controls">
+ <label>Seed <select id="seed"></select></label>
+ <label>Split <select id="split"><option value="val">validation</option><option value="test">test</option></select></label>
+ <label>View <select id="proj"><option value="dims">latent dimensions</option><option value="pca2">2-D PCA of the split's points</option></select></label>
+ <label id="dimx">x <select id="dx"></select></label><label id="dimy">y <select id="dy"></select></label>
+ <label>Subjects <input id="nsub" type="number" min="1" max="15" value="12" style="width:52px"></label>
+ <label>Pick <select id="pick">
+  <option value="random">random sample</option><option value="sil_hi">highest CCA silhouette</option>
+  <option value="sil_lo">lowest CCA silhouette</option><option value="gain">largest CCA − PCA silhouette gain</option>
+  <option value="manual">choose below</option></select></label>
+ <button id="resample">Resample</button>
+ <label><input type="checkbox" id="spokes" checked> spokes</label>
+ <label><input type="checkbox" id="shared"> same axis range in both panels</label>
+</div>
+<details id="pickbox"><summary>Choose subjects (up to 15; click a subject to toggle)</summary><div id="picker"></div></details>
+<div class="panels">
+ <div class="panel"><h2>Multitask CCA latent</h2><div class="stat" id="stat-cca"></div><svg id="svg-cca" viewBox="0 0 520 470" role="img" aria-label="Subjects in the CCA latent"></svg></div>
+ <div class="panel"><h2>Pooled block-PCA codes</h2><div class="stat" id="stat-pca"></div><svg id="svg-pca" viewBox="0 0 520 470" role="img" aria-label="Subjects in pooled PCA codes"></svg></div>
+</div>
+<div id="legend">
+ <svg viewBox="0 0 34 22"><circle cx="17" cy="11" r="3.2" fill="#1f77b4"></circle></svg>
+ <div><b>Small circle</b>: one subject's FC from <b>one condition</b>, encoded into the space (8 per subject: rest + 7 tasks). Hover to see which condition.</div>
+ <svg viewBox="0 0 34 22"><circle cx="17" cy="11" r="6.5" fill="#1f77b4" class="cen"></circle></svg>
+ <div><b>Large ringed circle</b>: the subject's <b>consensus</b>, the mean of their 8 condition encodings (the cluster centre).</div>
+ <svg viewBox="0 0 34 22"><rect x="11.5" y="5.5" width="11" height="11" fill="#1f77b4" class="rest"></rect></svg>
+ <div><b>Square</b>: the subject's <b>rest</b> encoding (one of the 8, drawn larger because rest is the most reliable single scan).</div>
+ <svg viewBox="0 0 34 22"><line x1="4" y1="16" x2="30" y2="6" stroke="#1f77b4" stroke-width="1.2"></line></svg>
+ <div><b>Spoke</b>: from the consensus to each condition encoding; short spokes = low within-subject dispersion.</div>
+ <svg viewBox="0 0 34 22"><circle cx="9" cy="11" r="5" fill="#1f77b4"></circle><circle cx="25" cy="11" r="5" fill="#ff7f0e"></circle></svg>
+ <div><b>Colour</b> = subject (the same subject has the same colour in both panels). Hover a point or a table row to highlight that subject.</div>
+</div>
+<div class="panel"><table id="tbl"></table>
+<small>Silhouette (−1 to 1): how much closer a subject's 8 encodings are to each other than to the nearest other subject's (Euclidean, all subjects of the split). Dispersion: mean spoke length. Separation: distance from the consensus to the nearest other subject's consensus. Rest → task rank: average over the 7 tasks of where the subject's own rest encoding ranks (by correlation across the <i>d</i> dimensions) among all subjects' rest encodings when matching their task encoding (1 = ranked first); top-1: tasks (of 7) where it ranks first.</small></div>
+<details><summary>How the two spaces are computed</summary>
+<p><b>Codes.</b> For each FC condition <i>m</i>, the train-split edge matrix <i>X</i><sup>(m)</sup> (subjects × 64,620 edges) is centered on its own train mean μ<sub>m</sub> and divided by its total norm <i>s</i><sub>m</sub> = ‖<i>X</i><sup>(m)</sup> − μ<sub>m</sub>‖<sub>F</sub>, so every condition carries the same total variance. The 8 scaled blocks are stacked (rows = subject × condition) and one PCA gives the pooled basis <i>W</i>. A subject's code in condition <i>m</i> is</p>
+<p class="eq">z<sup>m</sup><sub>i</sub> = W<sup>⊤</sup> (x<sup>m</sup><sub>i</sub> − μ<sub>m</sub>) / s<sub>m</sub> &nbsp;&nbsp;(first k<sub>FC</sub> components)</p>
+<p><b>Pooled PCA panel.</b> The first <i>d</i> codes, z<sup>m</sup><sub>i</sub>[1..d]. These are the directions of largest variance across all subjects and conditions; they do not use which rows belong to the same subject.</p>
+<p><b>CCA panel.</b> MAXVAR multiview CCA over the 8 conditions, fit on train codes Z<sub>m</sub> (n<sub>train</sub> × k<sub>FC</sub>): shared subject scores G (n<sub>train</sub> × d, G<sup>⊤</sup>G = I) and one ridge-regularized encoder A<sub>m</sub> per condition minimizing</p>
+<p class="eq">Σ<sub>m</sub> ‖ G − Z<sub>m</sub> A<sub>m</sub> ‖² + λ<sub>m</sub> ‖ A<sub>m</sub> ‖²,&nbsp;&nbsp; G = top-d eigenvectors of Σ<sub>m</sub> Z<sub>m</sub>(Z<sub>m</sub><sup>⊤</sup>Z<sub>m</sub> + λ<sub>m</sub>I)<sup>−1</sup>Z<sub>m</sub><sup>⊤</sup>,&nbsp;&nbsp; A<sub>m</sub> = (Z<sub>m</sub><sup>⊤</sup>Z<sub>m</sub> + λ<sub>m</sub>I)<sup>−1</sup>Z<sub>m</sub><sup>⊤</sup>G</p>
+<p>with λ<sub>m</sub> = λ × mean eigenvalue of Z<sub>m</sub><sup>⊤</sup>Z<sub>m</sub>. A held-out subject's encoding from condition <i>m</i> is g<sup>m</sup><sub>i</sub> = z<sup>m</sup><sub>i</sub> A<sub>m</sub>. Because every encoder is trained to reproduce the <i>same</i> train subject scores, the axes are chosen for agreement of a subject across conditions, not for variance; k<sub>FC</sub>, d and λ were chosen on validation cross-condition identification without SC (E2).</p>
+<p><b>Display units.</b> In both panels each dimension is divided by its standard deviation over the train encodings of all conditions, so the spaces are in comparable units. The "2-D PCA" view projects the split's points onto their two leading principal components in each space separately.</p>
+<p>Derivations and the full analysis: <code id="nbpath"></code> (sections 2 and 5); benchmark write-up: <code id="wupath"></code>.</p>
+</details>
+<div id="tip"></div>
+<script>
+const DATA=__DATA__;
+const COND=DATA.conditions, CI_REST=COND.indexOf('rest');
+const PAL=['#1f77b4','#aec7e8','#ff7f0e','#ffbb78','#2ca02c','#98df8a','#d62728','#ff9896','#9467bd','#c5b0d5','#8c564b','#c49c94','#e377c2','#f7b6d2','#17becf'];
+const W=520,H=470,L=44,B=34,T=10,R=12, SP=['cca','pca'];
+const $=id=>document.getElementById(id), f=(v,d=3)=>v==null?'–':Number(v).toFixed(d);
+const seeds=[...new Set(Object.values(DATA.sets).map(s=>s.seed))].sort();
+$('seed').innerHTML=seeds.map(s=>`<option value="${s}">${s}</option>`).join('');
+for(let i=0;i<DATA.n_dims;i++){['dx','dy'].forEach(k=>$(k).insertAdjacentHTML('beforeend',`<option value="${i}">dim ${i+1}</option>`))}
+$('dy').value='1'; $('nbpath').textContent=DATA.notebook; $('wupath').textContent=DATA.writeup;
+let S=null, chosen=[], rngSeed=1, hover=null;
+function rng(){rngSeed=(rngSeed*1103515245+12345)%2147483648;return rngSeed/2147483648}
+function sample(){
+ const n=S.n, k=Math.min(15,Math.max(1,+$('nsub').value||12)), c=S.spaces.cca, p=S.spaces.pca, mode=$('pick').value;
+ const idx=[...Array(n).keys()];
+ if(mode==='manual') return chosen.length?chosen:idx.slice(0,k);
+ if(mode==='random'){for(let i=n-1;i>0;i--){const j=Math.floor(rng()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]]}return idx.slice(0,k)}
+ const key=mode==='gain'?(i=>c.silhouette[i]-p.silhouette[i]):(i=>c.silhouette[i]);
+ idx.sort((a,b)=>key(b)-key(a)); if(mode==='sil_lo') idx.reverse(); return idx.slice(0,k);
+}
+function coords(sp){
+ const s=S.spaces[sp];
+ if($('proj').value==='pca2') return s.pca2;
+ const x=+$('dx').value, y=+$('dy').value; return s.dims.map(subj=>subj.map(v=>[v[x],v[y]]));
+}
+function bounds(sp){
+ const P=coords(sp); let a=[Infinity,-Infinity,Infinity,-Infinity];
+ chosen.forEach(i=>P[i].forEach(([x,y])=>{a=[Math.min(a[0],x),Math.max(a[1],x),Math.min(a[2],y),Math.max(a[3],y)]}));
+ const px=(a[1]-a[0])*.08||1, py=(a[3]-a[2])*.08||1; return [a[0]-px,a[1]+px,a[2]-py,a[3]+py];
+}
+function nice(a,b){const s=Math.pow(10,Math.floor(Math.log10((b-a)/5||1)));const st=[1,2,5,10].map(m=>m*s).find(v=>(b-a)/v<=6)||s*10;const t=[];for(let v=Math.ceil(a/st)*st;v<=b+1e-9;v+=st)t.push(+v.toFixed(6));return t}
+function axisLabels(sp){
+ if($('proj').value==='pca2'){const ev=S.spaces[sp].pca2_var;return [`PC 1 of the split's points (${(ev[0]*100).toFixed(0)} % of variance)`,`PC 2 (${(ev[1]*100).toFixed(0)} %)`]}
+ const nm=sp==='cca'?'CCA latent':'pooled PCA code'; return [`${nm} dim ${+$('dx').value+1} (SD units)`,`${nm} dim ${+$('dy').value+1} (SD units)`];
+}
+function draw(sp, bb){
+ const svg=$('svg-'+sp), P=coords(sp), [x0,x1,y0,y1]=bb;
+ const sx=v=>L+(v-x0)/(x1-x0)*(W-L-R), sy=v=>H-B-(v-y0)/(y1-y0)*(H-B-T);
+ let h='';
+ nice(x0,x1).forEach(t=>{h+=`<line class="gl" x1="${sx(t)}" x2="${sx(t)}" y1="${T}" y2="${H-B}"/><text x="${sx(t)}" y="${H-B+14}" text-anchor="middle">${t}</text>`});
+ nice(y0,y1).forEach(t=>{h+=`<line class="gl" x1="${L}" x2="${W-R}" y1="${sy(t)}" y2="${sy(t)}"/><text x="${L-5}" y="${sy(t)+4}" text-anchor="end">${t}</text>`});
+ h+=`<line class="ax" x1="${L}" x2="${W-R}" y1="${H-B}" y2="${H-B}"/><line class="ax" x1="${L}" x2="${L}" y1="${T}" y2="${H-B}"/>`;
+ const [lx,ly]=axisLabels(sp);
+ h+=`<text x="${(L+W-R)/2}" y="${H-4}" text-anchor="middle">${lx}</text><text transform="translate(11 ${(T+H-B)/2}) rotate(-90)" text-anchor="middle">${ly}</text>`;
+ chosen.forEach((i,ci)=>{
+  const col=PAL[ci%PAL.length], pts=P[i], cx=pts.reduce((a,p)=>a+p[0],0)/pts.length, cy=pts.reduce((a,p)=>a+p[1],0)/pts.length;
+  const cls=hover==null?'':(hover===i?' hl':' dim');
+  h+=`<g class="subj${cls}" data-s="${i}">`;
+  if($('spokes').checked) pts.forEach(p=>{h+=`<line class="spoke" x1="${sx(cx)}" y1="${sy(cy)}" x2="${sx(p[0])}" y2="${sy(p[1])}" stroke="${col}"/>`});
+  pts.forEach((p,m)=>{ if(m!==CI_REST) h+=`<circle class="cpt" cx="${sx(p[0])}" cy="${sy(p[1])}" r="3.4" fill="${col}" data-s="${i}" data-m="${m}"/>`});
+  const rp=pts[CI_REST]; h+=`<rect class="rest" x="${sx(rp[0])-5}" y="${sy(rp[1])-5}" width="10" height="10" fill="${col}" data-s="${i}" data-m="${CI_REST}"/>`;
+  h+=`<circle class="cen" cx="${sx(cx)}" cy="${sy(cy)}" r="6.5" fill="${col}" data-s="${i}" data-m="-1"/></g>`;
+ });
+ svg.innerHTML=h;
+}
+function stats(sp){
+ const s=S.spaces[sp].summary;
+ $('stat-'+sp).innerHTML=`All ${S.n} ${S.split} subjects: mean silhouette <b>${f(s.silhouette)}</b> · between-subject variance share <b>${f(s.between_share)}</b> · rest → task top-1 <b>${f(s.rest_top1)}</b>, average rank <b>${f(s.rest_avg_rank)}</b> <small>(chance top-1 ${f(1/S.n)})</small>`;
+}
+function table(){
+ const c=S.spaces.cca, p=S.spaces.pca;
+ let h=`<tr><th>Subject</th><th>Silhouette<br>CCA</th><th><br>PCA</th><th>Dispersion / separation<br>CCA</th><th><br>PCA</th><th>Rest → task rank<br>CCA</th><th><br>PCA</th><th>Top-1 tasks (of 7)<br>CCA</th><th><br>PCA</th></tr>`;
+ chosen.forEach((i,ci)=>{h+=`<tr class="row" data-s="${i}"><td><span class="sw" style="background:${PAL[ci%PAL.length]}"></span>${S.subjects[i]}</td>
+  <td>${f(c.silhouette[i])}</td><td>${f(p.silhouette[i])}</td><td>${f(c.dispersion[i]/c.separation[i],2)}</td><td>${f(p.dispersion[i]/p.separation[i],2)}</td>
+  <td>${f(c.rest_rank[i])}</td><td>${f(p.rest_rank[i])}</td><td>${c.rest_top1_tasks[i]}</td><td>${p.rest_top1_tasks[i]}</td></tr>`});
+ $('tbl').innerHTML=h;
+ $('tbl').querySelectorAll('tr.row').forEach(r=>{r.onmouseenter=()=>{hover=+r.dataset.s;render(false)};r.onmouseleave=()=>{hover=null;render(false)}});
+}
+function picker(){
+ $('picker').innerHTML=S.subjects.map((id,i)=>`<label><input type="checkbox" data-s="${i}" ${chosen.includes(i)?'checked':''}> ${id} <small>(${f(S.spaces.cca.silhouette[i],2)} / ${f(S.spaces.pca.silhouette[i],2)})</small></label><br>`).join('');
+ $('picker').querySelectorAll('input').forEach(el=>el.onchange=()=>{
+  const i=+el.dataset.s; if(el.checked){ if(chosen.length>=15){el.checked=false;return} chosen.push(i)} else chosen=chosen.filter(x=>x!==i);
+  $('pick').value='manual'; render(false)});
+}
+function render(resel=true){
+ S=DATA.sets[`${$('seed').value}_${$('split').value}`];
+ if(resel) chosen=sample();
+ ['dimx','dimy'].forEach(k=>$(k).style.display=$('proj').value==='dims'?'':'none');
+ let bb={cca:bounds('cca'),pca:bounds('pca')};
+ if($('shared').checked){const u=[Math.min(bb.cca[0],bb.pca[0]),Math.max(bb.cca[1],bb.pca[1]),Math.min(bb.cca[2],bb.pca[2]),Math.max(bb.cca[3],bb.pca[3])];bb={cca:u,pca:u}}
+ SP.forEach(sp=>{draw(sp,bb[sp]);stats(sp)}); table(); picker(); bindHover();
+}
+function bindHover(){
+ SP.forEach(sp=>$('svg-'+sp).querySelectorAll('[data-m]').forEach(el=>{
+  el.onmouseenter=e=>{const i=+el.dataset.s,m=+el.dataset.m,c=S.spaces.cca,p=S.spaces.pca;hover=i;
+   SP.forEach(q=>$('svg-'+q).querySelectorAll('g.subj').forEach(g=>{g.classList.toggle('hl',+g.dataset.s===i);g.classList.toggle('dim',+g.dataset.s!==i)}));
+   const what=m<0?'consensus (mean of the 8 encodings)':(m===CI_REST?'rest encoding':`${COND[m]} encoding`);
+   $('tip').innerHTML=`<b>Subject ${S.subjects[i]}</b> · ${what}<br>${sp==='cca'?'CCA latent':'pooled PCA codes'}<br>silhouette CCA ${f(c.silhouette[i])} · PCA ${f(p.silhouette[i])}<br>rest → task rank CCA ${f(c.rest_rank[i])} · PCA ${f(p.rest_rank[i])}`;
+   $('tip').style.display='block'; move(e)};
+  el.onmousemove=move;
+  el.onmouseleave=()=>{hover=null;$('tip').style.display='none';SP.forEach(q=>$('svg-'+q).querySelectorAll('g.subj').forEach(g=>{g.classList.remove('hl');g.classList.remove('dim')}))};
+ }));
+}
+function move(e){const t=$('tip');t.style.left=(e.clientX+14)+'px';t.style.top=(e.clientY+12)+'px'}
+['seed','split'].forEach(k=>$(k).onchange=()=>render(true));
+['proj','dx','dy','spokes','shared'].forEach(k=>$(k).onchange=()=>render(false));
+$('nsub').onchange=()=>render(true); $('pick').onchange=()=>{if($('pick').value==='manual')$('pickbox').open=true;render(true)};
+$('resample').onclick=()=>{$('pick').value='random';rngSeed=Math.floor(Math.random()*1e9);render(true)};
+try{const s=JSON.parse(localStorage.getItem('e2_latent_viewer')||'{}');['seed','split','proj'].forEach(k=>{if(s[k])$(k).value=s[k]})}catch(e){}
+window.addEventListener('beforeunload',()=>{try{localStorage.setItem('e2_latent_viewer',JSON.stringify({seed:$('seed').value,split:$('split').value,proj:$('proj').value}))}catch(e){}});
+render(true);
+</script></body></html>

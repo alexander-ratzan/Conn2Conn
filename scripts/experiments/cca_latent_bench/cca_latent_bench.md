@@ -7,6 +7,10 @@
 (`scripts/experiments/joint_flow_matching/common.py`).
 **Outputs:** `results/Glasser/records/seed<S>*.csv`; `results/Glasser/tables/{summary.md, hypotheses.csv, fc2sc.csv,
 sc2fc.csv, latent_selection.csv, latent_r2.csv}`; `results/Glasser/figures/fig_*.png`.
+**Interactive viewer:** `results/Glasser/figures/latent_viewer.html` (open in a browser; built by
+`viewer/build_latent_viewer.py`, cached data `results/Glasser/tables/latent_viewer_data.json`): up to 15 held-out
+subjects at a time, each encoded from all 8 FC conditions, in the CCA latent and in the same number of pooled-PCA codes,
+with per-subject silhouette, dispersion / separation and rest → task identification computed over the whole split.
 **Runs:** G0 (library move, E1 checks + exact L4 reproduction) local; pilot `20484872` (G1 ALL_OK), seeds 1–4
 `20484873`, analysis `20484874`. CPU only, ≈ 0.6 CPU-node-hours.
 **Status:** complete 2026-10-20.
