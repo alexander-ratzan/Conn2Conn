@@ -109,6 +109,15 @@ def build_seed(seed):
     return out
 
 
+def page_json(data):
+    """The data as JSON for the page's <script type="application/json"> block: one dataset per line (no single
+    multi-megabyte line), with '</' escaped so the block cannot close early."""
+    head = {k: v for k, v in data.items() if k != "sets"}
+    parts = [json.dumps(k) + ":" + json.dumps(v, separators=(",", ":")) for k, v in data["sets"].items()]
+    txt = json.dumps(head, separators=(",", ":"))[:-1] + ',"sets":{\n' + ",\n".join(parts) + "\n}}"
+    return txt.replace("</", "<\\/")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--seeds", type=int, nargs="*", default=CFG["seeds"])
@@ -124,7 +133,7 @@ def main():
                     notebook="scripts/notebooks/EDA/FC_encoded_conditions_analysis.ipynb",
                     writeup="scripts/experiments/cca_latent_bench/cca_latent_bench.md")
         OUT_JSON.write_text(json.dumps(data, separators=(",", ":")))
-    OUT_FIG.write_text(TEMPLATE.read_text().replace("__DATA__", json.dumps(data, separators=(",", ":"))))
+    OUT_FIG.write_text(TEMPLATE.read_text().replace("__DATA__", page_json(data)))
     print(f"wrote {OUT_JSON} ({OUT_JSON.stat().st_size / 1e6:.1f} MB) and {OUT_FIG}")
 
 

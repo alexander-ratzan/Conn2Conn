@@ -83,9 +83,15 @@ subjects of the split; the scatter shows a 2-D view of up to 15 of them.</p>
 <script>
 window.addEventListener('error',e=>{const el=document.getElementById('err');el.style.display='block';el.textContent='Viewer error: '+(e.message||e)+' (line '+(e.lineno||'?')+')'});
 </script>
+<script type="application/json" id="viewer-data">
+__DATA__
+</script>
 <script>
 (()=>{
-const DATA=__DATA__;
+let DATA;
+try{DATA=JSON.parse(document.getElementById('viewer-data').textContent)}
+catch(e){const el=document.getElementById('err');el.style.display='block';
+ el.textContent='Viewer error: could not read the embedded data block ('+e.message+'). Rebuild with viewer/build_latent_viewer.py.';return}
 const COND=DATA.conditions, CI_REST=COND.indexOf('rest');
 const PAL=['#1f77b4','#aec7e8','#ff7f0e','#ffbb78','#2ca02c','#98df8a','#d62728','#ff9896','#9467bd','#c5b0d5','#8c564b','#c49c94','#e377c2','#f7b6d2','#17becf'];
 const W=520,H=470,L=44,B=34,T=10,R=12, SP=['cca','pca'];
