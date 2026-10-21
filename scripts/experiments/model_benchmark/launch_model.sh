@@ -95,7 +95,8 @@ if [ "${KEEP_RAY:-0}" != "1" ] && grep -q "Best Tune trial comprehensive summary
   RUN_NAME=$(grep -m1 -oP "^Tune run: \K\S+" "${LOG}" || true)
   for d in "${CONN2CONN_DIR}/results/ray_tmp/ray_${SLURM_JOB_ID}" \
            ${RUN_NAME:+"${CONN2CONN_DIR}/results/ray_checkpoints/${RUN_NAME}"}; do
-    if [ -d "${d}" ]; then echo "Ray cleanup: $(du -sh "${d}" | cut -f1) ${d}"; rm -rf "${d}"; fi
+    # non-fatal: a W&B logging actor can still be writing into a trial dir (2026-10-21: "Directory not empty")
+    if [ -d "${d}" ]; then echo "Ray cleanup: $(du -sh "${d}" | cut -f1) ${d}"; rm -rf "${d}" || echo "Ray cleanup incomplete: ${d}"; fi
   done
   rm -f "/tmp/ray_${SLURM_JOB_ID}"
 fi
