@@ -59,7 +59,7 @@ SC → FC with the latent as the target.
 
 ### SC → FC
 
-| Condition | v3:E0 | direct SC → codes (ridge) | via own encoding | via consensus latent | Ceiling: true consensus decoded |
+| Target FC condition | SC PCA → task FC (per-task FC PCA) · PCA-PLS learnable [v3:E0] | SC PCA → task FC (block FC PCA) · ridge | SC PCA → task latent → task FC · ridge | SC PCA → consensus latent → task FC · ridge | Ceiling: measured FC consensus latent → task FC (no SC) |
 |---|---|---|---|---|---|
 | rest | 0.085 | 0.096 | 0.103 | 0.105 | 0.304 |
 | wm | 0.030 | 0.054 | 0.055 | 0.056 | 0.196 |
@@ -70,10 +70,33 @@ SC → FC with the latent as the target.
 | relational | 0.016 | 0.026 | 0.029 | 0.030 | 0.132 |
 | emotion | 0.013 | 0.031 | 0.032 | 0.032 | 0.107 |
 
+Every SC input is SC's own train PCA (size 64–512 chosen on val per model and condition). E2's routes all output in
+the shared block FC PCA basis (equal-variance pooled); v3:E0 uses a separate FC PCA basis per condition. The step from
+the first to the second column is therefore the basis and readout (no CCA); the step from the second to the last two
+columns is the latent route.
+
 Predicted vs true consensus latent (test): mean per-dimension R² −0.06 to 0.05 across seeds, yet identification
 top-1 0.05–0.15 (chance 0.005), average rank 0.86–0.90.
 
 ![SC to FC per condition](results/Glasser/figures/fig_sc2fc_conditions.png)
+
+### Reference: full shared CCA with SC as a ninth view (E1 linear arm L4)
+
+The same MAXVAR with SC included as a view, from `scripts/experiments/joint_flow_matching/linear_arms.py` (5 seeds;
+$(d, \lambda)$ chosen on mean val demeaned r over all 72 view pairs, $d$ = 32 in most seeds; block FC PCA codes,
+$k$ = 512 shown). Translation encodes the source view and decodes the target view.
+
+| | rest | emotion | gambling | language | motor | relational | social | wm |
+|---|---|---|---|---|---|---|---|---|
+| SC → shared latent (with SC) → FC | 0.105 | 0.032 | 0.038 | 0.055 | 0.039 | 0.030 | 0.040 | 0.057 |
+| SC PCA → consensus latent (FC-only) → FC (this benchmark) | 0.105 | 0.032 | 0.041 | 0.055 | 0.041 | 0.030 | 0.042 | 0.056 |
+| FC → shared latent (with SC) → SC | 0.132 | 0.072 | 0.086 | 0.102 | 0.088 | 0.074 | 0.089 | 0.107 |
+| FC → latent (FC-only) → SC (this benchmark) | 0.131 | 0.082 | 0.100 | 0.108 | 0.096 | 0.083 | 0.100 | 0.116 |
+
+Including SC in the latent changes SC → FC by at most 0.003 and lowers FC → SC for every task (by 0.006–0.014);
+8 FC conditions averaged in the latent give 0.137 for SC (vs 0.139 here). The SC-blind FC latent is at least as good
+in both directions, so SC does not need to shape the latent, and the consensus latent can be used as an SC-free
+target.
 
 ### Hypotheses (`tables/summary.md`)
 

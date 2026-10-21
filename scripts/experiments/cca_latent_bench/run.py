@@ -114,6 +114,9 @@ def fig_fc2sc(rec, bench, path):
     import matplotlib.pyplot as plt
     order = ["rest PCA codes (val-selected k)", "rest encoding", "7-task consensus", "8-condition consensus",
              "concatenated encodings", *[f"{t} encoding" for t in TASKS]]
+    ticks = ["rest FC PCA → SC", "rest FC → latent → SC", "7 task FCs → consensus latent → SC",
+             "8 FCs → consensus latent → SC", "8 FCs → 8 latents (concat.) → SC",
+             *[f"{t} FC → latent → SC" for t in TASKS]]
     vals = {}
     for ro in ("ridge", "pls"):
         f = dict(direction="fc2sc", latent="sc_blind", readout=ro)
@@ -125,20 +128,23 @@ def fig_fc2sc(rec, bench, path):
             means = [v.mean() for v in vals[ro]]
             ses = [v.sem() for v in vals[ro]]
             ax.bar(x + (j - 0.5) * 0.38, means, 0.38, yerr=ses, color=c, edgecolor="black", lw=1.2, capsize=3,
-                   label=ro.upper() if ro == "pls" else "Ridge")
+                   label=f"readout: {'PLS' if ro == 'pls' else 'ridge'}")
             for xi, v in zip(x, vals[ro]):
                 ax.scatter(np.full(len(v), xi + (j - 0.5) * 0.38), v, s=14, color="black", zorder=3)
         b = bench_series(bench, "fc2sc", "rest")
-        ax.axhline(b.mean(), color=PAL["red"], lw=2, ls="--", label=f"v3:E0 rest, PCA-PLS learnable ({b.mean():.3f})")
+        ax.axhline(b.mean(), color=PAL["red"], lw=2, ls="--",
+                   label=f"rest FC PCA → SC · PCA-PLS learnable [v3:E0] ({b.mean():.3f})")
         for xi, name in zip(x, order):     # the same condition's own v3:E0 row on each single-condition bar
             cond = name.split(" ")[0]
             if name.endswith("encoding") and cond in FC:
                 ax.plot([xi - 0.4, xi + 0.4], [bench_series(bench, "fc2sc", cond).mean()] * 2, color=PAL["red"], lw=3,
-                        solid_capstyle="butt", label="v3:E0 same condition (PCA-PLS learnable)" if cond == "rest" else None)
-        ax.set_xticks(x, order, rotation=35, ha="right", rotation_mode="anchor")
-        ax.set_ylabel("Test demeaned r (FC → SC)")
-        ax.set_title("E2 FC → SC: input encodings (SC-blind CCA latent), mean ± SE over 5 seeds", fontweight="bold")
-        ax.legend(frameon=False, fontsize=12, loc="upper right")
+                        solid_capstyle="butt", label="same FC condition, own FC PCA → SC · PCA-PLS learnable [v3:E0]" if cond == "rest" else None)
+        ax.set_xticks(x, ticks, rotation=35, ha="right", rotation_mode="anchor")
+        ax.set_ylabel("Test demeaned r (predicted vs measured SC)")
+        ax.set_title("E2 FC → SC: which FC encoding predicts SC best (latent = FC-only CCA, never sees SC); "
+                     "mean ± SE, 5 seeds", fontweight="bold", fontsize=15)
+        ax.set_ylim(0, 0.2)
+        ax.legend(frameon=False, fontsize=12, loc="upper center", ncol=2)
         fig.savefig(path, dpi=300, facecolor="white")
         plt.close(fig)
 
@@ -147,12 +153,12 @@ def fig_sc2fc(rec, bench, path):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    series = [("v3:E0 SC → FC", lambda m: bench_series(bench, "sc2fc", m), PAL["red"]),
-              ("direct SC → condition (ridge)", lambda m: per_seed(rec, input="direct codes", direction="sc2fc", condition=m, readout="ridge"), PAL["neutral"]),
-              ("via own encoding (ridge)", lambda m: per_seed(rec, input="via own encoding", direction="sc2fc", condition=m, readout="ridge"), PAL["teal"]),
-              ("via consensus latent (ridge)", lambda m: per_seed(rec, input="via consensus latent", direction="sc2fc", condition=m, readout="ridge"), PAL["blue"])]
+    series = [("SC PCA → task FC (per-task FC PCA) · PCA-PLS learnable [v3:E0]", lambda m: bench_series(bench, "sc2fc", m), PAL["red"]),
+              ("SC PCA → task FC (block FC PCA) · ridge", lambda m: per_seed(rec, input="direct codes", direction="sc2fc", condition=m, readout="ridge"), PAL["neutral"]),
+              ("SC PCA → task latent → task FC · ridge", lambda m: per_seed(rec, input="via own encoding", direction="sc2fc", condition=m, readout="ridge"), PAL["teal"]),
+              ("SC PCA → consensus latent → task FC · ridge", lambda m: per_seed(rec, input="via consensus latent", direction="sc2fc", condition=m, readout="ridge"), PAL["blue"])]
     with plt.rc_context({**mb.FIG_RC, "font.size": 15, "axes.linewidth": 2.0}):
-        fig, ax = plt.subplots(figsize=(15, 6), layout="constrained")
+        fig, ax = plt.subplots(figsize=(15, 6.5), layout="constrained")
         x = np.arange(len(FC))
         w = 0.2
         for j, (lab, fn, c) in enumerate(series):
@@ -161,11 +167,13 @@ def fig_sc2fc(rec, bench, path):
                    lw=1.1, capsize=2, label=lab)
         ceil = [per_seed(rec, input="ceiling: true consensus latent", direction="sc2fc", condition=m).mean() for m in FC]
         ax.scatter(x + 1.5 * w, ceil, marker="_", s=400, color="black", lw=2.5, zorder=4,
-                   label="ceiling: true consensus latent decoded")
+                   label="ceiling: measured FC consensus latent → task FC (no SC)")
         ax.set_xticks(x, FC)
-        ax.set_ylabel("Test demeaned r (SC → FC)")
-        ax.set_title("E2 SC → FC per condition, mean ± SE over 5 seeds", fontweight="bold")
-        ax.legend(frameon=False, fontsize=12, ncol=2, loc="upper right")
+        ax.set_xlabel("target FC condition")
+        ax.set_ylabel("Test demeaned r (predicted vs measured FC)")
+        ax.set_title("E2 SC → FC: predicting each condition's FC from SC (latent = FC-only CCA); mean ± SE, 5 seeds",
+                     fontweight="bold", fontsize=15)
+        ax.legend(frameon=False, fontsize=12, ncol=1, loc="upper right")
         fig.savefig(path, dpi=300, facecolor="white")
         plt.close(fig)
 
@@ -177,11 +185,12 @@ def fig_latent_r2(r2, path):
     with plt.rc_context({**mb.FIG_RC, "font.size": 15, "axes.linewidth": 2.0}):
         fig, ax = plt.subplots(figsize=(8, 4.5), layout="constrained")
         for s, g in r2.groupby("seed"):
-            ax.plot(g.dim, g.test_r2, color=PAL["blue"], alpha=0.5, lw=1.5, label="seed" if s == r2.seed.min() else None)
+            ax.plot(g.dim, g.test_r2, color=PAL["blue"], alpha=0.5, lw=1.5, label="one line per seed" if s == r2.seed.min() else None)
         ax.axhline(0, color="grey", lw=0.8)
-        ax.set_xlabel("consensus latent dimension")
-        ax.set_ylabel("test R² (SC → latent)")
-        ax.set_title("Which latent dimensions SC predicts", fontweight="bold")
+        ax.set_xlabel("consensus latent dimension (1 = leading CCA component)")
+        ax.set_ylabel("test R²")
+        ax.legend(frameon=False)
+        ax.set_title("SC PCA → consensus latent · ridge: test R² per dimension", fontweight="bold")
         fig.savefig(path, dpi=300, facecolor="white")
         plt.close(fig)
 
@@ -196,13 +205,17 @@ def fig_latent_selection(lat, path):
         for ax, k in zip(axes, CFG["latent"]["k_fc"]):
             for lam, c in zip(sorted(g.lambda_rel.unique()), [PAL["red"], PAL["teal"], PAL["blue"], PAL["violet"]]):
                 q = g[(g.k_fc == k) & (g.lambda_rel == lam)]
-                ax.plot(q.d, q.val_cross_avg_rank, marker="o", color=c, label=f"λ = {lam:g}")
+                ax.plot(q.d, q.val_cross_avg_rank, marker="o", color=c, label=f"CCA ridge λ = {lam:g}")
             ax.set_xscale("log", base=2)
-            ax.set_title(f"k_FC = {k}")
-            ax.set_xlabel("latent dimension d")
-        axes[0].set_ylabel("val cross-condition avg rank")
+            ds = sorted(g.d[g.k_fc == k].unique())
+            ax.set_xticks(ds, [str(int(d)) for d in ds])
+            ax.minorticks_off()
+            ax.set_title(f"{k} block FC PCA codes per condition")
+            ax.set_xlabel("CCA latent dimension d")
+        axes[0].set_ylabel("val cross-condition identification\n(avg rank, 56 condition pairs)")
         axes[-1].legend(frameon=False)
-        fig.suptitle("SC-blind latent selection (mean over seeds)", fontweight="bold")
+        fig.suptitle("Choosing the FC-only CCA latent without SC: does a subject's encoding from one FC condition find "
+                     "them in another? (mean over 5 seeds)", fontweight="bold", fontsize=14)
         fig.savefig(path, dpi=300, facecolor="white")
         plt.close(fig)
 
