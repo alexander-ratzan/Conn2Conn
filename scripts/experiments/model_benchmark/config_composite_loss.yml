@@ -20,9 +20,11 @@ terms: [varmatch, correye_dm, neidist]  # raw correye excluded (v2:D5)
 weight_grid:
   sc2fc: {varmatch: [0.0, 0.1, 0.3, 1.0], correye_dm: [0.0, 0.1, 0.3, 1.0], neidist: [0.0, 0.1, 0.3, 1.0]}
   fc2sc: {varmatch: [0.0, 0.1, 0.3, 0.5], correye_dm: [0.0, 0.1, 0.3, 0.5], neidist: [0.0, 0.1, 0.3, 0.5]}
-# Ray actor reuse off (E3 only): with composite terms, reused actors failed reset_config and left Tune idle until the
-# cluster's GPU-underuse policy killed the task (2026-10-19 pilots). E2.2 keeps its default (on).
-tune_reuse_actors: false
+# Ray actor reuse ON, as E2.2: each worker builds HCP_Base / loaders once and keeps them across trials. Turning it off
+# (2026-10-20, to avoid the 2026-10-19 reset_config stalls) made every trial rebuild the data (~10 min of idle GPU per
+# trial wave in the 2026-10-21 smoke test), so it was reverted the same day; a reset_config stall is handled as a task
+# failure (one retry, D3 e) instead.
+tune_reuse_actors: true
 # Lightning's default per-trial ModelCheckpoint (unused weights in Ray's working dir); off unless set true here.
 tune_lightning_checkpoints: false
 
