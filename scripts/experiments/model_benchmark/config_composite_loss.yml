@@ -39,11 +39,11 @@ types:
 # Roster (D3 a): the stable learned edge-space models, both directions. packing = [GPU per trial, concurrent trials]. Reference scales for every model come from
 # composite_loss/reference_scales.yml (composite_scales.py at each seed's E2.2 best config, MSE-only, batch 64).
 models:
-  CrossModal_PCA_PLS_learnable:    {type: linear_learned, label: "PCA-PLS learnable", packing: [0.125, 8], cpus: 16, time: "2:30:00"}
-  CrossModal_linear_backbone:      {type: linear_learned, label: "Linear backbone", packing: [0.125, 8], cpus: 16, time: "2:30:00"}
-  CrossModal_PCA_PLS_CovProjector: {type: linear_learned, label: "PCA-PLS + covariates", packing: [0.125, 8], cpus: 16, time: "2:30:00",
+  CrossModal_PCA_PLS_learnable:    {type: linear_learned, label: "PCA-PLS learnable", packing: [0.25, 4], cpus: 10, time: "2:30:00"}
+  CrossModal_linear_backbone:      {type: linear_learned, label: "Linear backbone", packing: [0.25, 4], cpus: 10, time: "2:30:00"}
+  CrossModal_PCA_PLS_CovProjector: {type: linear_learned, label: "PCA-PLS + covariates", packing: [0.25, 4], cpus: 10, time: "2:30:00",
                                     extra_inputs: "FreeSurfer fs_all + demographics"}
-  Sarwar2020MLP:                   {type: deep_baseline, label: "Sarwar MLP", packing: [0.125, 8], cpus: 16, time: "2:30:00"}
+  Sarwar2020MLP:                   {type: deep_baseline, label: "Sarwar MLP", packing: [0.25, 4], cpus: 10, time: "2:30:00"}
 
 # E2.2 rows reused unchanged (MSE-only; not rerun): models outside the roster, and roster cells whose grid is MSE only.
 reuse:
@@ -72,8 +72,9 @@ directions:
 
 # Autonomy (D3 e): cap 80 GPU-h over both directions; time per model = time_factor x pilot wall (capped).
 # GPU-usage policy (NYU HPC): jobs averaging < 50% GPU utilisation for > 2 h are cancelled (warning < 70%); these models
-# are too small to reach that, so every task must finish within 2 h: 8 trials per GPU (0.125 x 8, 2 CPUs per trial)
-# halves wall time vs E2.2's 0.25 x 4, and autopilot refuses to launch a model whose pilot wall exceeds max_wall_h.
+# are too small to reach that, so every task must finish within 2 h. Packing is E2.2's 0.25 x 4 (2 CPUs per trial):
+# the 2026-10-21 A/B ran 24 PCA-PLS learnable trials in ~15 min per task with it (8 x 0.125 was tried 2026-10-20 and
+# reverted: no gain, 8 concurrent data builds). autopilot refuses to launch a model whose pilot wall exceeds max_wall_h.
 budget: {gpu_h_cap: 80, time_factor: 1.5, time_cap_h: 2.5, min_time_h: 0.5, max_retries: 1, max_error_frac: 0.2,
          max_wall_h: 1.75}
 gate: {}
