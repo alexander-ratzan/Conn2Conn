@@ -7,10 +7,16 @@ subject's run bounds ((n_runs, 2) [start, stop) rows, `TimeseriesCache.run_bound
   2019): area under the autocorrelation function from lag 0 up to (not including) the first lag at which it is <= 0,
   in seconds: TR * sum_{k < k0} acf(k). Per run, then averaged over runs (Parkes average over scans).
 - Sample entropy (Richman & Moorman 2000): SampEn = -log(A / B), where B counts pairs i < j of the N - m length-m
-  templates (starts 0 .. N - m - 1) within Chebyshev distance r (d <= r), and A counts the same pairs at length m + 1.
-  Multiscale entropy (Costa et al. 2002): coarse-grain by non-overlapping means of s samples, keep r fixed at
+  templates (starts 0 .. N - m - 1) within Chebyshev distance d < r, and A counts the same pairs at length m + 1.
+  Multiscale entropy (Costa et al. 2005): coarse-grain by non-overlapping means of s samples, keep r fixed at
   r_frac x SD of the scale-1 signal (SD per run). Across runs A and B are summed before the log. Undefined (A or B = 0)
-  -> NaN. Defaults m = 2, r_frac = 0.5, scales 1-5 (fMRI MSE convention).
+  -> NaN (the LOFT toolbox returns 0 there). MSE summary = area under the SampEn-vs-scale curve (trapezoid, unit
+  scale spacing; NaN if any scale is undefined).
+  Defaults follow Wijesinghe et al. (NeuroImage 2026, "Lifespan trajectories of the brain's functional complexity
+  characterized by multiscale sample entropy"): m = 2, r = 0.3 x SD, scales 1-13, AUC over scales; strict d < r and
+  r fixed across scales as in their LOFT toolbox (github.com/kayjann/complexity, sample_entropy.m). Their TR is 1.4 s
+  (scale 13 = 18 s) on high-pass-only data; with HCP's TR 0.72 s scale 13 spans 9.4 s, and the band-pass removes
+  everything above 0.08 Hz, i.e. all the detail finer than scale ~9.
 
 Caveats for the HCP xcp-d data: the timeseries are band-pass filtered (~0.01-0.08 Hz), which shapes the ACF and the
 coarse-scale entropy, and the task design is not regressed out (no event timings on disk; Parkes do regress it).
@@ -19,6 +25,8 @@ Compare across regions, subjects and conditions within this dataset, not to abso
 import numpy as np
 
 TR = 0.72
+SCALES = tuple(range(1, 14))
+M, R_FRAC = 2, 0.3
 
 
 def acf(x, max_lag=None):
@@ -59,7 +67,7 @@ def coarse_grain(x, scale):
 def sampen_counts(x, m, r, chunk=16):
     """Template-match counts for sample entropy of each column of x (T, P) with tolerance r (P,).
 
-    Returns (A, B), float64 (P,): pairs i < j within Chebyshev distance <= r at length m + 1 (A) and m (B), over the
+    Returns (A, B), float64 (P,): pairs i < j within Chebyshev distance < r at length m + 1 (A) and m (B), over the
     T - m template starts shared by both lengths.
     """
     x = np.asarray(x, dtype=np.float64)
@@ -76,9 +84,9 @@ def sampen_counts(x, m, r, chunk=16):
         for k in range(1, m):
             np.maximum(D, np.abs(xc[k:k + N, None, :] - xc[None, k:k + N, :]), out=D)
         rc = r[c:c + chunk]
-        B[c:c + chunk] = ((D <= rc) & upper).sum((0, 1))
+        B[c:c + chunk] = ((D < rc) & upper).sum((0, 1))
         np.maximum(D, np.abs(xc[m:m + N, None, :] - xc[None, m:m + N, :]), out=D)
-        A[c:c + chunk] = ((D <= rc) & upper).sum((0, 1))
+        A[c:c + chunk] = ((D < rc) & upper).sum((0, 1))
     return A, B
 
 
@@ -87,13 +95,13 @@ def _entropy(A, B):
         return np.where((A > 0) & (B > 0), -np.log(A / B), np.nan)
 
 
-def sample_entropy(x, m=2, r_frac=0.5):
+def sample_entropy(x, m=M, r_frac=R_FRAC):
     """Sample entropy of each column of x (T, P), r = r_frac x column SD. Returns (P,)."""
     x = np.asarray(x, dtype=np.float64)
     return _entropy(*sampen_counts(x, m, r_frac * x.std(0)))
 
 
-def multiscale_entropy_runs(x, bounds, scales=(1, 2, 3, 4, 5), m=2, r_frac=0.5):
+def multiscale_entropy_runs(x, bounds, scales=SCALES, m=M, r_frac=R_FRAC):
     """Multiscale sample entropy pooled over runs: per run, coarse-grain and count with r = r_frac x the run's SD;
     sum the counts over runs; SampEn per scale. Returns (len(scales), P)."""
     x = np.asarray(x, dtype=np.float64)
@@ -108,6 +116,12 @@ def multiscale_entropy_runs(x, bounds, scales=(1, 2, 3, 4, 5), m=2, r_frac=0.5):
     return np.stack(out)
 
 
-def multiscale_entropy(x, scales=(1, 2, 3, 4, 5), m=2, r_frac=0.5):
+def multiscale_entropy(x, scales=SCALES, m=M, r_frac=R_FRAC):
     """Multiscale sample entropy of one contiguous segment (one run or one window). Returns (len(scales), P)."""
     return multiscale_entropy_runs(x, [(0, len(x))], scales, m, r_frac)
+
+
+def mse_auc(mse):
+    """Area under SampEn vs scale (trapezoid, unit spacing) from (n_scales, P); NaN where any scale is undefined."""
+    mse = np.asarray(mse, dtype=np.float64)
+    return 0.5 * (mse[:-1] + mse[1:]).sum(0)

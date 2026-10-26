@@ -139,7 +139,7 @@ footer { padding: 0 20px 24px; color: var(--text-secondary); font-size: 12px; }
   <section class="card">
     <h2>Summary</h2>
     <table id="stats"></table>
-    <div class="note">Full scan: timescale averaged over runs; entropy counts pooled over runs (r per run). Window: the shaded segment only.</div>
+    <div class="note">Full scan: timescale averaged over runs; entropy counts pooled over runs (r per run). MSE area = trapezoid area under SampEn over scales (Wijesinghe et al.); undefined if any scale has no matches, which is common for windows. Window: the shaded segment only.</div>
   </section>
 </main>
 <footer>
@@ -216,10 +216,11 @@ function sampenCounts(x, m, r) {
   const N = x.length - m; let A = 0, B = 0;
   for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) {
     let d = 0; for (let k = 0; k < m; k++) { const e = Math.abs(x[i + k] - x[j + k]); if (e > d) d = e; }
-    if (d <= r) { B++; if (Math.abs(x[i + m] - x[j + m]) <= r) A++; }
+    if (d < r) { B++; if (Math.abs(x[i + m] - x[j + m]) < r) A++; }
   }
   return [A, B];
 }
+function auc(e) { let a = 0; for (let i = 0; i + 1 < e.length; i++) a += 0.5 * (e[i] + e[i + 1]); return a; }   // NaN if any scale is
 function mse(v) {                           // one contiguous segment; r fixed at r_frac x SD of the scale-1 segment
   const r = D.r_frac * sd(v);
   return D.scales.map(s => { const c = coarse(v, s); const [A, B] = c.length - D.m >= 2 ? sampenCounts(c, D.m, r) : [0, 0];
@@ -385,17 +386,18 @@ function drawMSE() {
     showTip(e, `scale ${sc[i]}<br>A: full ${fmt(r.mse[i][S.A], 3)} · window ${fmt(w[0][i]?.e, 3)}<br>B: full ${fmt(r.mse[i][S.B], 3)} · window ${fmt(w[1][i]?.e, 3)}` +
       (w[0][i] ? `<br>window samples at this scale: ${w[0][i].n}` : "")); };
   c.onmouseleave = hideTip;
-  $("mseNote").textContent = `m = ${D.m}, r = ${D.r_frac} × SD (per run / per window), Chebyshev distance ≤ r. Window points drawn as × have fewer than 100 coarse-grained samples (SampEn unreliable). Missing points: no template matches.`;
+  $("mseNote").textContent = `After Wijesinghe et al. 2026: m = ${D.m}, r = ${D.r_frac} × SD (per run / per window, fixed across scales), Chebyshev distance < r, scales ${D.scales[0]}–${D.scales[D.scales.length - 1]} (scale s spans s × ${TR} s). Window points drawn as × have fewer than 100 coarse-grained samples (unreliable); missing points: no template matches.`;
 }
 function drawStats() {
   const r = rec(), mean = a => { let s = 0, n = 0; for (const v of a) if (fin(v)) { s += v; n++; } return n ? s / n : NaN; };
-  const rows = [["A · " + D.labels[S.A], r.tau[S.A], WIN_TAU?.[S.A], r.mse[0][S.A], MSE_W?.[0][0].e],
-                ["B · " + D.labels[S.B], r.tau[S.B], WIN_TAU?.[S.B], r.mse[0][S.B], MSE_W?.[1][0].e],
-                ["all regions (mean)", mean(r.tau), WIN_TAU ? mean(WIN_TAU) : NaN, mean(r.mse[0]), null]];
+  const wAUC = i => MSE_W ? auc(MSE_W[i].map(o => o.e)) : NaN;
+  const rows = [["A · " + D.labels[S.A], r.tau[S.A], WIN_TAU?.[S.A], r.mse[0][S.A], MSE_W?.[0][0].e, r.mse_auc[S.A], wAUC(0)],
+                ["B · " + D.labels[S.B], r.tau[S.B], WIN_TAU?.[S.B], r.mse[0][S.B], MSE_W?.[1][0].e, r.mse_auc[S.B], wAUC(1)],
+                ["all regions (mean)", mean(r.tau), WIN_TAU ? mean(WIN_TAU) : NaN, mean(r.mse[0]), null, mean(r.mse_auc), null]];
   const F = series(r)._fc;
-  $("stats").innerHTML = `<tr><th></th><th>timescale full (s)</th><th>timescale window (s)</th><th>SampEn full</th><th>SampEn window</th></tr>` +
-    rows.map(q => `<tr><td>${q[0]}</td><td>${fmt(q[1])}</td><td>${fmt(q[2])}</td><td>${fmt(q[3], 3)}</td><td>${fmt(q[4], 3)}</td></tr>`).join("") +
-    `<tr><td>r(A, B)</td><td colspan="2">full ${fmt(F[S.A * P + S.B], 3)}</td><td colspan="2">window ${WIN_FC ? fmt(WIN_FC[S.A * P + S.B], 3) : "–"}</td></tr>`;
+  $("stats").innerHTML = `<tr><th></th><th>timescale full (s)</th><th>timescale window (s)</th><th>SampEn s1 full</th><th>SampEn s1 window</th><th>MSE area full</th><th>MSE area window</th></tr>` +
+    rows.map(q => `<tr><td>${q[0]}</td><td>${fmt(q[1])}</td><td>${fmt(q[2])}</td><td>${fmt(q[3], 3)}</td><td>${fmt(q[4], 3)}</td><td>${fmt(q[5])}</td><td>${fmt(q[6])}</td></tr>`).join("") +
+    `<tr><td>r(A, B)</td><td colspan="3">full ${fmt(F[S.A * P + S.B], 3)}</td><td colspan="3">window ${WIN_FC ? fmt(WIN_FC[S.A * P + S.B], 3) : "–"}</td></tr>`;
 }
 
 // ---------- update cycle ----------
