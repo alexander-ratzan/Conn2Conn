@@ -18,7 +18,7 @@ flow that generates a subject's encodings (E2); a generative follow-up with more
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
 | E1 | CCA-latent bidirectional benchmark: multiview CCA latent of FC as the encoding for FC → SC and the target for SC → FC | done 2026-10-20 | I2, D4 | agent:modeling |
-| E2 | SC → functional latent: E2.1 conditional generation of each condition's CCA encoding from SC (linear, nonlinear, linear-Gaussian, flow); E2.2 optional multi-condition FC → FC | planned (revised 2026-10-26) | I1, E1, D7 | agent:modeling |
+| E2 | SC → functional latent: E2.1 conditional generation of each condition's CCA encoding from SC (linear, nonlinear, linear-Gaussian, flow); E2.2 optional multi-condition FC → FC | in progress (E2.1a done: G0b passed, 5 seeds; E2.1b–e running) | I1, E1, D7 | agent:modeling |
 | E3 | Generative follow-ups to E2.1: path noise, rest sessions as repeats, FC timeseries windows as more samples per subject | outline | E2.1 | — |
 | I1 | Joint translation infrastructure: pooled FC basis, (subject, source, target) data module, token model, integrator, runner | in progress | — | agent:modeling |
 | I2 | Multiview CCA library module (MAXVAR fit / encode / decode), shared by E2 and E1 | done 2026-10-20 | — | agent:modeling |
@@ -142,7 +142,7 @@ Average rank and top-1 are reported for every comparison; FC → SC rank metrics
 - **Caveats:** v3:C!2 for FC → SC; the latent decoders are linear, so SC → FC via the latent is bounded by the latent
   ceiling; v3:E0 rows used tuned learnable models and per-condition bases, E1 closed-form readouts on pooled codes.
 
-### E2 — SC → functional latent: linear, nonlinear and flow models   (slug: `joint_flow_matching`) · status: planned (revised 2026-10-26) · owner: agent:modeling
+### E2 — SC → functional latent: linear, nonlinear and flow models   (slug: `joint_flow_matching`) · status: in progress · owner: agent:modeling
 
 **In one paragraph.** E1 found that a shared functional latent, learned by multiview CCA across rest and the seven
 tasks without SC, is a better target for structure than any single FC scan. Every subject has **eight encodings** in
@@ -217,7 +217,7 @@ ceiling is mildly optimistic (the consensus includes the target condition).
 
 | Step | What | Compute | Gate (stop and report if it fails) |
 |---|---|---|---|
-| E2.1a | Latent-target cache per seed (E1's latent, all subjects' 8 encodings, decoders); the runner | CPU | **G0b:** ridge → consensus reproduces E1's SC → FC rows to 1e-6 |
+| E2.1a | Latent-target cache per seed (E1's latent, all subjects' 8 encodings, decoders); the runner | CPU | **G0b:** ridge → consensus reproduces E1's SC → FC rows to 1e-6  **passed 2026-10-26** (max diff ≤ 1e-16, 5 seeds) |
 | E2.1b | Synthetic gates with the training fix: the original 9-view gate rerun unchanged; a single-target version shaped like E2.1; and a distributional version (simulated subjects whose 8 encodings scatter with an input-dependent spread) | 1 GPU, < 1 h | **G1:** point models' R² ≥ 0.9 against the true conditional mean; shuffled pairing collapses (demeaned r ≤ 0.02); on the distributional simulation the flow recovers the per-subject spread (correlation ≥ 0.5) and beats the Gaussian on energy distance |
 | E2.1c | Pilot, seed 0: all models | 1 GPU | **G3:** corrector val within 0.005 of ridge or better; flow sample means correlate ≥ 0.9 with the corrector's predictions; metrics finite; selected trials stop before the epoch cap |
 | E2.1d | Seeds 1–4 | GPU array | — |
@@ -446,5 +446,6 @@ v3 closed 2026-10-21 (all experiments done). Carried forward:
 | 2026-10-21 | E2 Part 1 MLP set as a nonlinear corrector of ridge (user): ridge prediction + learned correction, starting at the ridge solution; direct MLP as a secondary arm. |
 | 2026-10-26 | v4 active (v3 closed 2026-10-21). E2 revised (D7): E2.1 conditional generation of each condition's CCA encoding from SC, 8 targets per subject; models ridge, linear-Gaussian, nonlinear corrector (± identity loss), ridge-start bridge, conditional flow with token dropout (main); H1–H7, primary H3 (energy distance, flow vs linear-Gaussian); distributional synthetic gate added. Former Part 2 → optional E2.2. E3 narrowed to generative follow-ups. v3 caveat and backlog carried over (C!1). |
 | 2026-10-26 | **Renumbered (user):** the finished CCA-latent benchmark is now **E1** (was E2) and comes first; the SC → functional-latent experiment is now **E2** (was E1; its sub-items E2.0–E2.2, was E1.0–E1.2), leading into E3. Commit messages and job names before this date use the old IDs (e.g. `5032017` "E2 CCA-latent benchmark", job names `e2_cca_bench`, `e1_linear`, `e1_gpu_checks`). Earlier change-log rows are rewritten with the new IDs. |
+| 2026-10-26 | E2.1 built (`2c3e7d7`, `28a1898`): latent cache + linear references, G0b passed (5 seeds); runner, synthetic gates, G3 check, analysis. Chain submitted: gates `21010434` → seed-0 pilot `21010435` → G3 `21010436` → seeds 1–4 `21010437`–`40` → analysis `21010569`, each `afterok`. `TokenBackbone` gained an optional conditioning input (SC codes). |
 
 Last updated at: 2026-10-26 EDT
