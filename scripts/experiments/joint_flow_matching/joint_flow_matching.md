@@ -126,4 +126,39 @@ Rest test–retest: the flow's predicted rest spread does not track each subject
   (1–6 min per job), so larger searches are unlikely to change point results but were not tried.
 - FC → SC (H7) rank metrics are read with v4 C!1 (parcel geometry).
 
+## 7. Addendum: can a flow learn SC → latent without a ridge anchor?
+
+Every real-data flow above was anchored on ridge. Two un-anchored flows were added, from noise straight to each
+condition's encoding, conditioned on SC and the condition token: a **linear** velocity field (linear in the state, SC
+and condition, with flow-time-varying coefficients: the form of the exact flow for linear-Gaussian data, so it is the
+same model class as the linear-Gaussian reference) and the **nonlinear** MLP velocity field. Code: `e21_run.py`
+(`flow_linear`, `flow_free`), `checks/synthetic_e21_addendum.py`, `e21_addendum_analyze.py`; jobs `21033481`–`89`.
+
+**Synthetic (known answer):** the nonlinear flow learns from noise alone: point R² 0.945 (ridge 0.983), energy 0.030
+vs the Gaussian's 0.511, per-subject spread r 0.99. The linear flow behaves as theory says: point R² 0.914 and energy
+0.505, matching the Gaussian (it cannot represent input-dependent spread; spread r −0.12). Both nulls at chance.
+
+**Real data (test, 5 seeds):**
+
+| SC PCA → task latent → task FC via | Demeaned r (mean of 8) | Energy (lower is better) | Set average rank | Set top-1 |
+|---|---|---|---|---|
+| ridge / linear-Gaussian (closed form) | **0.0490** | **0.0462** | 0.844 | 0.065 |
+| flow, ridge-anchored (E2.1) | 0.0473 | 0.0469 | **0.848** | 0.079 |
+| flow from noise, linear velocity | 0.0462 | 0.0486 | 0.842 | **0.084** |
+| flow from noise, nonlinear velocity | 0.0444 | 0.0481 | 0.818 | 0.064 |
+| nulls (SC shuffled) | −0.0003 to 0.0013 | 0.051–0.053 | 0.50–0.52 | 0.004–0.007 |
+
+- **Yes, flow matching learns SC → latent without an anchor.** The linear flow recovers 94 % of ridge's point signal
+  and the nonlinear flow 91 %, with subject identification of their clouds well above the null (0.84 / 0.82 vs 0.50).
+- **It learns less efficiently than the closed form.** Both un-anchored flows trail ridge in every seed (−0.003 and
+  −0.005 demeaned r) and the linear-Gaussian on energy (−0.002 in every seed): the same model class fit by stochastic
+  gradients from 659 subjects loses a little to its closed-form fit.
+- **Nonlinearity adds nothing on real data, though it clearly can.** On the synthetic data the nonlinear flow found
+  input-dependent spread a Gaussian cannot; on real data it does not beat the linear flow. Together with E2.1's
+  spread results, the real-data relation in these coordinates is linear-Gaussian at this sample size.
+- Caveat (as E2.1): targets are linear CCA encodings of block FC PCA codes, chosen for linear cross-condition
+  agreement; the next test uses block PCA targets.
+
+![Addendum](results/Glasser/e21/figures/fig_addendum_free_flows.png)
+
 Last updated at: 2026-10-26 EDT

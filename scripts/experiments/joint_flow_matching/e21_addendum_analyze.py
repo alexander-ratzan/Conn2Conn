@@ -20,9 +20,8 @@ import run as mb  # noqa: E402
 
 REC = HERE / "results" / "Glasser" / "records" / "e21"
 OUT = HERE / "results" / "Glasser" / "e21"
-LABEL = {"ridge_cond": "ridge\n(per condition)", "gauss": "linear-Gaussian\n(ridge + shared cov.)",
-         "flow": "flow, ridge-\nanchored (E2.1)", "flow_linear": "flow from noise,\nlinear velocity",
-         "flow_free": "flow from noise,\nnonlinear velocity"}
+LABEL = {"ridge_cond": "ridge", "gauss": "linear-\nGaussian", "flow": "flow,\nridge-anchored",
+         "flow_linear": "flow from noise,\nlinear", "flow_free": "flow from noise,\nnonlinear"}
 COL = {"ridge_cond": "#42949E", "gauss": "#CFCECE", "flow": "#8BCF8B", "flow_linear": "#3775BA", "flow_free": "#0F4D92"}
 
 
