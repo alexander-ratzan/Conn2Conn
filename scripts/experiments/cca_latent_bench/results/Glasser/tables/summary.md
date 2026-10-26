@@ -1,4 +1,4 @@
-# E2 summary (seeds 0, 1, 2, 3, 4; test split; headline readout ridge)
+# E1 summary (seeds 0, 1, 2, 3, 4; test split; headline readout ridge)
 
 | H | comparison | metric | Δ ± SE | seeds > 0 | supported | note |
 |---|---|---|---|---|---|---|

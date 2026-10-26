@@ -1,7 +1,7 @@
 #!/bin/bash
-# Spec v4 E2: one seed per array task (closed form, CPU). Pilot: sbatch --array=0 ... --check
-#   sbatch --array=0 scripts/experiments/cca_latent_bench/launch/run_seeds.sh --check     # E2.1 pilot (gate G1)
-#   sbatch --array=1-4 scripts/experiments/cca_latent_bench/launch/run_seeds.sh           # E2.2
+# Spec v4 E1: one seed per array task (closed form, CPU). Pilot: sbatch --array=0 ... --check
+#   sbatch --array=0 scripts/experiments/cca_latent_bench/launch/run_seeds.sh --check     # E1.1 pilot (gate G1)
+#   sbatch --array=1-4 scripts/experiments/cca_latent_bench/launch/run_seeds.sh           # E1.2
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced
 #SBATCH --ntasks-per-node=1

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Spec v4 E1 arm A1 (L1-L4 + references), CPU, one seed per array task, every k in config k_grid.
+# Spec v4 E2 arm A1 (L1-L4 + references), CPU, one seed per array task, every k in config k_grid.
 #   sbatch --array=0-4 scripts/experiments/joint_flow_matching/launch/linear_arms.sh [variant]
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced

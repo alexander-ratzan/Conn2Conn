@@ -1,4 +1,4 @@
-"""Spec v4 E1 gate G0 (I1 acceptance), CPU. Prints one line per check and ALL_OK / FAILED.
+"""Spec v4 E2 gate G0 (I1 acceptance), CPU. Prints one line per check and ALL_OK / FAILED.
 
   1. cohort, subject order and train / val / test lists identical to v3:E0's HCP_Base (fc_source_condition=rest);
   2. code space fit on train only: stored means / scales equal the train-row values; each basis is orthonormal and

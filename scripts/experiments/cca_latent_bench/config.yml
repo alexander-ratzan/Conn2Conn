@@ -1,8 +1,8 @@
-# Spec v4 E2 — CCA-latent bidirectional benchmark (closed form, CPU).
+# Spec v4 E1 — CCA-latent bidirectional benchmark (closed form, CPU).
 #   python scripts/experiments/cca_latent_bench/run_seed.py --seed S [--check]     # one seed (kraken env)
 #   sbatch --array=0-4 scripts/experiments/cca_latent_bench/launch/run_seeds.sh   # all seeds
 #   python scripts/experiments/cca_latent_bench/run.py                              # tables + figures
-# Data: E1's per-seed cache (scripts/experiments/joint_flow_matching/common.py; equal-variance pooled FC basis + SC basis).
+# Data: E2's per-seed cache (scripts/experiments/joint_flow_matching/common.py; equal-variance pooled FC basis + SC basis).
 seeds: [0, 1, 2, 3, 4]
 fc_views: [rest, emotion, gambling, language, motor, relational, social, wm]
 tasks: [emotion, gambling, language, motor, relational, social, wm]
@@ -23,7 +23,7 @@ readouts:
   pls_components: [2, 4, 8, 16, 32]
 
 gates:
-  l1_match_tol: 1.0e-6         # G1: rest PCA k=64 -> SC k=64 ridge == E1 L1 test demeaned r
+  l1_match_tol: 1.0e-6         # G1: rest PCA k=64 -> SC k=64 ridge == E2 L1 test demeaned r
 
 bench: scripts/experiments/task_bidirectional_bench/results/Glasser    # v3:E0 seed_records (fc2sc, sc2fc)
 e1_linear: scripts/experiments/joint_flow_matching/results/Glasser/records/linear

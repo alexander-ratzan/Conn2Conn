@@ -1,9 +1,9 @@
-# E2: CCA-latent bidirectional benchmark
+# E1: CCA-latent bidirectional benchmark
 
-**Spec:** v4 E2 (`context_packages/repo_spec_docs/spec_doc_v4.md`), run autonomously under v4 D4.
+**Spec:** v4 E1 (`context_packages/repo_spec_docs/spec_doc_v4.md`), run autonomously under v4 D4.
 **Code:** `config.yml`; `run_seed.py` (one seed: latent selection, FC → SC, SC → FC; `--check` = gate G1);
 `launch/run_seeds.sh`, `launch/analyze.sh`; `run.py` (hypothesis tests, tables, figures). Shared library:
-`models/architectures/multiview_cca.py` (MAXVAR, ridge GCV; v4 I2). Data: E1's per-seed cache
+`models/architectures/multiview_cca.py` (MAXVAR, ridge GCV; v4 I2). Data: E2's per-seed cache
 (`scripts/experiments/joint_flow_matching/common.py`).
 **Outputs:** `results/Glasser/records/seed<S>*.csv`; `results/Glasser/tables/{summary.md, hypotheses.csv, fc2sc.csv,
 sc2fc.csv, latent_selection.csv, latent_r2.csv}`; `results/Glasser/figures/fig_*.png`.
@@ -11,7 +11,7 @@ sc2fc.csv, latent_selection.csv, latent_r2.csv}`; `results/Glasser/figures/fig_*
 `viewer/build_latent_viewer.py`, cached data `results/Glasser/tables/latent_viewer_data.json`): up to 15 held-out
 subjects at a time, each encoded from all 8 FC conditions, in the CCA latent and in the same number of pooled-PCA codes,
 with per-subject silhouette, dispersion / separation and rest → task identification computed over the whole split.
-**Runs:** G0 (library move, E1 checks + exact L4 reproduction) local; pilot `20484872` (G1 ALL_OK), seeds 1–4
+**Runs:** G0 (library move, E2 checks + exact L4 reproduction) local; pilot `20484872` (G1 ALL_OK), seeds 1–4
 `20484873`, analysis `20484874`. CPU only, ≈ 0.6 CPU-node-hours.
 **Status:** complete 2026-10-20.
 
@@ -28,7 +28,7 @@ SC → FC with the latent as the target.
 | | |
 |---|---|
 | Cohort / splits | v3:E0 matched cohort (917 Glasser subjects), seeds 0–4 (seed 0: 659 / 74 / 184), paired with v3:E0 |
-| Codes | E1 equal-variance pooled FC basis and SC basis (v4 D2) |
+| Codes | E2 equal-variance pooled FC basis and SC basis (v4 D2) |
 | Latent | MAXVAR over the 8 FC conditions (never SC); encoders $A_m$, decoders $D_m$; consensus = mean of a subject's 8 encodings |
 | Latent selection | **SC-blind:** $(k_{FC}, d, \lambda)$ chosen on val cross-condition identification (56 ordered pairs). Chosen in every seed: $k_{FC}$ 256, $d$ 32, $\lambda$ 0.1 (val cross-condition average rank 0.94–0.95 vs 0.66–0.69 for the same number of pooled-PCA codes). Secondary **SC-tuned** latent chosen on val FC → SC ($k_{FC}$ 512, $d$ 64–128) |
 | Readouts | ridge (GCV; headline for every hypothesis) and PLS (components on val); target / input code size on val |
@@ -74,7 +74,7 @@ SC → FC with the latent as the target.
 | relational | 0.016 | 0.026 | 0.029 | 0.030 | 0.132 |
 | emotion | 0.013 | 0.031 | 0.032 | 0.032 | 0.107 |
 
-Every SC input is SC's own train PCA (size 64–512 chosen on val per model and condition). E2's routes all output in
+Every SC input is SC's own train PCA (size 64–512 chosen on val per model and condition). E1's routes all output in
 the shared block FC PCA basis (equal-variance pooled); v3:E0 uses a separate FC PCA basis per condition. The step from
 the first to the second column is therefore the basis and readout (no CCA); the step from the second to the last two
 columns is the latent route.
@@ -84,7 +84,7 @@ top-1 0.05–0.15 (chance 0.005), average rank 0.86–0.90.
 
 ![SC to FC per condition](results/Glasser/figures/fig_sc2fc_conditions.png)
 
-### Reference: full shared CCA with SC as a ninth view (E1 linear arm L4)
+### Reference: full shared CCA with SC as a ninth view (E2 linear arm L4)
 
 The same MAXVAR with SC included as a view, from `scripts/experiments/joint_flow_matching/linear_arms.py` (5 seeds;
 $(d, \lambda)$ chosen on mean val demeaned r over all 72 view pairs, $d$ = 32 in most seeds; block FC PCA codes,
@@ -134,7 +134,7 @@ target.
 5. **The SC → latent signal is diffuse:** per-dimension R² is near zero, yet predicted latents identify subjects
    (average rank 0.86–0.90). SC carries a weak, spread-out projection of each subject's functional trait.
 
-## 5. What this means for E1 (spec v4 E2.D)
+## 5. What this means for E2 (spec v4 E1.D)
 
 - **SC → FC:** frame it as SC → shared latent → condition. The latent route beats direct prediction, and the gap to
   the ceiling (rest 0.105 vs 0.304) is where a nonlinear or generative model has room; the condition-specific
@@ -144,7 +144,7 @@ target.
   the obvious next test; it is cheap and closed form.
 - **Follow-ups (cheap, closed form):** extend $k_{SC}$ to {8, 16, 32} (grid edge, §6); hybrid FC → SC input (rest
   PCA codes + task consensus latent).
-- **The joint flow model (E1 A3 / A4)** should keep the pooled basis for FC → FC and SC pairs, and add the latent as
+- **The joint flow model (E2 A3 / A4)** should keep the pooled basis for FC → FC and SC pairs, and add the latent as
   an input or conditioning arm for task-sourced and SC-targeted pairs rather than replace the code space.
 
 ## 6. Caveats
@@ -154,7 +154,7 @@ target.
   stand, but absolute FC → SC levels may be capped; extending the grid to {8, 16, 32} is the first follow-up.
 
 - FC → SC rank and top-1 are partly parcel geometry (v3:C!2).
-- v3:E0 rows are tuned learnable models on per-condition bases; E2 uses closed-form readouts on pooled codes, so
+- v3:E0 rows are tuned learnable models on per-condition bases; E1 uses closed-form readouts on pooled codes, so
   "beats v3:E0" mixes the latent with the basis and readout; the paired in-codes comparisons (H1, H2, H4 vs direct)
   isolate the latent.
 - Latent hyperparameters were chosen SC-blind on 74 val subjects; one configuration won in every seed.

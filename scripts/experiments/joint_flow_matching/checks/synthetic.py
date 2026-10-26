@@ -1,4 +1,4 @@
-"""Spec v4 E1 gate G1: A3 and A4 on simulated views with known conditional means, through the real training loop.
+"""Spec v4 E2 gate G1: A3 and A4 on simulated views with known conditional means, through the real training loop.
 
 Nine views z^m = u M_m + sigma * eps (u ~ N(0, I_q), q = 16; k = 64; M_m random), so E[z^b | z^a] = z^a S_aa^-1 S_ab is
 known. Train / val / test sizes as seed 0 (659 / 74 / 184). Fixed configuration, no search.

@@ -1,4 +1,4 @@
-"""Spec v4 E2 results: per-seed records -> hypothesis tests (support rule), tables and figures.
+"""Spec v4 E1 results: per-seed records -> hypothesis tests (support rule), tables and figures.
 
 Headline readout is ridge for every hypothesis (pre-specified); PLS rows are reported alongside. The rest-PCA-code
 baseline uses, per seed, the k with the best val demeaned r. References: v3:E0 seed_records (fc2sc, sc2fc).
@@ -35,7 +35,7 @@ def load():
 
 
 def rule(delta):
-    """Support rule (spec v4 E1.A): seed-mean above 2 SE and same sign in >= 4 of 5 seeds."""
+    """Support rule (spec v4 E2.A): seed-mean above 2 SE and same sign in >= 4 of 5 seeds."""
     d = np.asarray(delta, dtype=float)
     m, se = d.mean(), d.std(ddof=1) / np.sqrt(len(d))
     pos = int((d > 0).sum())
@@ -141,7 +141,7 @@ def fig_fc2sc(rec, bench, path):
                         solid_capstyle="butt", label="same FC condition, own FC PCA → SC · PCA-PLS learnable [v3:E0]" if cond == "rest" else None)
         ax.set_xticks(x, ticks, rotation=35, ha="right", rotation_mode="anchor")
         ax.set_ylabel("Test demeaned r (predicted vs measured SC)")
-        ax.set_title("E2 FC → SC: which FC encoding predicts SC best (latent = FC-only CCA, never sees SC); "
+        ax.set_title("E1 FC → SC: which FC encoding predicts SC best (latent = FC-only CCA, never sees SC); "
                      "mean ± SE, 5 seeds", fontweight="bold", fontsize=15)
         ax.set_ylim(0, 0.2)
         ax.legend(frameon=False, fontsize=12, loc="upper center", ncol=2)
@@ -171,7 +171,7 @@ def fig_sc2fc(rec, bench, path):
         ax.set_xticks(x, FC)
         ax.set_xlabel("target FC condition")
         ax.set_ylabel("Test demeaned r (predicted vs measured FC)")
-        ax.set_title("E2 SC → FC: predicting each condition's FC from SC (latent = FC-only CCA); mean ± SE, 5 seeds",
+        ax.set_title("E1 SC → FC: predicting each condition's FC from SC (latent = FC-only CCA); mean ± SE, 5 seeds",
                      fontweight="bold", fontsize=15)
         ax.legend(frameon=False, fontsize=12, ncol=1, loc="upper right")
         fig.savefig(path, dpi=300, facecolor="white")
@@ -239,7 +239,7 @@ def main():
     fig_latent_selection(lat, OUT / "figures" / "fig_latent_selection.png")
     hyp_md = hyp.assign(**{"Δ ± SE": hyp["mean"].map("{:+.4f}".format) + " ± " + hyp["se"].map("{:.4f}".format),
                            "seeds > 0": hyp.n_pos.astype(str) + " / " + hyp.n.astype(str)})
-    text = [f"# E2 summary (seeds {', '.join(map(str, seeds))}; test split; headline readout ridge)\n",
+    text = [f"# E1 summary (seeds {', '.join(map(str, seeds))}; test split; headline readout ridge)\n",
             md_table(hyp_md, ["H", "comparison", "metric", "Δ ± SE", "seeds > 0", "supported", "note"]), ""]
     (OUT / "tables" / "summary.md").write_text("\n".join(text) + "\n")
     print("\n".join(text))

@@ -1,4 +1,4 @@
-# Spec v4 E1 — joint multidirectional translation (regression vs deterministic flow) in a shared code space.
+# Spec v4 E2 — joint multidirectional translation (regression vs deterministic flow) in a shared code space.
 #   python scripts/experiments/joint_flow_matching/linear_arms.py --seed S            # A1 (L1-L4) + references, CPU
 #   python scripts/experiments/joint_flow_matching/tune.py --arm A3 --seed S          # A2 / A3 / A4 search, GPU
 #   python3 scripts/experiments/joint_flow_matching/submit.py ...                     # sbatch arrays (host python)
@@ -6,7 +6,7 @@ parcellation: Glasser
 seeds: [0, 1, 2, 3, 4]
 cohort: 917                      # v3:E0 matched all-condition cohort
 
-# D1: views and pair mask. `rest` = 4-run xcp-d combined FC; sessions only in the E1.5c arm.
+# D1: views and pair mask. `rest` = 4-run xcp-d combined FC; sessions only in the sessions variant (E2.2).
 views: [SC, rest, emotion, gambling, language, motor, relational, social, wm]
 session_views: [SC, rest, rest_S1, rest_S2, emotion, gambling, language, motor, relational, social, wm]
 fc_views: [rest, rest_S1, rest_S2, emotion, gambling, language, motor, relational, social, wm]
@@ -45,7 +45,7 @@ flow:
   eval_steps: [1, 4, 16, 64]     # 1 = one Euler step; others RK4
 a2_pairs: [[rest, SC], [SC, rest], [wm, SC], [SC, wm]]
 
-# Gates (spec v4 E1.C)
+# Gates (spec v4 E2; first design, now E2.2)
 gates:
   g1_min_r2: 0.9
   g1_max_shuffled_dr: 0.02

@@ -1,6 +1,6 @@
 #!/bin/bash
-# Spec v4 E1 GPU checks: G1 synthetic gate, then 2-trial smoke runs of A3 and A4 on seed 0 (G0 end-to-end item and
-# the time per trial that sets the E1.3 / E1.4 job limits).
+# Spec v4 E2 GPU checks: G1 synthetic gate, then 2-trial smoke runs of A3 and A4 on seed 0 (G0 end-to-end item and
+# the time per trial that sets the pilot / main job limits).
 #   sbatch scripts/experiments/joint_flow_matching/launch/gpu_checks.sh
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced

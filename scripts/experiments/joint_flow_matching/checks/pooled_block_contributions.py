@@ -1,4 +1,4 @@
-"""Spec v4 E1.0c: how much each FC view (rest vs each task) contributes to the pooled basis's variance spectrum.
+"""Spec v4 E2.0c: how much each FC view (rest vs each task) contributes to the pooled basis's variance spectrum.
 
 For pooled component j with train eigenvalue lambda_j = sum_m ||X_m w_j||^2 (X_m = view m's train-centered block,
 optionally divided by its first singular value or its total norm), view m's share of component j is ||X_m w_j||^2 / lambda_j. With 8

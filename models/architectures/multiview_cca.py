@@ -1,4 +1,4 @@
-"""Closed-form multiview CCA (MAXVAR) and ridge readout on code matrices (spec v4 I2; used by E1 L4 and E2).
+"""Closed-form multiview CCA (MAXVAR) and ridge readout on code matrices (spec v4 I2; used by E2 L4 and E1).
 
 MAXVAR: shared scores G (n, d), G^T G = I, and per-view regularized encoders A_m minimizing
 sum_m ||G - Z_m A_m||^2 + lambda_m ||A_m||^2. G is the top-d eigenvectors of sum_m Z_m (Z_m^T Z_m + lambda_m I)^-1 Z_m^T,

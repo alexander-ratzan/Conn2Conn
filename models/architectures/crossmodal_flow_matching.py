@@ -1,4 +1,4 @@
-"""Joint multidirectional translation in a shared code space (spec v4 E1 / I1).
+"""Joint multidirectional translation in a shared code space (spec v4 E2 / I1).
 
 - `CodeSpace`: per-view train mean and block scale, a pooled PCA basis for the FC views and one basis per other view
   (SC), encode / decode between edges and k-dimensional codes. Nothing here sees val / test rows.

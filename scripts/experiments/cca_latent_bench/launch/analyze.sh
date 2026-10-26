@@ -1,5 +1,5 @@
 #!/bin/bash
-# Spec v4 E2.3: tables + figures from all seed records (CPU). Submitted with --dependency=afterok on the seed array.
+# Spec v4 E1.3: tables + figures from all seed records (CPU). Submitted with --dependency=afterok on the seed array.
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced
 #SBATCH --ntasks-per-node=1

@@ -1,4 +1,4 @@
-"""Spec v4 E1 arm A1 (closed-form linear references) and the per-pair references, for one seed, at every k.
+"""Spec v4 E2 arm A1 (closed-form linear references) and the per-pair references, for one seed, at every k.
 
   L1 per-pair ridge (penalty by generalized cross-validation on train);
   L2 L1 with each output dimension rescaled to the target's train SD (scale from 5-fold CV predictions on train);

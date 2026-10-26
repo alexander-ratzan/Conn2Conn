@@ -1,4 +1,4 @@
-"""Spec v4 E1 shared pieces: config, per-seed data and code-space cache, pair lists, scoring.
+"""Spec v4 E2 shared pieces: config, per-seed data and code-space cache, pair lists, scoring.
 
 The cache (one npz per seed x code-space variant, under `cache_dir`) holds the code space, every subject's codes for
 every view at k_max, and the val / test edge vectors of every view, so GPU jobs never rebuild `HCP_Base`.

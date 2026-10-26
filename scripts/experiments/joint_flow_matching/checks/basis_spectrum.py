@@ -1,4 +1,4 @@
-"""Spec v4 E1.0b: PCA spectra of the E1 code bases (how many components exist, how many reach a variance share).
+"""Spec v4 E2.0b: PCA spectra of the E2 code bases (how many components exist, how many reach a variance share).
 
 For each basis (each view's own train PCA, and the pooled block-scaled FC basis over `rest` + 7 tasks), reports the
 maximum number of components (train rank), the k reaching 50 / 80 / 90 / 95 / 99 % of train variance, and the

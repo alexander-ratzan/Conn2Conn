@@ -1,4 +1,4 @@
-"""Spec v4 E2: CCA-latent bidirectional benchmark for one seed (closed form, CPU).
+"""Spec v4 E1: CCA-latent bidirectional benchmark for one seed (closed form, CPU).
 
 1. Latent selection (SC-blind): MAXVAR over the 8 FC conditions for every (k_fc, d, lambda); keep the one with the best
    mean val cross-condition identification (avg rank, 56 ordered pairs). Also records, per configuration, the val
@@ -26,7 +26,7 @@ from sklearn.cross_decomposition import PLSRegression
 EXP = Path(__file__).resolve().parent
 REPO_ROOT = next(p for p in EXP.parents if (p / "main.py").exists())
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "experiments" / "joint_flow_matching"))
-from common import SeedData, score  # noqa: E402  (E1's per-seed cache and v3:E0 scorer)
+from common import SeedData, score  # noqa: E402  (E2's per-seed cache and v3:E0 scorer)
 from models.architectures.multiview_cca import maxvar, ridge_gcv  # noqa: E402
 from models.eval.metrics import compute_corr_matrix, corr_avg_rank, corr_topn_accuracy  # noqa: E402
 
@@ -206,7 +206,7 @@ class Seed:
                  readout=kind, setting=json.dumps(dict(n_components=n, k_sc=ksc)))
 
     def check_l1(self):
-        """G1(b): rest PCA k=64 -> SC k=64 ridge == E1 L1 (test demeaned r)."""
+        """G1(b): rest PCA k=64 -> SC k=64 ridge == E2 L1 (test demeaned r)."""
         Xtr, Xte = self.Z["train"]["rest"][:, :64], self.Z["test"]["rest"][:, :64]
         (pt,), _ = fit_predict("ridge", None, Xtr, self.Z["train"]["SC"][:, :64], [Xte])
         mine = score(self.sd.decode("SC", pt), self.sd.edges[("test", "SC")], self.sd.train_mean["SC"])["demeaned_pearson"]
@@ -214,7 +214,7 @@ class Seed:
         ref = e1[(e1.ref == "L1") & (e1.k == 64) & (e1.source == "rest") & (e1.target == "SC") & (e1.split == "test")]
         ref = float(ref.demeaned_pearson.iloc[0])
         ok = abs(mine - ref) < float(CFG["gates"]["l1_match_tol"])
-        print(f"{'OK  ' if ok else 'FAIL'} G1b: rest PCA k64 -> SC ridge {mine:.8f} vs E1 L1 {ref:.8f}", flush=True)
+        print(f"{'OK  ' if ok else 'FAIL'} G1b: rest PCA k64 -> SC ridge {mine:.8f} vs E2 L1 {ref:.8f}", flush=True)
         return ok
 
 

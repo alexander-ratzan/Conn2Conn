@@ -1,8 +1,8 @@
-"""Spec v4 E2 interactive viewer: subject-wise FC encodings in the multitask CCA latent vs pooled block-PCA codes.
+"""Spec v4 E1 interactive viewer: subject-wise FC encodings in the multitask CCA latent vs pooled block-PCA codes.
 
 For each seed (0-4) and held-out split (val, test), every subject of the split is encoded from each of the 8 FC
-conditions in two spaces of equal dimension d (E2's SC-blind selected latent for that seed):
-  - CCA latent:   g^m_i = z^m_i A_m           (MAXVAR over the 8 conditions, fit on train; E2 / I2)
+conditions in two spaces of equal dimension d (E1's SC-blind selected latent for that seed):
+  - CCA latent:   g^m_i = z^m_i A_m           (MAXVAR over the 8 conditions, fit on train; E1 / I2)
   - pooled PCA:   the first d block-PCA codes z^m_i[:d]   (equal-variance pooled FC basis; v4 D2)
 Each dimension is divided by its SD over the train encodings of all conditions (as the notebook), so the two spaces
 are in comparable units. Per-subject statistics are computed in the full d-dimensional space over all subjects of the
@@ -29,7 +29,7 @@ import pandas as pd
 HERE = Path(__file__).resolve().parent
 EXP = HERE.parent
 sys.path.insert(0, str(EXP))
-from run_seed import CFG, FC, SeedData  # noqa: E402  (E2 config and E1's per-seed cache)
+from run_seed import CFG, FC, SeedData  # noqa: E402  (E1 config and E2's per-seed cache)
 from models.architectures.multiview_cca import maxvar  # noqa: E402
 from models.eval.metrics import compute_corr_matrix  # noqa: E402
 from sklearn.metrics import silhouette_samples  # noqa: E402

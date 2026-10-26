@@ -31,7 +31,7 @@ small{color:var(--muted)}
 <h1>Subject-wise FC encodings: multitask CCA latent vs pooled block-PCA codes</h1>
 <p class="sub">Each held-out subject is encoded separately from each of their 8 FC conditions (rest + 7 HCP tasks) in two
 spaces of the same dimension <i>d</i>. A subject whose 8 encodings form a tight, well-separated cluster is identifiable
-across conditions. Left: the multitask CCA latent (E2's SC-blind MAXVAR latent, fit on the train split). Right: the
+across conditions. Left: the multitask CCA latent (E1's SC-blind MAXVAR latent, fit on the train split). Right: the
 first <i>d</i> pooled block-PCA codes. Statistics are computed in the full <i>d</i>-dimensional space over <b>all</b>
 subjects of the split; the scatter shows a 2-D view of up to 15 of them.</p>
 <div id="controls">
@@ -73,7 +73,7 @@ subjects of the split; the scatter shows a 2-D view of up to 15 of them.</p>
 <p><b>Pooled PCA panel.</b> The first <i>d</i> codes, z<sup>m</sup><sub>i</sub>[1..d]. These are the directions of largest variance across all subjects and conditions; they do not use which rows belong to the same subject.</p>
 <p><b>CCA panel.</b> MAXVAR multiview CCA over the 8 conditions, fit on train codes Z<sub>m</sub> (n<sub>train</sub> × k<sub>FC</sub>): shared subject scores G (n<sub>train</sub> × d, G<sup>⊤</sup>G = I) and one ridge-regularized encoder A<sub>m</sub> per condition minimizing</p>
 <p class="eq">Σ<sub>m</sub> ‖ G − Z<sub>m</sub> A<sub>m</sub> ‖² + λ<sub>m</sub> ‖ A<sub>m</sub> ‖²,&nbsp;&nbsp; G = top-d eigenvectors of Σ<sub>m</sub> Z<sub>m</sub>(Z<sub>m</sub><sup>⊤</sup>Z<sub>m</sub> + λ<sub>m</sub>I)<sup>−1</sup>Z<sub>m</sub><sup>⊤</sup>,&nbsp;&nbsp; A<sub>m</sub> = (Z<sub>m</sub><sup>⊤</sup>Z<sub>m</sub> + λ<sub>m</sub>I)<sup>−1</sup>Z<sub>m</sub><sup>⊤</sup>G</p>
-<p>with λ<sub>m</sub> = λ × mean eigenvalue of Z<sub>m</sub><sup>⊤</sup>Z<sub>m</sub>. A held-out subject's encoding from condition <i>m</i> is g<sup>m</sup><sub>i</sub> = z<sup>m</sup><sub>i</sub> A<sub>m</sub>. Because every encoder is trained to reproduce the <i>same</i> train subject scores, the axes are chosen for agreement of a subject across conditions, not for variance; k<sub>FC</sub>, d and λ were chosen on validation cross-condition identification without SC (E2).</p>
+<p>with λ<sub>m</sub> = λ × mean eigenvalue of Z<sub>m</sub><sup>⊤</sup>Z<sub>m</sub>. A held-out subject's encoding from condition <i>m</i> is g<sup>m</sup><sub>i</sub> = z<sup>m</sup><sub>i</sub> A<sub>m</sub>. Because every encoder is trained to reproduce the <i>same</i> train subject scores, the axes are chosen for agreement of a subject across conditions, not for variance; k<sub>FC</sub>, d and λ were chosen on validation cross-condition identification without SC (E1).</p>
 <p><b>Display units.</b> In both panels each dimension is divided by its standard deviation over the train encodings of all conditions, so the spaces are in comparable units. The "2-D PCA" view projects the split's points onto their two leading principal components in each space separately.</p>
 <p>Derivations and the full analysis: <code id="nbpath"></code> (sections 2 and 5); benchmark write-up: <code id="wupath"></code>.</p>
 </details>

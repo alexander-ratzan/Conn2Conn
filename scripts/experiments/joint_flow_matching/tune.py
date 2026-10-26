@@ -1,10 +1,10 @@
-"""Spec v4 E1 arms A2 (per-pair MLP), A3 (joint regression with view tokens) and A4 (joint paired bridge).
+"""Spec v4 E2 arms A2 (per-pair MLP), A3 (joint regression with view tokens) and A4 (joint paired bridge).
 
 One job = one arm x seed (x pair for A2): an Optuna TPE search (`search.n_trials`), each trial trained with early
 stopping on the val code loss; the trial with the best mean val demeaned r (decoded edges, all pairs) is kept and its
 weights are scored once on val and test. A4 is selected at RK4 `flow.tune_steps` and scored at every `flow.eval_steps`
-(1 = one Euler step). With `--fixed` the search is skipped and the given configuration is trained once (E1.5 arms,
-E1.7, N3).
+(1 = one Euler step). With `--fixed` the search is skipped and the given configuration is trained once (ablations,
+identity loss, N3).
 
 Writes `records_dir/<arm>/seed<S>_<tag>.json` (config, all trials, per-pair val / test metrics) and the predicted
 val / test codes to `cache_dir/preds/<arm>_seed<S>_<tag>.npz`.

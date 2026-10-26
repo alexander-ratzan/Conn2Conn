@@ -1,4 +1,4 @@
-"""Spec v4 E1.0d: what the leading components of the pooled FC basis (total-norm block scaling, rest + 7 tasks) are.
+"""Spec v4 E2.0d: what the leading components of the pooled FC basis (total-norm block scaling, rest + 7 tasks) are.
 
 For PCs 1-5 (seed 0; seed 1 for stability):
   - edge loadings summarized as Yeo-7 network blocks (mean loading per within / between network block);
