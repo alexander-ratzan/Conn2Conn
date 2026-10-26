@@ -50,7 +50,7 @@ class Data:
     """Tensors for one seed. Latents and SC codes are divided by one scalar each (unit train SD) for training;
     predictions are returned in latent units."""
 
-    def __init__(self, seed, device, shuffle_sc=False):
+    def __init__(self, seed, device, shuffle_sc=False, refit_ridge=True):
         z = np.load(CACHE / f"seed{seed}.npz")
         self.seed, self.device = seed, device
         self.L = Latent.__new__(Latent)          # light handle for decoding / scoring (no refit)
@@ -70,7 +70,7 @@ class Data:
         n = self.sc["train"].shape[0]
         self.perm = (torch.randperm(n, generator=torch.Generator().manual_seed(4321 + seed)).to(device)
                      if shuffle_sc else torch.arange(n, device=device))
-        if shuffle_sc:     # the null breaks the pairing for the whole model: refit the ridge means on permuted pairs
+        if shuffle_sc and refit_ridge:   # full null: refit the ridge means on permuted pairs too (spread-only null: keep them)
             pnp = self.perm.cpu().numpy()
             for m, k in enumerate(z["rc_k"]):
                 xtr = z["sc_train"][pnp, :k]
@@ -304,12 +304,42 @@ def evaluate(model, net, data, hp):
         elif model == "bridge":
             for st in (1, 4, 16, 64):
                 rows += point_rows(model, data, predict(model, net, data, split, hp["k_sc"], steps=st), split, dict(steps=st))
-        elif model in ("flow", "flow_shuffled"):
+        elif model.startswith("flow"):          # flow, flow_shuffled, flow_spread_null
             rows += point_rows(model, data, predict("flow", net, data, split, hp["k_sc"], n_samples=16), split,
                                dict(note="mean of 16 samples with condition token"))
             X = predict("flow", net, data, split, hp["k_sc"], token=NULL, n_samples=K_SAMPLES).cpu().numpy()
             dist[split] = distribution_metrics(X, data.raw[split])
     return rows, dist
+
+
+@torch.no_grad()
+def samples_for_condition(net, data, split, k_sc, m, K=K_SAMPLES, seed=0):
+    """K residual-flow samples of condition m for every subject of `split`, in latent units: (K, n, d)."""
+    net.eval()
+    n = data.sc[split].shape[0]
+    g = torch.Generator(device=data.device).manual_seed(seed)
+    subj = torch.arange(n, device=data.device).repeat(K)
+    tok = torch.full((len(subj),), m, device=data.device)
+    eps = torch.randn((len(subj), data.d), device=data.device, generator=g)
+    res = net.predict_flow(eps, tok, tok, n_steps=FLOW_STEPS, cond=data.sc[split][subj, :k_sc])
+    return ((data.rc[split][m][subj] + res) * data.s_lat).view(K, n, data.d).cpu().numpy()
+
+
+def retest_metrics(net, data, hp):
+    """Rest test-retest calibration: the flow's predicted spread for rest vs each subject's observed difference
+    between rest session 1 and 2 in the latent (variance estimate ||s1 - s2||^2 / 2, summed over dimensions)."""
+    path = CACHE / f"seed{data.seed}_sessions.npz"
+    if not path.exists():
+        return {}
+    z = np.load(path)
+    out = {}
+    for split in ("val", "test"):
+        obs = np.square(z[f"rest_S1_{split}"] - z[f"rest_S2_{split}"]).sum(1) / 2
+        X = samples_for_condition(net, data, split, hp["k_sc"], FC.index("rest"))
+        pred = X.var(axis=0, ddof=1).sum(1)
+        out[split] = dict(retest_corr=float(np.corrcoef(pred, obs)[0, 1]), ratio_flow=float(pred.mean() / obs.mean()),
+                          ratio_gauss=float(np.trace(data.cov) / obs.mean()))
+    return out
 
 
 def reference_rows(data):
@@ -453,12 +483,20 @@ def main():
             preds[split] = predict(args.model, net, data, split, best["hp"]["k_sc"], **kw).cpu().numpy()
         PRED.mkdir(parents=True, exist_ok=True)
         np.savez(PRED / f"{args.model}_seed{args.seed}.npz", **preds)
-        if args.model == "flow":                         # shuffled-SC null at the selected configuration
+        if args.model == "flow":
+            rec["retest"] = retest_metrics(net, data, best["hp"])
+            # full null: SC shuffled for the whole model (ridge means refit on permuted pairs)
             sdata = Data(args.seed, device, shuffle_sc=True)
             snet, _ = train("flow", best["hp"], sdata, args.seed * 1000 + 777)
             r, dst = evaluate("flow_shuffled", snet, sdata, best["hp"])
             rec["rows"] += r
             rec["dist_shuffled"] = dst
+            # spread-only null: real ridge means, SC shuffled only for the residual flow
+            pdata = Data(args.seed, device, shuffle_sc=True, refit_ridge=False)
+            pnet, _ = train("flow", best["hp"], pdata, args.seed * 1000 + 778)
+            _, dst = evaluate("flow_spread_null", pnet, pdata, best["hp"])
+            rec["dist_spread_null"] = dst
+            rec["retest_spread_null"] = retest_metrics(pnet, pdata, best["hp"])
     rec["seconds_total"] = time.time() - t0
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / f"{args.model}_seed{args.seed}.json").write_text(json.dumps(rec, indent=1, default=float))

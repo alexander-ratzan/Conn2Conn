@@ -128,6 +128,17 @@ class Latent:
         return rc_rows
 
 
+def build_sessions(seed):
+    """Rest test-retest in the latent: each subject's rest session 1 and session 2 FC, encoded with rest's CCA encoder
+    (sessions have their own train mean / scale and rest's block basis; E2 cache). Saved as seed<S>_sessions.npz."""
+    L = Latent(seed)
+    out = {}
+    for split in ("train", "val", "test"):
+        for sess in ("rest_S1", "rest_S2"):
+            out[f"{sess}_{split}"] = L.sd.code(sess, split, L.k).astype(np.float64) @ L.A["rest"]
+    np.savez(CACHE / f"seed{seed}_sessions.npz", **out)
+
+
 def check_g0b(seed, rc_rows):
     """G0b: ridge -> consensus test demeaned r per condition equals E1's 'via consensus latent' ridge rows."""
     e1 = pd.read_csv(E1_DIR / "records" / f"seed{seed}.csv")
@@ -145,8 +156,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--seeds", type=int, nargs="*", default=[0, 1, 2, 3, 4])
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--sessions-only", action="store_true", help="only build the rest test-retest encodings")
     args = ap.parse_args()
     torch.set_num_threads(8)
+    if args.sessions_only:
+        for s in args.seeds:
+            build_sessions(s)
+            print(f"seed {s}: sessions written", flush=True)
+        return
     ok = True
     for s in args.seeds:
         L = Latent(s)

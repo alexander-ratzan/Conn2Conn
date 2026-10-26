@@ -35,15 +35,19 @@ LABEL = {"v3E0": "SC PCA → task FC (per-task FC PCA) · PCA-PLS learnable [v3:
 
 def load():
     recs = [json.loads(p.read_text()) for p in sorted(REC.glob("*_seed*.json"))]
-    point, dist, l2s, hps = [], [], [], []
+    point, dist, l2s, hps, retest = [], [], [], [], []
     for r in recs:
         for row in r.get("rows", []):
             row = dict(row, seed=r["seed"])
             (l2s if "input" in row else point).append(row)
-        for key, name in (("dist", "flow" if r["model"] == "flow" else "gauss"), ("dist_shuffled", "flow_shuffled")):
+        for key, name in (("dist", "flow" if r["model"] == "flow" else "gauss"), ("dist_shuffled", "flow_shuffled"),
+                          ("dist_spread_null", "flow_spread_null")):
             for split, d in r.get(key, {}).items():
                 dist.append(dict({k: v for k, v in d.items() if not isinstance(v, dict)}, model=name, split=split,
                                  seed=r["seed"]))
+        for key, name in (("retest", "flow"), ("retest_spread_null", "flow_spread_null")):
+            for split, d in r.get(key, {}).items():
+                retest.append(dict(d, model=name, split=split, seed=r["seed"]))
         if "hp" in r:
             hps.append(dict(model=r["model"], seed=r["seed"], minutes=r["seconds_total"] / 60, **r["hp"]))
     point = pd.DataFrame(point)
@@ -61,7 +65,7 @@ def load():
         extra.append(dict(model="v3E0", condition=r.model, split="test", seed=r.seed, steps=16,
                           demeaned_pearson=r.test_demeaned_pearson, avg_rank=r.test_avg_rank, top1_acc=r.test_top1_acc))
     point = pd.concat([point, pd.DataFrame(extra)], ignore_index=True)
-    return point, pd.DataFrame(dist), pd.DataFrame(l2s), pd.DataFrame(hps), recs
+    return point, pd.DataFrame(dist), pd.DataFrame(l2s), pd.DataFrame(hps), recs, pd.DataFrame(retest)
 
 
 def rule(delta):
@@ -76,7 +80,7 @@ def seed_mean(point, model, metric, steps=16):
     return q.groupby("seed")[metric].mean()
 
 
-def hypotheses(point, dist, l2s):
+def hypotheses(point, dist, l2s, retest):
     rows = []
     def add(h, label, delta, metric, note=""):
         rows.append(dict(H=h, comparison=label, metric=metric, note=note, **rule(delta)))
@@ -93,6 +97,14 @@ def hypotheses(point, dist, l2s):
     add("H4", "flow − linear-Gaussian (set-to-set identification)", dt["set_avg_rank"]["flow"] - dt["set_avg_rank"]["gauss"],
         "set average rank", f"shuffled-SC flow set average rank {dt['set_avg_rank']['flow_shuffled'].mean():.3f} (chance 0.5)")
     add("H5", "flow spread correlation with each subject's observed spread (vs 0)", dt["spread_corr"]["flow"], "correlation")
+    if "flow_spread_null" in dt["spread_corr"]:
+        add("H5 (diagnostic)", "flow − spread-only null (SC shuffled for the residual only): spread correlation",
+            dt["spread_corr"]["flow"] - dt["spread_corr"]["flow_spread_null"], "correlation")
+    rt = retest[retest.split == "test"] if len(retest) else retest
+    if len(rt):
+        f = rt[rt.model == "flow"].set_index("seed")
+        add("H5 (diagnostic)", "rest test–retest: flow's predicted rest spread vs each subject's session 1 − session 2 difference",
+            f.retest_corr, "correlation", f"spread ratio flow {f.ratio_flow.mean():.2f}, Gaussian {f.ratio_gauss.mean():.2f} (1 = calibrated)")
     d6 = seed_mean(point, "flow", "demeaned_pearson") - seed_mean(point, "corrector", "demeaned_pearson")
     r6 = rule(d6)
     rows.append(dict(H="H6", comparison="flow sample mean − corrector (point accuracy)", metric="demeaned r",
@@ -133,8 +145,9 @@ def fig_distribution(dist, path):
     import matplotlib.pyplot as plt
     q = dist[dist.split == "test"]
     names = {"gauss": "linear-Gaussian\n(ridge mean + shared covariance)", "flow": "conditional flow\n(no condition token)",
-             "flow_shuffled": "conditional flow,\nSC shuffled (null)"}
-    cols = {"gauss": PAL["neutral"], "flow": PAL["green"], "flow_shuffled": PAL["red"]}
+             "flow_shuffled": "conditional flow,\nSC shuffled (full null)",
+             "flow_spread_null": "conditional flow,\nSC shuffled for spread only"}
+    cols = {"gauss": PAL["neutral"], "flow": PAL["green"], "flow_shuffled": PAL["red"], "flow_spread_null": PAL["gold"]}
     with plt.rc_context({**mb.FIG_RC, "font.size": 14, "axes.linewidth": 2.0}):
         fig, axes = plt.subplots(1, 3, figsize=(17, 5.5), layout="constrained")
         for ax, metric, ylab in zip(axes, ("energy", "set_avg_rank", "spread_corr"),
@@ -196,10 +209,12 @@ def fig_bridge_steps(point, path):
 
 
 def main():
-    point, dist, l2s, hps, recs = load()
+    point, dist, l2s, hps, recs, retest = load()
     (OUT / "figures").mkdir(parents=True, exist_ok=True)
     (OUT / "tables").mkdir(parents=True, exist_ok=True)
-    hyp = hypotheses(point, dist, l2s)
+    hyp = hypotheses(point, dist, l2s, retest)
+    if len(retest):
+        retest.to_csv(OUT / "tables" / "retest.csv", index=False)
     hyp.to_csv(OUT / "tables" / "hypotheses.csv", index=False)
     q = point[point.split == "test"]
     q.groupby(["model", "steps", "condition"])[["demeaned_pearson", "avg_rank", "top1_acc"]].agg(["mean", "sem"]).to_csv(OUT / "tables" / "point.csv")
