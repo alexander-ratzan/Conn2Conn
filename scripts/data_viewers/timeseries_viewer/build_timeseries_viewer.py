@@ -8,8 +8,11 @@ in the browser and with the same definitions: window FC (windows never span a ru
 regions and window multiscale entropy for the two selected regions. A self-check block holds Python values for one
 window; the page recomputes them and shows the largest difference.
 
-Data: Conn2Conn_data/timeseries/ (data/timeseries.py) and Conn2Conn_data/fc/. Template: timeseries_viewer.template.html
-(__DATA__ is replaced). Output (generated, not tracked): results/data_viewers/timeseries_viewer_{P}.html.
+Data: Conn2Conn_data/timeseries/ (data/timeseries.py) and Conn2Conn_data/fc/. Template: timeseries_viewer.template (not
+a viewer itself; __META__ and __BLOCKS__ are replaced). As for the E1 latent viewer (cca_latent_bench/viewer), the data
+go in one <script type="application/json"> block per subject x condition, with base64 strings split into lines of at
+most CHUNK characters: editor previews (Cursor) fail on very long lines. Output (generated, not tracked):
+results/data_viewers/timeseries_viewer_{P}.html.
 
     python scripts/data_viewers/timeseries_viewer/build_timeseries_viewer.py [--subjects 100206 ...] [--n-subjects 4]
         [--parcellation Glasser] [--out PATH]
@@ -32,13 +35,28 @@ from data.timeseries_metrics import (M, R_FRAC, SCALES, mse_auc, multiscale_entr
                                      multiscale_entropy_runs, timescale, timescale_runs)
 
 FC_ROOT = Path("/scratch/asr655/neuroinformatics/Conn2Conn_data/fc")
-TEMPLATE = HERE / "timeseries_viewer.template.html"
+TEMPLATE = HERE / "timeseries_viewer.template"
+CHUNK = 200_000
 WINDOW, STEP = 144, 24
 NETWORK_COLUMN = {"Glasser": "community_yeo", "4S456Parcels": "network_label"}
 
 
 def b64(a):
     return base64.b64encode(np.ascontiguousarray(a).tobytes()).decode("ascii")
+
+
+def chunks(s):
+    return [s[i:i + CHUNK] for i in range(0, len(s), CHUNK)]
+
+
+def block(rec):
+    """One <script type="application/json"> block; each base64 chunk on its own line (no line > ~CHUNK chars)."""
+    head = {k: v for k, v in rec.items() if k not in ("q", "fc")}
+    body = json.dumps(head, separators=(",", ":"))[:-1]
+    for k in ("q", "fc"):
+        body += f',\n"{k}":[\n' + ",\n".join(json.dumps(c) for c in chunks(rec[k])) + "\n]"
+    return (f'<script class="rec" type="application/json" data-key="{rec["subject"]}/{rec["condition"]}">\n'
+            f"{body}}}\n</script>")
 
 
 def quantize(x):
@@ -96,6 +114,7 @@ def main():
             q, scale = quantize(x)
             mse = multiscale_entropy_runs(x, bounds, SCALES, M, R_FRAC)
             data[str(sid)][c] = {
+                "subject": str(sid), "condition": c,
                 "n_tr": int(len(x)),
                 "runs": [[r, int(s), int(n)] for r, s, n in caches[c].run_table(sid).itertuples(index=False)],
                 "q": b64(q), "scale": scale.tolist(),
@@ -117,14 +136,17 @@ def main():
                          "fc_pairs": [[i, j, float(C[i, j])] for i, j in pairs]}
             print(f"  sub-{sid} {c}: {len(x)} TRs, {time.time() - t0:.1f}s", flush=True)
 
-    payload = {"parcellation": a.parcellation, "tr": caches["rest"].tr, "labels": labels, "network": network,
-               "conditions": list(CONDITIONS), "subjects": [str(s) for s in subjects],
-               "scales": list(SCALES), "m": M, "r_frac": R_FRAC, "window": WINDOW, "step": STEP,
-               "data": data, "check": check}
-    html = TEMPLATE.read_text().replace("__DATA__", json.dumps(payload, separators=(",", ":")))
+    meta = {"parcellation": a.parcellation, "tr": caches["rest"].tr, "labels": labels, "network": network,
+            "conditions": list(CONDITIONS), "subjects": [str(s) for s in subjects],
+            "scales": list(SCALES), "m": M, "r_frac": R_FRAC, "window": WINDOW, "step": STEP, "check": check}
+    blocks = "\n".join(block(rec) for recs in data.values() for rec in recs.values())
+    html = TEMPLATE.read_text().replace("__META__", json.dumps(meta, separators=(",", ":"))).replace("__BLOCKS__", blocks)
+    longest = max(len(line) for line in html.splitlines())
+    if longest > 2 * CHUNK:
+        raise ValueError(f"a line of {longest} characters; keep lines short for editor previews")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html)
-    print(f"wrote {out} ({out.stat().st_size / 1e6:.1f} MB)")
+    print(f"wrote {out} ({out.stat().st_size / 1e6:.1f} MB, longest line {longest} characters)")
 
 
 if __name__ == "__main__":

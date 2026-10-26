@@ -78,6 +78,7 @@ footer { padding: 0 20px 24px; color: var(--text-secondary); font-size: 12px; }
 <header>
   <h1>Timeseries Connectome Viewer</h1>
   <div class="sub" id="subtitle"></div>
+  <div id="err" style="display:none;margin-top:8px;padding:8px 10px;border-radius:6px;border:1px solid var(--critical);color:var(--critical);font-weight:500"></div>
 </header>
 <div class="controls">
   <label>Subject <select id="subject"></select></label>
@@ -149,10 +150,29 @@ footer { padding: 0 20px 24px; color: var(--text-secondary); font-size: 12px; }
     Metric code: data/timeseries_metrics.py (the page mirrors it).</div>
 </footer>
 <div id="tip"></div>
-<script id="payload" type="application/json">__DATA__</script>
+<script id="meta" type="application/json">__META__</script>
+__BLOCKS__
 <script>
 "use strict";
-const D = JSON.parse(document.getElementById("payload").textContent);
+function fail(msg) { const el = document.getElementById("err"); el.style.display = "block"; el.textContent = "Viewer error: " + msg; }
+addEventListener("error", e => fail(`${e.message} (line ${e.lineno})`));
+const D = (() => {
+  const txt = document.getElementById("meta").textContent;
+  if (txt.trim() === "__" + "META__") {
+    fail("this is the TEMPLATE (scripts/data_viewers/timeseries_viewer/timeseries_viewer.template), not the viewer. Open results/data_viewers/timeseries_viewer_Glasser.html (build: python scripts/data_viewers/timeseries_viewer/build_timeseries_viewer.py).");
+    throw new Error("template opened");
+  }
+  let d;
+  try { d = JSON.parse(txt); } catch (e) { fail("could not read the embedded metadata block (" + e.message + "). Rebuild with build_timeseries_viewer.py."); throw e; }
+  d.data = {};
+  for (const el of document.querySelectorAll("script.rec")) {
+    let r;
+    try { r = JSON.parse(el.textContent); } catch (e) { fail(`could not read data block ${el.dataset.key} (${e.message})`); throw e; }
+    r.q = r.q.join(""); r.fc = r.fc.join("");
+    (d.data[r.subject] ||= {})[r.condition] = r;
+  }
+  return d;
+})();
 const P = D.labels.length, TR = D.tr;
 const $ = id => document.getElementById(id);
 const fin = v => typeof v === "number" && Number.isFinite(v);   // null (NaN from Python) is not finite
