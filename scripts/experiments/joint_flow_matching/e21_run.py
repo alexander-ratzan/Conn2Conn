@@ -40,6 +40,7 @@ NULL = 8
 PRED = CACHE / "preds"
 K_SAMPLES = 64
 FLOW_STEPS = 32
+FLOW_POINT_SAMPLES = 256      # flow point estimate = ridge mean + mean of 256 residual samples (16 was too noisy; G3 2026-10-26)
 TRAIN = dict(batch_subjects=64, max_epochs=1000, patience=100, patience_flow=200, grad_clip=1.0, prune_from=50)
 SPACE = dict(lr=(1e-4, 3e-3), wd=(1e-6, 1e-1), width=[128, 256, 512], depth=[1, 2, 3], dropout=(0.0, 0.3),
              token_dim=[8, 16, 32], k_sc=[64, 128, 256, 512], p0=[0.0, 0.25, 0.5], id_w=[0.1, 0.3, 1.0])
@@ -305,8 +306,8 @@ def evaluate(model, net, data, hp):
             for st in (1, 4, 16, 64):
                 rows += point_rows(model, data, predict(model, net, data, split, hp["k_sc"], steps=st), split, dict(steps=st))
         elif model.startswith("flow"):          # flow, flow_shuffled, flow_spread_null
-            rows += point_rows(model, data, predict("flow", net, data, split, hp["k_sc"], n_samples=16), split,
-                               dict(note="mean of 16 samples with condition token"))
+            rows += point_rows(model, data, predict("flow", net, data, split, hp["k_sc"], n_samples=FLOW_POINT_SAMPLES), split,
+                               dict(note=f"mean of {FLOW_POINT_SAMPLES} samples with condition token"))
             X = predict("flow", net, data, split, hp["k_sc"], token=NULL, n_samples=K_SAMPLES).cpu().numpy()
             dist[split] = distribution_metrics(X, data.raw[split])
     return rows, dist
@@ -479,7 +480,7 @@ def main():
         rec["rows"], rec["dist"] = evaluate(args.model, net, data, best["hp"])
         preds = {}                                        # point predictions (latent units) for gate G3 / analysis
         for split in ("val", "test"):
-            kw = dict(n_samples=16) if args.model == "flow" else dict(steps=16)
+            kw = dict(n_samples=FLOW_POINT_SAMPLES) if args.model == "flow" else dict(steps=16)
             preds[split] = predict(args.model, net, data, split, best["hp"]["k_sc"], **kw).cpu().numpy()
         PRED.mkdir(parents=True, exist_ok=True)
         np.savez(PRED / f"{args.model}_seed{args.seed}.npz", **preds)
