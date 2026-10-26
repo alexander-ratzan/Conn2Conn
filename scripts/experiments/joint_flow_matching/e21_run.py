@@ -377,7 +377,7 @@ def run_latent2sc(seed, data, n_trials, device):
 
     def batch(split, subj):
         mm = torch.arange(8, device=device).repeat_interleave(len(subj)); ss = subj.repeat(8)
-        return Z0[split][mm, ss], Yt[split][mm, ss], X[split][mm, ss], mm
+        return Z0[split][mm, ss], Yt[split][ss], X[split][mm, ss], mm      # one SC target per subject
 
     def fit(hp, tseed, trial=None):
         torch.manual_seed(tseed)
