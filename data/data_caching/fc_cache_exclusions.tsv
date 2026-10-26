@@ -6,3 +6,4 @@ subject	condition	parcellation	run	reason
 118831	emotion	4S456Parcels		truncated at 3145728 bytes (343/457 lines, no trailing newline); mtime 2026-09-28 11:07
 118932	emotion	4S456Parcels	RL1	truncated at 2359296 bytes (259/457 lines, no trailing newline); mtime 2026-09-28 11:07
 297655	gambling	Glasser	RL1	scrambled bytes (not text) after the header line; 421 lines, size 2598431; mtime 2024-10-14
+173233	wm	Glasser	RL1	scrambled bytes (binary, 8072 lines) after the header line; size 2613785; mtime 2024-10-13

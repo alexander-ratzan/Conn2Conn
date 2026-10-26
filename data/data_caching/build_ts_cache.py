@@ -181,8 +181,10 @@ def cmd_build(a):
 
     os.makedirs(tmp_dir)
     _set_acl(tmp_dir, dir_acl)
-    out = np.lib.format.open_memmap(os.path.join(tmp_dir, "timeseries.npy"), mode="w+", dtype=np.float32,
-                                    shape=(int(offsets[-1]), P))
+    ts_path = os.path.join(tmp_dir, "timeseries.npy")
+    open(ts_path, "wb").close()  # create + fix the ACL first: open_memmap reopens the file it creates
+    _set_acl(ts_path, file_acl)
+    out = np.lib.format.open_memmap(ts_path, mode="w+", dtype=np.float32, shape=(int(offsets[-1]), P))
     run_rows = []
     for i, (sid, runs) in enumerate(loaded):
         pos = int(offsets[i])

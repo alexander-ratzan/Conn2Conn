@@ -6,7 +6,8 @@
 #      combined TSV, run correlations == the per-run FC from step 1)
 #   sbatch scripts/sbatch/data/build_ts_cache_array.sh
 #   sbatch --array=1 scripts/sbatch/data/build_ts_cache_array.sh          # one condition
-# 0..7 = rest emotion gambling language motor relational social wm. Builders refuse to overwrite existing folders.
+# 0..7 = rest emotion gambling language motor relational social wm. Existing cache folders are skipped (builders refuse
+# to overwrite), their spotchecks still run.
 # Afterwards (login node is fine): build_fc_cache.py catalog; build_ts_cache.py catalog.
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced
@@ -23,6 +24,7 @@ set -euo pipefail
 
 module purge
 CONN2CONN_DIR="/scratch/asr655/neuroinformatics/Conn2Conn"
+CACHE_ROOT="/scratch/asr655/neuroinformatics/Conn2Conn_data"
 cd "${CONN2CONN_DIR}"
 
 export OMP_NUM_THREADS=1
@@ -51,15 +53,21 @@ singularity exec \
     export PYTHONUNBUFFERED=1
     cd ${CONN2CONN_DIR}
     for PARC in Glasser 4S456Parcels; do
+      SUFFIX=\$( [[ ${CONDITION} == rest ]] && echo '' || echo _task-${CONDITION} )
       for RUN in ${RUNS}; do
-        python data/data_caching/build_fc_cache.py build --condition ${CONDITION} --parcellation \${PARC} --run \${RUN} \
-          --workers ${WORKERS} --git-commit ${GIT_COMMIT}
-        SUFFIX=\$( [[ ${CONDITION} == rest ]] && echo '' || echo _task-${CONDITION} )
+        FC_DIR=${CACHE_ROOT}/fc/parc-\${PARC}_hemi-both\${SUFFIX}_dir-\${RUN:0:2}_run-\${RUN:2:1}
+        if [[ -d \${FC_DIR} ]]; then echo \"[skip] \${FC_DIR} exists\"; else
+          python data/data_caching/build_fc_cache.py build --condition ${CONDITION} --parcellation \${PARC} --run \${RUN} \
+            --workers ${WORKERS} --git-commit ${GIT_COMMIT}
+        fi
         python data/data_caching/build_fc_cache.py spotcheck --condition ${CONDITION} --parcellation \${PARC} --run \${RUN} \
-          --cache-dir /scratch/asr655/neuroinformatics/Conn2Conn_data/fc/parc-\${PARC}_hemi-both\${SUFFIX}_dir-\${RUN:0:2}_run-\${RUN:2:1} --n 25
+          --cache-dir \${FC_DIR} --n 25
       done
-      python data/data_caching/build_ts_cache.py build --condition ${CONDITION} --parcellation \${PARC} \
-        --workers ${WORKERS} --git-commit ${GIT_COMMIT}
+      TS_DIR=${CACHE_ROOT}/timeseries/parc-\${PARC}_hemi-both\${SUFFIX}
+      if [[ -d \${TS_DIR} ]]; then echo \"[skip] \${TS_DIR} exists\"; else
+        python data/data_caching/build_ts_cache.py build --condition ${CONDITION} --parcellation \${PARC} \
+          --workers ${WORKERS} --git-commit ${GIT_COMMIT}
+      fi
       python data/data_caching/build_ts_cache.py spotcheck --condition ${CONDITION} --parcellation \${PARC} --n 25
     done
   "
