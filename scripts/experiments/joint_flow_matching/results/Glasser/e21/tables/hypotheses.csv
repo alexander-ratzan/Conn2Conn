@@ -1,0 +1,10 @@
+H,comparison,metric,note,mean,se,n_pos,n,supported
+H1,ridge + MLP corrector − ridge (SC → task latent → task FC),demeaned r,,0.000349979296494643,0.00014915499129160582,4,5,True
+H2,corrector + identity loss − corrector,average rank,demeaned r Δ -0.0024 ± 0.0006; non-inferior (> −0.005): True,-0.005252706436727861,0.002329975063817029,1,5,False
+H3 (primary),linear-Gaussian − flow (energy distance to each subject's 8 encodings; > 0 = flow better),energy distance,,-0.0006632640023644748,0.00016702970292344237,0,5,False
+H4,flow − linear-Gaussian (set-to-set identification),set average rank,shuffled-SC flow set average rank 0.500 (chance 0.5),0.004603978800256292,0.0035252132051338397,4,5,False
+H5,flow spread correlation with each subject's observed spread (vs 0),correlation,,6.55533852202475e-05,0.027212165299255256,2,5,False
+H5 (diagnostic),flow − spread-only null (SC shuffled for the residual only): spread correlation,correlation,,0.0003860473828518465,0.0003361990008531954,3,5,False
+H5 (diagnostic),rest test–retest: flow's predicted rest spread vs each subject's session 1 − session 2 difference,correlation,"spread ratio flow 7.45, Gaussian 7.02 (1 = calibrated)",-0.00947293791312008,0.010997684568526945,2,5,False
+H6,flow sample mean − corrector (point accuracy),demeaned r,non-inferior (mean − 2 SE > −0.005): True,-0.002136303245311795,0.00027961212337113036,0,5,False
+H7,latent → SC: ridge + MLP corrector − ridge (mean over consensus and 7 task inputs),SC demeaned r,,0.0040949805239358286,0.0009830659720335628,5,5,True

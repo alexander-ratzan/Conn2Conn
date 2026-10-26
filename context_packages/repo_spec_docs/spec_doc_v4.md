@@ -18,7 +18,7 @@ flow that generates a subject's encodings (E2); a generative follow-up with more
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
 | E1 | CCA-latent bidirectional benchmark: multiview CCA latent of FC as the encoding for FC → SC and the target for SC → FC | done 2026-10-20 | I2, D4 | agent:modeling |
-| E2 | SC → functional latent: E2.1 conditional generation of each condition's CCA encoding from SC (linear, nonlinear, linear-Gaussian, flow); E2.2 cross-condition FC translation as a generative model, SC as an added view (planned) | in progress (E2.1a done: G0b passed, 5 seeds; E2.1b–e running) | I1, E1, D7 | agent:modeling |
+| E2 | SC → functional latent: E2.1 conditional generation of each condition's CCA encoding from SC (linear, nonlinear, linear-Gaussian, flow); E2.2 cross-condition FC translation as a generative model, SC as an added view (planned) | in progress (E2.1 done 2026-10-26; E2.2 planned) | I1, E1, D7 | agent:modeling |
 | E3 | Generative follow-ups to E2.1: path noise, rest sessions as repeats, FC timeseries windows as more samples per subject | outline | E2.1 | — |
 | I1 | Joint translation infrastructure: pooled FC basis, (subject, source, target) data module, token model, integrator, runner | in progress | — | agent:modeling |
 | I2 | Multiview CCA library module (MAXVAR fit / encode / decode), shared by E2 and E1 | done 2026-10-20 | — | agent:modeling |
@@ -229,6 +229,18 @@ ceiling is mildly optimistic (the consensus includes the target condition).
 | E2.1c | Pilot, seed 0: all models | 1 GPU | **G3:** corrector val within 0.005 of ridge or better; flow sample means correlate ≥ 0.9 with the corrector's predictions; metrics finite; selected trials stop before the epoch cap |
 | E2.1d | Seeds 1–4 | GPU array | — |
 | E2.1e | Analysis, figures, write-up | CPU | — |
+
+**E2.1 result (2026-10-26, 5 seeds, test;** [`joint_flow_matching.md`](../../scripts/experiments/joint_flow_matching/joint_flow_matching.md)**):**
+- **SC → latent is linear here.** H1 holds statistically but is negligible (corrector − ridge +0.0003 demeaned r,
+  4 / 5 seeds); the identity loss (H2) and both flows add nothing to point accuracy (H6: residual flow −0.002,
+  non-inferior).
+- **SC predicts where a subject sits, not how variable they are.** H3 (primary) is not supported: the linear-Gaussian
+  matches the residual flow's clouds slightly better (energy 0.0462 vs 0.0469, 5 / 5 seeds). Set identification
+  0.84–0.85 for both vs 0.50 for the full null (H4 not supported); predicted spread does not track a subject's spread
+  across conditions or between rest sessions (H5 not supported; the spread-only null matches the flow).
+- **The only nonlinear gain is latent → SC** (H7, +0.004, 5 / 5; consensus → SC 0.142).
+- Reading: for SC → FC the limit is information, not model class; next are E2.2 (FC → FC, SC as an added view) and
+  more samples per subject (E3). ≈ 2 GPU-h.
 
 **Deliverables** (`scripts/experiments/joint_flow_matching/results/Glasser/`): per-seed records; `summary.md` (one
 row per hypothesis: difference ± SE, seeds positive, supported); figures with input → output labels: (1) SC → each
@@ -523,5 +535,6 @@ v3 closed 2026-10-21 (all experiments done). Carried forward:
 | 2026-10-26 | E2.1b gate **passed** (job 21016453) after the residual-flow change and a corrected null (job 21016054 failed only because the shuffled null kept ridge means fit on real pairs; the null now breaks the pairing for the whole model, `e133a2e`): corrector R² 0.982 (ridge 0.983), bridge one step 0.913, flow spread r 0.89, energy 0.0015 vs Gaussian 0.51, shuffled null −0.025. Pilot waits for the user's go. |
 | 2026-10-26 | Diagnostics added before the pilot (user): a spread-only null (SC shuffled for the residual flow only, real ridge means; tests whether subject-specific spread comes from SC) and a rest test–retest check (each subject's session 1 vs 2 encodings in the latent; the correlation with the flow's predicted rest spread is the readout, since predicted spread also contains what SC does not explain). Chain: pilot `21020036` → G3 `21020037` → seeds 1–4 `21020038`–`41` → analysis `21020042` (`64a7f21`). |
 | 2026-10-26 | E2.2 redrafted (user): cross-condition FC translation as a generative model in block FC PCA codes (single-source, multi-source, SC added, SC only), identity / linear / linear-Gaussian / corrector / residual flow, H1–H6 with the energy score as the primary single-observation distributional metric; runs on the user's go after E2.1. G3 failed on the seed-0 pilot (flow means from 16 samples too noisy: r 0.68 with the corrector); flow point estimate now from 256 samples; chain resubmitted (flow seed 0 `21029998` → G3 `21029999` → seeds `21030000`–`03` → analysis `21030004`). |
+| 2026-10-26 | E2.1 done (5 seeds): SC → latent linear (H1 negligible), no SC-dependent spread (H3–H5 not supported), linear-Gaussian is enough; latent → SC corrector +0.004 (H7). Write-up `joint_flow_matching.md`. |
 
 Last updated at: 2026-10-26 EDT

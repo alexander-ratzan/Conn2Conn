@@ -30,7 +30,7 @@ LABEL = {"v3E0": "SC PCA → task FC (per-task FC PCA) · PCA-PLS learnable [v3:
          "corrector": "SC PCA → task latent → task FC · ridge + MLP corrector",
          "corrector_id": "… · ridge + MLP corrector, identity loss",
          "bridge": "… · ridge-start flow (16 steps)",
-         "flow": "… · conditional flow from noise (mean of samples)"}
+         "flow": "… · residual conditional flow (ridge mean + mean of 256 samples)"}
 
 
 def load():
@@ -144,9 +144,8 @@ def fig_distribution(dist, path):
     import matplotlib; matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     q = dist[dist.split == "test"]
-    names = {"gauss": "linear-Gaussian\n(ridge mean + shared covariance)", "flow": "conditional flow\n(no condition token)",
-             "flow_shuffled": "conditional flow,\nSC shuffled (full null)",
-             "flow_spread_null": "conditional flow,\nSC shuffled for spread only"}
+    names = {"gauss": "linear-\nGaussian", "flow": "residual\nflow", "flow_shuffled": "flow,\nfull null",
+             "flow_spread_null": "flow,\nspread null"}
     cols = {"gauss": PAL["neutral"], "flow": PAL["green"], "flow_shuffled": PAL["red"], "flow_spread_null": PAL["gold"]}
     with plt.rc_context({**mb.FIG_RC, "font.size": 14, "axes.linewidth": 2.0}):
         fig, axes = plt.subplots(1, 3, figsize=(17, 5.5), layout="constrained")
@@ -160,9 +159,12 @@ def fig_distribution(dist, path):
                    color=[cols[m] for m in ms], edgecolor="black", lw=1.2, capsize=3)
             for i, m in enumerate(ms):
                 ax.scatter(np.full(5, i), q[q.model == m][metric], s=14, color="black", zorder=3)
-            ax.set_xticks(range(len(ms)), [names[m] for m in ms], fontsize=11)
+            ax.set_xticks(range(len(ms)), [names[m] for m in ms], fontsize=12)
             ax.set_ylabel(ylab)
         fig.suptitle("E2.1 SC → distribution of a subject's 8 condition encodings (test, 5 seeds)", fontweight="bold")
+        fig.supxlabel("linear-Gaussian: ridge mean per condition + one shared residual covariance · residual flow: ridge mean + "
+                      "flow-generated residual, no condition token · full null: SC shuffled for the whole model · spread null: "
+                      "SC shuffled for the residual only", fontsize=10.5, color="#4D4D4D")
         fig.savefig(path, dpi=300, facecolor="white"); plt.close(fig)
 
 
@@ -218,7 +220,7 @@ def main():
     hyp.to_csv(OUT / "tables" / "hypotheses.csv", index=False)
     q = point[point.split == "test"]
     q.groupby(["model", "steps", "condition"])[["demeaned_pearson", "avg_rank", "top1_acc"]].agg(["mean", "sem"]).to_csv(OUT / "tables" / "point.csv")
-    dist[dist.split == "test"].groupby("model").agg(["mean", "sem"]).to_csv(OUT / "tables" / "distribution.csv")
+    dist[dist.split == "test"].drop(columns=["split", "seed"]).groupby("model").agg(["mean", "sem"]).to_csv(OUT / "tables" / "distribution.csv")
     l2s[l2s.split == "test"].groupby(["model", "input"])[["demeaned_pearson", "avg_rank", "top1_acc"]].agg(["mean", "sem"]).to_csv(OUT / "tables" / "latent2sc.csv")
     hps.to_csv(OUT / "tables" / "selected_hyperparameters.csv", index=False)
     fig_conditions(point, OUT / "figures" / "fig_sc2fc_conditions.png")
