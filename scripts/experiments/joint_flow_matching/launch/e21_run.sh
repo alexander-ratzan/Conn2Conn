@@ -1,6 +1,6 @@
 #!/bin/bash
 # Spec v4 E2.1: one seed x model per array task. Array index = model index; seeds passed as an argument.
-#   sbatch --array=0-5 launch/e21_run.sh <seed>          models: refs corrector corrector_id bridge flow latent2sc
+#   sbatch --array=0-5 launch/e21_run.sh <seed>          models: refs corrector corrector_id bridge flow latent2sc (6 flow_free, 7 flow_linear: E2.1 addendum)
 #SBATCH --nodes=1
 #SBATCH --account=torch_pr_59_tandon_advanced
 #SBATCH --ntasks-per-node=1
@@ -14,7 +14,7 @@
 #SBATCH --error=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/%x_%A_%a.err
 set -euo pipefail
 SEED="${1:?seed}"
-MODELS=(refs corrector corrector_id bridge flow latent2sc)
+MODELS=(refs corrector corrector_id bridge flow latent2sc flow_free flow_linear)
 MODEL=${MODELS[${SLURM_ARRAY_TASK_ID}]}
 CONN2CONN_DIR="${CONN2CONN_DIR:-/scratch/asr655/neuroinformatics/Conn2Conn}"
 module purge

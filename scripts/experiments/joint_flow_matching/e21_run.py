@@ -117,9 +117,47 @@ class Data:
 
 
 # ----------------------------------------------------------------------------------------------- models
+FREE = ("flow_free", "flow_linear")          # E2.1 addendum: un-anchored flows from noise straight to the encoding
+FLOWLIKE = ("flow",) + FREE
+
+
+def base_model(model):
+    """Model whose sampling rule applies (nulls share their parent's)."""
+    return model.replace("_shuffled", "").replace("_spread_null", "")
+
+
+class LinearFlowVelocity(torch.nn.Module):
+    """v(z, tau, SC, m) = sum_j phi_j(tau) (z A_j + SC B_j + C_j[m]): linear in the state, the SC codes and the condition,
+    with coefficients that vary over flow time through a small basis phi (polynomial + rational terms, the form of the
+    exact velocity for linear-Gaussian data). Starts at zero."""
+
+    def __init__(self, d, cond_dim, n_tokens=9):
+        super().__init__()
+        nb = 6
+        self.A = torch.nn.Parameter(torch.zeros(nb, d, d))
+        self.B = torch.nn.Parameter(torch.zeros(nb, cond_dim, d))
+        self.C = torch.nn.Parameter(torch.zeros(nb, n_tokens, d))
+
+    @staticmethod
+    def basis(tau):
+        r = 1.0 / (1.05 - tau)
+        return torch.stack([torch.ones_like(tau), tau, tau ** 2, tau ** 3, 0.05 * r, 0.05 * tau * r], dim=1)
+
+    def forward(self, z, src=None, tgt=None, tau=None, cond=None):
+        phi = self.basis(tau)                                                    # (n, nb)
+        terms = torch.einsum("nd,jde->nje", z, self.A) + torch.einsum("nc,jce->nje", cond, self.B) + self.C[:, tgt].transpose(0, 1)
+        return (phi[:, :, None] * terms).sum(1)
+
+    def predict_flow(self, z, src=None, tgt=None, n_steps=16, method="rk4", cond=None):
+        from models.architectures.crossmodal_flow_matching import integrate
+        return integrate(lambda x, t: self(x, src, tgt, t, cond=cond), z, n_steps=n_steps, method=method)
+
+
 def make(model, hp, d):
+    if model == "flow_linear":
+        return LinearFlowVelocity(d, hp["k_sc"])
     return TokenBackbone(k=d, n_views=9, token_dim=hp["token_dim"], width=hp["width"], depth=hp["depth"],
-                         dropout=hp["dropout"], use_tokens=True, use_time=model in ("bridge", "flow"),
+                         dropout=hp["dropout"], use_tokens=True, use_time=model in ("bridge",) + FLOWLIKE,
                          cond_dim=hp["k_sc"])
 
 
@@ -136,8 +174,9 @@ def loss_fn(model, net, hp, z0, y, c, m, data, gen):
     if model == "bridge":
         tau = torch.where(torch.rand(len(y), device=y.device, generator=gen) < hp["p0"], torch.zeros_like(tau), tau)
         start = z0
-    else:                                  # residual flow from noise: generates g - ridge(SC); ridge mean added back
-        y = y - z0
+    else:                                  # flows from noise; the residual flow generates g - ridge(SC), the free flows g
+        if model == "flow":
+            y = y - z0
         start = torch.randn(y.shape, device=y.device, generator=gen)
         m = torch.where(torch.rand(len(y), device=y.device, generator=gen) < 0.2, torch.full_like(m, NULL), m)
     zt = (1 - tau[:, None]) * start + tau[:, None] * y
@@ -166,18 +205,19 @@ def predict(model, net, data, split, k_sc, steps=16, token=None, n_samples=1, se
             cc = data.sc[split][subj_k, :k_sc]
             eps = torch.randn((len(cc), data.d), device=data.device, generator=g)
             res = net.predict_flow(eps, tok, tok, n_steps=FLOW_STEPS, cond=cc)
-            return (data.rc[split][tok, subj_k] + res).view(n_samples, n, data.d) * data.s_lat
+            anchor = data.rc[split][tok, subj_k] if model == "flow" else 0
+            return (anchor + res).view(n_samples, n, data.d) * data.s_lat
         acc = 0
         for _ in range(n_samples):
             eps = torch.randn(z0.shape, device=data.device, generator=g)
             acc = acc + net.predict_flow(eps, m, m, n_steps=FLOW_STEPS, cond=c)
-        out = z0 + acc / n_samples
+        out = (z0 if model == "flow" else 0) + acc / n_samples
     return out.view(8, n, data.d) * data.s_lat
 
 
 def val_objective(model, net, data, hp):
-    if model == "flow":
-        X = predict("flow", net, data, "val", hp["k_sc"], token=NULL, n_samples=32)
+    if model in FLOWLIKE:
+        X = predict(model, net, data, "val", hp["k_sc"], token=NULL, n_samples=32)
         return -float(np.mean(energy_per_subject(X.cpu().numpy(), data.raw["val"])))
     P = predict(model, net, data, "val", hp["k_sc"], steps=16)
     f = data.val_rank if model == "corrector_id" else data.val_dr
@@ -210,7 +250,7 @@ def train(model, hp, data, seed, trial=None):
             z0, y, c, m = data.batch("val", torch.arange(nv, device=data.device), hp["k_sc"])
             vl = loss_fn(model, net, hp, z0, y, c, m, data,
                          torch.Generator(device=data.device).manual_seed(vgen_seed)).item()
-        if model == "flow":                 # the flow's val loss is noise-dominated: early-stop on a smoothed value
+        if model in FLOWLIKE:               # a flow's val loss is noise-dominated: early-stop on a smoothed value
             ema = vl if ep == 0 else 0.9 * ema + 0.1 * vl
             vl = ema
         if vl < best:
@@ -221,13 +261,16 @@ def train(model, hp, data, seed, trial=None):
             trial.report(-vl, ep)
             if trial.should_prune():
                 raise optuna.TrialPruned()
-        if bad >= (TRAIN["patience_flow"] if model == "flow" else TRAIN["patience"]):
+        if bad >= (TRAIN["patience_flow"] if model in FLOWLIKE else TRAIN["patience"]):
             break
     net.load_state_dict(state)
     return net, dict(best_val_loss=best, best_epoch=best_ep, epochs_run=ep + 1)
 
 
 def sample_hp(trial, model):
+    if model == "flow_linear":
+        return dict(lr=trial.suggest_float("lr", *SPACE["lr"], log=True), wd=trial.suggest_float("wd", *SPACE["wd"], log=True),
+                    k_sc=trial.suggest_categorical("k_sc", SPACE["k_sc"]), width=0, depth=0, dropout=0.0, token_dim=0)
     hp = dict(lr=trial.suggest_float("lr", *SPACE["lr"], log=True), wd=trial.suggest_float("wd", *SPACE["wd"], log=True),
               width=trial.suggest_categorical("width", SPACE["width"]),
               depth=trial.suggest_categorical("depth", SPACE["depth"]),
@@ -306,9 +349,9 @@ def evaluate(model, net, data, hp):
             for st in (1, 4, 16, 64):
                 rows += point_rows(model, data, predict(model, net, data, split, hp["k_sc"], steps=st), split, dict(steps=st))
         elif model.startswith("flow"):          # flow, flow_shuffled, flow_spread_null
-            rows += point_rows(model, data, predict("flow", net, data, split, hp["k_sc"], n_samples=FLOW_POINT_SAMPLES), split,
+            rows += point_rows(model, data, predict(base_model(model), net, data, split, hp["k_sc"], n_samples=FLOW_POINT_SAMPLES), split,
                                dict(note=f"mean of {FLOW_POINT_SAMPLES} samples with condition token"))
-            X = predict("flow", net, data, split, hp["k_sc"], token=NULL, n_samples=K_SAMPLES).cpu().numpy()
+            X = predict(base_model(model), net, data, split, hp["k_sc"], token=NULL, n_samples=K_SAMPLES).cpu().numpy()
             dist[split] = distribution_metrics(X, data.raw[split])
     return rows, dist
 
@@ -444,7 +487,7 @@ def run_latent2sc(seed, data, n_trials, device):
 # ----------------------------------------------------------------------------------------------- main
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", required=True, choices=["corrector", "corrector_id", "bridge", "flow", "latent2sc", "refs"])
+    ap.add_argument("--model", required=True, choices=["corrector", "corrector_id", "bridge", "flow", "flow_free", "flow_linear", "latent2sc", "refs"])
     ap.add_argument("--seed", type=int, required=True)
     ap.add_argument("--n-trials", type=int, default=32)
     args = ap.parse_args()
@@ -480,10 +523,16 @@ def main():
         rec["rows"], rec["dist"] = evaluate(args.model, net, data, best["hp"])
         preds = {}                                        # point predictions (latent units) for gate G3 / analysis
         for split in ("val", "test"):
-            kw = dict(n_samples=FLOW_POINT_SAMPLES) if args.model == "flow" else dict(steps=16)
+            kw = dict(n_samples=FLOW_POINT_SAMPLES) if args.model in FLOWLIKE else dict(steps=16)
             preds[split] = predict(args.model, net, data, split, best["hp"]["k_sc"], **kw).cpu().numpy()
         PRED.mkdir(parents=True, exist_ok=True)
         np.savez(PRED / f"{args.model}_seed{args.seed}.npz", **preds)
+        if args.model in FREE:                         # full null for the un-anchored flows
+            sdata = Data(args.seed, device, shuffle_sc=True)
+            snet, _ = train(args.model, best["hp"], sdata, args.seed * 1000 + 777)
+            r, dst = evaluate(f"{args.model}_shuffled", snet, sdata, best["hp"])
+            rec["rows"] += r
+            rec["dist_shuffled"] = dst
         if args.model == "flow":
             rec["retest"] = retest_metrics(net, data, best["hp"])
             # full null: SC shuffled for the whole model (ridge means refit on permuted pairs)
