@@ -36,7 +36,8 @@ def main():
     b = corr >= 0.9
     print(f"{'OK  ' if b else 'FAIL'} G3b flow sample means vs corrector predictions: r {corr:.3f} (>= 0.9)")
     vals = [v for m in rec.values() for row in m["rows"] for k, v in row.items() if isinstance(v, float)]
-    vals += [v for m in rec.values() for key in ("dist", "dist_shuffled") for d in m.get(key, {}).values() for v in d.values()]
+    vals += [v for m in rec.values() for key in ("dist", "dist_shuffled") for d in m.get(key, {}).values()
+             for v in d.values() if isinstance(v, float)]
     cfin = bool(np.all(np.isfinite(vals)))
     print(f"{'OK  ' if cfin else 'FAIL'} G3c all {len(vals)} metrics finite")
     capped = [m for m in ("corrector", "corrector_id", "bridge", "flow")

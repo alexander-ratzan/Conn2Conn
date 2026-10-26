@@ -252,7 +252,9 @@ def distribution_metrics(X, Y):
     cover = (np.linalg.norm(Y - mean[None], axis=2) <= q90[None]).mean()
     return dict(energy=float(ed.mean()), set_top1=float(distance_top1_accuracy(M)), set_avg_rank=float(distance_avg_rank(M)),
                 spread_corr=float(np.corrcoef(pv, ov)[0, 1]), spread_ratio=float(pv.mean() / ov.mean()),
-                coverage90=float(cover))
+                coverage90=float(cover),
+                per_subject=dict(pred_spread=pv.tolist(), obs_spread=ov.tolist(), energy=ed.tolist()),
+                example=dict(generated=X[:16, :6, :2].tolist(), observed=Y[:, :6, :2].tolist()))   # 6 subjects, dims 1-2
 
 
 def gauss_samples(data, split, K=K_SAMPLES, seed=0):
