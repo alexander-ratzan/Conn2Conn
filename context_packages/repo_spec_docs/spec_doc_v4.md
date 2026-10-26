@@ -18,7 +18,7 @@ flow that generates a subject's encodings (E2); a generative follow-up with more
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
 | E1 | CCA-latent bidirectional benchmark: multiview CCA latent of FC as the encoding for FC → SC and the target for SC → FC | done 2026-10-20 | I2, D4 | agent:modeling |
-| E2 | SC → functional latent: E2.1 conditional generation of each condition's CCA encoding from SC (linear, nonlinear, linear-Gaussian, flow); E2.2 optional multi-condition FC → FC | in progress (E2.1a done: G0b passed, 5 seeds; E2.1b–e running) | I1, E1, D7 | agent:modeling |
+| E2 | SC → functional latent: E2.1 conditional generation of each condition's CCA encoding from SC (linear, nonlinear, linear-Gaussian, flow); E2.2 cross-condition FC translation as a generative model, SC as an added view (planned) | in progress (E2.1a done: G0b passed, 5 seeds; E2.1b–e running) | I1, E1, D7 | agent:modeling |
 | E3 | Generative follow-ups to E2.1: path noise, rest sessions as repeats, FC timeseries windows as more samples per subject | outline | E2.1 | — |
 | I1 | Joint translation infrastructure: pooled FC basis, (subject, source, target) data module, token model, integrator, runner | in progress | — | agent:modeling |
 | I2 | Multiview CCA library module (MAXVAR fit / encode / decode), shared by E2 and E1 | done 2026-10-20 | — | agent:modeling |
@@ -250,12 +250,77 @@ subjects' generated clouds next to their 8 observed encodings in the first laten
 - **Budget / autonomy:** D3 (revised by D5 and D7): E2.1 runs autonomously, cap 10 GPU-h (estimate ≤ 3; trials take
   seconds); E2.2 needs the user's go.
 
-#### E2.2 (optional) — Multi-condition FC → FC translation
+#### E2.2 — Cross-condition FC translation as a generative model, with SC as an added view (planned)
 
-The original idea: one network with source and target condition tokens translating between the 8 FC conditions in the
-block PCA codes, as a regression (A3) and as a deterministic flow (A4), against the linear references already
-computed (L1–L4, identity, ceilings). It runs only after E2.1 reports and with the user's go. Its infrastructure
-exists (`tune.py`); it needs the training fix and a rerun of the original synthetic gate.
+**In one paragraph.** E2.1 asks what structure says about function; its seed-0 pilot suggests the answer is a linear
+mean and little else at 659 subjects. Function says far more about function: a subject's rest encoding finds their
+task encodings at top-1 0.46 in E1's latent, and raw-edge identification across conditions reaches 0.53–0.82, against
+about 0.09 from SC. E2.2 asks whether a generative model translating **between FC conditions** captures that
+signal better than linear maps: given a subject's FC in one or more conditions, generate their FC in another, with a
+mean and a calibrated spread. SC enters as one more conditioning view, which turns "does SC predict FC?" into the
+sharper "does SC add anything once some FC is known?". Practical uses: imputing missing task scans and generating a
+subject's task signatures from rest.
+
+**Representation.** Targets are each condition's **block FC PCA codes** (E2.0's equal-variance pooled basis, $k$ =
+256), decoded to edges for scoring. They keep the condition-specific individuality that E1 showed the 32-dimensional
+shared latent discards (E1: rest's own codes beat its latent encoding for SC). Sources are the same codes, optionally
+plus E1's latent encodings and SC codes as conditioning.
+
+**Translations.**
+
+| Setting | Source → target | Count per seed |
+|---|---|---|
+| Single source | one FC condition → another (FC → FC pairs) | 56 ordered pairs |
+| Multi-source | the other 7 conditions → the held-out target (leave the target out) | 8 targets |
+| SC added | SC + single or multi-source FC → target | as above |
+| SC only (reference) | SC → each condition (E2.1's question, in block codes) | 8 |
+
+**Models** (the E2.1 recipe, which passed its synthetic gate):
+
+| Model | What it is | Role |
+|---|---|---|
+| Identity | copy the subject's source deviation into the target condition | the bar any FC → FC model must clear (strong; E2.0 finding 4) |
+| Linear references | per-pair ridge (L1) and the multiview CCA translator (L4), both already computed for all pairs (E2.0); multi-source CCA (average of the sources' encodings, decoded to the target) | linear point references; the best linear model per pair is the mean anchor below |
+| Linear-Gaussian | linear mean + one residual covariance per target condition | distributional reference |
+| Nonlinear corrector | linear mean + a learned correction, one shared network with source and target condition tokens (the old A3, now anchored on the linear mean) | nonlinear point model |
+| **Residual conditional flow** | samples of the residual around the linear mean, from noise, conditioned on the source codes and both condition tokens (and SC codes in the SC-added setting) | **main model** |
+
+**Evaluation.** Each subject has one observed FC per target condition (two for rest, via its sessions), so the
+distributional scores are ones that work with a single observation:
+
+| ID | Question | Metric | Compared with |
+|---|---|---|---|
+| H1 | Is there nonlinear structure in FC → FC beyond the best linear map? | decoded demeaned r, mean over pairs (also task-target pairs alone) | corrector − best linear reference |
+| H2 | Do several source conditions beat the best single one? | the same, task targets | multi-source − best single source (usually rest) |
+| **H3 (primary)** | Does the flow's predictive distribution beat a linear-Gaussian one? | **energy score** of the observed target under the generated samples (a proper score for one observation; lower is better), in code space | linear-Gaussian − flow |
+| H4 | Does predicted uncertainty track actual error? | correlation across subjects between the flow's predicted spread and its realized error; coverage of the observed target | flow vs 0; Gaussian has constant spread |
+| H5 | Does SC add anything once FC is known? | H1 and H3 metrics with SC added vs without | (SC + FC) − FC |
+| H6 | How often does translation beat copying? | share of the 56 pairs where the model beats identity on demeaned r and on average rank | model vs identity |
+
+References and ceilings: each target's own $k$-dimensional reconstruction; the rest session 1 ↔ session 2
+translation (with the D1 nesting mask) as the test–retest ceiling for rest. Same support rule as everywhere in v4.
+
+**Gates.** G0: the linear references reproduce E2.0's stored L1 / L4 rows exactly. G1: the original 9-view synthetic
+gate, rerun with the corrector and residual-flow forms (it failed for the un-anchored models; thresholds unchanged),
+plus a single-observation version of the distributional checks. G3: seed-0 pilot (corrector at least as good as the
+best linear reference; flow means agree with the corrector; metrics finite; no selected trial at the epoch cap).
+
+**Deliverables.** The 9 × 9 cross-condition matrix (demeaned r, average rank) for identity, linear, corrector and
+flow; multi-source and SC-added panels; energy scores and spread–error calibration; write-up section; spec result.
+
+**What each outcome means.**
+
+| Outcome | Reading | Next |
+|---|---|---|
+| H3 and H4 supported | the flow models subject-specific uncertainty in FC → FC | it becomes the cross-task generative tool; E3 adds timeseries windows |
+| H1 or H2 supported, H3 not | gains are in the mean (nonlinear or multi-source), not the distribution | use the corrector / multi-source model as the translation tool |
+| H5 supported | SC carries information beyond FC | keep SC as a view in E3 |
+| nothing beats identity / linear | at this sample size cross-condition FC is linearly translatable | linear multiview tools for imputation; generative work waits for more samples per subject |
+
+- **Depends on:** E2.1's result (the recipe, and whether the flow behaves on real data); E2.0's linear references
+  (done); the infrastructure in `tune.py` / `e21_run.py`.
+- **Budget / autonomy:** to be decided when E2.1 reports (estimate ≤ 10 GPU-h: one shared network per seed covers all
+  pairs). Runs on the user's go.
 
 #### E2 work done so far
 
@@ -457,5 +522,6 @@ v3 closed 2026-10-21 (all experiments done). Carried forward:
 | 2026-10-26 | E2.1b gate failed (job 21010434: flow energy distance above the Gaussian's; flow spread r 0.70 passed; corrector / bridge 0.99 passed); chain cancelled. Fixes (user): residual conditional flow around the ridge mean, smoothed early stopping, spread-dominated simulation, 9-view gate moved to E2.2 (`be3d501`). Gate rerun: job 21016054. |
 | 2026-10-26 | E2.1b gate **passed** (job 21016453) after the residual-flow change and a corrected null (job 21016054 failed only because the shuffled null kept ridge means fit on real pairs; the null now breaks the pairing for the whole model, `e133a2e`): corrector R² 0.982 (ridge 0.983), bridge one step 0.913, flow spread r 0.89, energy 0.0015 vs Gaussian 0.51, shuffled null −0.025. Pilot waits for the user's go. |
 | 2026-10-26 | Diagnostics added before the pilot (user): a spread-only null (SC shuffled for the residual flow only, real ridge means; tests whether subject-specific spread comes from SC) and a rest test–retest check (each subject's session 1 vs 2 encodings in the latent; the correlation with the flow's predicted rest spread is the readout, since predicted spread also contains what SC does not explain). Chain: pilot `21020036` → G3 `21020037` → seeds 1–4 `21020038`–`41` → analysis `21020042` (`64a7f21`). |
+| 2026-10-26 | E2.2 redrafted (user): cross-condition FC translation as a generative model in block FC PCA codes (single-source, multi-source, SC added, SC only), identity / linear / linear-Gaussian / corrector / residual flow, H1–H6 with the energy score as the primary single-observation distributional metric; runs on the user's go after E2.1. G3 failed on the seed-0 pilot (flow means from 16 samples too noisy: r 0.68 with the corrector); flow point estimate now from 256 samples; chain resubmitted (flow seed 0 `21029998` → G3 `21029999` → seeds `21030000`–`03` → analysis `21030004`). |
 
 Last updated at: 2026-10-26 EDT
