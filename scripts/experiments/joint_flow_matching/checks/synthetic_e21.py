@@ -8,8 +8,8 @@ learns the spread can beat a Gaussian with one shared covariance (revised 2026-1
 between-condition scatter dominated and the test did not isolate the spread). Splits as seed 0 (659 / 74 / 184).
 Fixed configurations, no search.
   G1a: corrector and bridge (one step) reach R^2 >= 0.9 against E[g^m | x] for every condition;
-  G1b: the conditional flow trained with x shuffled across subjects carries no subject signal (code demeaned r of its
-       sample means with the true means <= 0.02);
+  G1b: the model trained with x shuffled across subjects (ridge means and flow both) carries no subject signal (code
+       demeaned r of its sample means with the true means <= 0.02);
   G1c: without a condition token the flow's per-subject spread correlates >= 0.5 with the true expected spread, and
        its energy distance to each subject's 8 encodings is below the linear-Gaussian reference's.
 
@@ -48,10 +48,14 @@ class Synth(R.Data):
             Eu = self.x[split] @ np.linalg.solve(Sxx, B.T)
             self.truth[split] = np.einsum("nq,mqd->mnd", Eu, M)
             self.spread[split] = mu.var(axis=0, ddof=1).sum(1) + D * s ** 2          # expected trace of the cloud
+        # the shuffled null breaks the pairing for the whole model: ridge means and flow both see permuted inputs
+        n = N["train"]
+        perm = np.random.default_rng(99).permutation(n) if shuffle_sc else np.arange(n)
+        xtr = self.x["train"][perm]
         self.rc_raw = {}
         for split in N:
-            self.rc_raw[split] = np.stack([ridge_fit(self.x["train"], self.raw["train"][m])(self.x[split]) for m in range(8)])
-        self.rc_raw["train"] = np.stack([crossfit(self.x["train"], self.raw["train"][m]) for m in range(8)])
+            self.rc_raw[split] = np.stack([ridge_fit(xtr, self.raw["train"][m])(self.x[split]) for m in range(8)])
+        self.rc_raw["train"] = np.stack([crossfit(xtr, self.raw["train"][m]) for m in range(8)])
         resid = (self.raw["train"] - self.rc_raw["train"]).reshape(-1, D)
         self.cov = np.cov(resid, rowvar=False)
         self.s_lat, self.s_sc = float(self.raw["train"].std()), float(self.x["train"].std())
@@ -59,9 +63,7 @@ class Synth(R.Data):
         self.enc = {s: t(self.raw[s] / self.s_lat) for s in N}
         self.rc = {s: t(self.rc_raw[s] / self.s_lat) for s in N}
         self.sc = {s: t(self.x[s] / self.s_sc) for s in N}
-        n = N["train"]
-        self.perm = (torch.randperm(n, generator=torch.Generator().manual_seed(99)).to(device) if shuffle_sc
-                     else torch.arange(n, device=device))
+        self.perm = torch.as_tensor(perm, device=device)
 
 
 def r2(pred, truth):

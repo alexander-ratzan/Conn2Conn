@@ -7,7 +7,8 @@ Models (all share `TokenBackbone`: state z = 32-d latent, cond = SC codes, token
   flow          residual conditional flow: from noise to g - ridge(SC) (ridge mean added back), conditioned on SC and
                 the condition token (dropped -> 8 for 20 % of examples); the subject's cloud mixes the 8 conditions as
                 the Gaussian reference does; early stopping on a smoothed val loss (patience 200)
-                (also trains `flow_shuffled`: the selected flow configuration with SC permuted across train subjects)
+                (also trains `flow_shuffled`: the selected configuration with SC permuted across train subjects for
+                the whole model, ridge means included)
   latent2sc     (H7) latent -> SC codes: ridge(latent) + f(.), token = input (0 consensus, 1-7 tasks)
 References evaluated in every job: ridge_cond (per-condition ridge, from the cache) and gauss (ridge_cond means + the
 shared residual covariance). Each job: Optuna search (n_trials), early stopping on val loss, selection on val, then val
@@ -69,6 +70,15 @@ class Data:
         n = self.sc["train"].shape[0]
         self.perm = (torch.randperm(n, generator=torch.Generator().manual_seed(4321 + seed)).to(device)
                      if shuffle_sc else torch.arange(n, device=device))
+        if shuffle_sc:     # the null breaks the pairing for the whole model: refit the ridge means on permuted pairs
+            pnp = self.perm.cpu().numpy()
+            for m, k in enumerate(z["rc_k"]):
+                xtr = z["sc_train"][pnp, :k]
+                f = ridge_fit(xtr, z["enc_train"][m])
+                for split in ("val", "test"):
+                    self.rc_raw[split][m] = f(z[f"sc_{split}"][:, :k])
+                self.rc_raw["train"][m] = crossfit(xtr, z["enc_train"][m], seed=seed)
+            self.rc = {s: t(self.rc_raw[s] / self.s_lat) for s in ("train", "val", "test")}
         # fast decoding for val selection: latent (raw units) -> demeaned FC edges, per condition
         cs = self.L.sd.cs
         self.dec, self.mu, self.val_edges = [], [], []
