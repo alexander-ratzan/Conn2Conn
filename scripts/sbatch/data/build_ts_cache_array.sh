@@ -14,7 +14,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
 #SBATCH --time=2:00:00
-#SBATCH --mem=48GB
+#SBATCH --mem=64GB
 #SBATCH --job-name=build_ts_cache
 #SBATCH --output=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/build_ts_cache_%A_%a.out
 #SBATCH --error=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/build_ts_cache_%A_%a.err

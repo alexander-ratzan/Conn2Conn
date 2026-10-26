@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Timeseries Connectome Viewer</title>
+<style>
+:root {
+  color-scheme: light;
+  --surface-0: #f6f6f4; --surface-1: #fcfcfb; --surface-2: #efeeea; --border: #dcdbd6;
+  --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #7a7974;
+  --grid: #e6e5e0; --axis: #b9b8b2; --band: rgba(42, 120, 214, 0.10);
+  --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --neutral: #8a8984;
+  --div-neg-2: #104281; --div-neg-1: #5598e7; --div-mid: #f0efec; --div-pos-1: #e66767; --div-pos-2: #9b1c1c;
+  --good: #0ca30c; --critical: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-0: #121211; --surface-1: #1a1a19; --surface-2: #252523; --border: #34342f;
+    --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
+    --grid: #2a2a27; --axis: #4a4a45; --band: rgba(57, 135, 229, 0.16);
+    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --neutral: #8f8e86;
+    --div-neg-2: #3987e5; --div-neg-1: #1c5cab; --div-mid: #383835; --div-pos-1: #b33a3a; --div-pos-2: #e66767;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #121211; --surface-1: #1a1a19; --surface-2: #252523; --border: #34342f;
+  --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
+  --grid: #2a2a27; --axis: #4a4a45; --band: rgba(57, 135, 229, 0.16);
+  --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --neutral: #8f8e86;
+  --div-neg-2: #3987e5; --div-neg-1: #1c5cab; --div-mid: #383835; --div-pos-1: #b33a3a; --div-pos-2: #e66767;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--surface-0); color: var(--text-primary);
+       font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { padding: 16px 20px 8px; }
+h1 { font-size: 18px; margin: 0 0 2px; font-weight: 600; }
+.sub { color: var(--text-secondary); font-size: 12px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; padding: 8px 20px 12px;
+            position: sticky; top: 0; z-index: 5; background: var(--surface-0); border-bottom: 1px solid var(--border); }
+.controls label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--text-secondary); }
+.controls select, .controls input[type=number] { font: inherit; color: var(--text-primary); background: var(--surface-1);
+            border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; max-width: 260px; }
+.controls input[type=number] { width: 76px; }
+.controls .check { flex-direction: row; align-items: center; gap: 6px; padding-bottom: 5px; }
+main { padding: 14px 20px 28px; display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+.card.wide { grid-column: 1 / -1; }
+.card h2 { font-size: 13px; font-weight: 600; margin: 0 0 2px; }
+.card .meta { color: var(--text-secondary); font-size: 12px; min-height: 18px; }
+canvas { display: block; width: 100%; }
+.heat { aspect-ratio: 1 / 1; max-width: 520px; margin: 6px auto 0; cursor: crosshair; }
+.slider { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.slider input { flex: 1; }
+.colorbar { display: flex; align-items: center; gap: 8px; justify-content: center; margin-top: 6px; font-size: 11px; color: var(--text-secondary); }
+.colorbar canvas { width: 180px; height: 10px; border-radius: 2px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--text-secondary); margin: 4px 0; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.sw.dash { background: none !important; border-top: 2px dashed; height: 0; }
+.sw.dot { width: 8px; height: 8px; border-radius: 50%; }
+table { border-collapse: collapse; width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--grid); }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--text-secondary); font-weight: 500; }
+.note { color: var(--text-muted); font-size: 11.5px; margin-top: 6px; }
+footer { padding: 0 20px 24px; color: var(--text-secondary); font-size: 12px; }
+.status { display: inline-flex; gap: 6px; align-items: center; font-weight: 500; }
+#tip { position: fixed; pointer-events: none; z-index: 20; background: var(--surface-1); color: var(--text-primary);
+       border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.15);
+       display: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
+@media (max-width: 860px) { main { grid-template-columns: minmax(0, 1fr); padding: 12px 16px; } header, .controls, footer { padding-left: 16px; padding-right: 16px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Timeseries Connectome Viewer</h1>
+  <div class="sub" id="subtitle"></div>
+</header>
+<div class="controls">
+  <label>Subject <select id="subject"></select></label>
+  <label>Condition <select id="condition"></select></label>
+  <label>Window (TR) <input type="number" id="wlen" min="10" step="1"></label>
+  <label>Step (TR) <input type="number" id="wstep" min="1" step="1"></label>
+  <label>Region A <select id="regA"></select></label>
+  <label>Region B <select id="regB"></select></label>
+  <label>FC color limit <select id="clim"><option>0.4</option><option>0.6</option><option selected>0.8</option><option>1.0</option></select></label>
+  <label>Region order <select id="order"><option value="network">by network</option><option value="atlas">atlas</option></select></label>
+  <label class="check"><input type="checkbox" id="zoom"> Zoom timeseries to window</label>
+</div>
+<main>
+  <section class="card">
+    <h2>Full-scan FC</h2>
+    <div class="meta" id="fullMeta"></div>
+    <canvas class="heat" id="fullFC"></canvas>
+  </section>
+  <section class="card">
+    <h2>Window FC</h2>
+    <div class="meta" id="winMeta"></div>
+    <canvas class="heat" id="winFC"></canvas>
+    <div class="slider"><span class="sub">window</span><input type="range" id="slider" min="0" value="0"><span class="sub" id="winIdx"></span></div>
+  </section>
+  <section class="card wide" style="padding-top:6px">
+    <div class="colorbar"><span id="cbMin"></span><canvas id="colorbar" width="180" height="10"></canvas><span id="cbMax"></span>
+      <span>Pearson r · lines separate networks · click a cell to set regions A (row) and B (column)</span></div>
+  </section>
+  <section class="card wide">
+    <h2>Mean timeseries (average over all regions)</h2>
+    <div class="meta">Dashed lines: run boundaries · shaded: current window · click to move the window</div>
+    <canvas id="meanTS" style="height:150px"></canvas>
+  </section>
+  <section class="card wide">
+    <h2 id="tsAtitle">Region A</h2>
+    <div class="meta" id="tsAmeta"></div>
+    <canvas id="tsA" style="height:130px"></canvas>
+    <h2 id="tsBtitle" style="margin-top:12px">Region B</h2>
+    <div class="meta" id="tsBmeta"></div>
+    <canvas id="tsB" style="height:130px"></canvas>
+  </section>
+  <section class="card wide">
+    <h2>Intrinsic timescale by region</h2>
+    <div class="legend"><span><i class="sw dot" style="background:var(--neutral)"></i>full scan (mean over runs)</span>
+      <span><i class="sw dot" style="background:var(--series-3)"></i>current window</span>
+      <span><i class="sw" style="background:var(--series-1)"></i>region A</span><span><i class="sw" style="background:var(--series-2)"></i>region B</span></div>
+    <canvas id="tauChart" style="height:190px"></canvas>
+    <div class="note">Timescale = TR × area under the autocorrelation function before its first value ≤ 0 (Parkes et al.). Regions on the x axis follow the region order setting.</div>
+  </section>
+  <section class="card">
+    <h2>Multiscale sample entropy</h2>
+    <div class="legend"><span><i class="sw" style="background:var(--series-1)"></i>A full scan</span>
+      <span><i class="sw dash" style="border-color:var(--series-1)"></i>A window</span>
+      <span><i class="sw" style="background:var(--series-2)"></i>B full scan</span>
+      <span><i class="sw dash" style="border-color:var(--series-2)"></i>B window</span></div>
+    <canvas id="mseChart" style="height:220px"></canvas>
+    <div class="note" id="mseNote"></div>
+  </section>
+  <section class="card">
+    <h2>Summary</h2>
+    <table id="stats"></table>
+    <div class="note">Full scan: timescale averaged over runs; entropy counts pooled over runs (r per run). Window: the shaded segment only.</div>
+  </section>
+</main>
+<footer>
+  <div><span class="status" id="selfcheck"></span></div>
+  <div class="note">Data: Conn2Conn_data/timeseries (xcp-d 0.9.1 parcel means; denoised, band-pass filtered ≈0.01–0.08 Hz, not z-scored) and fc/ (xcp-d combined-run relmat).
+    The band-pass filter shapes both the autocorrelation and the coarse-scale entropy, and task designs are not regressed out, so compare regions, subjects and conditions within this dataset rather than against absolute values in the literature.
+    Metric code: data/timeseries_metrics.py (the page mirrors it).</div>
+</footer>
+<div id="tip"></div>
+<script id="payload" type="application/json">__DATA__</script>
+<script>
+"use strict";
+const D = JSON.parse(document.getElementById("payload").textContent);
+const P = D.labels.length, TR = D.tr;
+const $ = id => document.getElementById(id);
+const fin = v => typeof v === "number" && Number.isFinite(v);   // null (NaN from Python) is not finite
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+// ---------- region order ----------
+const netOrder = [];
+D.network.forEach(n => { if (!netOrder.includes(n)) netOrder.push(n); });
+const ORDERS = {
+  atlas: [...Array(P).keys()],
+  network: [...Array(P).keys()].sort((a, b) => netOrder.indexOf(D.network[a]) - netOrder.indexOf(D.network[b]) || a - b),
+};
+function boundaries(order) {               // display positions where the network changes
+  const out = [];
+  for (let k = 1; k < P; k++) if (D.network[order[k]] !== D.network[order[k - 1]]) out.push(k);
+  return out;
+}
+
+// ---------- decoding ----------
+function bytes(s) { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
+function rec() { return D.data[S.subject][S.condition]; }
+function series(r) {                        // dequantized (T x P) row-major + mean over regions; cached on the record
+  if (r._x) return r;
+  const q = new Int16Array(bytes(r.q).buffer), T = r.n_tr, x = new Float64Array(T * P), mean = new Float64Array(T);
+  for (let t = 0; t < T; t++) { let s = 0; for (let p = 0; p < P; p++) { const v = q[t * P + p] * r.scale[p]; x[t * P + p] = v; s += v; } mean[t] = s / P; }
+  const u = new Int16Array(bytes(r.fc).buffer), F = new Float64Array(P * P);
+  let k = 0;
+  for (let i = 0; i < P; i++) { F[i * P + i] = 1; for (let j = i + 1; j < P; j++) { F[i * P + j] = F[j * P + i] = u[k++] / 32767; } }
+  r._x = x; r._mean = mean; r._fc = F;
+  return r;
+}
+function column(r, p, a, b) { const out = new Float64Array(b - a); for (let t = a; t < b; t++) out[t - a] = r._x[t * P + p]; return out; }
+
+// ---------- metrics (mirror data/timeseries.py and data/timeseries_metrics.py) ----------
+function windowStarts(runs, L, step) { const s = []; for (const [, a, n] of runs) for (let t = a; t <= a + n - L; t += step) s.push(t); return s; }
+function corrMatrix(x, s, L) {
+  const Z = new Float64Array(P * L);
+  for (let p = 0; p < P; p++) {
+    let m = 0; for (let t = 0; t < L; t++) m += x[(s + t) * P + p]; m /= L;
+    let ss = 0; for (let t = 0; t < L; t++) { const v = x[(s + t) * P + p] - m; Z[p * L + t] = v; ss += v * v; }
+    const n = Math.sqrt(ss); for (let t = 0; t < L; t++) Z[p * L + t] /= n;
+  }
+  const C = new Float64Array(P * P);
+  for (let i = 0; i < P; i++) for (let j = i; j < P; j++) {
+    let c = 0; const oi = i * L, oj = j * L; for (let t = 0; t < L; t++) c += Z[oi + t] * Z[oj + t];
+    C[i * P + j] = C[j * P + i] = c;
+  }
+  return C;
+}
+function timescale(v) {                     // TR x sum of the biased ACF before its first value <= 0
+  const n = v.length; let m = 0; for (let t = 0; t < n; t++) m += v[t]; m /= n;
+  const c = new Float64Array(n); let c0 = 0; for (let t = 0; t < n; t++) { c[t] = v[t] - m; c0 += c[t] * c[t]; }
+  if (!(c0 > 0)) return NaN;
+  let area = 0;
+  for (let k = 0; k < n; k++) { let s = 0; for (let t = 0; t + k < n; t++) s += c[t] * c[t + k]; const r = s / c0; if (r <= 0) break; area += r; }
+  return TR * area;
+}
+function sd(v) { let m = 0; for (const a of v) m += a; m /= v.length; let s = 0; for (const a of v) s += (a - m) ** 2; return Math.sqrt(s / v.length); }
+function coarse(v, s) { const n = Math.floor(v.length / s), o = new Float64Array(n); for (let i = 0; i < n; i++) { let a = 0; for (let k = 0; k < s; k++) a += v[i * s + k]; o[i] = a / s; } return o; }
+function sampenCounts(x, m, r) {
+  const N = x.length - m; let A = 0, B = 0;
+  for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) {
+    let d = 0; for (let k = 0; k < m; k++) { const e = Math.abs(x[i + k] - x[j + k]); if (e > d) d = e; }
+    if (d <= r) { B++; if (Math.abs(x[i + m] - x[j + m]) <= r) A++; }
+  }
+  return [A, B];
+}
+function mse(v) {                           // one contiguous segment; r fixed at r_frac x SD of the scale-1 segment
+  const r = D.r_frac * sd(v);
+  return D.scales.map(s => { const c = coarse(v, s); const [A, B] = c.length - D.m >= 2 ? sampenCounts(c, D.m, r) : [0, 0];
+    return { e: A > 0 && B > 0 ? -Math.log(A / B) : NaN, n: c.length }; });
+}
+
+// ---------- state ----------
+const S = { subject: D.subjects[0], condition: D.conditions[0], L: D.window, step: D.step, w: 0, A: 0, B: 1,
+            clim: 0.8, order: "network", zoom: false, starts: [] };
+
+// ---------- drawing helpers ----------
+function fit(canvas) {
+  const dpr = window.devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
+  const ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+function hexRGB(h) { h = h.replace("#", ""); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); }
+function divergingLUT() {
+  const stops = [["--div-neg-2", -1], ["--div-neg-1", -0.5], ["--div-mid", 0], ["--div-pos-1", 0.5], ["--div-pos-2", 1]].map(([n, v]) => [v, hexRGB(css(n))]);
+  const lut = new Uint8ClampedArray(256 * 3);
+  for (let i = 0; i < 256; i++) {
+    const v = i / 255 * 2 - 1; let k = 0; while (k < stops.length - 2 && v > stops[k + 1][0]) k++;
+    const [v0, c0] = stops[k], [v1, c1] = stops[k + 1], f = (v - v0) / (v1 - v0);
+    for (let c = 0; c < 3; c++) lut[i * 3 + c] = c0[c] + f * (c1[c] - c0[c]);
+  }
+  return lut;
+}
+let LUT = null;
+function drawHeat(canvas, M) {
+  const order = ORDERS[S.order], img = new ImageData(P, P), lim = S.clim, mid = hexRGB(css("--div-mid"));
+  for (let a = 0; a < P; a++) for (let b = 0; b < P; b++) {
+    const v = M[order[a] * P + order[b]], o = (a * P + b) * 4;
+    if (!fin(v)) { img.data[o] = mid[0]; img.data[o + 1] = mid[1]; img.data[o + 2] = mid[2]; img.data[o + 3] = 255; continue; }
+    const i = Math.max(0, Math.min(255, Math.round((Math.max(-lim, Math.min(lim, v)) / lim + 1) / 2 * 255)));
+    img.data[o] = LUT[i * 3]; img.data[o + 1] = LUT[i * 3 + 1]; img.data[o + 2] = LUT[i * 3 + 2]; img.data[o + 3] = 255;
+  }
+  const off = document.createElement("canvas"); off.width = off.height = P; off.getContext("2d").putImageData(img, 0, 0);
+  const { ctx, w } = fit(canvas);
+  ctx.imageSmoothingEnabled = false; ctx.drawImage(off, 0, 0, w, w);
+  if (S.order === "network") {
+    ctx.strokeStyle = css("--surface-1"); ctx.lineWidth = 1;
+    for (const k of boundaries(order)) { const z = k / P * w; ctx.beginPath(); ctx.moveTo(z, 0); ctx.lineTo(z, w); ctx.moveTo(0, z); ctx.lineTo(w, z); ctx.stroke(); }
+  }
+  const pa = order.indexOf(S.A), pb = order.indexOf(S.B), u = w / P;   // selected cell (A row, B column)
+  ctx.strokeStyle = css("--text-primary"); ctx.lineWidth = 1.5; ctx.strokeRect(pb * u - 2, pa * u - 2, u + 4, u + 4);
+}
+function drawColorbar() {
+  const c = $("colorbar"), ctx = c.getContext("2d"), img = ctx.createImageData(180, 10);
+  for (let x = 0; x < 180; x++) { const i = Math.round(x / 179 * 255); for (let y = 0; y < 10; y++) { const o = (y * 180 + x) * 4; img.data[o] = LUT[i * 3]; img.data[o + 1] = LUT[i * 3 + 1]; img.data[o + 2] = LUT[i * 3 + 2]; img.data[o + 3] = 255; } }
+  ctx.putImageData(img, 0, 0); $("cbMin").textContent = (-S.clim).toFixed(1); $("cbMax").textContent = "+" + S.clim.toFixed(1);
+}
+function niceTicks(lo, hi, n) {
+  const span = hi - lo || 1, step0 = span / n, mag = 10 ** Math.floor(Math.log10(step0));
+  const step = [1, 2, 5, 10].map(f => f * mag).find(s => span / s <= n) || 10 * mag;
+  const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10)); return out;
+}
+function axes(ctx, box, xr, yr, opts = {}) {
+  const { l, t, w, h } = box;
+  ctx.font = "11px system-ui, sans-serif"; ctx.fillStyle = css("--text-secondary"); ctx.strokeStyle = css("--grid"); ctx.lineWidth = 1;
+  for (const v of niceTicks(yr[0], yr[1], opts.ny || 3)) {
+    const y = t + h - (v - yr[0]) / (yr[1] - yr[0]) * h; ctx.beginPath(); ctx.moveTo(l, y); ctx.lineTo(l + w, y); ctx.stroke();
+    ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.fillText(opts.yfmt ? opts.yfmt(v) : v, l - 6, y);
+  }
+  if (opts.xticks !== false) for (const v of opts.xtickVals || niceTicks(xr[0], xr[1], opts.nx || 8)) {
+    const x = l + (v - xr[0]) / (xr[1] - xr[0]) * w; ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText(opts.xfmt ? opts.xfmt(v) : v, x, t + h + 5);
+  }
+  ctx.strokeStyle = css("--axis"); ctx.beginPath(); ctx.moveTo(l, t + h); ctx.lineTo(l + w, t + h); ctx.stroke();
+  if (opts.xlabel) { ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillStyle = css("--text-muted"); ctx.fillText(opts.xlabel, l + w, t + h + 18); }
+}
+function range(v) { let lo = Infinity, hi = -Infinity; for (const a of v) if (fin(a)) { if (a < lo) lo = a; if (a > hi) hi = a; } const pad = (hi - lo) * 0.06 || 1; return [lo - pad, hi + pad]; }
+
+// ---------- timeseries charts ----------
+const charts = {};
+function tsChart(id, getY, color) {
+  charts[id] = { getY, color, hover: null };
+  const c = $(id);
+  c.addEventListener("mousemove", e => { charts[id].hover = e.offsetX; drawTS(id); showTip(e, tsTip(id, e.offsetX)); });
+  c.addEventListener("mouseleave", () => { charts[id].hover = null; drawTS(id); hideTip(); });
+  if (id === "meanTS") c.addEventListener("click", e => { const t = xToTR(id, e.offsetX); if (t == null) return;
+    let best = 0; S.starts.forEach((s, i) => { if (Math.abs(s + S.L / 2 - t) < Math.abs(S.starts[best] + S.L / 2 - t)) best = i; });
+    S.w = best; $("slider").value = best; updateWindow(); });
+}
+function tsBox(c) { return { l: 52, t: 8, w: c.clientWidth - 64, h: c.clientHeight - 34 }; }
+function xRange(r) { return S.zoom && S.starts.length ? [S.starts[S.w], S.starts[S.w] + S.L - 1] : [0, r.n_tr - 1]; }
+function xToTR(id, px) { const c = $(id), b = tsBox(c), [a, z] = xRange(rec()); if (px < b.l || px > b.l + b.w) return null; return Math.round(a + (px - b.l) / b.w * (z - a)); }
+function drawTS(id) {
+  const ch = charts[id], r = series(rec()), y = ch.getY(r), c = $(id), { ctx } = fit(c), b = tsBox(c), [a, z] = xRange(r);
+  const yr = range(y.subarray(a, z + 1)), X = t => b.l + (t - a) / (z - a) * b.w, Y = v => b.t + b.h - (v - yr[0]) / (yr[1] - yr[0]) * b.h;
+  if (S.starts.length && !S.zoom) { ctx.fillStyle = css("--band"); const s = S.starts[S.w]; ctx.fillRect(X(s), b.t, X(s + S.L - 1) - X(s), b.h); }
+  axes(ctx, b, [a * TR, z * TR], yr, { xfmt: v => v + " s", ny: 3, xlabel: "time (s)" });
+  ctx.setLineDash([3, 3]); ctx.strokeStyle = css("--axis");
+  for (const [, s] of r.runs) if (s > a && s < z) { ctx.beginPath(); ctx.moveTo(X(s), b.t); ctx.lineTo(X(s), b.t + b.h); ctx.stroke(); }
+  ctx.setLineDash([]);
+  ctx.strokeStyle = ch.color(); ctx.lineWidth = 1.25; ctx.lineJoin = "round"; ctx.beginPath();
+  const stride = Math.max(1, Math.floor((z - a) / (b.w * 2)));
+  for (let t = a; t <= z; t += stride) { const px = X(t), py = Y(y[t]); t === a ? ctx.moveTo(px, py) : ctx.lineTo(px, py); }
+  ctx.stroke();
+  if (ch.hover != null) { const t = xToTR(id, ch.hover); if (t != null) { ctx.strokeStyle = css("--text-muted"); ctx.beginPath(); ctx.moveTo(X(t), b.t); ctx.lineTo(X(t), b.t + b.h); ctx.stroke();
+    ctx.fillStyle = ch.color(); ctx.beginPath(); ctx.arc(X(t), Y(y[t]), 4, 0, 7); ctx.fill(); ctx.strokeStyle = css("--surface-1"); ctx.lineWidth = 2; ctx.stroke(); } }
+}
+function runOf(r, t) { for (const [name, s, n] of r.runs) if (t >= s && t < s + n) return name; return ""; }
+function tsTip(id, px) { const t = xToTR(id, px); if (t == null) return null; const r = rec(); return `${(t * TR).toFixed(1)} s · TR ${t} · run ${runOf(r, t)}<br>value ${charts[id].getY(r)[t].toFixed(2)}`; }
+
+// ---------- tooltip ----------
+function showTip(e, html) { const tip = $("tip"); if (!html) return hideTip(); tip.innerHTML = html; tip.style.display = "block";
+  const x = e.clientX + 14, y = e.clientY + 14; tip.style.left = Math.min(x, innerWidth - tip.offsetWidth - 8) + "px"; tip.style.top = Math.min(y, innerHeight - tip.offsetHeight - 8) + "px"; }
+function hideTip() { $("tip").style.display = "none"; }
+function regionName(p) { return `${D.labels[p]} <span style="color:var(--text-muted)">(${D.network[p]})</span>`; }
+
+// ---------- heatmap interaction ----------
+let WIN_FC = null;
+function heatCell(canvas, e) { const w = canvas.clientWidth, a = Math.floor(e.offsetY / w * P), b = Math.floor(e.offsetX / w * P);
+  if (a < 0 || b < 0 || a >= P || b >= P) return null; const o = ORDERS[S.order]; return [o[a], o[b]]; }
+for (const [id, get] of [["fullFC", () => series(rec())._fc], ["winFC", () => WIN_FC]]) {
+  const c = $(id);
+  c.addEventListener("mousemove", e => { const cell = heatCell(c, e), M = get(); if (!cell || !M) return hideTip();
+    showTip(e, `${regionName(cell[0])}<br>× ${regionName(cell[1])}<br>r = ${M[cell[0] * P + cell[1]].toFixed(3)}`); });
+  c.addEventListener("mouseleave", hideTip);
+  c.addEventListener("click", e => { const cell = heatCell(c, e); if (!cell) return; S.A = cell[0]; S.B = cell[1]; $("regA").value = S.A; $("regB").value = S.B; drawAll(); });
+}
+
+// ---------- metric charts ----------
+let WIN_TAU = null, MSE_W = null;
+function drawTau() {
+  const r = rec(), c = $("tauChart"), { ctx } = fit(c), b = { l: 44, t: 8, w: c.clientWidth - 56, h: c.clientHeight - 30 }, order = ORDERS[S.order];
+  const full = order.map(p => r.tau[p]), win = WIN_TAU ? order.map(p => WIN_TAU[p]) : [];
+  const yr = range(full.concat(win)), X = k => b.l + (k + 0.5) / P * b.w, Y = v => b.t + b.h - (v - yr[0]) / (yr[1] - yr[0]) * b.h;
+  if (S.order === "network") { ctx.fillStyle = css("--surface-2"); let prev = 0, alt = false;
+    for (const k of boundaries(order).concat([P])) { if (alt) ctx.fillRect(X(prev - 0.5), b.t, X(k - 0.5) - X(prev - 0.5), b.h); alt = !alt; prev = k; } }
+  axes(ctx, b, [0, P], yr, { xticks: false, ny: 4, yfmt: v => v + " s" });
+  ctx.fillStyle = css("--text-muted"); ctx.font = "11px system-ui, sans-serif"; ctx.textAlign = "right"; ctx.textBaseline = "top";
+  ctx.fillText(S.order === "network" ? "regions, grouped by network (alternate shading)" : "regions, atlas order", b.l + b.w, b.t + b.h + 6);
+  for (const [p, col] of [[S.A, css("--series-1")], [S.B, css("--series-2")]]) { const x = X(order.indexOf(p)); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, b.t); ctx.lineTo(x, b.t + b.h); ctx.stroke(); }
+  for (const [vals, col] of [[full, css("--neutral")], [win, css("--series-3")]]) { ctx.fillStyle = col;
+    vals.forEach((v, k) => { if (fin(v)) { ctx.beginPath(); ctx.arc(X(k), Y(v), 2, 0, 7); ctx.fill(); } }); }
+  c.onmousemove = e => { const k = Math.floor((e.offsetX - b.l) / b.w * P); if (k < 0 || k >= P) return hideTip(); const p = order[k];
+    showTip(e, `${regionName(p)}<br>full ${fmt(r.tau[p])} s · window ${WIN_TAU ? fmt(WIN_TAU[p]) : "–"} s`); };
+  c.onmouseleave = hideTip;
+  c.onclick = e => { const k = Math.floor((e.offsetX - b.l) / b.w * P); if (k >= 0 && k < P) { S.A = order[k]; $("regA").value = S.A; drawAll(); } };
+}
+function fmt(v, d = 2) { return v == null || !fin(v) ? "–" : v.toFixed(d); }
+function drawMSE() {
+  const r = rec(), c = $("mseChart"), { ctx } = fit(c), b = { l: 44, t: 10, w: c.clientWidth - 60, h: c.clientHeight - 40 };
+  const sc = D.scales, lines = [];
+  for (const [p, col, wi] of [[S.A, css("--series-1"), 0], [S.B, css("--series-2"), 1]]) {
+    lines.push({ col, dash: false, pts: sc.map((s, i) => ({ s, v: r.mse[i][p], ok: true })) });
+    if (MSE_W) lines.push({ col, dash: true, pts: MSE_W[wi].map((o, i) => ({ s: sc[i], v: o.e, ok: o.n >= 100 })) });
+  }
+  const yr = range(lines.flatMap(l => l.pts.map(q => q.v)));
+  const X = s => b.l + (s - sc[0]) / (sc[sc.length - 1] - sc[0]) * b.w, Y = v => b.t + b.h - (v - yr[0]) / (yr[1] - yr[0]) * b.h;
+  axes(ctx, b, [sc[0], sc[sc.length - 1]], yr, { xtickVals: sc, ny: 4, xlabel: "scale (coarse-graining factor)", yfmt: v => v.toFixed(1) });
+  for (const l of lines) {
+    ctx.strokeStyle = l.col; ctx.lineWidth = 2; ctx.setLineDash(l.dash ? [5, 4] : []); ctx.beginPath(); let started = false;
+    for (const q of l.pts) { if (!fin(q.v)) { started = false; continue; } started ? ctx.lineTo(X(q.s), Y(q.v)) : ctx.moveTo(X(q.s), Y(q.v)); started = true; }
+    ctx.stroke(); ctx.setLineDash([]);
+    for (const q of l.pts) { if (!fin(q.v)) continue; const x = X(q.s), y = Y(q.v);
+      if (q.ok) { ctx.fillStyle = l.col; ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fill(); ctx.strokeStyle = css("--surface-1"); ctx.lineWidth = 2; ctx.stroke(); }
+      else { ctx.strokeStyle = l.col; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x - 4, y - 4); ctx.lineTo(x + 4, y + 4); ctx.moveTo(x + 4, y - 4); ctx.lineTo(x - 4, y + 4); ctx.stroke(); } }
+  }
+  c.onmousemove = e => { const i = Math.round((e.offsetX - b.l) / b.w * (sc.length - 1)); if (i < 0 || i >= sc.length) return hideTip();
+    const w = MSE_W || [[], []];
+    showTip(e, `scale ${sc[i]}<br>A: full ${fmt(r.mse[i][S.A], 3)} · window ${fmt(w[0][i]?.e, 3)}<br>B: full ${fmt(r.mse[i][S.B], 3)} · window ${fmt(w[1][i]?.e, 3)}` +
+      (w[0][i] ? `<br>window samples at this scale: ${w[0][i].n}` : "")); };
+  c.onmouseleave = hideTip;
+  $("mseNote").textContent = `m = ${D.m}, r = ${D.r_frac} × SD (per run / per window), Chebyshev distance ≤ r. Window points drawn as × have fewer than 100 coarse-grained samples (SampEn unreliable). Missing points: no template matches.`;
+}
+function drawStats() {
+  const r = rec(), mean = a => { let s = 0, n = 0; for (const v of a) if (fin(v)) { s += v; n++; } return n ? s / n : NaN; };
+  const rows = [["A · " + D.labels[S.A], r.tau[S.A], WIN_TAU?.[S.A], r.mse[0][S.A], MSE_W?.[0][0].e],
+                ["B · " + D.labels[S.B], r.tau[S.B], WIN_TAU?.[S.B], r.mse[0][S.B], MSE_W?.[1][0].e],
+                ["all regions (mean)", mean(r.tau), WIN_TAU ? mean(WIN_TAU) : NaN, mean(r.mse[0]), null]];
+  const F = series(r)._fc;
+  $("stats").innerHTML = `<tr><th></th><th>timescale full (s)</th><th>timescale window (s)</th><th>SampEn full</th><th>SampEn window</th></tr>` +
+    rows.map(q => `<tr><td>${q[0]}</td><td>${fmt(q[1])}</td><td>${fmt(q[2])}</td><td>${fmt(q[3], 3)}</td><td>${fmt(q[4], 3)}</td></tr>`).join("") +
+    `<tr><td>r(A, B)</td><td colspan="2">full ${fmt(F[S.A * P + S.B], 3)}</td><td colspan="2">window ${WIN_FC ? fmt(WIN_FC[S.A * P + S.B], 3) : "–"}</td></tr>`;
+}
+
+// ---------- update cycle ----------
+function computeWindow() {
+  const r = series(rec());
+  if (!S.starts.length) { WIN_FC = WIN_TAU = MSE_W = null; return; }
+  const s = S.starts[S.w];
+  WIN_FC = corrMatrix(r._x, s, S.L);
+  WIN_TAU = new Float64Array(P); for (let p = 0; p < P; p++) WIN_TAU[p] = timescale(column(r, p, s, s + S.L));
+  MSE_W = [S.A, S.B].map(p => mse(column(r, p, s, s + S.L)));
+}
+function updateStarts() {
+  const r = rec(); S.starts = windowStarts(r.runs, S.L, S.step);
+  $("slider").max = Math.max(0, S.starts.length - 1); S.w = Math.min(S.w, Math.max(0, S.starts.length - 1)); $("slider").value = S.w;
+}
+function drawAll() {
+  const r = series(rec());
+  computeWindow();
+  const runs = r.runs.map(([n, , len]) => `${n} ${len}`).join(", ");
+  $("fullMeta").textContent = `sub-${S.subject} · ${S.condition} · ${r.n_tr} TRs (${(r.n_tr * TR / 60).toFixed(1)} min) · runs ${runs}`;
+  drawHeat($("fullFC"), r._fc);
+  if (WIN_FC) { const s = S.starts[S.w]; drawHeat($("winFC"), WIN_FC);
+    $("winMeta").textContent = `run ${runOf(r, s)} · TR ${s}–${s + S.L - 1} · ${(s * TR).toFixed(1)}–${((s + S.L) * TR).toFixed(1)} s · ${S.L} TRs (${(S.L * TR).toFixed(0)} s)`;
+    $("winIdx").textContent = `${S.w + 1} / ${S.starts.length}`; }
+  else { fit($("winFC")); $("winMeta").textContent = `no window of ${S.L} TRs fits inside a run (runs: ${runs})`; $("winIdx").textContent = "0 / 0"; }
+  for (const id of ["meanTS", "tsA", "tsB"]) drawTS(id);
+  $("tsAtitle").textContent = `Region A · ${D.labels[S.A]} (${D.network[S.A]})`;
+  $("tsBtitle").textContent = `Region B · ${D.labels[S.B]} (${D.network[S.B]})`;
+  $("tsAmeta").textContent = `timescale full ${fmt(r.tau[S.A])} s · window ${fmt(WIN_TAU?.[S.A])} s`;
+  $("tsBmeta").textContent = `timescale full ${fmt(r.tau[S.B])} s · window ${fmt(WIN_TAU?.[S.B])} s · r(A, B) full ${fmt(r._fc[S.A * P + S.B], 3)}, window ${WIN_FC ? fmt(WIN_FC[S.A * P + S.B], 3) : "–"}`;
+  drawTau(); drawMSE(); drawStats();
+}
+function updateWindow() { drawAll(); }
+
+// ---------- controls ----------
+function fillSelect(el, items) { el.innerHTML = items.map(([v, t]) => `<option value="${v}">${t}</option>`).join(""); }
+function fillRegions() {
+  const items = ORDERS[S.order].map(p => [p, `${D.network[p]} · ${D.labels[p]}`]);
+  fillSelect($("regA"), items); fillSelect($("regB"), items); $("regA").value = S.A; $("regB").value = S.B;
+}
+fillSelect($("subject"), D.subjects.map(s => [s, "sub-" + s]));
+fillSelect($("condition"), D.conditions.map(c => [c, c]));
+$("wlen").value = S.L; $("wstep").value = S.step;
+fillRegions();
+$("subtitle").textContent = `${D.parcellation} (${P} regions) · ${D.subjects.length} subjects × ${D.conditions.length} conditions · TR ${TR} s · window FC and window metrics computed in the page`;
+$("subject").onchange = e => { S.subject = e.target.value; updateStarts(); drawAll(); };
+$("condition").onchange = e => { S.condition = e.target.value; S.w = 0; updateStarts(); drawAll(); };
+$("wlen").onchange = e => { S.L = Math.max(10, parseInt(e.target.value) || D.window); e.target.value = S.L; updateStarts(); drawAll(); };
+$("wstep").onchange = e => { S.step = Math.max(1, parseInt(e.target.value) || D.step); e.target.value = S.step; updateStarts(); drawAll(); };
+$("regA").onchange = e => { S.A = +e.target.value; drawAll(); };
+$("regB").onchange = e => { S.B = +e.target.value; drawAll(); };
+$("clim").onchange = e => { S.clim = +e.target.value; drawColorbar(); drawAll(); };
+$("order").onchange = e => { S.order = e.target.value; fillRegions(); drawAll(); };
+$("zoom").onchange = e => { S.zoom = e.target.checked; for (const id of ["meanTS", "tsA", "tsB"]) drawTS(id); };
+let pending = null;
+$("slider").oninput = e => { S.w = +e.target.value; if (!pending) pending = requestAnimationFrame(() => { pending = null; updateWindow(); }); };
+tsChart("meanTS", r => r._mean, () => css("--text-secondary"));
+tsChart("tsA", r => column(r, S.A, 0, r.n_tr), () => css("--series-1"));
+tsChart("tsB", r => column(r, S.B, 0, r.n_tr), () => css("--series-2"));
+addEventListener("resize", () => drawAll());
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { LUT = divergingLUT(); drawColorbar(); drawAll(); });
+
+// ---------- self-check against Python (data/timeseries_metrics.py) ----------
+function selfCheck() {
+  const k = D.check; if (!k) return;
+  const r = series(D.data[k.subject][k.condition]), C = corrMatrix(r._x, k.start, k.length);
+  let dFC = 0, dTau = 0, dMSE = 0;
+  for (const [i, j, v] of k.fc_pairs) dFC = Math.max(dFC, Math.abs(C[i * P + j] - v));
+  for (let p = 0; p < P; p++) { const a = timescale(column(r, p, k.start, k.start + k.length)), b = k.tau[p];
+    dTau = Math.max(dTau, (isNaN(a) && b == null) ? 0 : Math.abs(a - b)); }
+  k.mse_regions.forEach((p, i) => { const m = mse(column(r, p, k.start, k.start + k.length));
+    m.forEach((o, j) => { const b = k.mse[i][j]; dMSE = Math.max(dMSE, (isNaN(o.e) && b == null) ? 0 : Math.abs(o.e - b)); }); });
+  const ok = dFC < 1e-9 && dTau < 1e-9 && dMSE < 1e-9 && fin(dFC + dTau + dMSE);
+  $("selfcheck").innerHTML = `<span style="color:var(${ok ? "--good" : "--critical"})">${ok ? "✓" : "✗"}</span> Self-check vs Python (sub-${k.subject} ${k.condition}, TR ${k.start}–${k.start + k.length - 1}): ` +
+    `${ok ? "pass" : "FAIL"} · max |Δ| window FC ${dFC.toExponential(1)}, timescale ${dTau.toExponential(1)}, entropy ${dMSE.toExponential(1)}`;
+}
+
+LUT = divergingLUT(); drawColorbar(); updateStarts(); drawAll(); selfCheck();
+</script>
+</body>
+</html>
