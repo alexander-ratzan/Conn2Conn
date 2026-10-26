@@ -242,6 +242,21 @@ ceiling is mildly optimistic (the consensus includes the target condition).
 - Reading: for SC → FC the limit is information, not model class; next are E2.2 (FC → FC, SC as an added view) and
   more samples per subject (E3). ≈ 2 GPU-h.
 
+**E2.1 addendum — can a flow learn SC → latent without a ridge anchor?** (user 2026-10-26; status: running). Every
+real-data flow in E2.1 was anchored on ridge (residual flow, ridge-start flow), and E2.1's conclusions were drawn in
+linear PCA / CCA coordinates. The addendum fits two **un-anchored** flows, from noise straight to each condition's
+encoding, conditioned on SC and the condition token (20 % token dropout): (a) a **linear velocity field**, linear in
+the state, the SC codes and the condition with flow-time-varying coefficients (the form of the exact flow for
+linear-Gaussian data, so it should match the linear-Gaussian reference if training works); (b) the **nonlinear** MLP
+velocity field. Each gets a full null (SC shuffled), a synthetic check (reported, not a gate), and 5 seeds, scored
+like E2.1 (point demeaned r against ridge; energy distance, set identification and spread against the
+linear-Gaussian). The question: does a flow-matching setup learn at all here, linear or nonlinear, without being given
+the linear mean? Output: `results/Glasser/e21/tables/addendum.md`, `figures/fig_addendum_free_flows.png`. Jobs:
+synthetic `21033481`; runs `21033482`–`87`; analysis `21033489`. Representation caveat recorded for future flow work:
+PCA / CCA coordinates are linear and, for CCA, chosen for linear cross-view agreement, so they tilt toward linear
+answers; later flow avenues should not anchor on ridge and should consider learned nonlinear encoders and more
+samples per subject.
+
 **Deliverables** (`scripts/experiments/joint_flow_matching/results/Glasser/`): per-seed records; `summary.md` (one
 row per hypothesis: difference ± SE, seeds positive, supported); figures with input → output labels: (1) SC → each
 condition, decoded, for every model, with v3:E0 and the ceiling; (2) energy distance and set identification for the
@@ -536,5 +551,6 @@ v3 closed 2026-10-21 (all experiments done). Carried forward:
 | 2026-10-26 | Diagnostics added before the pilot (user): a spread-only null (SC shuffled for the residual flow only, real ridge means; tests whether subject-specific spread comes from SC) and a rest test–retest check (each subject's session 1 vs 2 encodings in the latent; the correlation with the flow's predicted rest spread is the readout, since predicted spread also contains what SC does not explain). Chain: pilot `21020036` → G3 `21020037` → seeds 1–4 `21020038`–`41` → analysis `21020042` (`64a7f21`). |
 | 2026-10-26 | E2.2 redrafted (user): cross-condition FC translation as a generative model in block FC PCA codes (single-source, multi-source, SC added, SC only), identity / linear / linear-Gaussian / corrector / residual flow, H1–H6 with the energy score as the primary single-observation distributional metric; runs on the user's go after E2.1. G3 failed on the seed-0 pilot (flow means from 16 samples too noisy: r 0.68 with the corrector); flow point estimate now from 256 samples; chain resubmitted (flow seed 0 `21029998` → G3 `21029999` → seeds `21030000`–`03` → analysis `21030004`). |
 | 2026-10-26 | E2.1 done (5 seeds): SC → latent linear (H1 negligible), no SC-dependent spread (H3–H5 not supported), linear-Gaussian is enough; latent → SC corrector +0.004 (H7). Write-up `joint_flow_matching.md`. |
+| 2026-10-26 | E2.1 addendum added and running (user): un-anchored flows from noise, linear and nonlinear velocity, with full nulls (`13e111e`). |
 
 Last updated at: 2026-10-26 EDT
