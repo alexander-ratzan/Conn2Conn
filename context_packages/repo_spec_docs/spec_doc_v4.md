@@ -2,10 +2,10 @@
 
 **Purpose:** v4 work: modeling directions beyond the linear baselines, drawn from
 [`modeling_directions.md`](../modeling/modeling_directions.md) (the technical reference; model labels such as FM-1 and
-MV-5 refer to it). First item: joint multidirectional translation across SC and every FC condition with one shared
-nonlinear backbone, as a regression model and as a deterministic flow (E1); a CCA-latent benchmark that sets how E1 is
-framed (E2); a conditional generative follow-up (E3).
-**Status:** draft (v3 stays active until it is closed; open v3 items move here at closure) · **Started:** 2026-10-20 ·
+MV-5 refer to it). Items: a CCA-latent benchmark that found a shared functional latent across FC conditions (E2);
+linear, nonlinear and flow models that predict each condition's latent encoding from SC, including a conditional
+flow that generates a subject's encodings (E1); a generative follow-up with more samples per subject (E3).
+**Status:** active (since 2026-10-26; v3 closed 2026-10-21) · **Started:** 2026-10-20 ·
 **Predecessor:** [`spec_doc_v3.md`](spec_doc_v3.md) · **Format:** [`spec_conventions.md`](spec_conventions.md) ·
 **Modeling reference:** [`modeling_directions.md`](../modeling/modeling_directions.md)
 
@@ -17,9 +17,9 @@ framed (E2); a conditional generative follow-up (E3).
 
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
-| E1 | Structure ↔ functional-latent translation: SC → consensus latent (decoded to each FC condition) with MLP, identity-aware loss and flow; optional multi-condition FC → FC (Part 2) | planned (revised 2026-10-21 after E2) | I1, E2, D5 | agent:modeling |
+| E1 | SC → functional latent: E1.1 conditional generation of each condition's CCA encoding from SC (linear, nonlinear, linear-Gaussian, flow); E1.2 optional multi-condition FC → FC | planned (revised 2026-10-26) | I1, E2, D7 | agent:modeling |
 | E2 | CCA-latent bidirectional benchmark: multiview CCA latent of FC as the encoding for FC → SC and the target for SC → FC | done 2026-10-20 | I2, D4 | agent:modeling |
-| E3 | Conditional generative translation: noise-start flow (FM-2) or noisy bridge (FM-4), built on E1's SC → latent model | outline | E1 | — |
+| E3 | Generative follow-ups to E1.1: path noise, rest sessions as repeats, FC timeseries windows as more samples per subject | outline | E1.1 | — |
 | I1 | Joint translation infrastructure: pooled FC basis, (subject, source, target) data module, token model, integrator, runner | in progress | — | agent:modeling |
 | I2 | Multiview CCA library module (MAXVAR fit / encode / decode), shared by E1 and E2 | done 2026-10-20 | — | agent:modeling |
 | D1 | Views and the true rest target | decided 2026-10-20 | — | user |
@@ -27,7 +27,9 @@ framed (E2); a conditional generative follow-up (E3).
 | D3 | E1 compute envelope and autonomous execution | decided 2026-10-20 | — | user |
 | D4 | E2 autonomous execution | decided 2026-10-20 | — | user |
 | D5 | E1 reframed around the consensus latent; training fix for the synthetic gate; identity-loss arm | decided 2026-10-21 | E2 | user |
-| D6 | Spec and repository housekeeping | decided 2026-10-21 | — | user |
+| D6 | Spec and repository housekeeping | decided 2026-10-21; v4 active 2026-10-26 | — | user |
+| D7 | E1.1 as conditional generation of each condition's encoding (8 targets per subject) | decided 2026-10-26 | E2 | user |
+| C!1 | (from v3:C!2) Subject-specific SC is dominated by parcel size, which FC cannot see | standing caveat | — | — |
 
 ---
 
@@ -48,120 +50,129 @@ $i$ in view $m$; view embedding $e(m)$; flow time $\tau \in [0, 1]$.
 |---|---|---|
 | D1 | **Views (user 2026-10-20):** main model on 9 views, $\mathcal{M}$ = {SC, `rest`, 7 tasks} (72 ordered pairs). `rest` (4 runs, xcp-d combined relmat) is the true rest view and the rest target, as in every earlier result. For E1 Part 2 and E3, a sessions variant adds `rest_S1` and `rest_S2` (per-session mean of the LR and RL run matrices) with a nesting mask: pairs between `rest` and either session are excluded from training and evaluation, because a session is half of `rest`'s data. S1 ↔ S2 is then the in-model test–retest translation. | Continuity with v3:E0 / E2 and v2:E2.2; the mask prevents near-identity leakage; the sessions add a ceiling and the two-sample targets E3 needs. |
 | D2 | **Decided (user 2026-10-20):** one FC basis from a PCA of the stacked train-split FC of all FC views, each block centered on its own train mean (condition means stored and added back at decoding by the target token) and divided by its total (Frobenius) norm, so every view carries the same total variance (standard multiblock / consensus PCA block scaling, Westerhuis et al. 1998; the first-singular-value alternative is multiple factor analysis, Escofier & Pagès; E1.0c: total-norm scaling is better for rest and for cross-view identification); SC keeps its own train PCA (also divided by its total norm); codes share one dimension $k \in$ {64, 128, 256, 512}, bounded above by the SC rank (658; E1.0b). (The first E1 design's basis ablations, per-condition bases and an SC basis rotated onto the FC basis, apply to Part 2 only.) | The bridge interpolates codes directly, so all views need comparable coordinates; per-condition centering keeps condition offsets out of the flow, so the model works on subject deviations (the quantity demeaned metrics score). |
-| D3 | **Decided (user 2026-10-20; revised by D5 on 2026-10-21: Part 1 cap 10 GPU-h, Part 2 needs the user's go):** E1 runs autonomously; cap 25 GPU-h (estimate 15–18); per-job time limit = pilot time per trial × 1.5. Stop and report on a failed gate (G0, G1, G3), > 20 % task errors after one retry, a log / config mismatch, a code change outside I1's files, or the cap. Commits local (no push). Relaxing a threshold needs the user. | Small models in code space; explicit exits as v3:D1–D3. |
+| D3 | **Decided (user 2026-10-20; revised by D5 / D7: E1.1 cap 10 GPU-h, E1.2 needs the user's go):** E1 runs autonomously; cap 25 GPU-h (estimate 15–18); per-job time limit = pilot time per trial × 1.5. Stop and report on a failed gate (G0, G1, G3), > 20 % task errors after one retry, a log / config mismatch, a code change outside I1's files, or the cap. Commits local (no push). Relaxing a threshold needs the user. | Small models in code space; explicit exits as v3:D1–D3. |
 | D4 | **Decided (user 2026-10-20):** E2 runs autonomously through E2.0–E2.3, CPU only, cap 15 CPU-node-hours. Stop and report on a failed gate (G0, G1), > 20 % task errors after one retry, a log / config mismatch, a code change outside I2 and E2's folder (plus the E1 import switch), or the cap. Commits local (no push). Relaxing a threshold needs the user. The E1 A3 / A4 pilot (E1.3) waits for E2's result. | E2 is closed form and cheap; it decides E1's framing, so it runs first. |
-| D5 | **Decided (user 2026-10-21):** E1 is reframed as SC ↔ consensus latent (Part 1, the core), with the multi-condition FC → FC model kept as an optional Part 2. The failed synthetic gate is fixed in training (flow time drawn at 0 with probability $p_0$, longer training), not by lowering the threshold. An identity-aware loss (demeaned corr-eye on the latent) is an arm of Part 1. E3 stays an outline until E1 reports. D3 is revised: Part 1 autonomous, cap 10 GPU-h; Part 2 needs the user's go. | E2: the latent is where SC → FC gains and it is a smaller, cleaner problem; the gate should hold. |
+| D5 | **Decided (user 2026-10-21; target refined by D7):** E1 is reframed as SC ↔ consensus latent (Part 1, the core), with the multi-condition FC → FC model kept as an optional Part 2. The failed synthetic gate is fixed in training (flow time drawn at 0 with probability $p_0$, longer training), not by lowering the threshold. An identity-aware loss (demeaned corr-eye on the latent) is an arm of Part 1. E3 stays an outline until E1 reports. D3 is revised: Part 1 autonomous, cap 10 GPU-h; Part 2 needs the user's go. | E2: the latent is where SC → FC gains and it is a smaller, cleaner problem; the gate should hold. |
 | D6 | **Decided (user 2026-10-21):** v3 is closed (and v4 made active) once v3:E3's queued jobs finish; `scripts/notebooks/EDA/FC_encoded_conditions_analysis.ipynb` is committed as is; commits stay local until the user reviews them. | Avoid editing a spec with running work; keep the record reviewable. |
+| D7 | **Decided (user 2026-10-26):** E1.1 trains on every condition's encoding in E2's latent (8 targets per subject, condition token) instead of the consensus alone, so the problem keeps within-subject multiplicity; the main model is a conditional flow from noise with token dropout (generates with or without a condition); a linear-Gaussian model (ridge mean, one shared residual covariance) is the distributional reference; the ridge-start bridge and the nonlinear corrector stay as deterministic references. Primary evaluation: energy distance to each subject's observed encodings, flow vs linear-Gaussian (H3). The first pass is a baseline signal of whether the models learn, linearly and nonlinearly. | A consensus-only target gives one sample per subject, too close to a single paired regression; the eight encodings are observed samples of each subject's distribution. |
 
 ## 2. Experiments
 
-### E1 — Structure ↔ functional-latent translation: nonlinear and flow models   (slug: `joint_flow_matching`) · status: planned (revised 2026-10-21) · owner: agent:modeling
+### E1 — SC → functional latent: linear, nonlinear and flow models   (slug: `joint_flow_matching`) · status: planned (revised 2026-10-26) · owner: agent:modeling
 
-**In one paragraph.** E2 showed that a subject's *consensus functional latent* (the part of their FC shared across
-rest and the seven tasks, learned without SC) is a better thing to predict from structure than any single FC scan:
-predicting it from SC and decoding it into each condition beats predicting that condition directly, for all eight
-conditions. But E2 used only linear maps, and the gap to what the latent can hold is large (rest: 0.105 predicted vs
-0.304 when the true latent is decoded). E1 asks whether nonlinear models, an identity-aware loss and a deterministic
-flow close part of that gap. The latent becomes the shared functional target: one model predicts it from SC, and fixed
-decoders translate it into each task's FC.
+**In one paragraph.** E2 found that a shared functional latent, learned by multiview CCA across rest and the seven
+tasks without SC, is a better target for structure than any single FC scan. Every subject has **eight encodings** in
+that latent, one per condition; their mean is the subject's consensus. E1 asks whether SC can predict these
+encodings, first as point predictions (linear and nonlinear) and then as a **distribution**: given a subject's SC,
+can a conditional flow generate the cloud of that subject's condition encodings, with the right location, spread and
+individuality? Because each subject contributes eight targets instead of one, the problem keeps the within-subject
+multiplicity that a consensus-only setup would discard. The first pass is a baseline signal: can these models learn
+the mapping at all, linearly and nonlinearly, at 659 training subjects?
 
-**What changed from the first E1 design (2026-10-20) and why.** The first design trained one network over all 72
-view pairs in the block PCA codes. E2 moved the centre of gravity to the latent, so the core of E1 is now the single
-SC ↔ latent translation (Part 1). The original multi-condition FC → FC model is kept as an optional Part 2. Work
-already done carries over unchanged: the pre-checks (E1.0, below), the code space and its checks (I1, gate G0
-passed), and the linear references for all 72 pairs (A1: L1–L4, 5 seeds).
+**History.** The first E1 design (2026-10-20) trained one network over all 72 view pairs in block PCA codes. After E2
+it was reframed around the consensus latent (2026-10-21, D5), and then (2026-10-26, D7) around each condition's
+encoding, so the flow is a conditional generative model with several observed samples per subject rather than a
+single paired map. The 72-pair FC → FC model is kept as optional E1.2. Work done so far carries over (end of this
+section).
 
-#### E1.A Questions and hypotheses
+#### E1.1 — Conditional generation of each condition's latent encoding from SC (the core)
 
-| ID | Question | Comparison (test, paired by seed) | Primary metric | Supported if |
+**Data.** E2's SC-blind latent, refit per seed exactly as E2 chose it (block FC PCA, 256 codes per condition; 32
+dimensions; λ = 0.1). For held-out and training subjects alike, each condition's encoding $g^m_i$ is that condition's
+FC codes passed through its fixed CCA encoder; nothing about the latent is trained in E1. Because every condition was
+centered on its own group mean before encoding, a subject's eight encodings scatter around their consensus by the
+subject's condition-specific variation plus noise, not by the shared task differences. Input: SC's own PCA codes
+(64–512, chosen on val). Decoding to condition $m$ uses that condition's fixed CCA decoder.
+
+**Models.** All except the Gaussian are point models unless marked; the condition enters as a token.
+
+| Model | What it predicts | Role |
+|---|---|---|
+| Ridge → consensus | the consensus from SC (E2's model) | linear point reference for the consensus; must reproduce E2 exactly (gate G0b) |
+| Ridge → each condition | each condition's encoding from SC (one ridge per condition) | linear point reference per condition |
+| Linear-Gaussian | ridge mean per condition, with one residual covariance shared by all subjects (the spread does not depend on SC) | **linear distributional reference** (MV-5 style); the bar the flow must clear |
+| Nonlinear corrector | ridge prediction + a learned correction from SC and the condition token, trained on all 8 targets per subject | nonlinear point model |
+| Corrector + identity loss | the same, trained with squared error + demeaned corr-eye (`compute_correye_dm_loss`, imported) | identity-aware nonlinear point model |
+| Ridge-start bridge | a deterministic flow from the ridge prediction to the encoding, with the condition token | deterministic flow reference |
+| **Conditional flow** | **samples** of a subject's encoding, starting from noise, conditioned on SC and on the condition token; the token is dropped for 20 % of training examples, so the same model also generates without a condition | **main model** |
+
+The conditional flow therefore answers two questions: with a token, $p(g^m \mid \mathrm{SC}, m)$, comparable to the
+point models; without one, $p(g \mid \mathrm{SC})$, the distribution of the subject's condition encodings, for which
+every subject has eight observed samples. All networks are the `TokenBackbone` (`models/architectures/
+crossmodal_flow_matching.py`) with a new output-size argument (input 64–512 SC codes, output 32); the flows add the
+flow-time embedding. Small networks (width 128–512, 1–3 residual blocks); Optuna, 32 trials per model and seed,
+selected on val (point models on mean decoded demeaned r; flows on val energy distance, below).
+
+**Training fix from the failed synthetic gate** (applies to the ridge-start bridge): flow time is set to 0 with
+probability $p_0 \in$ {0, 0.25, 0.5} and drawn uniformly otherwise, and training runs longer (up to 1,000 epochs,
+patience 100). The conditional flow from noise is trained with the standard straight path from noise to target.
+
+**Evaluation** (184 test subjects; 64 samples per subject for the flows):
+
+| ID | Question | Metric | Compared with | Supported if |
 |---|---|---|---|---|
-| H1 | Is there nonlinear structure in SC → latent beyond the linear map? | nonlinear corrector (ridge + MLP) − ridge (E2's SC PCA → consensus latent model) | demeaned r of the decoded FC, averaged over the 8 conditions | support rule |
-| H2 | Does an identity-aware loss make the predicted latent more subject-specific? | MLP + identity loss − MLP | average rank of the decoded FC (mean of 8 conditions); demeaned r must not drop by more than 0.005 | support rule, plus the non-inferiority margin |
-| H3 | Does a flow add individual detail beyond regression? | flow, integrated − flow, one step; and − ridge | average rank (demeaned r and top-1 reported) | support rule against both |
-| H4 | (secondary) Does a nonlinear model improve the reverse, latent → SC? | MLP − ridge, inputs: 8-condition consensus and each task's encoding | SC demeaned r | support rule |
+| H1 | Can SC → encodings be learned nonlinearly beyond the linear map? | decoded demeaned r per condition, mean of 8 | corrector − ridge per condition | support rule |
+| H2 | Does the identity loss make predictions more individual? | decoded average rank, mean of 8; demeaned r may not drop by more than 0.005 | corrector + identity loss − corrector | support rule and margin |
+| **H3 (primary)** | Does the flow generate each subject's cloud of encodings better than a linear-Gaussian model? | energy distance between a subject's generated samples (no token) and their 8 observed encodings, averaged over subjects (lower is better) | linear-Gaussian − flow | support rule |
+| H4 | Are the generated clouds subject-specific? | set-to-set identification: 184 × 184 energy distances (generated cloud of subject $i$ vs observed encodings of subject $j$); top-1 and average rank | flow − linear-Gaussian; flow trained with SC shuffled across subjects must sit at chance | support rule |
+| H5 | Does the predicted spread track each subject's real spread? | correlation across subjects between predicted and observed within-subject variance (the Gaussian has none by construction); ratio of predicted to observed variance; coverage of the observed encodings | flow vs 0 | correlation above 0 by the support rule |
+| H6 | Does the flow keep point accuracy? | sample mean (with token) decoded per condition, demeaned r, mean of 8 | flow − corrector; non-inferiority margin 0.005 | margin |
+| H7 | (secondary) Does a nonlinear model improve latent → SC? | SC demeaned r; inputs: consensus and each task's encoding | corrector − ridge | support rule |
 
 **Support rule** (as everywhere in v4): the seed-mean difference is above 2 standard errors and has the same sign in
-at least 4 of 5 seeds. Every result is also reported per condition, with latent R² and latent identification
-(predicted vs true latent among the 184 test subjects), next to the v3:E0 rows, E2's ridge and the latent ceiling.
+at least 4 of 5 seeds. Every result is also reported per condition, next to the v3:E0 rows, E2's ridge and the latent
+ceiling. What a positive first pass looks like: the corrector at or above ridge (H1), and the flow beating the
+Gaussian on energy distance and set identification (H3, H4) while keeping point accuracy (H6).
 
-#### E1.B Design (Part 1: SC ↔ latent)
+**Caveats.** The eight encodings are not independent draws: each comes from a different condition with its own
+systematic subject × condition effects, so "spread" mixes task-specific individuality with noise; the token mode
+separates them. Rest has a true repeat (two sessions), used as a calibration check for one condition. The latent
+ceiling is mildly optimistic (the consensus includes the target condition).
 
-**The target.** The SC-blind consensus latent from E2, refit per seed exactly as E2 chose it (block FC PCA, 256 codes
-per condition; 32 dimensions; λ = 0.1). It never sees SC, so the target is not tuned to be easy to predict. Decoding
-to condition $m$ uses that condition's fixed CCA decoder; nothing about the decoders is trained in E1.
-
-**The input.** SC's own PCA codes (equal-variance scaled, as in E2), with the number of codes (64–512) chosen on val.
-
-**The models.**
-
-| Model | What it does | Detail |
-|---|---|---|
-| Ridge (reference) | linear map SC codes → latent | E2's model, re-scored in E1's pipeline (must reproduce E2's numbers exactly; gate G0b) |
-| MLP (nonlinear corrector) | the ridge prediction plus a learned nonlinear correction, $\hat g = \mathrm{ridge}(s) + f(s)$, squared error | `TokenBackbone` (`models/architectures/crossmodal_flow_matching.py`) without tokens, with a new output-size argument (SC codes 64–512 in, 32 out; existing calls unchanged); output layer starts at zero, so training starts exactly at the ridge solution; train-time ridge term from cross-fitted (5-fold) predictions; width 128–512, 1–3 residual blocks, dropout and weight decay searched. Secondary arm: direct prediction $\hat g = f(s)$ (no ridge term) |
-| MLP + identity loss | the corrector, trained with squared error + demeaned corr-eye (`compute_correye_dm_loss` in `models/train/loss.py`, imported, not modified) on the latent predictions | loss weight ∈ {0.1, 0.3, 1}; selected on val average rank, demeaned r reported |
-| Flow (paired bridge) | starts from the ridge prediction and learns a velocity field that carries it to the true latent; one Euler step is a learned correction of the ridge prediction, full integration transports the distribution | start points on train are **cross-fitted** ridge predictions (5 folds), so they look like test-time predictions; scored at 1 step and at 4 / 16 / 64 RK4 steps |
-
-**Training fix (from the failed synthetic gate).** The first gate failed because the flow was trained with flow time
-drawn uniformly, so very little training sees the start point that a one-step prediction uses, and the networks were
-under-trained at this sample size. E1 now (a) draws flow time as 0 with probability $p_0$ and uniformly otherwise,
-$p_0 \in$ {0, 0.25, 0.5} searched, which directly supervises the one-step prediction without removing the transport
-part; (b) trains longer (up to 1,000 epochs, patience 100, batch 64). The gate thresholds are unchanged.
-
-**Selection and search.** Optuna, 32 trials per model and seed; each model selected on val (MLP and flow: mean
-decoded demeaned r over the 8 conditions; identity-loss model: mean decoded average rank); test scored once.
-
-**Part 1b (reverse, H4).** The same MLP, inputs = the 8-condition consensus and each task's latent encoding, output =
-SC codes; ridge from E2 as the reference. Rest FC is left out on purpose: E2 showed the 32-dimensional latent loses
-rest's SC information, and rest's own PCA codes already do better.
-
-#### E1.C Part 2 (optional): multi-condition FC → FC translation
-
-The original idea: one network with source and target condition tokens translating between the 8 FC conditions in
-the block PCA codes, as a regression (A3) and as a flow (A4), against the linear references already computed
-(L1–L4, identity, ceilings). It runs only after Part 1 reports and with the user's go. Its infrastructure exists
-(`tune.py`); it needs the same training fix and a rerun of the original synthetic gate.
-
-#### E1.D Steps, gates and outputs
+**Steps, gates and outputs.**
 
 | Step | What | Compute | Gate (stop and report if it fails) |
 |---|---|---|---|
-| E1.0 | Pre-checks; code space; linear references L1–L4 | CPU | done 2026-10-20 |
-| E1.1 | Latent-target cache per seed (E2's latent, encodings, decoders); the latent runner | CPU | **G0b:** ridge through the new pipeline reproduces E2's SC → FC rows to 1e-6 |
-| E1.2 | Synthetic gates with the training fix: the original 9-view gate rerun unchanged, plus a single-pair version shaped like Part 1 (input 256 → latent 32) | 1 GPU, < 1 h | **G1:** MLP and flow one-step R² ≥ 0.9 against the true conditional mean; shuffled pairing collapses (demeaned r ≤ 0.02) |
-| E1.3 | Pilot, seed 0: all Part 1 models | 1 GPU | **G3:** MLP val within 0.005 of ridge or better; flow one-step predictions correlate ≥ 0.9 with the MLP's; all metrics finite; selected trials stop before the epoch cap |
-| E1.4 | Seeds 1–4, Part 1 and 1b | GPU array | — |
-| E1.5 | Analysis and write-up | CPU | — |
-| E1.6 | Part 2, if approved | GPU | its own pilot gate |
+| E1.1a | Latent-target cache per seed (E2's latent, all subjects' 8 encodings, decoders); the runner | CPU | **G0b:** ridge → consensus reproduces E2's SC → FC rows to 1e-6 |
+| E1.1b | Synthetic gates with the training fix: the original 9-view gate rerun unchanged; a single-target version shaped like E1.1; and a distributional version (simulated subjects whose 8 encodings scatter with an input-dependent spread) | 1 GPU, < 1 h | **G1:** point models' R² ≥ 0.9 against the true conditional mean; shuffled pairing collapses (demeaned r ≤ 0.02); on the distributional simulation the flow recovers the per-subject spread (correlation ≥ 0.5) and beats the Gaussian on energy distance |
+| E1.1c | Pilot, seed 0: all models | 1 GPU | **G3:** corrector val within 0.005 of ridge or better; flow sample means correlate ≥ 0.9 with the corrector's predictions; metrics finite; selected trials stop before the epoch cap |
+| E1.1d | Seeds 1–4 | GPU array | — |
+| E1.1e | Analysis, figures, write-up | CPU | — |
 
-**Deliverables** (`scripts/experiments/joint_flow_matching/results/Glasser/`): per-seed records; `summary.md` with
-one row per hypothesis (difference ± SE, seeds positive, supported or not); figures in the E2 style with
-input → output labels: (1) SC → FC per condition for ridge, MLP, MLP + identity loss and flow, with the v3:E0 rows
-and the latent ceiling; (2) average rank and demeaned r against flow integration steps; (3) latent R² per dimension
-for each model; (4) latent → SC for each input. Write-up `joint_flow_matching.md`, experiments index row, spec result
-line.
+**Deliverables** (`scripts/experiments/joint_flow_matching/results/Glasser/`): per-seed records; `summary.md` (one
+row per hypothesis: difference ± SE, seeds positive, supported); figures with input → output labels: (1) SC → each
+condition, decoded, for every model, with v3:E0 and the ceiling; (2) energy distance and set identification for the
+flow, the Gaussian and the shuffled null; (3) predicted vs observed spread across subjects; (4) a few held-out
+subjects' generated clouds next to their 8 observed encodings in the first latent dimensions (the E2 viewer's layout);
+(5) latent → SC. Write-up `joint_flow_matching.md`, experiments index row, spec result line.
 
-#### E1.E What each outcome means
+**What each outcome means.**
 
 | Outcome | Reading | Next |
 |---|---|---|
-| H1 supported | the SC → latent map is nonlinear | the nonlinear model becomes the base for E3 |
-| H1 not supported | linear is enough at 659 subjects | E3 builds on ridge; consider more data or a structural prior |
-| H2 supported | identity-aware training makes predictions more individual at no accuracy cost | carry the loss into E3 and Part 2 |
-| H3 supported | transport adds individual detail regression shrinks away | E3 on the flow (adding noise to the path) |
-| H3 not supported | the flow is a regression in disguise here | E3 starts from noise instead (FM-2) |
+| H1 supported | SC → latent has nonlinear structure | nonlinear models carry forward |
+| H1 not supported | linear is enough at 659 subjects | keep ridge as the mean model; the flow's value is in the spread |
+| H3 and H4 supported | the flow learns subject-specific distributions | E3: path noise, sessions as repeats, timeseries windows as more samples |
+| H3 supported, H5 not | the flow gets the shape but not who is more variable | the spread is population-level; more samples per subject needed (E3) |
+| H3 not supported | at this sample size a Gaussian with one shared covariance is as good | more samples per subject before more model (sessions, timeseries windows) |
 
-- **Budget / autonomy:** D3 (revised 2026-10-21): Part 1 runs autonomously, cap 10 GPU-h (estimate ≤ 3: trials take
-  seconds); Part 2 needs the user's go.
-- **Caveats:** the latent ceiling is mildly optimistic (the consensus includes the target condition, 1/8 of it);
-  the decoders are linear, so even a perfect latent prediction is bounded by the ceiling; FC → SC is read with v3:C!2.
+- **Budget / autonomy:** D3 (revised by D5 and D7): E1.1 runs autonomously, cap 10 GPU-h (estimate ≤ 3; trials take
+  seconds); E1.2 needs the user's go.
 
-#### E1 work done so far (first design, 2026-10-20)
+#### E1.2 (optional) — Multi-condition FC → FC translation
+
+The original idea: one network with source and target condition tokens translating between the 8 FC conditions in the
+block PCA codes, as a regression (A3) and as a deterministic flow (A4), against the linear references already
+computed (L1–L4, identity, ceilings). It runs only after E1.1 reports and with the user's go. Its infrastructure
+exists (`tune.py`); it needs the training fix and a rerun of the original synthetic gate.
+
+#### E1 work done so far
 
 - Pre-checks E1.0a–d (results below): the block PCA with equal-variance scaling, its spectrum and components.
 - Linear references for all 72 view pairs, 5 seeds × 4 code sizes (`results/Glasser/records/linear/`).
 - Gate G0 (code space, decoding, integrators, transport map, CCA): 35 / 35 checks passed.
 - First synthetic gate (job 20459033): failed (MLP 0.865, flow one-step 0.712 against 0.9; ridge 0.957); shuffled
-  pairing collapsed as required. Smoke trials on real data: 13–44 s each. Fixed by the training change in E1.B.
+  pairing collapsed as required. Smoke trials on real data: 13–44 s each. Addressed by the training fix above.
 
 #### E1.0 results — pre-checks (2026-10-20)
 
@@ -190,7 +201,7 @@ first-singular-value block scaling, superseded by total-norm scaling in E1.0c; m
 3. **Per-condition codes are not comparable across views:** identifying a held-out subject's task FC from their rest
    FC by correlating codes is at chance in own-basis codes (k = 64: top-1 0.000–0.006, average rank 0.45–0.56), and
    well above chance in pooled codes (top-1 0.03–0.09, average rank 0.72–0.81; S1 → S2 0.53 / 0.94). The paired bridge
-   (A4) therefore needs the pooled basis; the per-condition ablation (Part 2) applies to A3 only.
+   (A4) therefore needs the pooled basis; the per-condition ablation (E1.2) applies to A3 only.
 4. **Much of the cross-state fingerprint lies beyond 64 components:** in edge space the same identification reaches
    top-1 0.53–0.82 (average rank 0.97–0.99; S1 → S2 0.95). Two consequences: (a) the k-dimensional code bounds what any
    E1 model can recover, so a per-view reconstruction ceiling is reported next to every result; (b) for FC → FC pairs
@@ -347,15 +358,15 @@ Average rank and top-1 are reported for every comparison; FC → SC rank metrics
 - **Caveats:** v3:C!2 for FC → SC; the latent decoders are linear, so SC → FC via the latent is bounded by the latent
   ceiling; v3:E0 rows used tuned learnable models and per-condition bases, E2 closed-form readouts on pooled codes.
 
-### E3 — Conditional generative translation · status: outline · owner: —
+### E3 — Generative follow-ups · status: outline · owner: —
 
-- **Question:** given a subject's source view, what is the distribution of their target view, and is its spread
-  subject-specific beyond a linear-Gaussian conditional (MV-5)?
-- **Sketch:** the E1 backbone with a noise start (FM-2) or noise along the bridge (FM-4); `rest_S1` / `rest_S2` as two
-  targets per subject; scored by held-out negative log-likelihood against `CrossModal_ConditionalGaussian` (MV-5),
-  energy distance, calibration of predicted spread against the S1–S2 difference, and identification of single samples
-  and sample means (`modeling_directions.md` §3.3).
-- **Depends on:** E1 G3 passed and the E1 infrastructure; designed after E1 reports.
+- **Question:** once E1.1 shows whether a conditional flow learns subject-specific distributions from eight condition
+  encodings, does it improve with a stochastic path (noise along the bridge) and with more samples per subject?
+- **Sketch:** (1) path noise on the ridge-start bridge (FM-4); (2) the two rest sessions as true repeats (calibration
+  of within-condition spread); (3) FC timeseries windows as many samples per subject (needs timeseries caches,
+  `modeling_directions.md` AR-6); scored as E1.1 (energy distance, set identification, spread calibration) and by
+  held-out likelihood against `CrossModal_ConditionalGaussian` (MV-5).
+- **Depends on:** E1.1's result; designed after it reports.
 
 ## 3. Infrastructure
 
@@ -398,14 +409,25 @@ Average rank and top-1 are reported for every comparison; FC → SC rank metrics
 
 ## 4. Carried over from v3
 
-Filled when v3 is closed. Expected: v3:E3 (composite-loss benchmark, in progress) as a carry-over; v3:C!2 (FC → SC
-identifiability dominated by parcel geometry) as a standing caveat; v3 backlog items.
+v3 closed 2026-10-21 (all experiments done). Carried forward:
+
+| ID | Item | Status |
+|---|---|---|
+| C!1 | v3:C!2: subject-specific SC is dominated by parcel size (v3:E1.5); FC cannot see it, so FC → SC demeaned r and top-1 are capped by geometry. Comparisons between FC-only models stay valid. | standing caveat (v3:D4: SC stays a target) |
+| — | v3:E3 "then": the final reoptimized benchmark with the composite-loss winners as the model set | backlog |
+| — | v3:I3: graph / nodal models on top of the mean, incl. FC → SC variants | backlog |
+| — | `scripts/notebooks/EDA/FC_matrix_analysis.ipynb` (v3:E4 cells + user edits) uncommitted | open (user) |
 
 ## 5. Backlog (not scheduled)
 
-- Further directions from `modeling_directions.md` §9 (multiview CCA, transcriptome integration, graph models,
+- Further directions from `modeling_directions.md` §9 (multiview CCA variants, transcriptome integration, graph models,
   timeseries tokens), added as items once scoped.
-- E1 replication on 4S456Parcels.
+- E1 and E2 replication on 4S456Parcels.
+- From v3: final reoptimized benchmark (composite-loss winners); graph / nodal models on top of the mean (absorbs
+  v3:I3); editable install and `conn2conn/` namespacing; artifact cleanup and retention (v3 audit 2026-10-06, Ray
+  storage pruning script added 2026-10-20); shared constants between `main.py` and `scripts/results_utils/records.py`;
+  untracked reference code in `context_packages/modeling/*_context/`; latent-space terms inside the composite loss;
+  EMA diagnostics for the composite reference scales.
 
 ## 6. Change log
 
@@ -422,5 +444,6 @@ identifiability dominated by parcel geometry) as a standing caveat; v3 backlog i
 | 2026-10-20 | E2 done (autonomous, CPU): H2 and H4 supported, H1 reversed, H3 not; tasks through the latent beat every v3:E0 task row for FC → SC; SC → latent → FC beats v3:E0 on all conditions. I2 done. Follow-ups: SC dimension grid edge, hybrid input. E1 still stopped at its synthetic gate. |
 | 2026-10-21 | E1 rewritten around the consensus latent (D5): Part 1 SC ↔ latent with MLP, identity-aware loss and flow (H1–H4), training fix for the synthetic gate, optional Part 2 FC → FC; D3 revised (Part 1 cap 10 GPU-h). D6 housekeeping. E2 follow-ups recorded as potential next steps. |
 | 2026-10-21 | E1 Part 1 MLP set as a nonlinear corrector of ridge (user): ridge prediction + learned correction, starting at the ridge solution; direct MLP as a secondary arm. |
+| 2026-10-26 | v4 active (v3 closed 2026-10-21). E1 revised (D7): E1.1 conditional generation of each condition's CCA encoding from SC, 8 targets per subject; models ridge, linear-Gaussian, nonlinear corrector (± identity loss), ridge-start bridge, conditional flow with token dropout (main); H1–H7, primary H3 (energy distance, flow vs linear-Gaussian); distributional synthetic gate added. Former Part 2 → optional E1.2. E3 narrowed to generative follow-ups. v3 caveat and backlog carried over (C!1). |
 
-Last updated at: 2026-10-21 EDT
+Last updated at: 2026-10-26 EDT
