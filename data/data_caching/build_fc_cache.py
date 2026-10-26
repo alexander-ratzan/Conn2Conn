@@ -6,6 +6,10 @@ before correlation; for rest all four runs):
     fc/parc-{P}_hemi-both/              rest    <- sub-X_task-rest_space-fsLR_seg-{P}_stat-pearsoncorrelation_relmat.tsv
     fc/parc-{P}_hemi-both_task-{T}/     task T  <- sub-X_task-{T}_space-fsLR_seg-{P}_stat-pearsoncorrelation_relmat.tsv
 
+and, with --run {LR1,RL1,LR2,RL2}, one folder per single run (rest: 4 runs; tasks: LR1, RL1) from the per-run relmat:
+
+    fc/parc-{P}_hemi-both[_task-{T}]_dir-{D}_run-{R}/   <- sub-X_task-{T}_dir-{D}_run-{R}_space-..._relmat.tsv
+
 Each folder: subject_ids.npy (N,) int64 sorted; matrices.npy (N,P,P) float32; upper_triangles.npy (N,P(P-1)/2)
 float32 (triu k=1); manifest.json (provenance + validation + sha256). Parsing mirrors `dataset_utils.load_fc`
 exactly (same read_csv call, float64 -> float32), so a rebuilt rest cache is bit-identical to the existing one.
@@ -14,6 +18,7 @@ Standalone on purpose (no imports from data/): running jobs import data/dataset_
 
 Usage (inside kraken_env):
     python data/data_caching/build_fc_cache.py build --condition wm --parcellation Glasser --out-root <Conn2Conn_data> --workers 8
+    python data/data_caching/build_fc_cache.py build --condition wm --parcellation Glasser --run RL1 ...
     python data/data_caching/build_fc_cache.py compare --a <cache_dir> --b <cache_dir>
     python data/data_caching/build_fc_cache.py spotcheck --cache-dir <cache_dir> --condition wm --parcellation Glasser --n 20
     python data/data_caching/build_fc_cache.py catalog --out-root <Conn2Conn_data>
@@ -40,6 +45,7 @@ EXCLUSIONS_TSV = os.path.join(REPO_DIR, "data", "data_caching", "fc_cache_exclus
 CONDITIONS = ("rest", "emotion", "gambling", "language", "motor", "relational", "social", "wm")
 PARCELLATIONS = ("4S456Parcels", "Glasser")
 HEMI = "both"
+RUNS = {c: ("LR1", "RL1", "LR2", "RL2") if c == "rest" else ("LR1", "RL1") for c in CONDITIONS}
 CACHE_FILES = ("subject_ids.npy", "matrices.npy", "upper_triangles.npy")
 ACL_XATTR = "system.nfs4_acl"
 
@@ -72,18 +78,23 @@ def _set_acl(path, acl):
         os.setxattr(path, ACL_XATTR, acl)
 
 
-def relmat_name(subj_folder, condition, parcellation):
-    return (f"{subj_folder}_task-{condition}_space-fsLR_seg-{parcellation}"
+def run_entities(run):
+    """'RL1' -> '_dir-RL_run-1'; None (combined runs) -> ''."""
+    return "" if run is None else f"_dir-{run[:2]}_run-{run[2:]}"
+
+
+def relmat_name(subj_folder, condition, parcellation, run=None):
+    return (f"{subj_folder}_task-{condition}{run_entities(run)}_space-fsLR_seg-{parcellation}"
             f"_stat-pearsoncorrelation_relmat.tsv")
 
 
-def relmat_path(xcpd_dir, subj_folder, condition, parcellation):
-    return os.path.join(xcpd_dir, subj_folder, "func", relmat_name(subj_folder, condition, parcellation))
+def relmat_path(xcpd_dir, subj_folder, condition, parcellation, run=None):
+    return os.path.join(xcpd_dir, subj_folder, "func", relmat_name(subj_folder, condition, parcellation, run))
 
 
-def cache_dir_name(condition, parcellation):
+def cache_dir_name(condition, parcellation, run=None):
     suffix = "" if condition == "rest" else f"_task-{condition}"
-    return f"parc-{parcellation}_hemi-{HEMI}{suffix}"
+    return f"parc-{parcellation}_hemi-{HEMI}{suffix}{run_entities(run)}"
 
 
 def subject_folders(xcpd_dir):
@@ -122,12 +133,14 @@ def _load_one(args):
         return subj_folder, None, None, f"{type(e).__name__}: {e}"
 
 
-def load_exclusions(path, condition, parcellation):
-    """{sub-folder: reason} for this condition/parcellation from the tracked exclusions TSV."""
+def load_exclusions(path, condition, parcellation, run=None):
+    """{sub-folder: reason} for this condition/parcellation/run from the tracked exclusions TSV (empty run = the
+    combined-run relmat)."""
     if not path or not os.path.exists(path) or os.path.getsize(path) == 0:
         return {}
-    df = pd.read_csv(path, sep="\t", dtype=str, comment="#")
-    df = df[(df["condition"] == condition) & (df["parcellation"] == parcellation)]
+    df = pd.read_csv(path, sep="\t", dtype=str, comment="#", keep_default_na=False)
+    run_col = df["run"] if "run" in df else ""
+    df = df[(df["condition"] == condition) & (df["parcellation"] == parcellation) & (run_col == (run or ""))]
     return {f"sub-{s}": r for s, r in zip(df["subject"], df["reason"])}
 
 
@@ -172,7 +185,9 @@ def atlas_label_match(parcellation, labels):
 
 def cmd_build(a):
     t0 = datetime.datetime.now()
-    name = cache_dir_name(a.condition, a.parcellation)
+    if a.run is not None and a.run not in RUNS[a.condition]:
+        sys.exit(f"ABORT: {a.condition} has runs {RUNS[a.condition]}, not {a.run}")
+    name = cache_dir_name(a.condition, a.parcellation, a.run)
     final_dir = os.path.join(a.out_root, "fc", name)
     if os.path.exists(final_dir):
         sys.exit(f"ABORT: {final_dir} already exists; refusing to overwrite (build elsewhere and compare)")
@@ -187,10 +202,10 @@ def cmd_build(a):
     folders = subject_folders(a.xcpd_dir)
     if a.subjects:
         folders = [f for f in folders if f in set(a.subjects)]
-    args = [(relmat_path(a.xcpd_dir, f, a.condition, a.parcellation), f) for f in folders]
+    args = [(relmat_path(a.xcpd_dir, f, a.condition, a.parcellation, a.run), f) for f in folders]
     print(f"[build] {name}: {len(folders)} subject folders, {a.workers} workers", flush=True)
 
-    exclusions = load_exclusions(a.exclusions, a.condition, a.parcellation)
+    exclusions = load_exclusions(a.exclusions, a.condition, a.parcellation, a.run)
     ids, mats, missing, errors, excluded, label_ref = [], [], [], {}, {}, None
     with ProcessPoolExecutor(max_workers=a.workers) as ex:
         for subj_folder, labels, mat, err in ex.map(_load_one, args, chunksize=8):
@@ -234,12 +249,14 @@ def cmd_build(a):
         "cache_dir": name,
         "condition": a.condition,
         "parcellation": a.parcellation,
+        "run": a.run,
         "hemi": HEMI,
         "source": {
             "xcpd_dir": a.xcpd_dir,
-            "pattern": "sub-{id}/func/" + relmat_name("sub-{id}", a.condition, a.parcellation),
+            "pattern": "sub-{id}/func/" + relmat_name("sub-{id}", a.condition, a.parcellation, a.run),
             "description": ("xcp-d 0.9.1 combined-run Pearson relmat (runs concatenated before correlation; "
-                            "rest = 4 runs, tasks = LR+RL)"),
+                            "rest = 4 runs, tasks = LR+RL)" if a.run is None else
+                            f"xcp-d 0.9.1 single-run Pearson relmat (run {a.run})"),
         },
         "n_subject_folders": len(folders),
         "n_subjects": int(len(subject_ids)),
@@ -307,7 +324,7 @@ def cmd_spotcheck(a):
     picks = sorted(rng.sample(range(len(ids)), min(a.n, len(ids))))
     bad = 0
     for i in picks:
-        _, m = _read_relmat(relmat_path(a.xcpd_dir, f"sub-{ids[i]}", a.condition, a.parcellation))
+        _, m = _read_relmat(relmat_path(a.xcpd_dir, f"sub-{ids[i]}", a.condition, a.parcellation, a.run))
         if not (np.array_equal(m, mats[i]) and np.array_equal(m[tri], upper[i])):
             print(f"[spotcheck] MISMATCH sub-{ids[i]}")
             bad += 1
@@ -320,21 +337,22 @@ def cmd_catalog(a):
     fc_root = os.path.join(a.out_root, "fc")
     rows = []
     for cond in CONDITIONS:
-        for parc in PARCELLATIONS:
-            d = os.path.join(fc_root, cache_dir_name(cond, parc))
-            mpath = os.path.join(d, "manifest.json")
-            if not os.path.exists(mpath):
-                rows.append(dict(cache_dir=cache_dir_name(cond, parc), condition=cond, parcellation=parc,
-                                 n_subjects="", n_nodes="", git_commit="", built="",
-                                 sha256_matrices="", note="no manifest (pre-builder cache)"
-                                 if os.path.isdir(d) else "missing"))
-                continue
-            with open(mpath) as fh:
-                m = json.load(fh)
-            rows.append(dict(cache_dir=m["cache_dir"], condition=cond, parcellation=parc,
-                             n_subjects=m["n_subjects"], n_nodes=m["validation"]["n_nodes"],
-                             git_commit=m["build"]["git_commit"], built=m["build"]["finished"],
-                             sha256_matrices=m["sha256"]["matrices.npy"], note=""))
+        for run in (None, *RUNS[cond]):
+            for parc in PARCELLATIONS:
+                d = os.path.join(fc_root, cache_dir_name(cond, parc, run))
+                mpath = os.path.join(d, "manifest.json")
+                if not os.path.exists(mpath):
+                    rows.append(dict(cache_dir=cache_dir_name(cond, parc, run), condition=cond, run=run or "all",
+                                     parcellation=parc, n_subjects="", n_nodes="", git_commit="", built="",
+                                     sha256_matrices="", note="no manifest (pre-builder cache)"
+                                     if os.path.isdir(d) else "missing"))
+                    continue
+                with open(mpath) as fh:
+                    m = json.load(fh)
+                rows.append(dict(cache_dir=m["cache_dir"], condition=cond, run=run or "all", parcellation=parc,
+                                 n_subjects=m["n_subjects"], n_nodes=m["validation"]["n_nodes"],
+                                 git_commit=m["build"]["git_commit"], built=m["build"]["finished"],
+                                 sha256_matrices=m["sha256"]["matrices.npy"], note=""))
     _, file_acl = acl_refs(fc_root)
     pd.DataFrame(rows).to_csv(os.path.join(fc_root, "catalog.tsv"), sep="\t", index=False)
     _set_acl(os.path.join(fc_root, "catalog.tsv"), file_acl)
@@ -344,11 +362,12 @@ def cmd_catalog(a):
     def present(f):  # one listdir per subject instead of one stat per file
         func = os.path.join(a.xcpd_dir, f, "func")
         names = set(os.listdir(func)) if os.path.isdir(func) else set()
-        return [int(relmat_name(f, c, p) in names) for c in CONDITIONS for p in PARCELLATIONS]
+        return [int(relmat_name(f, c, p, r) in names) for c, r in keys for p in PARCELLATIONS]
 
+    keys = [(c, None) for c in CONDITIONS] + [(c, r) for c in CONDITIONS for r in RUNS[c]]
     with ThreadPoolExecutor(max_workers=16) as tp:
         flags = list(tp.map(present, folders))
-    cols = [f"{c}_{p}" for c in CONDITIONS for p in PARCELLATIONS]
+    cols = [f"{c}_{p}" if r is None else f"{c}_{r}_{p}" for c, r in keys for p in PARCELLATIONS]
     avail = {"subject": [int(f.replace("sub-", "")) for f in folders]}
     avail.update({col: [row[j] for row in flags] for j, col in enumerate(cols)})
     pd.DataFrame(avail).to_csv(os.path.join(fc_root, "availability.tsv"), sep="\t", index=False)
@@ -363,6 +382,7 @@ def main():
     p = sp.add_parser("build")
     p.add_argument("--condition", required=True, choices=CONDITIONS)
     p.add_argument("--parcellation", required=True, choices=PARCELLATIONS)
+    p.add_argument("--run", default=None, choices=("LR1", "RL1", "LR2", "RL2"), help="single-run relmat (default: combined)")
     p.add_argument("--out-root", default=DEFAULT_OUT_ROOT)
     p.add_argument("--xcpd-dir", default=XCPD_DIR)
     p.add_argument("--workers", type=int, default=os.cpu_count() or 4)
@@ -380,6 +400,7 @@ def main():
     p.add_argument("--cache-dir", required=True)
     p.add_argument("--condition", required=True, choices=CONDITIONS)
     p.add_argument("--parcellation", required=True, choices=PARCELLATIONS)
+    p.add_argument("--run", default=None, choices=("LR1", "RL1", "LR2", "RL2"))
     p.add_argument("--xcpd-dir", default=XCPD_DIR)
     p.add_argument("--n", type=int, default=20)
     p.add_argument("--seed", type=int, default=0)

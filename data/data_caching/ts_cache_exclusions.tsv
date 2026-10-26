@@ -1,0 +1,5 @@
+# Known-bad xcp-d mean-timeseries TSVs (data/data_caching/build_ts_cache.py).
+# file = combined: the combined-run TSV, which the build does not read (it rebuilds it from the runs); the spotcheck
+#   skips its row-equality check. file = LR1 / RL1 / LR2 / RL2: that per-run TSV; the build leaves the subject out.
+subject	condition	parcellation	file	reason
+120111	rest	4S456Parcels	combined	truncated at 15433728 bytes (1796/4801 lines, no trailing newline); mtime 2026-09-28 11:07; the 4 run TSVs are complete (1201 lines each)
