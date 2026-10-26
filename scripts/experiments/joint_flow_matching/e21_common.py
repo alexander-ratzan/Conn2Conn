@@ -114,8 +114,8 @@ class Latent:
             out["train"][m] = crossfit(self.sc["train"][:, :best], self.enc["train"][m], seed=self.seed)
         return out, ks
 
-    def build(self):
-        rc_rows, _ = self.ridge_cons()
+    def build(self, suffix=""):
+        rc_rows, _ = self.ridge_cons() if not suffix else ([], None)
         rcond, ks = self.ridge_cond()
         resid = (self.enc["train"] - rcond["train"]).reshape(-1, self.d)
         cov = np.cov(resid, rowvar=False)
@@ -124,8 +124,22 @@ class Latent:
                    rc_train=rcond["train"], rc_val=rcond["val"], rc_test=rcond["test"], rc_k=np.array(ks),
                    gauss_cov=cov, D=np.stack([self.D[v] for v in FC]), latent=np.array([self.k, self.d, self.lam]))
         CACHE.mkdir(parents=True, exist_ok=True)
-        np.savez(CACHE / f"seed{self.seed}.npz", **out)
+        np.savez(CACHE / f"seed{self.seed}{suffix}.npz", **out)
         return rc_rows
+
+
+class BlockPCA(Latent):
+    """E2.1 second addendum: the targets are each condition's block FC PCA codes (E2's equal-variance pooled basis,
+    256 codes), with no CCA; the 'decoder' is the identity (codes are decoded by the block PCA basis)."""
+
+    def __init__(self, seed, k=256):
+        self.seed = seed
+        self.sd = SeedData(seed, "main")
+        self.k, self.d, self.lam = k, k, 0.0
+        self.splits = self.sd.splits
+        self.enc = {s: np.stack([self.sd.code(v, s, k).astype(np.float64) for v in FC]) for s in ("train", "val", "test")}
+        self.D = {v: np.eye(k) for v in FC}
+        self.sc = {s: self.sd.code("SC", s, max(K_SC)).astype(np.float64) for s in self.enc}
 
 
 def build_sessions(seed):
@@ -157,12 +171,18 @@ def main():
     ap.add_argument("--seeds", type=int, nargs="*", default=[0, 1, 2, 3, 4])
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--sessions-only", action="store_true", help="only build the rest test-retest encodings")
+    ap.add_argument("--target", choices=["cca", "pca"], default="cca", help="pca: block FC PCA targets (no CCA)")
     args = ap.parse_args()
     torch.set_num_threads(8)
     if args.sessions_only:
         for s in args.seeds:
             build_sessions(s)
             print(f"seed {s}: sessions written", flush=True)
+        return
+    if args.target == "pca":
+        for s in args.seeds:
+            BlockPCA(s).build(suffix="_pca")
+            print(f"seed {s}: block PCA target cache written", flush=True)
         return
     ok = True
     for s in args.seeds:

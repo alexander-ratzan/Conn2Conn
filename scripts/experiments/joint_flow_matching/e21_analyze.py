@@ -34,7 +34,7 @@ LABEL = {"v3E0": "SC PCA → task FC (per-task FC PCA) · PCA-PLS learnable [v3:
 
 
 def load():
-    recs = [json.loads(p.read_text()) for p in sorted(REC.glob("*_seed*.json"))]
+    recs = [json.loads(p.read_text()) for p in sorted(REC.glob("*_seed[0-9].json"))]   # CCA-target records only
     point, dist, l2s, hps, retest = [], [], [], [], []
     for r in recs:
         for row in r.get("rows", []):

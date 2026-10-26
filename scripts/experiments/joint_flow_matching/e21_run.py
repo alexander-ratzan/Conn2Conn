@@ -51,8 +51,9 @@ class Data:
     """Tensors for one seed. Latents and SC codes are divided by one scalar each (unit train SD) for training;
     predictions are returned in latent units."""
 
-    def __init__(self, seed, device, shuffle_sc=False, refit_ridge=True):
-        z = np.load(CACHE / f"seed{seed}.npz")
+    def __init__(self, seed, device, shuffle_sc=False, refit_ridge=True, target="cca"):
+        self.suffix = "" if target == "cca" else f"_{target}"
+        z = np.load(CACHE / f"seed{seed}{self.suffix}.npz")
         self.seed, self.device = seed, device
         self.L = Latent.__new__(Latent)          # light handle for decoding / scoring (no refit)
         from common import SeedData
@@ -490,11 +491,12 @@ def main():
     ap.add_argument("--model", required=True, choices=["corrector", "corrector_id", "bridge", "flow", "flow_free", "flow_linear", "latent2sc", "refs"])
     ap.add_argument("--seed", type=int, required=True)
     ap.add_argument("--n-trials", type=int, default=32)
+    ap.add_argument("--target", choices=["cca", "pca"], default="cca", help="pca: block FC PCA targets (second addendum)")
     args = ap.parse_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     t0 = time.time()
-    data = Data(args.seed, device)
-    rec = dict(model=args.model, seed=args.seed, n_trials=args.n_trials,
+    data = Data(args.seed, device, target=args.target)
+    rec = dict(model=args.model, seed=args.seed, n_trials=args.n_trials, target=args.target,
                gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu")
     if args.model == "refs":
         rec["rows"], rec["dist"] = reference_rows(data)
@@ -526,9 +528,13 @@ def main():
             kw = dict(n_samples=FLOW_POINT_SAMPLES) if args.model in FLOWLIKE else dict(steps=16)
             preds[split] = predict(args.model, net, data, split, best["hp"]["k_sc"], **kw).cpu().numpy()
         PRED.mkdir(parents=True, exist_ok=True)
-        np.savez(PRED / f"{args.model}_seed{args.seed}.npz", **preds)
+        np.savez(PRED / f"{args.model}_seed{args.seed}{data.suffix}.npz", **preds)
+        if args.model in FLOWLIKE:                       # weights, for the trajectory notebook
+            (CACHE / "models").mkdir(parents=True, exist_ok=True)
+            torch.save(dict(state=best["state"], hp=best["hp"], model=args.model, target=args.target),
+                       CACHE / "models" / f"{args.model}_seed{args.seed}{data.suffix}.pt")
         if args.model in FREE:                         # full null for the un-anchored flows
-            sdata = Data(args.seed, device, shuffle_sc=True)
+            sdata = Data(args.seed, device, shuffle_sc=True, target=args.target)
             snet, _ = train(args.model, best["hp"], sdata, args.seed * 1000 + 777)
             r, dst = evaluate(f"{args.model}_shuffled", snet, sdata, best["hp"])
             rec["rows"] += r
@@ -549,8 +555,9 @@ def main():
             rec["retest_spread_null"] = retest_metrics(pnet, pdata, best["hp"])
     rec["seconds_total"] = time.time() - t0
     OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / f"{args.model}_seed{args.seed}.json").write_text(json.dumps(rec, indent=1, default=float))
-    print(f"wrote {OUT / f'{args.model}_seed{args.seed}.json'} in {rec['seconds_total'] / 60:.1f} min")
+    name = f"{args.model}_seed{args.seed}{data.suffix}.json"
+    (OUT / name).write_text(json.dumps(rec, indent=1, default=float))
+    print(f"wrote {OUT / name} in {rec['seconds_total'] / 60:.1f} min")
 
 
 if __name__ == "__main__":

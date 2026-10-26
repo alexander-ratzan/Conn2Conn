@@ -25,9 +25,13 @@ LABEL = {"ridge_cond": "ridge", "gauss": "linear-\nGaussian", "flow": "flow,\nri
 COL = {"ridge_cond": "#42949E", "gauss": "#CFCECE", "flow": "#8BCF8B", "flow_linear": "#3775BA", "flow_free": "#0F4D92"}
 
 
+TARGET = sys.argv[1] if len(sys.argv) > 1 else "cca"
+SFX = "" if TARGET == "cca" else f"_{TARGET}"
+
+
 def collect():
     rows = []
-    for p in sorted(REC.glob("*_seed*.json")):
+    for p in sorted(REC.glob(f"*_seed[0-9]{SFX}.json")):
         r = json.loads(p.read_text())
         if r["model"] not in ("refs", "flow", "flow_free", "flow_linear"):
             continue
@@ -49,9 +53,10 @@ def main():
     df = collect()
     tab = df.groupby("model")[["dr", "rank", "top1", "energy", "set_rank", "set_top1", "spread_r"]].agg(["mean", "sem"])
     (OUT / "tables").mkdir(parents=True, exist_ok=True)
-    tab.to_csv(OUT / "tables" / "addendum.csv")
+    tab.to_csv(OUT / "tables" / f"addendum{SFX}.csv")
     order = ["ridge_cond", "gauss", "flow", "flow_linear", "flow_free", "flow_linear_shuffled", "flow_free_shuffled", "flow_shuffled"]
-    md = ["# E2.1 addendum: un-anchored flows (test, 5 seeds; point metrics are means over the 8 conditions)", "",
+    md = [f"# E2.1 addendum: un-anchored flows, targets {'block FC PCA codes (no CCA)' if SFX else 'CCA latent'} "
+          "(test, 5 seeds; point metrics are means over the 8 conditions)", "",
           "| model | demeaned r | average rank | energy (lower is better) | set average rank | set top-1 | spread r |",
           "|---|---|---|---|---|---|---|"]
     m = df.groupby("model").mean(numeric_only=True)
@@ -68,7 +73,7 @@ def main():
             e = piv["energy"]["gauss"] - piv["energy"][k]
             md.append(f"\n{k}: demeaned r − ridge {d.mean():+.4f} ± {d.sem():.4f} ({int((d > 0).sum())} / {len(d)} seeds > 0); "
                       f"Gaussian − {k} energy {e.mean():+.4f} ± {e.sem():.4f} ({int((e > 0).sum())} / {len(e)} seeds flow better)")
-    (OUT / "tables" / "addendum.md").write_text("\n".join(md) + "\n")
+    (OUT / "tables" / f"addendum{SFX}.md").write_text("\n".join(md) + "\n")
     print("\n".join(md))
 
     import matplotlib; matplotlib.use("Agg")
@@ -91,9 +96,10 @@ def main():
             lo = np.nanmin([g.mean()[k] - 3 * g.sem()[k] for k in ms])
             hi = np.nanmax([g.mean()[k] + 3 * g.sem()[k] for k in ms])
             ax.set_ylim(lo - 0.1 * (hi - lo), hi + 0.1 * (hi - lo))
-        fig.suptitle("E2.1 addendum: can a flow learn SC → latent without a ridge anchor? (test, 5 seeds; y-axes zoomed)",
-                     fontweight="bold")
-        fig.savefig(OUT / "figures" / "fig_addendum_free_flows.png", dpi=300, facecolor="white")
+        tgt = "block FC PCA codes, no CCA" if SFX else "CCA latent"
+        fig.suptitle(f"E2.1 addendum: can a flow learn SC → FC without a ridge anchor? Targets: {tgt} "
+                     "(test, 5 seeds; y-axes zoomed)", fontweight="bold")
+        fig.savefig(OUT / "figures" / f"fig_addendum_free_flows{SFX}.png", dpi=300, facecolor="white")
         plt.close(fig)
 
 
