@@ -69,6 +69,9 @@ Mount the overlay `:ro` for runs and import checks (running jobs share it); inst
 - Parcellations: `Glasser` (360 nodes, default) and `4S456Parcels` (456 nodes), set with `--parcellation` or
   `data: {parcellation: ...}`. Node order: `data/atlas_info/<parcellation>_dseg_reformatted.csv`.
 - Source can be one modality or a `+`-join (`SC+SC_r2t`, `FC`, ...); the target is one modality (`FC` or `SC`).
+- Unnormalised SC (`sc_metric_type: sift_radius2_count_connectivity`, Glasser, log1p) has a precomputed cache since
+  spec v3 E1 (`scripts/experiments/covariate_ablation/build_sc_cache.py`). Subject-specific SC, normalised or not, is
+  dominated by parcel size, which FC cannot see (spec v3 C!2): read FC → SC identifiability with that in mind.
 
 ### FC conditions (rest, sessions, tasks)
 
@@ -146,12 +149,14 @@ Each dataset item returns:
 |---|---|---|
 | `fs_all` | full FreeSurfer feature set (includes regional volumes) | z-scored |
 | `fs_volumes` | 16 whole-brain volume columns | z-scored |
+| `fs_vol`, `fs_area`, `fs_thick` | exact split of `fs_all`: 63 volume / global / ratio columns, 68 DK areas (`*_Area`), 68 DK thicknesses (`*_Thck`) (spec v3 E1) | column slices of the z-scored `fs_all` |
 | `age` | age | scalar, z-scored |
 | `sex` | sex | one-hot |
 | `race_eth` | race × ethnicity | one-hot; categories with < 10 training subjects collapse to `Other` |
 
-All normalization uses training-split statistics. FreeSurfer covariates carry anatomy that relates to the SC target's
-`invnodevol` normalization (spec v3 C!1).
+All normalization uses training-split statistics. `CrossModal_PCA_PLS_CovProjector` accepts `cov_sources: []`
+(covariate branch off: the backbone prediction alone). FreeSurfer covariates are parcel geometry: their FC → SC gain is
+regional size, partly the SC target's `invnodevol` normalization (spec v3 C!1, resolved by E1 / E1.5).
 
 ### Subject ordering (evaluation)
 
@@ -200,8 +205,10 @@ python main.py --mode prod --model CrossModal_PCA_PLS_learnable \
 | `--num_samples` | Number of Ray Tune trials (default 10) |
 | `--search_alg` | `random` or `optuna` |
 | `--max_concurrent_trials`, `--tune_cpus_per_trial`, `--tune_gpus_per_trial` | Trial packing (env `TUNE_*_PER_TRIAL` also works) |
-| `--tune_reuse_actors` | `true` (default; keep with packed trials) / `false` |
+| `--tune_reuse_actors` | `true` (default; keep it: each Ray worker keeps its data cache across trials) / `false` |
+| `--tune_lightning_checkpoints` | `false` (default): no Lightning per-trial weights files in Tune trials; `true` restores them |
 | `--report_best_after_tune` | Re-run and fully evaluate the best trial after tuning |
+| `--report_metrics` | Comma list of selection metrics, one best-trial report each (default `val_demeaned_r`; e.g. `val_demeaned_r,val_avg_rank`). Tune trials report `val_demeaned_r`, `val_avg_rank`, `val_top1_acc`, `val_pearson_r` |
 | `--save_checkpoint` | Write a checkpoint and report to the run dir |
 | `--store_eval_md` | Save a markdown evaluation report when supported by the run/report path |
 | `--hemi` | `both` (default), `left`, `right` |
@@ -218,7 +225,9 @@ weights, fixed reference scales and the normalization rules: `CONTEXT.md` → Co
 ## Batch Jobs (SLURM)
 
 - **Experiment campaigns** have their own launchers in their folder. Examples:
-  - `scripts/experiments/model_benchmark/{launch_model.sh,submit.py,autopilot.py}`
+  - `scripts/experiments/model_benchmark/{launch_model.sh,submit.py,autopilot.py}`: E2.2 MSE campaign
+    (`config.yml`) or, with `MB_CAMPAIGN_CONFIG=config_composite_loss.yml`, the composite-loss campaign (spec v3 E3)
+  - `scripts/experiments/covariate_ablation/{launch.sh,prep.sh}` (spec v3 E1)
   - `scripts/experiments/task_bidirectional_bench/{launch.sh,submit.py}`
   - `scripts/experiments/composite_loss/launch_*.sh`
 - **Per-model tune arrays** live in `scripts/sbatch/<ModelName>/`. They are legacy launchers: spec v3 I2 replaces them
@@ -234,6 +243,21 @@ weights, fixed reference scales and the normalization rules: `CONTEXT.md` → Co
   - `scripts/sbatch/data/`: FC cache builder array.
 
 Launchers hardcode the repo path and absolute log paths (`results/logs/`), so you can submit them from any directory.
+
+**Running campaigns on the cluster (lessons from spec v3 E3):**
+- **GPU-usage policy:** NYU HPC cancels jobs whose average GPU utilisation stays below 50% for more than 2 h. Our
+  models use 2–35% of any GPU, so every task must finish within 2 h: E2.2's packing (0.25 GPU × 4 trials, 10 CPUs) does,
+  and `autopilot.py launch` stops a model whose pilot exceeded `budget.max_wall_h`. `launch_model.sh` logs GPU use every
+  30 s to `<task log>.gpu.csv` and prints the mean at exit.
+- **Settings are fixed at submission** (resources, `--export`: `CAMPAIGN`, `CONFIG_DIR`, `REPORT_METRICS`,
+  `TUNE_REUSE_ACTORS`, `TUNE_LIGHTNING_CHECKPOINTS`); code (`main.py`, `models/`, `data/`) is read when a job starts;
+  SLURM runs its own copy of the batch script. Changing a queued job means cancel + resubmit (`scontrol hold/update` is
+  not available to users here).
+- **A task is done when its log has its best-trial report(s)** ("Best Tune trial comprehensive summary"), whatever its
+  SLURM state; move aborted logs aside before `run.py` (it takes the latest finished log per model and seed) and use
+  `submit.py --job-prefix` for smoke tests.
+- **Storage:** `scripts/maintenance/prune_ray_storage.sh` (dry run by default; `--apply`) strips old `results/ray_tmp/`
+  sessions to their logs and drops old `results/ray_checkpoints/` weights.
 
 ---
 
@@ -360,7 +384,7 @@ Conn2Conn/
 │   ├── hcp_dataset.py               # HCP_Base / HCP_Partition: loading, cohort alignment, FC conditions, splits
 │   ├── dataset_utils.py             # Raw + precomputed loaders, metadata, family-preserving splits
 │   ├── data_utils.py, graph_adapter.py
-│   ├── data_viz.py                  # Matrix overviews, FC condition views, gif helpers
+│   ├── data_viz.py                  # Matrix overviews, FC condition views, edgewise regressions, task signatures, gifs
 │   ├── demeaned_viz.py              # Demeaned FC / prediction visualization helpers
 │   ├── data_caching/                # FC cache builder, condition availability, cache exclusions
 │   └── atlas_info/                  # Parcellation node tables (Glasser, 4S456Parcels)
@@ -376,14 +400,15 @@ Conn2Conn/
 │   │   ├── krakencoder/             # vendor/ (upstream, unmodified), retrain.py, precomputed.py, checkpoint_eval.py
 │   │   ├── latent_attention/        # LatentAttnMasked + masked pretrainers
 │   │   └── graph_based/             # Chen GCN, NodalGNN, NodalMLP, graph feature builders
-│   ├── configs/                     # {null_ceiling,linear,latent,graph_nodal,deep}/<Model>.yml, variants/<family>/, benchmark/<campaign>/ (generated)
+│   ├── configs/                     # {null_ceiling,linear,latent,graph_nodal,deep}/<Model>.yml, variants/<family>/, benchmark/{mse,composite_loss}/ (generated)
 │   ├── train/                       # Training loop, Lightning wrapper, composite losses, training plots
 │   └── eval/                        # Evaluator, metrics, FC distance, PCA analysis, reports, plots
 ├── scripts/                         # Everything that uses the library (tracked)
 │   ├── results_utils/               # records / tables / plots / runner / loss_grid / local_results / optuna_importance
 │   ├── notebooks/                   # EDA/, kraken/, model_overviews/, model_testing/
 │   ├── experiments/                 # One folder per experiment (write-up <name>.md); experiments_index.md
-│   └── sbatch/                      # Per-model tune arrays (legacy), checks/, data/
+│   ├── sbatch/                      # Per-model tune arrays (legacy), checks/, data/
+│   └── maintenance/                 # prune_ray_storage.sh (Ray tmp / checkpoint pruning, keeps logs)
 ├── results/                         # Generated artifacts only (gitignored)
 │   ├── ray_results/                 # Best-trial reports: checkpoint, test_results.md, plots, metrics_final.json
 │   ├── ray_checkpoints/             # Ray Tune storage: per-trial params, progress, W&B local copies
@@ -394,8 +419,8 @@ Conn2Conn/
 │   ├── local_results/, figures/, tables/
 │   └── logs/                        # SLURM stdout/stderr
 ├── checkpoints/                     # Legacy cwd-relative Lightning checkpoints (gitignored)
-├── context_packages/                # Reference material: modeling/, repo_spec_docs/ (specs, current v3), schematics/, T1/
+├── context_packages/                # Reference material: modeling/, repo_spec_docs/ (specs; v3 closed 2026-10-21, current v4), schematics/, T1/
 └── krakencoder_experimental/        # Local Krakencoder copy + data, cached predictions, participants.tsv (gitignored)
 ```
 
-Last updated at: 2026-10-12 EDT
+Last updated at: 2026-10-26 EDT

@@ -65,7 +65,9 @@ If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after 
   - W&B-scraped results experiments (`sc_type_benchmark/`, `cov_projector_benchmark/`, `nodal_models_benchmark/`):
     `config.yml` + `run.py` + tracked `records.json`
   - SLURM campaigns scraped from task logs: `model_benchmark/` (MSE benchmark, both directions; `build_configs.py`,
-    `submit.py`, `autopilot.py`, `run.py`), `composite_loss/` (`protocol.py`, `report.py`, `compare.py`; instances
+    `submit.py`, `autopilot.py`, `run.py`; composite-loss campaign with `MB_CAMPAIGN_CONFIG=config_composite_loss.yml`:
+    `composite_scales.py`, `build_composite_configs.py`, `composite_vs_mse.py`, outputs `composite_loss/`),
+    `covariate_ablation/` (spec v3 E1: covariate families, `run_cell.py`, `node_size.py`), `composite_loss/` (`protocol.py`, `report.py`, `compare.py`; instances
     `<model>/{sc2fc,fc2sc}/`), `task_bidirectional_bench/` (FC condition × seed × direction × parcellation; `make_configs.py`, `submit.py`, `run.py`)
 - `scripts/notebooks/model_overviews/*.ipynb`
   - conceptual onboarding notebooks for PCA/PLS, conditional Gaussian, latent-attention, masked pretraining, and nodal baselines
@@ -76,7 +78,11 @@ If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after 
 - `context_packages/`
   - agent/human reference material: `modeling/` (model design notes), `repo_spec_docs/` (refactor specs), `schematics/`, `T1/`
 - `data/data_viz.py`, `data/demeaned_viz.py`
-  - reusable visualization helpers used by lightweight notebooks
+  - reusable visualization helpers used by lightweight notebooks; `data_viz` also has edgewise regressions with held-out
+    prediction (`predict_edgewise_multifeature_regression`, `evaluate_edgewise_predictions`) and task-FC signatures
+    (`compute_task_signatures`, `plot_task_signature_*`)
+- `scripts/maintenance/prune_ray_storage.sh`
+  - prunes `results/ray_tmp/` sessions to their logs and old `results/ray_checkpoints/` weights (dry run by default)
 
 ---
 
@@ -402,6 +408,10 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
   - `wandb/` (local W&B run copies; the W&B cloud is the source of truth)
   - large notebooks
 - Use SLURM scripts for large jobs; avoid long compute on login nodes.
+- **GPU-usage policy:** jobs averaging < 50% GPU utilisation for > 2 h are cancelled (warning < 70%). Our models reach
+  2–35% on any GPU (L40S included), so every Tune task must finish within 2 h: E2.2 packing (0.25 × 4, 10 CPUs) with
+  actor reuse on; `autopilot.py` `budget.max_wall_h`; `launch_model.sh` writes `<task log>.gpu.csv`.
+- Prune Ray storage with `scripts/maintenance/prune_ray_storage.sh` (keeps every session's `logs/`).
 - Kernel environment: `kraken_env` runs inside a Singularity overlay (see `/scratch/asr655/envs/README.md`);
   mount the overlay `:ro` for import-only checks so running jobs are unaffected. Use `source /ext3/env.sh`
   (what the launchers use): since 2026-09-30 (spec v2 C6) every job package, including `torch_geometric`, lives in the
@@ -436,7 +446,19 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
     when switching normalization or weight schemes.
 16. `correye` / `neidist` compare subjects within a batch: their values and meaning depend on `batch_size` (0 for a batch
     of 1). Keep `batch_size` fixed when comparing weights.
-17. Sweeps before 2026-09-23 of `CrossModal_PCA_PLS_learnable`, `CrossModal_PCA_PLS_CovProjector` and `Sarwar2020MLP`
+17. Queued SLURM jobs read `main.py` / `models/` / `data/` when they **start**, but run SLURM's own copy of the batch
+    script and the resources / `--export` values fixed at submission. Users cannot `scontrol hold` or `update` jobs
+    here: changing queued jobs means cancel + resubmit. Write `main.py` edits atomically while jobs may start.
+18. Judge a Tune task by its log (best-trial report(s) present), not its SLURM state: a post-run cleanup error once
+    marked a finished task `FAILED` (cleanup is non-fatal since `f2f4b90`). `run.py` / `autopilot.py` take the latest
+    finished log per (model, seed), so move aborted logs aside; smoke tests go under `submit.py --job-prefix`.
+19. Ray actor reuse must stay on for packed Tune runs (each worker keeps its HCP_Base / loaders); with it off every
+    trial rebuilds the data (~10 min). Smoke tests need more trials than concurrent slots to exercise reuse; an
+    intermittent `reset_config` stall is handled as a task failure (one retry).
+20. Tune trials log `val_avg_rank` / `val_top1_acc` from `CrossModalLightningModule.on_validation_epoch_end` (GPU;
+    `CONN2CONN_VAL_RANK_CPU=1` = old CPU path), not from `ValidationEvalCallback` (prod path only). Lightning per-trial
+    checkpoints are off in Tune (`--tune_lightning_checkpoints`); Tune's own checkpoint is unaffected.
+21. Sweeps before 2026-09-23 of `CrossModal_PCA_PLS_learnable`, `CrossModal_PCA_PLS_CovProjector` and `Sarwar2020MLP`
     ignored the sampled `l1_reg`/`l2_reg` (default tuple won; spec v1 M5b). Their logged reg values were not applied.
 
 ---
@@ -480,6 +502,22 @@ Debug missing results cell:
 3. verify model/source/seed is included in requested grid
 
 ## Recent Changes
+
+2026-10-12 → 2026-10-21 — spec v3 E1, E1.5, E3, E4 (v3 closed 2026-10-21; details in `spec_doc_v3.md`):
+- E1 covariate ablation (`scripts/experiments/covariate_ablation/`): `fs_vol` / `fs_area` / `fs_thick` cov sources
+  (`data/hcp_dataset.py`), CovProjector `cov_sources: []`, unnormalised Glasser SC cache. FC → SC covariate gain =
+  regional size, ~40% of it the `invnodevol` normalisation (C!1). E1.5 `node_size.py`: parcel volumes alone identify
+  subjects from SC, normalised or raw (C!2, standing caveat; D4: SC stays a target).
+- E4 task-FC signature above rest (`FC_matrix_analysis.ipynb` §4, `data_viz.compute_task_signatures`): every task has a
+  reproducible signature that individuals express.
+- E3 composite-loss benchmark (`model_benchmark/composite_loss/`, `config_composite_loss.yml`): declared weight grid per
+  direction, scales measured per model; composite loss helps every model SC → FC, not FC → SC. Infra: `--report_metrics`
+  (one best-trial report per metric; the second reuses the retrain when the same trial wins), `val_avg_rank` /
+  `val_top1_acc` in Tune trials, `--tune_lightning_checkpoints` (default off), `launch_model.sh` env-driven
+  (`TUNE_REUSE_ACTORS`, `TUNE_LIGHTNING_CHECKPOINTS`) with GPU-use log and non-fatal Ray cleanup, `submit.py
+  --job-prefix / --time`, per-model `cpus`, `autopilot` `max_wall_h` and gate-less campaigns.
+- `data_viz`: edgewise held-out prediction / evaluation helpers, Glasser-safe atlas reader.
+- Storage: `scripts/maintenance/prune_ray_storage.sh`; scratch 4.81 → 3.0 TB (2026-10-20).
 
 2026-10-07 → 2026-10-12 — spec v3 E2 / I5:
 - `FC_<task>` source modalities (`data/hcp_dataset.py`, `models/architectures/utils.py`): a task FC as its own source
@@ -527,7 +565,7 @@ Debug missing results cell:
   `weighted_mse`, `sarwar_mse_corr` and `vae` were retired and folded into composite terms, bit-exact with the old losses.
 - Searchable `loss_weight_*` / `loss_kwarg_*`; `loss_normalize: auto`; `loss_signature` in W&B; per-term losses in Tune.
 - `CompositeLoss` EMA scales now track `|raw|` (a signed `neidist` used to inflate about 10⁸×).
-- `l1_reg` / `l2_reg` for every learned model; sampled reg values now take effect in sweeps (see gotcha 17).
+- `l1_reg` / `l2_reg` for every learned model; sampled reg values now take effect in sweeps (see gotcha 21).
 - `CrossModal_linear_backbone` added; `LatentAttnMasked` `residual_mode: none` removed. Four notebooks migrated.
 - Real-data verification array: `scripts/sbatch/checks/verify_modeling_track_array.sh` (reports in `results/logs/`).
 
@@ -557,4 +595,4 @@ Debug missing results cell:
 Earlier: model code moved to `models/architectures/`, training to `models/train/`, evaluation to `models/eval/`;
 old top-level shims removed (git history has the rest).
 
-Last updated at: 2026-10-07 EDT
+Last updated at: 2026-10-26 EDT
