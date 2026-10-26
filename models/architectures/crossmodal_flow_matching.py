@@ -148,18 +148,20 @@ class ResidualBlock(nn.Module):
 
 
 class TokenBackbone(nn.Module):
-    """f(z, [e_src(m), e_tgt(m')], [gamma(tau)]) -> R^k: input projection, `depth` residual blocks, linear output.
+    """f(z, [e_src(m), e_tgt(m')], [gamma(tau)], [c]) -> R^k: input projection, `depth` residual blocks, linear output.
 
     The output layer starts at zero, so at initialisation the regression predicts the source code and the velocity
-    field is zero.
+    field is zero. Optional: `cond_dim` > 0 adds a conditioning vector c (e.g. SC codes) to the input, alongside the
+    state z (spec v4 E2.1: z is the ridge prediction or the flow state, c the subject's SC codes).
     """
 
     def __init__(self, k, n_views=0, token_dim=32, width=512, depth=3, dropout=0.1, use_tokens=True,
-                 use_time=False, time_dim=64):
+                 use_time=False, time_dim=64, cond_dim=0):
         super().__init__()
         self.use_tokens = bool(use_tokens)
         self.use_time = bool(use_time)
-        in_dim = k
+        self.cond_dim = int(cond_dim)
+        in_dim = k + self.cond_dim
         if self.use_tokens:
             self.src_token = nn.Embedding(n_views, token_dim)
             self.tgt_token = nn.Embedding(n_views, token_dim)
@@ -173,21 +175,21 @@ class TokenBackbone(nn.Module):
         nn.init.zeros_(self.out[1].weight)
         nn.init.zeros_(self.out[1].bias)
 
-    def forward(self, z, src=None, tgt=None, tau=None):
-        parts = [z]
+    def forward(self, z, src=None, tgt=None, tau=None, cond=None):
+        parts = [z] if cond is None else [z, cond]
         if self.use_tokens:
             parts += [self.src_token(src), self.tgt_token(tgt)]
         if self.use_time:
             parts.append(self.time_embed(tau))
         return self.out(self.blocks(self.inp(torch.cat(parts, dim=1))))
 
-    def predict_regression(self, z, src=None, tgt=None):
-        """Residual regression (A2 / A3): z_hat = z + f(z, tokens)."""
-        return z + self(z, src, tgt)
+    def predict_regression(self, z, src=None, tgt=None, cond=None):
+        """Residual regression (A2 / A3; E2.1 corrector): z_hat = z + f(z, tokens, cond)."""
+        return z + self(z, src, tgt, cond=cond)
 
-    def predict_flow(self, z, src=None, tgt=None, n_steps=16, method="rk4"):
-        """Integrate the velocity field (A4) from the source code at tau = 0 to tau = 1."""
-        return integrate(lambda x, t: self(x, src, tgt, t), z, n_steps=n_steps, method=method)
+    def predict_flow(self, z, src=None, tgt=None, n_steps=16, method="rk4", cond=None):
+        """Integrate the velocity field (A4; E2.1 bridge and flow) from z at tau = 0 to tau = 1."""
+        return integrate(lambda x, t: self(x, src, tgt, t, cond=cond), z, n_steps=n_steps, method=method)
 
 
 def integrate(velocity, z0, n_steps=16, method="rk4"):

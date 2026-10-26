@@ -63,9 +63,12 @@ def make_model(arm, hp, n_views):
                          dropout=hp["dropout"], use_tokens=(arm != "A2"), use_time=(arm == "A4"))
 
 
-def loss_fn(arm, model, za, zb, a, b, gen=None):
+def loss_fn(arm, model, za, zb, a, b, gen=None, p0=0.0):
+    """p0: probability of flow time 0 (spec v4 E2.1 training fix; 0 = uniform flow time, the original setting)."""
     if arm == "A4":
         tau = torch.rand(za.shape[0], device=za.device, generator=gen)
+        if p0 > 0:
+            tau = torch.where(torch.rand(za.shape[0], device=za.device, generator=gen) < p0, torch.zeros_like(tau), tau)
         zt = (1 - tau[:, None]) * za + tau[:, None] * zb
         return F.mse_loss(model(zt, a, b, tau), zb - za)
     return F.mse_loss(model.predict_regression(za, a, b), zb)
@@ -120,7 +123,7 @@ def train(arm, hp, data, seed, trial=None, train_cfg=TR):
         for s in range(0, len(order), train_cfg["batch_size"]):
             idx = order[s:s + train_cfg["batch_size"]]
             za, zb, a, b = data.batch("train", idx % n, idx // n, k)
-            loss = loss_fn(arm, model, za, zb, a, b, gen=gen)
+            loss = loss_fn(arm, model, za, zb, a, b, gen=gen, p0=hp.get("p0", 0.0))
             opt.zero_grad(set_to_none=True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), train_cfg["grad_clip"])

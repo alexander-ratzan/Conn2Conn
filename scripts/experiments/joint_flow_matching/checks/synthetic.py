@@ -20,7 +20,8 @@ import tune  # noqa: E402
 
 N = {"train": 659, "val": 74, "test": 184}
 Q, K, SIGMA = 16, 64, 0.5
-HP = dict(lr=1e-3, weight_decay=1e-4, width=512, depth=3, dropout=0.0, token_dim=32, k=K)
+HP = dict(lr=1e-3, weight_decay=1e-4, width=512, depth=3, dropout=0.0, token_dim=32, k=K, p0=0.25)
+TRAIN_FIX = dict(tune.TR, max_epochs=500, patience=50)   # spec v4 E2.1 training fix: flow time 0 w.p. p0, longer training
 
 
 class SynthData(tune.Data):
@@ -62,7 +63,7 @@ def main():
     views = [f"v{i}" for i in range(9)]
     g = CFG["gates"]
     data = SynthData(views, device)
-    models = {arm: tune.train(arm, HP, data, seed=0)[0] for arm in ("A3", "A4")}
+    models = {arm: tune.train(arm, HP, data, seed=0, train_cfg=TRAIN_FIX)[0] for arm in ("A3", "A4")}
     rows, ok = [], True
     for p, (a, b) in enumerate(data.pairs):
         za = data.raw["test"][a]
@@ -81,7 +82,7 @@ def main():
     print(f"{'OK  ' if g1a else 'FAIL'} G1a: A3 and A4 one-step min R^2 >= {g['g1_min_r2']}")
 
     sdata = SynthData(views, device, shuffle_pairs=True)
-    m = tune.train("A4", HP, sdata, seed=0)[0]
+    m = tune.train("A4", HP, sdata, seed=0, train_cfg=TRAIN_FIX)[0]
     drs = [code_dr(tune.predict("A4", m, sdata, "test", K, p, n_steps=16).cpu().numpy(), sdata.raw["test"][b])
            for p, (_, b) in enumerate(sdata.pairs)]
     g1b = max(np.mean(drs), 0) <= g["g1_max_shuffled_dr"]
