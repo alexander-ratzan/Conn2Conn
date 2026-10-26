@@ -178,7 +178,7 @@ subject's condition-specific variation plus noise, not by the shared task differ
 | Nonlinear corrector | ridge prediction + a learned correction from SC and the condition token, trained on all 8 targets per subject | nonlinear point model |
 | Corrector + identity loss | the same, trained with squared error + demeaned corr-eye (`compute_correye_dm_loss`, imported) | identity-aware nonlinear point model |
 | Ridge-start bridge | a deterministic flow from the ridge prediction to the encoding, with the condition token | deterministic flow reference |
-| **Conditional flow** | **samples** of a subject's encoding, starting from noise, conditioned on SC and on the condition token; the token is dropped for 20 % of training examples, so the same model also generates without a condition | **main model** |
+| **Conditional flow (residual)** | **samples** of the residual around the ridge mean, $g^m - \mathrm{ridge}_m(\mathrm{SC})$, starting from noise, conditioned on SC and on the condition token, with the ridge mean added back; the token is dropped for 20 % of training examples. The subject's cloud is built as the Gaussian reference's: each sample picks a condition and draws that condition's residual | **main model** (residual form adopted 2026-10-26 after the first gate run) |
 
 The conditional flow therefore answers two questions: with a token, $p(g^m \mid \mathrm{SC}, m)$, comparable to the
 point models; without one, $p(g \mid \mathrm{SC})$, the distribution of the subject's condition encodings, for which
@@ -187,7 +187,14 @@ crossmodal_flow_matching.py`) with a new output-size argument (input 64–512 SC
 flow-time embedding. Small networks (width 128–512, 1–3 residual blocks); Optuna, 32 trials per model and seed,
 selected on val (point models on mean decoded demeaned r; flows on val energy distance, below).
 
-**Training fix from the failed synthetic gate** (applies to the ridge-start bridge): flow time is set to 0 with
+**After the first E2.1 gate run (2026-10-26, job 21010434).** The conditional flow from noise recovered each
+simulated subject's spread (r 0.70) but placed its clouds less precisely than ridge (sample-mean R² 0.95 vs 0.99), so
+the Gaussian reference, centred on ridge means, won on energy distance; the simulation's between-condition scatter
+also swamped the spread. Fixes (user 2026-10-26; thresholds unchanged): the flow models the residual around the
+ridge mean (above), early-stops on a smoothed val loss (patience 200), and the simulation is made spread-dominated.
+The original 9-view gate (joint MLP 0.865, flow one-step 0.818 after the fix) belongs to E2.2.
+
+**Training fix from the first failed synthetic gate** (applies to the ridge-start bridge): flow time is set to 0 with
 probability $p_0 \in$ {0, 0.25, 0.5} and drawn uniformly otherwise, and training runs longer (up to 1,000 epochs,
 patience 100). The conditional flow from noise is trained with the standard straight path from noise to target.
 
@@ -218,7 +225,7 @@ ceiling is mildly optimistic (the consensus includes the target condition).
 | Step | What | Compute | Gate (stop and report if it fails) |
 |---|---|---|---|
 | E2.1a | Latent-target cache per seed (E1's latent, all subjects' 8 encodings, decoders); the runner | CPU | **G0b:** ridge → consensus reproduces E1's SC → FC rows to 1e-6  **passed 2026-10-26** (max diff ≤ 1e-16, 5 seeds) |
-| E2.1b | Synthetic gates with the training fix: the original 9-view gate rerun unchanged; a single-target version shaped like E2.1; and a distributional version (simulated subjects whose 8 encodings scatter with an input-dependent spread) | 1 GPU, < 1 h | **G1:** point models' R² ≥ 0.9 against the true conditional mean; shuffled pairing collapses (demeaned r ≤ 0.02); on the distributional simulation the flow recovers the per-subject spread (correlation ≥ 0.5) and beats the Gaussian on energy distance |
+| E2.1b | Synthetic gate shaped like E2.1: simulated subjects whose 8 encodings share most of their mean structure and scatter with a strongly input-dependent spread (the original 9-view gate moved to E2.2) | 1 GPU, < 1 h | **G1:** point models' R² ≥ 0.9 against the true conditional mean; shuffled pairing collapses (demeaned r ≤ 0.02); on the distributional simulation the flow recovers the per-subject spread (correlation ≥ 0.5) and beats the Gaussian on energy distance |
 | E2.1c | Pilot, seed 0: all models | 1 GPU | **G3:** corrector val within 0.005 of ridge or better; flow sample means correlate ≥ 0.9 with the corrector's predictions; metrics finite; selected trials stop before the epoch cap |
 | E2.1d | Seeds 1–4 | GPU array | — |
 | E2.1e | Analysis, figures, write-up | CPU | — |
@@ -447,5 +454,6 @@ v3 closed 2026-10-21 (all experiments done). Carried forward:
 | 2026-10-26 | v4 active (v3 closed 2026-10-21). E2 revised (D7): E2.1 conditional generation of each condition's CCA encoding from SC, 8 targets per subject; models ridge, linear-Gaussian, nonlinear corrector (± identity loss), ridge-start bridge, conditional flow with token dropout (main); H1–H7, primary H3 (energy distance, flow vs linear-Gaussian); distributional synthetic gate added. Former Part 2 → optional E2.2. E3 narrowed to generative follow-ups. v3 caveat and backlog carried over (C!1). |
 | 2026-10-26 | **Renumbered (user):** the finished CCA-latent benchmark is now **E1** (was E2) and comes first; the SC → functional-latent experiment is now **E2** (was E1; its sub-items E2.0–E2.2, was E1.0–E1.2), leading into E3. Commit messages and job names before this date use the old IDs (e.g. `5032017` "E2 CCA-latent benchmark", job names `e2_cca_bench`, `e1_linear`, `e1_gpu_checks`). Earlier change-log rows are rewritten with the new IDs. |
 | 2026-10-26 | E2.1 built (`2c3e7d7`, `28a1898`): latent cache + linear references, G0b passed (5 seeds); runner, synthetic gates, G3 check, analysis. Chain submitted: gates `21010434` → seed-0 pilot `21010435` → G3 `21010436` → seeds 1–4 `21010437`–`40` → analysis `21010569`, each `afterok`. `TokenBackbone` gained an optional conditioning input (SC codes). |
+| 2026-10-26 | E2.1b gate failed (job 21010434: flow energy distance above the Gaussian's; flow spread r 0.70 passed; corrector / bridge 0.99 passed); chain cancelled. Fixes (user): residual conditional flow around the ridge mean, smoothed early stopping, spread-dominated simulation, 9-view gate moved to E2.2 (`be3d501`). Gate rerun: job 21016054. |
 
 Last updated at: 2026-10-26 EDT
