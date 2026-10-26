@@ -13,6 +13,11 @@ A subject's rows are xcp-d's combined-run timeseries: its runs back to back, in 
 (rest LR1 RL1 LR2 RL2; tasks LR1 RL1). Values are xcp-d 0.9.1 denoised, band-pass filtered (~0.01-0.08 Hz) parcel
 means, not z-scored; TR = 0.72 s. Windows never span a run boundary.
 
+The fc/ matrices are a plain Pearson correlation of exactly these rows: corr(subject rows) reproduces every fc/
+combined-run matrix to float32 rounding (max |diff| ~3e-8, all subjects / conditions / parcellations; per-run ~2e-7).
+Any processing known for the FC (denoising, band-pass, no censoring, run concatenation) is therefore that of these
+timeseries (Conn2Conn_data/timeseries/README.md).
+
     ts = TimeseriesCache("wm", "Glasser")
     x = ts.subject(100206)                        # (810, 360) float32
     starts = window_starts(ts.run_bounds(100206), length=144, step=24)
