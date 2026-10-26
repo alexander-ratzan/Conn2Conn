@@ -4,7 +4,9 @@ Models (all share `TokenBackbone`: state z = 32-d latent, cond = SC codes, token
   corrector     z_hat = ridge(SC) + f(ridge(SC), SC, m)            squared error
   corrector_id  the same + w * demeaned corr-eye per condition       selected on val average rank
   bridge        deterministic flow from ridge(SC) to the encoding; flow time 0 with prob. p0, else uniform
-  flow          conditional flow from noise to the encoding; token dropped (-> 8) for 20 % of examples
+  flow          residual conditional flow: from noise to g - ridge(SC) (ridge mean added back), conditioned on SC and
+                the condition token (dropped -> 8 for 20 % of examples); the subject's cloud mixes the 8 conditions as
+                the Gaussian reference does; early stopping on a smoothed val loss (patience 200)
                 (also trains `flow_shuffled`: the selected flow configuration with SC permuted across train subjects)
   latent2sc     (H7) latent -> SC codes: ridge(latent) + f(.), token = input (0 consensus, 1-7 tasks)
 References evaluated in every job: ridge_cond (per-condition ridge, from the cache) and gauss (ridge_cond means + the
@@ -37,7 +39,7 @@ NULL = 8
 PRED = CACHE / "preds"
 K_SAMPLES = 64
 FLOW_STEPS = 32
-TRAIN = dict(batch_subjects=64, max_epochs=1000, patience=100, grad_clip=1.0, prune_from=50)
+TRAIN = dict(batch_subjects=64, max_epochs=1000, patience=100, patience_flow=200, grad_clip=1.0, prune_from=50)
 SPACE = dict(lr=(1e-4, 3e-3), wd=(1e-6, 1e-1), width=[128, 256, 512], depth=[1, 2, 3], dropout=(0.0, 0.3),
              token_dim=[8, 16, 32], k_sc=[64, 128, 256, 512], p0=[0.0, 0.25, 0.5], id_w=[0.1, 0.3, 1.0])
 
@@ -123,7 +125,8 @@ def loss_fn(model, net, hp, z0, y, c, m, data, gen):
     if model == "bridge":
         tau = torch.where(torch.rand(len(y), device=y.device, generator=gen) < hp["p0"], torch.zeros_like(tau), tau)
         start = z0
-    else:                                                                    # flow from noise
+    else:                                  # residual flow from noise: generates g - ridge(SC); ridge mean added back
+        y = y - z0
         start = torch.randn(y.shape, device=y.device, generator=gen)
         m = torch.where(torch.rand(len(y), device=y.device, generator=gen) < 0.2, torch.full_like(m, NULL), m)
     zt = (1 - tau[:, None]) * start + tau[:, None] * y
@@ -145,15 +148,19 @@ def predict(model, net, data, split, k_sc, steps=16, token=None, n_samples=1, se
     else:
         g = torch.Generator(device=data.device).manual_seed(seed)
         if token == NULL:
-            cc = data.sc[split][subj, :k_sc].repeat(n_samples, 1)
-            tok = torch.full((len(cc),), NULL, device=data.device)
+            # the subject's cloud, built as the Gaussian reference's: each sample picks a condition, draws that
+            # condition's residual from the flow and adds that condition's ridge mean
+            subj_k = subj.repeat(n_samples)
+            tok = torch.randint(0, 8, (len(subj_k),), device=data.device, generator=g)
+            cc = data.sc[split][subj_k, :k_sc]
             eps = torch.randn((len(cc), data.d), device=data.device, generator=g)
-            return net.predict_flow(eps, tok, tok, n_steps=FLOW_STEPS, cond=cc).view(n_samples, n, data.d) * data.s_lat
+            res = net.predict_flow(eps, tok, tok, n_steps=FLOW_STEPS, cond=cc)
+            return (data.rc[split][tok, subj_k] + res).view(n_samples, n, data.d) * data.s_lat
         acc = 0
         for _ in range(n_samples):
             eps = torch.randn(z0.shape, device=data.device, generator=g)
             acc = acc + net.predict_flow(eps, m, m, n_steps=FLOW_STEPS, cond=c)
-        out = acc / n_samples
+        out = z0 + acc / n_samples
     return out.view(8, n, data.d) * data.s_lat
 
 
@@ -192,6 +199,9 @@ def train(model, hp, data, seed, trial=None):
             z0, y, c, m = data.batch("val", torch.arange(nv, device=data.device), hp["k_sc"])
             vl = loss_fn(model, net, hp, z0, y, c, m, data,
                          torch.Generator(device=data.device).manual_seed(vgen_seed)).item()
+        if model == "flow":                 # the flow's val loss is noise-dominated: early-stop on a smoothed value
+            ema = vl if ep == 0 else 0.9 * ema + 0.1 * vl
+            vl = ema
         if vl < best:
             best, best_ep, bad, state = vl, ep, 0, copy.deepcopy(net.state_dict())
         else:
@@ -200,7 +210,7 @@ def train(model, hp, data, seed, trial=None):
             trial.report(-vl, ep)
             if trial.should_prune():
                 raise optuna.TrialPruned()
-        if bad >= TRAIN["patience"]:
+        if bad >= (TRAIN["patience_flow"] if model == "flow" else TRAIN["patience"]):
             break
     net.load_state_dict(state)
     return net, dict(best_val_loss=best, best_epoch=best_ep, epochs_run=ep + 1)

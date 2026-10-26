@@ -1,8 +1,11 @@
 """Spec v4 E2.1 gate G1 (E2.1-shaped part): the real E2.1 training code on simulated subjects with known answers.
 
 Each subject has a 16-d trait u; the input (SC-like, 256-d) is x = u B + small noise; each of 8 conditions has an
-encoding g^m = u M_m + s(u) * eps (32-d) with a subject-specific spread s(u) = 0.3 exp(0.6 u_1). So E[g^m | x] is
-(almost) linear and the spread of a subject's 8 encodings depends on the input. Splits as seed 0 (659 / 74 / 184).
+encoding g^m = u M_m + s(u) * eps (32-d), where the conditions share most of their mean structure
+(M_m = M_0 + 0.3 Delta_m) and the subject-specific spread s(u) = 0.3 exp(u_1) varies strongly. So E[g^m | x] is
+(almost) linear, and the cloud of a subject's 8 encodings is shaped mainly by its input-dependent spread: a model that
+learns the spread can beat a Gaussian with one shared covariance (revised 2026-10-26 after the first run, where the
+between-condition scatter dominated and the test did not isolate the spread). Splits as seed 0 (659 / 74 / 184).
 Fixed configurations, no search.
   G1a: corrector and bridge (one step) reach R^2 >= 0.9 against E[g^m | x] for every condition;
   G1b: the conditional flow trained with x shuffled across subjects carries no subject signal (code demeaned r of its
@@ -32,11 +35,11 @@ class Synth(R.Data):
         rng = np.random.default_rng(seed)
         self.device, self.d, self.seed = device, D, seed
         B = rng.normal(size=(Q, P_IN)) / np.sqrt(Q)
-        M = rng.normal(size=(8, Q, D)) / np.sqrt(Q)
+        M = (rng.normal(size=(1, Q, D)) + 0.3 * rng.normal(size=(8, Q, D))) / np.sqrt(Q)
         self.raw, self.x, self.truth, self.spread = {}, {}, {}, {}
         for split, n in N.items():
             u = rng.normal(size=(n, Q))
-            s = 0.3 * np.exp(0.6 * u[:, 0])
+            s = 0.3 * np.exp(1.0 * u[:, 0])
             self.x[split] = u @ B + 0.05 * rng.normal(size=(n, P_IN))
             mu = np.einsum("nq,mqd->mnd", u, M)
             self.raw[split] = mu + s[None, :, None] * rng.normal(size=(8, n, D))
