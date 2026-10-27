@@ -1,0 +1,59 @@
+{
+ "model": "CrossModal_linear_backbone",
+ "instance": "linear_backbone/sc2fc",
+ "grid_version": "v2",
+ "stage": "consensus",
+ "combo_id": "mse_only",
+ "seed": 4,
+ "batch_size": 64,
+ "hparams": null,
+ "loss_signature": "mse",
+ "val_demeaned_r_last": 0.1114179827272892,
+ "epochs": 101,
+ "train_demeaned_pearson": 0.481999933719635,
+ "train_avg_rank": 0.9991511053851216,
+ "train_pearson": 0.8535193800926208,
+ "train_mse": 0.012122690677642822,
+ "train_top1_acc": 0.9004392386530015,
+ "train_r2": 0.10303772985935211,
+ "val_demeaned_pearson": 0.11061710864305496,
+ "val_avg_rank": 0.8048389681140843,
+ "val_pearson": 0.8350289463996887,
+ "val_mse": 0.014001618139445782,
+ "val_top1_acc": 0.08860759493670886,
+ "val_r2": -0.008806903846561909,
+ "test_demeaned_pearson": 0.10738345235586166,
+ "test_avg_rank": 0.8143852728468113,
+ "test_pearson": 0.8398177027702332,
+ "test_mse": 0.013647402636706829,
+ "test_top1_acc": 0.06153846153846154,
+ "test_r2": -0.0012169760884717107,
+ "term_scales": {
+  "mse": {
+   "abs_mean": 0.012115611135959626,
+   "mean": 0.012115611135959626,
+   "n_batches": 10
+  },
+  "varmatch": {
+   "abs_mean": 0.9667758882045746,
+   "mean": 0.9667758882045746,
+   "n_batches": 10
+  },
+  "correye": {
+   "abs_mean": 52.84330787658691,
+   "mean": 52.84330787658691,
+   "n_batches": 10
+  },
+  "correye_dm": {
+   "abs_mean": 8.402633380889892,
+   "mean": 8.402633380889892,
+   "n_batches": 10
+  },
+  "neidist": {
+   "abs_mean": 1.2902740478515624,
+   "mean": 1.2902740478515624,
+   "n_batches": 10
+  }
+ },
+ "direction": "sc2fc"
+}

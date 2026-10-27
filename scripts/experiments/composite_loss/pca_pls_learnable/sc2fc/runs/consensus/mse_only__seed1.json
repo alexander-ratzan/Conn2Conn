@@ -1,0 +1,59 @@
+{
+ "model": "CrossModal_PCA_PLS_learnable",
+ "instance": "pca_pls_learnable/sc2fc",
+ "grid_version": "v3",
+ "stage": "consensus",
+ "combo_id": "mse_only",
+ "seed": 1,
+ "batch_size": 64,
+ "hparams": null,
+ "loss_signature": "mse",
+ "val_demeaned_r_last": 0.09367697685956955,
+ "epochs": 151,
+ "train_demeaned_pearson": 0.4651985168457031,
+ "train_avg_rank": 0.9988659968402256,
+ "train_pearson": 0.8465874791145325,
+ "train_mse": 0.012825573794543743,
+ "train_top1_acc": 0.8565153733528551,
+ "train_r2": 0.05611928924918175,
+ "val_demeaned_pearson": 0.09036380797624588,
+ "val_avg_rank": 0.7558083640442237,
+ "val_pearson": 0.8369487524032593,
+ "val_mse": 0.013565139845013618,
+ "val_top1_acc": 0.06329113924050633,
+ "val_r2": -0.01171344518661499,
+ "test_demeaned_pearson": 0.10494056344032288,
+ "test_avg_rank": 0.7643655489809336,
+ "test_pearson": 0.8308308720588684,
+ "test_mse": 0.013766884803771973,
+ "test_top1_acc": 0.05641025641025641,
+ "test_r2": -0.0006696017808280885,
+ "term_scales": {
+  "mse": {
+   "abs_mean": 0.012795404065400362,
+   "mean": 0.012795404065400362,
+   "n_batches": 10
+  },
+  "varmatch": {
+   "abs_mean": 0.9906069755554199,
+   "mean": 0.9906069755554199,
+   "n_batches": 10
+  },
+  "correye": {
+   "abs_mean": 53.12130889892578,
+   "mean": 53.12130889892578,
+   "n_batches": 10
+  },
+  "correye_dm": {
+   "abs_mean": 8.852431392669677,
+   "mean": 8.852431392669677,
+   "n_batches": 10
+  },
+  "neidist": {
+   "abs_mean": 1.881719970703125,
+   "mean": 1.881719970703125,
+   "n_batches": 10
+  }
+ },
+ "direction": "sc2fc"
+}

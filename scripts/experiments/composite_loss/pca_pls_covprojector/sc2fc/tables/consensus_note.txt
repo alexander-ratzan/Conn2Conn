@@ -1,0 +1,2 @@
+basis: hand_selected
+hand-selected config (no Stage 1 tune); consensus gate not applicable
