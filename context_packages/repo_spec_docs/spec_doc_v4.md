@@ -558,5 +558,6 @@ v3 closed 2026-10-21 (all experiments done). Carried forward:
 | 2026-10-26 | E2.1 addendum added and running (user): un-anchored flows from noise, linear and nonlinear velocity, with full nulls (`13e111e`). |
 | 2026-10-26 | E2.1 addendum done: un-anchored flows learn (94 % / 91 % of ridge's point signal), less efficiently than the closed form; no nonlinear gain on real data, clear gain on synthetic. |
 | 2026-10-27 | Flows: 3000-epoch cap and no early stopping or best-weight pick before epoch 50 (user); seed-0 notebooks re-baked (targets shown next to predictions, native subject IDs, temperature sweep). Temperature sweep (seed 0): on block PCA the starting noise dominates single samples (demeaned r 0.006 at T 1 vs 0.031 at T 0); the CCA route is insensitive. Sampling temperature per route set to block PCA 0.25, CCA 1.0 (user); block-PCA flows re-evaluated from saved weights at T 0.25 (`_longT025`). |
+| 2026-10-27 | Longer training (3000 cap, min 50) does not help: CCA flows get worse (nonlinear overfits early), block-PCA flows unchanged. Block-PCA linear flow at T 0.25 beats ridge on average rank (+0.030, 5 / 5) and top-1 (+0.012, 5 / 5), trails on demeaned r (−0.004); lower temperature costs energy (calibration). Write-up §8. |
 
 Last updated at: 2026-10-27 EDT

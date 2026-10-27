@@ -161,4 +161,31 @@ vs the Gaussian's 0.511, per-subject spread r 0.99. The linear flow behaves as t
 
 ![Addendum](results/Glasser/e21/figures/fig_addendum_free_flows.png)
 
-Last updated at: 2026-10-26 EDT
+## 8. Longer training and sampling temperature (2026-10-27)
+
+Flows retrained at their selected settings with a 3000-epoch cap and no early stopping or best-weight pick before epoch
+50 (`--retrain-selected`, tag `_long`); block-PCA flows then re-scored from the saved weights with the starting noise
+scaled to T 0.25 (`--eval-only`, tag `_longT025`). Test, 5 seeds, mean of the 8 conditions.
+
+| Route · model | Demeaned r | Average rank | Energy (lower is better) | Set average rank |
+|---|---|---|---|---|
+| CCA · ridge / linear-Gaussian | **0.0490** | **0.676** | **0.0462** | **0.844** |
+| CCA · linear flow (1000 → 3000 cap) | 0.0462 → 0.0442 | 0.669 → 0.660 | 0.0486 → 0.0615 | 0.842 → 0.823 |
+| CCA · nonlinear flow (1000 → 3000 cap) | 0.0444 → 0.0376 | 0.662 → 0.632 | 0.0481 → 0.0924 | 0.818 → 0.768 |
+| block PCA · ridge / linear-Gaussian | **0.0441** | 0.662 | **0.0028** | 0.639 |
+| block PCA · linear flow, T 1 → T 0.25 | 0.0380 → 0.0402 | 0.679 → **0.692** | 0.0030 → 0.0086 | 0.736 → **0.776** |
+| block PCA · nonlinear flow, T 1 → T 0.25 | 0.0382 → 0.0345 | 0.664 → 0.671 | 0.0028 → 0.0094 | 0.700 → 0.729 |
+
+- **Longer training does not help.** On the CCA route both flows get worse (the nonlinear flow overfits within a few
+  epochs; its early stop at epoch 2 was the overfitting signal), on block PCA nothing changes. The flows' ceiling at
+  659 subjects is reached early.
+- **Lower temperature helps block-PCA point predictions and identification.** At T 0.25 the linear flow beats ridge on
+  **average rank (+0.030 ± 0.003, 5 / 5 seeds) and top-1 (+0.012, 5 / 5)** while trailing on demeaned r (−0.004,
+  5 / 5): the first consistent gain of a flow over the closed form, on identifiability. Its generated clouds also
+  identify subjects best of all models (set average rank 0.78 vs 0.64 for the Gaussian).
+- **Lower temperature costs the distributional fit** (energy 0.009 vs 0.003): narrowed clouds no longer match the
+  observed spread. Temperature trades calibration for sharp, identifiable point predictions.
+- Notebooks `flow_trajectories.ipynb` and `flow_learning_multitask.ipynb` (seed 0, retrained models) show the targets
+  (block PCA and CCA reconstructions) next to measured FC and predictions, and the temperature sweep.
+
+Last updated at: 2026-10-27 EDT
