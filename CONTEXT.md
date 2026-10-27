@@ -374,7 +374,7 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
 - **Experiments.** `scripts/experiments/<slug>/` holds an experiment's code, config, launchers, small outputs, and
   its write-up `<slug>.md` (question, setup, how to run, W&B ids, results, caveats; descriptive name, not
   `README.md`). Skip the write-up when the experiment's notebook already documents it. Bulky outputs go to
-  `results/experiments/<slug>/`. `scripts/experiments/experiments_index.md` lists every experiment (status,
+  `results/cache/experiments/<slug>/`. `scripts/experiments/experiments_index.md` lists every experiment (status,
   dates, question, documentation link). Avoid folder names ending in `_context` (a global `.gitignore` rule
   ignores `*_context/`).
 - **Results experiments (config-driven).** Two templates: `scripts/experiments/sc_type_benchmark/` (a model × source

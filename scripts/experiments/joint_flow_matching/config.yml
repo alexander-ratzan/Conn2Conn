@@ -55,7 +55,7 @@ gates:
 
 budget: {gpu_h_cap: 25, time_factor: 1.5, max_retries: 1, max_error_frac: 0.2}
 bench: scripts/experiments/task_bidirectional_bench/results/Glasser     # A0 (v3:E0) seed_records
-cache_dir: /scratch/asr655/neuroinformatics/Conn2Conn/results/experiments/joint_flow_matching/cache
+cache_dir: /scratch/asr655/neuroinformatics/Conn2Conn/results/cache/experiments/joint_flow_matching/cache
 records_dir: scripts/experiments/joint_flow_matching/results/Glasser/records
 log_dir: /scratch/asr655/neuroinformatics/Conn2Conn/results/logs
 volumes: {rest: 4800, rest_S1: 2400, rest_S2: 2400, emotion: 352, gambling: 506, language: 632, motor: 568,

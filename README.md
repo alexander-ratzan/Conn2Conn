@@ -366,7 +366,7 @@ table = build_metric_table(records, metric="demeaned_pearson")
 ## Notebooks and Experiments
 
 - Notebooks live under `scripts/notebooks/<purpose>/`. Each one starts with a small bootstrap that finds the repo root by walking up to `main.py`, so notebooks work from any folder in the repo; write repo paths as `REPO_ROOT / "results/..."`.
-- Side experiments live under `scripts/experiments/<name>/` (code, launchers, and their tables/figures). Truly bulky outputs (checkpoints, large arrays) go to `results/experiments/<name>/`.
+- Side experiments live under `scripts/experiments/<name>/` (code, launchers, and their tables/figures). Truly bulky outputs (checkpoints, large arrays) go to `results/cache/experiments/<name>/`.
 - W&B-scraped results experiments follow `scripts/experiments/sc_type_benchmark/` (model × source grid) or `scripts/experiments/covariate_projector/cov_projector_benchmark/` (labelled condition rows): a `config.yml`, a `run.py`, and a small tracked `records.json` snapshot of the latest W&B scrape. Campaign experiments (`model_benchmark`, `task_bidirectional_bench`) add a `submit.py` / launcher and read their task logs.
 - Each experiment is documented in its own folder by a write-up named after it (`<name>/<name>.md`: the question, setup, how to run it, W&B ids, results, and caveats), or by its notebook when that already describes it. `scripts/experiments/experiments_index.md` lists all experiments.
 

@@ -2,7 +2,7 @@
 
 One row per experiment under `scripts/experiments/`. Each folder holds that experiment's code, config, launchers,
 and its tables and PNG figures (all tracked). Truly bulky outputs
-(checkpoints, large arrays) go to `results/experiments/<slug>/`. An experiment is documented by a write-up
+(checkpoints, large arrays) go to `results/cache/experiments/<slug>/`. An experiment is documented by a write-up
 named after its folder (`<slug>/<slug>.md`), or by its own notebook when that already describes it.
 
 | Experiment | Status | Dates | What it asks | Documentation |
