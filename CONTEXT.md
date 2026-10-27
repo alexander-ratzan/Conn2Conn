@@ -68,7 +68,11 @@ If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after 
     `submit.py`, `autopilot.py`, `run.py`; composite-loss campaign with `MB_CAMPAIGN_CONFIG=config_composite_loss.yml`:
     `composite_scales.py`, `build_composite_configs.py`, `composite_vs_mse.py`, outputs `composite_loss/`),
     `covariate_projector/covariate_ablation/` (spec v3 E1: covariate families, `run_cell.py`, `node_size.py`), `composite_loss/` (`protocol.py`, `report.py`, `compare.py`; instances
-    `<model>/{sc2fc,fc2sc}/`), `task_bidirectional_bench/` (FC condition × seed × direction × parcellation; `make_configs.py`, `submit.py`, `run.py`)
+    `<model>/{sc2fc,fc2sc}/`; viewer `viewers/cross_model/`), `task_bidirectional_bench/` (FC condition × seed × direction × parcellation; `make_configs.py`, `submit.py`, `run.py`)
+- `scripts/data_viewers/` (self-contained HTML viewers; layout and rules under "Viewers" in Repo Layout Conventions)
+  - `viewer_kit/` (shared base: `Viewer` page builder, `kit.css`, `kit.js`, `smoke_test.js`), `timeseries_viewer/`
+    (regional timeseries, window FC and metrics from `Conn2Conn_data/timeseries`), `multitask_latent_viewer/` (subjects'
+    FC encodings in the E1 multitask CCA latent vs pooled PCA codes)
 - `scripts/notebooks/model_overviews/*.ipynb`
   - conceptual onboarding notebooks for PCA/PLS, conditional Gaussian, latent-attention, masked pretraining, and nodal baselines
 - `scripts/notebooks/model_testing/*.ipynb`
@@ -374,9 +378,20 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
 - **Experiments.** `scripts/experiments/<slug>/` holds an experiment's code, config, launchers, small outputs, and
   its write-up `<slug>.md` (question, setup, how to run, W&B ids, results, caveats; descriptive name, not
   `README.md`). Skip the write-up when the experiment's notebook already documents it. Bulky outputs go to
-  `results/cache/experiments/<slug>/`. `scripts/experiments/experiments_index.md` lists every experiment (status,
+  `results/cache/experiments/<slug>/`. Standard layout (new experiments; older ones are converted when touched):
+  `<slug>.md`, `config.yml`, entry scripts (`run.py`, ...), `launch/` (sbatch launchers), `checks/` (verification
+  scripts and audits), `results/` (raw per-seed / per-run records), `tables/`, `figures/` (PNG), `viewers/<name>/`
+  (interactive pages, see below), all at the same depth. Reference: `cca_latent_bench/`. `scripts/experiments/experiments_index.md` lists every experiment (status,
   dates, question, documentation link). Avoid folder names ending in `_context` (a global `.gitignore` rule
   ignores `*_context/`).
+- **Viewers.** Self-contained HTML pages (no CDN, data embedded), one folder each holding the builder, the template and
+  the built page side by side: `scripts/data_viewers/<name>/` for data viewers, `scripts/experiments/<slug>/viewers/<name>/`
+  for an experiment's results. `build_<name>.py` collects the data and calls `scripts.data_viewers.viewer_kit.Viewer(__file__).write(meta, sets)`;
+  `<name>.template` is the page (kit markers `<!--KIT:HEAD-->`, `<!--KIT:TOP-->`, `<!--KIT:DATA-->`, a `kit-template-note`
+  line); the built `<name>[_<variant>].html` and its data cache `*_data.json` are gitignored (only code is tracked).
+  `--from-cache` rebuilds a page from the cache, `--smoke` runs its JS under node (cuda image) with a DOM stub. Pages
+  are opened in Cursor with "Live Preview: Show Preview" (open the `.html`, never the `.template`). Claude skill:
+  `Conn2ConnWorkspace/.claude/skills/viewer/`.
 - **Results experiments (config-driven).** Two templates: `scripts/experiments/sc_type_benchmark/` (a model × source
   grid; record-level figure types `source_bars`, `metric_scatter`) and `scripts/experiments/covariate_projector/cov_projector_benchmark/`
   (labelled condition `rows` + ordered `row_groups` with label overrides; seed-DataFrame figure types
@@ -542,7 +557,7 @@ Debug missing results cell:
 2026-10-04 — spec v2 closed (E1, E2.2, E3, I1.4–I1.5; details in `spec_doc_v2.md` § Closure):
 - `scripts/experiments/composite_loss/` (E1 + E3): per-model instances in `<model>/{sc2fc,fc2sc}/` (`--instance
   <model>/<direction>`); grid v3; cross-model
-  page `figures/cross_model_interactive.html` with a direction switch and the SC → FC test-retest ceiling. Fixed
+  viewer `viewers/cross_model/cross_model.html` (was `figures/cross_model_interactive.html`) with a direction switch and the SC → FC test-retest ceiling. Fixed
   reference scales are the protocol's default balancing (spec v2 D6).
 - `scripts/experiments/model_benchmark/` (E2.2): MSE-only benchmark, both directions. Configs generated into
   `models/configs/benchmark/mse/` by `build_configs.py` (no `data:` block: `--source/--target` set the direction;
@@ -595,4 +610,4 @@ Debug missing results cell:
 Earlier: model code moved to `models/architectures/`, training to `models/train/`, evaluation to `models/eval/`;
 old top-level shims removed (git history has the rest).
 
-Last updated at: 2026-10-26 EDT
+Last updated at: 2026-10-27 EDT

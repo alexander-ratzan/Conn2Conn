@@ -229,7 +229,7 @@ def report_checks(tmp):
         report.lg.EXPERIMENT_DIR = exp_dir
         rc = report.build("linear_backbone")
         expected = ["tables/seed_records.csv", "tables/combo_summary.csv", "tables/epoch_history.csv.gz", "figures/tradeoff_scatter.png",
-                    "figures/tradeoff_interactive.html", "figures/term_trajectories.png", "figures/loss_composition.png",
+                    "figures/term_trajectories.png", "figures/loss_composition.png",
                     "figures/val_trajectories.png", "figures/dose_response.png", "figures/grad_cosine.png"]
         missing = [e for e in expected if not (inst / e).exists()]
         check("report.build writes every table and figure", rc == 0 and not missing, f"missing={missing}")
@@ -241,9 +241,7 @@ def report_checks(tmp):
         shutil.copytree(inst / "figures", snap / "figures")
         report.build("linear_backbone")
         same = all(filecmp.cmp(snap / e, inst / e, shallow=False) for e in expected if not e.endswith(".gz"))
-        check("report is deterministic (tables, PNGs and HTML byte-identical on rebuild)", same)
-        htm = (inst / "figures" / "tradeoff_interactive.html").read_text()
-        check("interactive HTML: 29 clickable points, no external scripts", htm.count('class="pt"') == 29 and "<script src" not in htm)
+        check("report is deterministic (tables and PNGs byte-identical on rebuild)", same)
     finally:
         lg.EXPERIMENT_DIR = orig
 

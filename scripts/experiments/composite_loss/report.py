@@ -4,17 +4,15 @@ Called by `protocol.py report --instance <name>`. Deterministic: everything is r
 tables), so re-running on unchanged runs rewrites byte-identical tables and figures.
 
 Tables  (<instance>/tables/): seed_records.csv, combo_summary.csv, epoch_history.csv.gz
-Figures (<instance>/figures/, PNG 300 dpi, figure-making skill style):
+Figures (<instance>/figures/, PNG 300 dpi, figure-making skill style; the interactive view of every instance is
+viewers/cross_model/):
     tradeoff_scatter.png         test demeaned_pearson vs avg_rank, one point per combination (mean ± SE over seeds)
-    tradeoff_interactive.html    same scatter, self-contained; hover/click shows the weights and per-seed values
     term_trajectories.png        val raw value of each term over epochs (factorial combinations)
     loss_composition.png         each active term's share of the weighted training loss over epochs
     val_trajectories.png         val demeaned r over epochs (factorial combinations)
     dose_response.png            weight -> paired Δ test demeaned_pearson / avg_rank vs MSE-only (single terms + three-term mixtures; symlog)
     grad_cosine.png              per-term gradient cosines on the latent map over epochs (if recorded)
 """
-import html
-import json
 import sys
 from pathlib import Path
 
@@ -143,7 +141,7 @@ def fig_tradeoff(summary, path):
 
 def _place_labels(ax, summary):
     """Greedy, deterministic label placement: try a few offsets per point and skip a label that would overlap one
-    already placed (every point stays identifiable in the interactive HTML)."""
+    already placed (every point stays identifiable in the cross-model viewer)."""
     fig = ax.figure
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
@@ -163,71 +161,6 @@ def _place_labels(ax, summary):
                 placed.append(bb)
                 break
             txt.remove()
-
-
-def fig_interactive(summary, records, path, title):
-    """Self-contained SVG scatter with hover/click details (no external scripts)."""
-    x, y = summary["avg_rank_mean"].to_numpy(), summary["demeaned_pearson_mean"].to_numpy()
-    xe, ye = summary["avg_rank_se"].fillna(0).to_numpy(), summary["demeaned_pearson_se"].fillna(0).to_numpy()
-    pad = lambda lo, hi: (lo - 0.08 * (hi - lo or 1), hi + 0.08 * (hi - lo or 1))
-    x0, x1 = pad(float(np.min(x - xe)), float(np.max(x + xe)))
-    y0, y1 = pad(float(np.min(y - ye)), float(np.max(y + ye)))
-    W, H, L, B = 720, 520, 70, 60
-    sx = lambda v: L + (v - x0) / (x1 - x0) * (W - L - 20)
-    sy = lambda v: H - B - (v - y0) / (y1 - y0) * (H - B - 20)
-    points = []
-    for i, r in summary.iterrows():
-        seeds = records[(records["stage"] == "stage2") & (records["combo_id"] == r["combo_id"])].sort_values("seed")
-        info = {"id": r["combo_id"], "label": combo_label(r), "block": r["block"], "signature": r["loss_signature"],
-                "weights": {"MSE": 1.0, **{TERM_LABEL[t]: float(r[f"w_{t}"]) for t in _terms(summary)}},
-                "demeaned_pearson": f"{r['demeaned_pearson_mean']:.4f} ± {r['demeaned_pearson_se']:.4f}",
-                "avg_rank": f"{r['avg_rank_mean']:.4f} ± {r['avg_rank_se']:.4f}",
-                "top1_acc": f"{r['top1_acc_mean']:.4f} ± {r['top1_acc_se']:.4f}",
-                "per_seed": [{"seed": int(s.seed), "demeaned_pearson": round(s.test_demeaned_pearson, 4),
-                              "avg_rank": round(s.test_avg_rank, 4), "top1_acc": round(s.test_top1_acc, 4)} for s in seeds.itertuples()]}
-        cx, cy = sx(x[i]), sy(y[i])
-        color = _mix_color(r)
-        points.append(
-            f'<line x1="{sx(x[i]-xe[i]):.1f}" x2="{sx(x[i]+xe[i]):.1f}" y1="{cy:.1f}" y2="{cy:.1f}" stroke="{color}"/>'
-            f'<line x1="{cx:.1f}" x2="{cx:.1f}" y1="{sy(y[i]-ye[i]):.1f}" y2="{sy(y[i]+ye[i]):.1f}" stroke="{color}"/>'
-            f'<circle class="pt" cx="{cx:.1f}" cy="{cy:.1f}" r="{9 if r["combo_id"] == "mse_only" else 7}" fill="{color}" '
-            f'stroke="{"#000" if r["combo_id"] == "mse_only" else "#fff"}" stroke-width="1.5" data-info="{html.escape(json.dumps(info))}"/>')
-    ticks = []
-    for v in np.linspace(x0, x1, 5):
-        ticks.append(f'<text x="{sx(v):.1f}" y="{H-B+20}" text-anchor="middle">{v:.3f}</text>')
-    for v in np.linspace(y0, y1, 5):
-        ticks.append(f'<text x="{L-8}" y="{sy(v)+4:.1f}" text-anchor="end">{v:.3f}</text>')
-    svg = (f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="{html.escape(title)}">'
-           f'<line x1="{L}" y1="{H-B}" x2="{W-20}" y2="{H-B}" class="ax"/><line x1="{L}" y1="20" x2="{L}" y2="{H-B}" class="ax"/>'
-           + "".join(ticks) + "".join(points) +
-           f'<text x="{(W+L)/2:.0f}" y="{H-15}" text-anchor="middle" class="lab">Average rank (test, max)</text>'
-           f'<text transform="translate(18 {(H-B)/2:.0f}) rotate(-90)" text-anchor="middle" class="lab">Demeaned corr. (test, max)</text></svg>')
-    page = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{html.escape(title)}</title><style>
-:root{{--bg:#fff;--fg:#1f2328;--muted:#57606a;--card:#f6f8fa}}
-@media (prefers-color-scheme: dark){{:root{{--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--card:#161b22}}}}
-body{{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:14px/1.4 "DejaVu Sans",Helvetica,Arial,sans-serif}}
-main{{max-width:1100px;margin:auto;display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:16px}}
-@media (max-width:760px){{main{{grid-template-columns:1fr}}}}
-svg{{width:100%;height:auto}} svg text{{fill:var(--muted);font-size:11px}} .lab{{font-size:13px;fill:var(--fg)}}
-.ax{{stroke:var(--muted);stroke-width:1.5}} .pt{{cursor:pointer}} .pt:hover,.pt.sel{{stroke:var(--fg);stroke-width:3}}
-#panel{{background:var(--card);border-radius:8px;padding:12px;min-height:200px}} table{{border-collapse:collapse;width:100%}}
-td,th{{padding:2px 6px;text-align:left;border-bottom:1px solid var(--muted)}} h1{{font-size:18px;max-width:1100px;margin:0 auto 12px}}
-</style></head><body><h1>{html.escape(title)}</h1><main><div>{svg}</div>
-<div id="panel"><em>Hover or click a point to see its loss weights and per-seed results.</em></div></main>
-<script>
-const panel=document.getElementById('panel');
-function show(el){{const d=JSON.parse(el.dataset.info);
- let w=Object.entries(d.weights).map(([k,v])=>`<tr><td>${{k}}</td><td>${{v}}</td></tr>`).join('');
- let s=d.per_seed.map(r=>`<tr><td>${{r.seed}}</td><td>${{r.demeaned_pearson}}</td><td>${{r.avg_rank}}</td><td>${{r.top1_acc}}</td></tr>`).join('');
- panel.innerHTML=`<h3>${{d.label}}</h3><p><small>id <code>${{d.id}}</code> · block ${{d.block}} · loss <code>${{d.signature}}</code></small></p>
- <table><tr><th>Term</th><th>Weight</th></tr>${{w}}</table>
- <p>Demeaned corr.: ${{d.demeaned_pearson}}<br>Average rank: ${{d.avg_rank}}<br>Top-1 accuracy: ${{d.top1_acc}}</p>
- <table><tr><th>Seed</th><th>Demeaned corr.</th><th>Avg. rank</th><th>Top-1 acc.</th></tr>${{s}}</table>`;}}
-document.querySelectorAll('.pt').forEach(el=>{{el.addEventListener('mouseenter',()=>show(el));
- el.addEventListener('click',()=>{{document.querySelectorAll('.pt').forEach(p=>p.classList.remove('sel'));el.classList.add('sel');show(el);}});}});
-</script></body></html>"""
-    Path(path).write_text(page)
 
 
 def _mean_over_seeds(ep, cols):
@@ -400,9 +333,7 @@ def build(instance):
         combos = cfg["grid"]["combos"]
         ep2 = epochs[epochs["stage"] == "stage2"]
         fig_tradeoff(summary, d / "figures" / "tradeoff_scatter.png")
-        fig_interactive(summary, seed_records, d / "figures" / "tradeoff_interactive.html",
-                        f"{cfg['model']}: composite-loss trade-off (grid {cfg['grid_version']})")
-        written += ["figures/tradeoff_scatter.png", "figures/tradeoff_interactive.html"]
+        written += ["figures/tradeoff_scatter.png"]
         if fig_term_trajectories(ep2, combos, d / "figures" / "term_trajectories.png"):
             written.append("figures/term_trajectories.png")
         fig_loss_composition(ep2, combos, cfg["state"]["reference_scales"]["c"], d / "figures" / "loss_composition.png")

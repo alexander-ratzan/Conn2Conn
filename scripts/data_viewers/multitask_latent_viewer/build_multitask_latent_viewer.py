@@ -1,4 +1,4 @@
-"""Spec v4 E1 interactive viewer: subject-wise FC encodings in the multitask CCA latent vs pooled block-PCA codes.
+"""Multitask latent viewer: subject-wise FC encodings in the multitask CCA latent (spec v4 E1) vs pooled block-PCA codes.
 
 For each seed (0-4) and held-out split (val, test), every subject of the split is encoded from each of the 8 FC
 conditions in two spaces of equal dimension d (E1's SC-blind selected latent for that seed):
@@ -14,12 +14,14 @@ split's points.
 
 Math and derivations: scripts/notebooks/EDA/FC_encoded_conditions_analysis.ipynb (sections 2 and 5).
 
-Writes results/Glasser/tables/latent_viewer_data.json (cache) and results/Glasser/figures/latent_viewer.html.
+Model and data: scripts/experiments/cca_latent_bench (E1 config, per-seed records for the selected latent) and E2's
+per-seed cache (joint_flow_matching). Page: multitask_latent_viewer.template on the shared viewer_kit (one data block per
+seed x split). Output, next to this file (generated, not tracked): multitask_latent_viewer.html and its data cache
+multitask_latent_viewer_data.json (--from-cache rebuilds the page only).
 
-    python scripts/experiments/cca_latent_bench/viewer/build_latent_viewer.py [--seeds 0 1 2 3 4] [--from-cache]
+    python scripts/data_viewers/multitask_latent_viewer/build_multitask_latent_viewer.py [--seeds 0 1 2 3 4] [--from-cache] [--smoke]
 """
 import argparse
-import json
 import sys
 from pathlib import Path
 
@@ -27,17 +29,15 @@ import numpy as np
 import pandas as pd
 
 HERE = Path(__file__).resolve().parent
-EXP = HERE.parent
+REPO_ROOT = next(p for p in HERE.parents if (p / "main.py").exists())
+EXP = REPO_ROOT / "scripts" / "experiments" / "cca_latent_bench"
 sys.path.insert(0, str(EXP))
 from run_seed import CFG, FC, SeedData  # noqa: E402  (E1 config and E2's per-seed cache)
 from models.architectures.multiview_cca import maxvar  # noqa: E402
 from models.eval.metrics import compute_corr_matrix  # noqa: E402
 from sklearn.metrics import silhouette_samples  # noqa: E402
+from scripts.data_viewers.viewer_kit import Viewer  # noqa: E402
 
-REPO_ROOT = next(p for p in EXP.parents if (p / "main.py").exists())
-OUT_FIG = EXP / "results" / "Glasser" / "figures" / "latent_viewer.html"
-OUT_JSON = EXP / "results" / "Glasser" / "tables" / "latent_viewer_data.json"
-TEMPLATE = HERE / "latent_viewer.template"   # page template (not a viewer itself); __DATA__ is replaced
 N_DIMS = 10
 TASKS = [v for v in FC if v != "rest"]
 
@@ -86,7 +86,7 @@ def pca2(E):
 
 
 def build_seed(seed):
-    lat = pd.read_csv(EXP / "results" / "Glasser" / "records" / f"seed{seed}_latent.csv")
+    lat = pd.read_csv(REPO_ROOT / CFG["records_dir"] / f"seed{seed}_latent.csv")
     sel = lat[lat.selected_sc_blind.eq(True)].iloc[0]
     k, d, lam = int(sel.k_fc), int(sel.d), float(sel.lambda_rel)
     sd = SeedData(seed, "main")
@@ -109,33 +109,21 @@ def build_seed(seed):
     return out
 
 
-def page_json(data):
-    """The data as JSON for the page's <script type="application/json"> block: one dataset per line (no single
-    multi-megabyte line), with '</' escaped so the block cannot close early."""
-    head = {k: v for k, v in data.items() if k != "sets"}
-    parts = [json.dumps(k) + ":" + json.dumps(v, separators=(",", ":")) for k, v in data["sets"].items()]
-    txt = json.dumps(head, separators=(",", ":"))[:-1] + ',"sets":{\n' + ",\n".join(parts) + "\n}}"
-    return txt.replace("</", "<\\/")
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--seeds", type=int, nargs="*", default=CFG["seeds"])
-    ap.add_argument("--from-cache", action="store_true", help="rebuild the page from the cached JSON only")
+    Viewer.add_args(ap)
     args = ap.parse_args()
+    viewer = Viewer(__file__)
     if args.from_cache:
-        data = json.loads(OUT_JSON.read_text())
-    else:
-        sets = {}
-        for s in args.seeds:
-            sets.update(build_seed(s))
-        data = dict(conditions=FC, n_dims=N_DIMS, sets=sets,
-                    notebook="scripts/notebooks/EDA/FC_encoded_conditions_analysis.ipynb",
-                    writeup="scripts/experiments/cca_latent_bench/cca_latent_bench.md")
-        OUT_JSON.write_text(json.dumps(data, separators=(",", ":")))
-    OUT_FIG.write_text(TEMPLATE.read_text().replace("__DATA__", page_json(data)))
-    print(f"wrote {OUT_JSON} ({OUT_JSON.stat().st_size / 1e6:.1f} MB) and {OUT_FIG}")
-
+        viewer.write(*viewer.load_cache(), cache=False, smoke=args.smoke)
+        return
+    sets = {}
+    for s in args.seeds:
+        sets.update(build_seed(s))
+    meta = dict(conditions=FC, n_dims=N_DIMS, notebook="scripts/notebooks/EDA/FC_encoded_conditions_analysis.ipynb",
+                writeup="scripts/experiments/cca_latent_bench/cca_latent_bench.md")
+    viewer.write(meta, sets, smoke=args.smoke)
 
 if __name__ == "__main__":
     main()

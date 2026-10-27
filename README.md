@@ -329,12 +329,27 @@ launcher + `run.py`:
   MSE, both directions, one campaign per model (job names `e2_mse_<Model>_<direction>`). A composite-loss version
   needs spec v3 I1.
 - **Composite-loss protocol** (`scripts/experiments/composite_loss/`): `protocol.py`, `report.py`, `compare.py`, with
-  per-model instances in `<model>/{sc2fc,fc2sc}/`.
+  per-model instances in `<model>/{sc2fc,fc2sc}/` and the cross-model viewer `viewers/cross_model/`.
 - **Task FC ↔ SC** (`scripts/experiments/task_bidirectional_bench/`, spec v3 E0): FC condition × seed × direction × parcellation for PCA-PLS learnable.
 - **Joint task FC → SC** (`scripts/experiments/joint_taskfc2sc/`, spec v3 E2): rest + 7 task-FC blocks, closed-form
   grid on CPU (`grid.py`, `launch_grid.sh`); reads its own `runs/` CSVs rather than SLURM logs.
 
 `scripts/experiments/experiments_index.md` lists every experiment with its status and write-up.
+
+### Interactive viewers
+
+Self-contained HTML pages, each in one folder with its builder and template; the built page is not tracked, so build
+it before opening (Cursor: open the `.html`, then "Live Preview: Show Preview"):
+
+```bash
+python scripts/data_viewers/timeseries_viewer/build_timeseries_viewer.py                 # timeseries, window FC, metrics
+python scripts/data_viewers/multitask_latent_viewer/build_multitask_latent_viewer.py     # E1 multitask CCA latent vs PCA
+python scripts/experiments/composite_loss/viewers/cross_model/build_cross_model.py      # composite-loss trade-offs
+# --from-cache: rebuild the page from the last build's data; --smoke: run the page's JS under node
+```
+
+Shared base: `scripts/data_viewers/viewer_kit/`. Data viewers live in `scripts/data_viewers/<name>/`, an experiment's
+viewers in `scripts/experiments/<slug>/viewers/<name>/`.
 
 ```bash
 python3 scripts/experiments/model_benchmark/autopilot.py status --direction sc2fc   # host python (needs squeue)
@@ -423,4 +438,4 @@ Conn2Conn/
 └── krakencoder_experimental/        # Local Krakencoder copy + data, cached predictions, participants.tsv (gitignored)
 ```
 
-Last updated at: 2026-10-26 EDT
+Last updated at: 2026-10-27 EDT

@@ -69,8 +69,8 @@ without covariates.
 
 ## Figures (`sc2fc/figures/`)
 
-As the other instances: `tradeoff_scatter.png` + `tradeoff_interactive.html`, `dose_response.png`, `term_trajectories.png`,
-`loss_composition.png`, `val_trajectories.png`, `grad_cosine.png`. Cross-model: `../figures/cross_model_interactive.html`.
+As the other instances: `tradeoff_scatter.png`, `dose_response.png`, `term_trajectories.png`,
+`loss_composition.png`, `val_trajectories.png`, `grad_cosine.png`. Cross-model viewer: `../viewers/cross_model/cross_model.html`.
 
 ## How to run
 

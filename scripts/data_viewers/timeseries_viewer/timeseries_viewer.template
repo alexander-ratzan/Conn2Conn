@@ -4,81 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Timeseries Connectome Viewer</title>
+<!--KIT:HEAD-->
 <style>
-:root {
-  color-scheme: light;
-  --surface-0: #f6f6f4; --surface-1: #fcfcfb; --surface-2: #efeeea; --border: #dcdbd6;
-  --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #7a7974;
-  --grid: #e6e5e0; --axis: #b9b8b2; --band: rgba(42, 120, 214, 0.10);
-  --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --neutral: #8a8984;
-  --div-neg-2: #104281; --div-neg-1: #5598e7; --div-mid: #f0efec; --div-pos-1: #e66767; --div-pos-2: #9b1c1c;
-  --good: #0ca30c; --critical: #d03b3b;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --surface-0: #121211; --surface-1: #1a1a19; --surface-2: #252523; --border: #34342f;
-    --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
-    --grid: #2a2a27; --axis: #4a4a45; --band: rgba(57, 135, 229, 0.16);
-    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --neutral: #8f8e86;
-    --div-neg-2: #3987e5; --div-neg-1: #1c5cab; --div-mid: #383835; --div-pos-1: #b33a3a; --div-pos-2: #e66767;
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --surface-0: #121211; --surface-1: #1a1a19; --surface-2: #252523; --border: #34342f;
-  --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
-  --grid: #2a2a27; --axis: #4a4a45; --band: rgba(57, 135, 229, 0.16);
-  --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --neutral: #8f8e86;
-  --div-neg-2: #3987e5; --div-neg-1: #1c5cab; --div-mid: #383835; --div-pos-1: #b33a3a; --div-pos-2: #e66767;
-}
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--surface-0); color: var(--text-primary);
-       font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-header { padding: 16px 20px 8px; }
-h1 { font-size: 18px; margin: 0 0 2px; font-weight: 600; }
-.sub { color: var(--text-secondary); font-size: 12px; }
-.controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; padding: 8px 20px 12px;
-            position: sticky; top: 0; z-index: 5; background: var(--surface-0); border-bottom: 1px solid var(--border); }
-.controls label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--text-secondary); }
-.controls select, .controls input[type=number] { font: inherit; color: var(--text-primary); background: var(--surface-1);
-            border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; max-width: 260px; }
-.controls input[type=number] { width: 76px; }
-.controls .check { flex-direction: row; align-items: center; gap: 6px; padding-bottom: 5px; }
-main { padding: 14px 20px 28px; display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; min-width: 0; }
-.card.wide { grid-column: 1 / -1; }
-.card h2 { font-size: 13px; font-weight: 600; margin: 0 0 2px; }
-.card .meta { color: var(--text-secondary); font-size: 12px; min-height: 18px; }
-canvas { display: block; width: 100%; }
 .heat { aspect-ratio: 1 / 1; max-width: 520px; margin: 6px auto 0; cursor: crosshair; }
 .slider { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
 .slider input { flex: 1; }
 .colorbar { display: flex; align-items: center; gap: 8px; justify-content: center; margin-top: 6px; font-size: 11px; color: var(--text-secondary); }
 .colorbar canvas { width: 180px; height: 10px; border-radius: 2px; }
-.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--text-secondary); margin: 4px 0; }
-.legend span { display: inline-flex; align-items: center; gap: 6px; }
-.sw { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
-.sw.dash { background: none !important; border-top: 2px dashed; height: 0; }
-.sw.dot { width: 8px; height: 8px; border-radius: 50%; }
-table { border-collapse: collapse; width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
-th, td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--grid); }
-th:first-child, td:first-child { text-align: left; }
-th { color: var(--text-secondary); font-weight: 500; }
-.note { color: var(--text-muted); font-size: 11.5px; margin-top: 6px; }
-footer { padding: 0 20px 24px; color: var(--text-secondary); font-size: 12px; }
-.status { display: inline-flex; gap: 6px; align-items: center; font-weight: 500; }
-#tip { position: fixed; pointer-events: none; z-index: 20; background: var(--surface-1); color: var(--text-primary);
-       border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.15);
-       display: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
-@media (max-width: 860px) { main { grid-template-columns: minmax(0, 1fr); padding: 12px 16px; } header, .controls, footer { padding-left: 16px; padding-right: 16px; } }
 </style>
 </head>
 <body>
+<!--KIT:TOP-->
+<div class="kit-template-note" style="padding:16px;color:#d03b3b;font:600 15px sans-serif">This is the viewer TEMPLATE, not the viewer. Open timeseries_viewer_Glasser.html in this folder (build: python scripts/data_viewers/timeseries_viewer/build_timeseries_viewer.py).</div>
 <header>
   <h1>Timeseries Connectome Viewer</h1>
   <div class="sub" id="subtitle"></div>
-  <div id="err" style="display:none;margin-top:8px;padding:8px 10px;border-radius:6px;border:1px solid var(--critical);color:var(--critical);font-weight:500"></div>
 </header>
 <div class="controls">
   <label>Subject <select id="subject"></select></label>
@@ -144,39 +84,17 @@ footer { padding: 0 20px 24px; color: var(--text-secondary); font-size: 12px; }
   </section>
 </main>
 <footer>
-  <div><span class="status" id="selfcheck"></span></div>
+  <div id="kit-checks"></div>
   <div class="note">Data: Conn2Conn_data/timeseries (xcp-d 0.9.1 parcel means; denoised, band-pass filtered ≈0.01–0.08 Hz, not z-scored) and fc/ (xcp-d combined-run relmat).
     The band-pass filter shapes both the autocorrelation and the coarse-scale entropy, and task designs are not regressed out, so compare regions, subjects and conditions within this dataset rather than against absolute values in the literature.
     Metric code: data/timeseries_metrics.py (the page mirrors it).</div>
 </footer>
-<div id="tip"></div>
-<script id="meta" type="application/json">__META__</script>
-__BLOCKS__
+<!--KIT:DATA-->
 <script>
 "use strict";
-function fail(msg) { const el = document.getElementById("err"); el.style.display = "block"; el.textContent = "Viewer error: " + msg; }
-addEventListener("error", e => fail(`${e.message} (line ${e.lineno})`));
-const D = (() => {
-  const txt = document.getElementById("meta").textContent;
-  if (txt.trim() === "__" + "META__") {
-    fail("this is the TEMPLATE (scripts/data_viewers/timeseries_viewer/timeseries_viewer.template), not the viewer. Open results/data_viewers/timeseries_viewer_Glasser.html (build: python scripts/data_viewers/timeseries_viewer/build_timeseries_viewer.py).");
-    throw new Error("template opened");
-  }
-  let d;
-  try { d = JSON.parse(txt); } catch (e) { fail("could not read the embedded metadata block (" + e.message + "). Rebuild with build_timeseries_viewer.py."); throw e; }
-  d.data = {};
-  for (const el of document.querySelectorAll("script.rec")) {
-    let r;
-    try { r = JSON.parse(el.textContent); } catch (e) { fail(`could not read data block ${el.dataset.key} (${e.message})`); throw e; }
-    r.q = r.q.join(""); r.fc = r.fc.join("");
-    (d.data[r.subject] ||= {})[r.condition] = r;
-  }
-  return d;
-})();
+const D = Kit.load();
 const P = D.labels.length, TR = D.tr;
-const $ = id => document.getElementById(id);
-const fin = v => typeof v === "number" && Number.isFinite(v);   // null (NaN from Python) is not finite
-const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const { $, fin, fmt, css, tip } = Kit;
 
 // ---------- region order ----------
 const netOrder = [];
@@ -192,13 +110,12 @@ function boundaries(order) {               // display positions where the networ
 }
 
 // ---------- decoding ----------
-function bytes(s) { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
-function rec() { return D.data[S.subject][S.condition]; }
+function rec() { return D.sets[`${S.subject}/${S.condition}`]; }
 function series(r) {                        // dequantized (T x P) row-major + mean over regions; cached on the record
   if (r._x) return r;
-  const q = new Int16Array(bytes(r.q).buffer), T = r.n_tr, x = new Float64Array(T * P), mean = new Float64Array(T);
+  const q = Kit.int16(r.q), T = r.n_tr, x = new Float64Array(T * P), mean = new Float64Array(T);
   for (let t = 0; t < T; t++) { let s = 0; for (let p = 0; p < P; p++) { const v = q[t * P + p] * r.scale[p]; x[t * P + p] = v; s += v; } mean[t] = s / P; }
-  const u = new Int16Array(bytes(r.fc).buffer), F = new Float64Array(P * P);
+  const u = Kit.int16(r.fc), F = new Float64Array(P * P);
   let k = 0;
   for (let i = 0; i < P; i++) { F[i * P + i] = 1; for (let j = i + 1; j < P; j++) { F[i * P + j] = F[j * P + i] = u[k++] / 32767; } }
   r._x = x; r._mean = mean; r._fc = F;
@@ -251,35 +168,12 @@ function mse(v) {                           // one contiguous segment; r fixed a
 const S = { subject: D.subjects[0], condition: D.conditions[0], L: D.window, step: D.step, w: 0, A: 0, B: 1,
             clim: 0.8, order: "network", zoom: false, starts: [] };
 
-// ---------- drawing helpers ----------
-function fit(canvas) {
-  const dpr = window.devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
-  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
-  const ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
-  return { ctx, w, h };
-}
-function hexRGB(h) { h = h.replace("#", ""); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); }
-function divergingLUT() {
-  const stops = [["--div-neg-2", -1], ["--div-neg-1", -0.5], ["--div-mid", 0], ["--div-pos-1", 0.5], ["--div-pos-2", 1]].map(([n, v]) => [v, hexRGB(css(n))]);
-  const lut = new Uint8ClampedArray(256 * 3);
-  for (let i = 0; i < 256; i++) {
-    const v = i / 255 * 2 - 1; let k = 0; while (k < stops.length - 2 && v > stops[k + 1][0]) k++;
-    const [v0, c0] = stops[k], [v1, c1] = stops[k + 1], f = (v - v0) / (v1 - v0);
-    for (let c = 0; c < 3; c++) lut[i * 3 + c] = c0[c] + f * (c1[c] - c0[c]);
-  }
-  return lut;
-}
+// ---------- heatmaps ----------
 let LUT = null;
 function drawHeat(canvas, M) {
-  const order = ORDERS[S.order], img = new ImageData(P, P), lim = S.clim, mid = hexRGB(css("--div-mid"));
-  for (let a = 0; a < P; a++) for (let b = 0; b < P; b++) {
-    const v = M[order[a] * P + order[b]], o = (a * P + b) * 4;
-    if (!fin(v)) { img.data[o] = mid[0]; img.data[o + 1] = mid[1]; img.data[o + 2] = mid[2]; img.data[o + 3] = 255; continue; }
-    const i = Math.max(0, Math.min(255, Math.round((Math.max(-lim, Math.min(lim, v)) / lim + 1) / 2 * 255)));
-    img.data[o] = LUT[i * 3]; img.data[o + 1] = LUT[i * 3 + 1]; img.data[o + 2] = LUT[i * 3 + 2]; img.data[o + 3] = 255;
-  }
+  const order = ORDERS[S.order], img = Kit.matrixImage(M, P, order, S.clim, LUT);
   const off = document.createElement("canvas"); off.width = off.height = P; off.getContext("2d").putImageData(img, 0, 0);
-  const { ctx, w } = fit(canvas);
+  const { ctx, w } = Kit.fit(canvas);
   ctx.imageSmoothingEnabled = false; ctx.drawImage(off, 0, 0, w, w);
   if (S.order === "network") {
     ctx.strokeStyle = css("--surface-1"); ctx.lineWidth = 1;
@@ -288,50 +182,27 @@ function drawHeat(canvas, M) {
   const pa = order.indexOf(S.A), pb = order.indexOf(S.B), u = w / P;   // selected cell (A row, B column)
   ctx.strokeStyle = css("--text-primary"); ctx.lineWidth = 1.5; ctx.strokeRect(pb * u - 2, pa * u - 2, u + 4, u + 4);
 }
-function drawColorbar() {
-  const c = $("colorbar"), ctx = c.getContext("2d"), img = ctx.createImageData(180, 10);
-  for (let x = 0; x < 180; x++) { const i = Math.round(x / 179 * 255); for (let y = 0; y < 10; y++) { const o = (y * 180 + x) * 4; img.data[o] = LUT[i * 3]; img.data[o + 1] = LUT[i * 3 + 1]; img.data[o + 2] = LUT[i * 3 + 2]; img.data[o + 3] = 255; } }
-  ctx.putImageData(img, 0, 0); $("cbMin").textContent = (-S.clim).toFixed(1); $("cbMax").textContent = "+" + S.clim.toFixed(1);
-}
-function niceTicks(lo, hi, n) {
-  const span = hi - lo || 1, step0 = span / n, mag = 10 ** Math.floor(Math.log10(step0));
-  const step = [1, 2, 5, 10].map(f => f * mag).find(s => span / s <= n) || 10 * mag;
-  const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10)); return out;
-}
-function axes(ctx, box, xr, yr, opts = {}) {
-  const { l, t, w, h } = box;
-  ctx.font = "11px system-ui, sans-serif"; ctx.fillStyle = css("--text-secondary"); ctx.strokeStyle = css("--grid"); ctx.lineWidth = 1;
-  for (const v of niceTicks(yr[0], yr[1], opts.ny || 3)) {
-    const y = t + h - (v - yr[0]) / (yr[1] - yr[0]) * h; ctx.beginPath(); ctx.moveTo(l, y); ctx.lineTo(l + w, y); ctx.stroke();
-    ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.fillText(opts.yfmt ? opts.yfmt(v) : v, l - 6, y);
-  }
-  if (opts.xticks !== false) for (const v of opts.xtickVals || niceTicks(xr[0], xr[1], opts.nx || 8)) {
-    const x = l + (v - xr[0]) / (xr[1] - xr[0]) * w; ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText(opts.xfmt ? opts.xfmt(v) : v, x, t + h + 5);
-  }
-  ctx.strokeStyle = css("--axis"); ctx.beginPath(); ctx.moveTo(l, t + h); ctx.lineTo(l + w, t + h); ctx.stroke();
-  if (opts.xlabel) { ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillStyle = css("--text-muted"); ctx.fillText(opts.xlabel, l + w, t + h + 18); }
-}
-function range(v) { let lo = Infinity, hi = -Infinity; for (const a of v) if (fin(a)) { if (a < lo) lo = a; if (a > hi) hi = a; } const pad = (hi - lo) * 0.06 || 1; return [lo - pad, hi + pad]; }
+function drawColorbar() { Kit.colorbar($("colorbar"), LUT); $("cbMin").textContent = (-S.clim).toFixed(1); $("cbMax").textContent = "+" + S.clim.toFixed(1); }
 
 // ---------- timeseries charts ----------
 const charts = {};
 function tsChart(id, getY, color) {
   charts[id] = { getY, color, hover: null };
   const c = $(id);
-  c.addEventListener("mousemove", e => { charts[id].hover = e.offsetX; drawTS(id); showTip(e, tsTip(id, e.offsetX)); });
-  c.addEventListener("mouseleave", () => { charts[id].hover = null; drawTS(id); hideTip(); });
+  c.addEventListener("mousemove", e => { charts[id].hover = e.offsetX; drawTS(id); tip.show(e, tsTip(id, e.offsetX)); });
+  c.addEventListener("mouseleave", () => { charts[id].hover = null; drawTS(id); tip.hide(); });
   if (id === "meanTS") c.addEventListener("click", e => { const t = xToTR(id, e.offsetX); if (t == null) return;
     let best = 0; S.starts.forEach((s, i) => { if (Math.abs(s + S.L / 2 - t) < Math.abs(S.starts[best] + S.L / 2 - t)) best = i; });
-    S.w = best; $("slider").value = best; updateWindow(); });
+    S.w = best; $("slider").value = best; drawAll(); });
 }
 function tsBox(c) { return { l: 52, t: 8, w: c.clientWidth - 64, h: c.clientHeight - 34 }; }
 function xRange(r) { return S.zoom && S.starts.length ? [S.starts[S.w], S.starts[S.w] + S.L - 1] : [0, r.n_tr - 1]; }
 function xToTR(id, px) { const c = $(id), b = tsBox(c), [a, z] = xRange(rec()); if (px < b.l || px > b.l + b.w) return null; return Math.round(a + (px - b.l) / b.w * (z - a)); }
 function drawTS(id) {
-  const ch = charts[id], r = series(rec()), y = ch.getY(r), c = $(id), { ctx } = fit(c), b = tsBox(c), [a, z] = xRange(r);
-  const yr = range(y.subarray(a, z + 1)), X = t => b.l + (t - a) / (z - a) * b.w, Y = v => b.t + b.h - (v - yr[0]) / (yr[1] - yr[0]) * b.h;
+  const ch = charts[id], r = series(rec()), y = ch.getY(r), c = $(id), { ctx } = Kit.fit(c), b = tsBox(c), [a, z] = xRange(r);
+  const yr = Kit.range(y.subarray(a, z + 1)), X = t => b.l + (t - a) / (z - a) * b.w, Y = v => b.t + b.h - (v - yr[0]) / (yr[1] - yr[0]) * b.h;
   if (S.starts.length && !S.zoom) { ctx.fillStyle = css("--band"); const s = S.starts[S.w]; ctx.fillRect(X(s), b.t, X(s + S.L - 1) - X(s), b.h); }
-  axes(ctx, b, [a * TR, z * TR], yr, { xfmt: v => v + " s", ny: 3, xlabel: "time (s)" });
+  Kit.axes(ctx, b, [a * TR, z * TR], yr, { xfmt: v => v + " s", ny: 3, xlabel: "time (s)" });
   ctx.setLineDash([3, 3]); ctx.strokeStyle = css("--axis");
   for (const [, s] of r.runs) if (s > a && s < z) { ctx.beginPath(); ctx.moveTo(X(s), b.t); ctx.lineTo(X(s), b.t + b.h); ctx.stroke(); }
   ctx.setLineDash([]);
@@ -344,11 +215,6 @@ function drawTS(id) {
 }
 function runOf(r, t) { for (const [name, s, n] of r.runs) if (t >= s && t < s + n) return name; return ""; }
 function tsTip(id, px) { const t = xToTR(id, px); if (t == null) return null; const r = rec(); return `${(t * TR).toFixed(1)} s · TR ${t} · run ${runOf(r, t)}<br>value ${charts[id].getY(r)[t].toFixed(2)}`; }
-
-// ---------- tooltip ----------
-function showTip(e, html) { const tip = $("tip"); if (!html) return hideTip(); tip.innerHTML = html; tip.style.display = "block";
-  const x = e.clientX + 14, y = e.clientY + 14; tip.style.left = Math.min(x, innerWidth - tip.offsetWidth - 8) + "px"; tip.style.top = Math.min(y, innerHeight - tip.offsetHeight - 8) + "px"; }
-function hideTip() { $("tip").style.display = "none"; }
 function regionName(p) { return `${D.labels[p]} <span style="color:var(--text-muted)">(${D.network[p]})</span>`; }
 
 // ---------- heatmap interaction ----------
@@ -357,42 +223,41 @@ function heatCell(canvas, e) { const w = canvas.clientWidth, a = Math.floor(e.of
   if (a < 0 || b < 0 || a >= P || b >= P) return null; const o = ORDERS[S.order]; return [o[a], o[b]]; }
 for (const [id, get] of [["fullFC", () => series(rec())._fc], ["winFC", () => WIN_FC]]) {
   const c = $(id);
-  c.addEventListener("mousemove", e => { const cell = heatCell(c, e), M = get(); if (!cell || !M) return hideTip();
-    showTip(e, `${regionName(cell[0])}<br>× ${regionName(cell[1])}<br>r = ${M[cell[0] * P + cell[1]].toFixed(3)}`); });
-  c.addEventListener("mouseleave", hideTip);
+  c.addEventListener("mousemove", e => { const cell = heatCell(c, e), M = get(); if (!cell || !M) return tip.hide();
+    tip.show(e, `${regionName(cell[0])}<br>× ${regionName(cell[1])}<br>r = ${M[cell[0] * P + cell[1]].toFixed(3)}`); });
+  c.addEventListener("mouseleave", tip.hide);
   c.addEventListener("click", e => { const cell = heatCell(c, e); if (!cell) return; S.A = cell[0]; S.B = cell[1]; $("regA").value = S.A; $("regB").value = S.B; drawAll(); });
 }
 
 // ---------- metric charts ----------
 let WIN_TAU = null, MSE_W = null;
 function drawTau() {
-  const r = rec(), c = $("tauChart"), { ctx } = fit(c), b = { l: 44, t: 8, w: c.clientWidth - 56, h: c.clientHeight - 30 }, order = ORDERS[S.order];
+  const r = rec(), c = $("tauChart"), { ctx } = Kit.fit(c), b = { l: 44, t: 8, w: c.clientWidth - 56, h: c.clientHeight - 30 }, order = ORDERS[S.order];
   const full = order.map(p => r.tau[p]), win = WIN_TAU ? order.map(p => WIN_TAU[p]) : [];
-  const yr = range(full.concat(win)), X = k => b.l + (k + 0.5) / P * b.w, Y = v => b.t + b.h - (v - yr[0]) / (yr[1] - yr[0]) * b.h;
+  const yr = Kit.range(full.concat(win)), X = k => b.l + (k + 0.5) / P * b.w, Y = v => b.t + b.h - (v - yr[0]) / (yr[1] - yr[0]) * b.h;
   if (S.order === "network") { ctx.fillStyle = css("--surface-2"); let prev = 0, alt = false;
     for (const k of boundaries(order).concat([P])) { if (alt) ctx.fillRect(X(prev - 0.5), b.t, X(k - 0.5) - X(prev - 0.5), b.h); alt = !alt; prev = k; } }
-  axes(ctx, b, [0, P], yr, { xticks: false, ny: 4, yfmt: v => v + " s" });
+  Kit.axes(ctx, b, [0, P], yr, { xticks: false, ny: 4, yfmt: v => v + " s" });
   ctx.fillStyle = css("--text-muted"); ctx.font = "11px system-ui, sans-serif"; ctx.textAlign = "right"; ctx.textBaseline = "top";
   ctx.fillText(S.order === "network" ? "regions, grouped by network (alternate shading)" : "regions, atlas order", b.l + b.w, b.t + b.h + 6);
   for (const [p, col] of [[S.A, css("--series-1")], [S.B, css("--series-2")]]) { const x = X(order.indexOf(p)); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, b.t); ctx.lineTo(x, b.t + b.h); ctx.stroke(); }
   for (const [vals, col] of [[full, css("--neutral")], [win, css("--series-3")]]) { ctx.fillStyle = col;
     vals.forEach((v, k) => { if (fin(v)) { ctx.beginPath(); ctx.arc(X(k), Y(v), 2, 0, 7); ctx.fill(); } }); }
-  c.onmousemove = e => { const k = Math.floor((e.offsetX - b.l) / b.w * P); if (k < 0 || k >= P) return hideTip(); const p = order[k];
-    showTip(e, `${regionName(p)}<br>full ${fmt(r.tau[p])} s · window ${WIN_TAU ? fmt(WIN_TAU[p]) : "–"} s`); };
-  c.onmouseleave = hideTip;
+  c.onmousemove = e => { const k = Math.floor((e.offsetX - b.l) / b.w * P); if (k < 0 || k >= P) return tip.hide(); const p = order[k];
+    tip.show(e, `${regionName(p)}<br>full ${fmt(r.tau[p])} s · window ${WIN_TAU ? fmt(WIN_TAU[p]) : "–"} s`); };
+  c.onmouseleave = tip.hide;
   c.onclick = e => { const k = Math.floor((e.offsetX - b.l) / b.w * P); if (k >= 0 && k < P) { S.A = order[k]; $("regA").value = S.A; drawAll(); } };
 }
-function fmt(v, d = 2) { return v == null || !fin(v) ? "–" : v.toFixed(d); }
 function drawMSE() {
-  const r = rec(), c = $("mseChart"), { ctx } = fit(c), b = { l: 44, t: 10, w: c.clientWidth - 60, h: c.clientHeight - 40 };
+  const r = rec(), c = $("mseChart"), { ctx } = Kit.fit(c), b = { l: 44, t: 10, w: c.clientWidth - 60, h: c.clientHeight - 40 };
   const sc = D.scales, lines = [];
   for (const [p, col, wi] of [[S.A, css("--series-1"), 0], [S.B, css("--series-2"), 1]]) {
     lines.push({ col, dash: false, pts: sc.map((s, i) => ({ s, v: r.mse[i][p], ok: true })) });
     if (MSE_W) lines.push({ col, dash: true, pts: MSE_W[wi].map((o, i) => ({ s: sc[i], v: o.e, ok: o.n >= 100 })) });
   }
-  const yr = range(lines.flatMap(l => l.pts.map(q => q.v)));
+  const yr = Kit.range(lines.flatMap(l => l.pts.map(q => q.v)));
   const X = s => b.l + (s - sc[0]) / (sc[sc.length - 1] - sc[0]) * b.w, Y = v => b.t + b.h - (v - yr[0]) / (yr[1] - yr[0]) * b.h;
-  axes(ctx, b, [sc[0], sc[sc.length - 1]], yr, { xtickVals: sc, ny: 4, xlabel: "scale (coarse-graining factor)", yfmt: v => v.toFixed(1) });
+  Kit.axes(ctx, b, [sc[0], sc[sc.length - 1]], yr, { xtickVals: sc, ny: 4, xlabel: "scale (coarse-graining factor)", yfmt: v => v.toFixed(1) });
   for (const l of lines) {
     ctx.strokeStyle = l.col; ctx.lineWidth = 2; ctx.setLineDash(l.dash ? [5, 4] : []); ctx.beginPath(); let started = false;
     for (const q of l.pts) { if (!fin(q.v)) { started = false; continue; } started ? ctx.lineTo(X(q.s), Y(q.v)) : ctx.moveTo(X(q.s), Y(q.v)); started = true; }
@@ -401,11 +266,11 @@ function drawMSE() {
       if (q.ok) { ctx.fillStyle = l.col; ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fill(); ctx.strokeStyle = css("--surface-1"); ctx.lineWidth = 2; ctx.stroke(); }
       else { ctx.strokeStyle = l.col; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x - 4, y - 4); ctx.lineTo(x + 4, y + 4); ctx.moveTo(x + 4, y - 4); ctx.lineTo(x - 4, y + 4); ctx.stroke(); } }
   }
-  c.onmousemove = e => { const i = Math.round((e.offsetX - b.l) / b.w * (sc.length - 1)); if (i < 0 || i >= sc.length) return hideTip();
+  c.onmousemove = e => { const i = Math.round((e.offsetX - b.l) / b.w * (sc.length - 1)); if (i < 0 || i >= sc.length) return tip.hide();
     const w = MSE_W || [[], []];
-    showTip(e, `scale ${sc[i]}<br>A: full ${fmt(r.mse[i][S.A], 3)} · window ${fmt(w[0][i]?.e, 3)}<br>B: full ${fmt(r.mse[i][S.B], 3)} · window ${fmt(w[1][i]?.e, 3)}` +
+    tip.show(e, `scale ${sc[i]}<br>A: full ${fmt(r.mse[i][S.A], 3)} · window ${fmt(w[0][i]?.e, 3)}<br>B: full ${fmt(r.mse[i][S.B], 3)} · window ${fmt(w[1][i]?.e, 3)}` +
       (w[0][i] ? `<br>window samples at this scale: ${w[0][i].n}` : "")); };
-  c.onmouseleave = hideTip;
+  c.onmouseleave = tip.hide;
   $("mseNote").textContent = `After Wijesinghe et al. 2026: m = ${D.m}, r = ${D.r_frac} × SD (per run / per window, fixed across scales), Chebyshev distance < r, scales ${D.scales[0]}–${D.scales[D.scales.length - 1]} (scale s spans s × ${TR} s). Window points drawn as × have fewer than 100 coarse-grained samples (unreliable); missing points: no template matches.`;
 }
 function drawStats() {
@@ -442,7 +307,7 @@ function drawAll() {
   if (WIN_FC) { const s = S.starts[S.w]; drawHeat($("winFC"), WIN_FC);
     $("winMeta").textContent = `run ${runOf(r, s)} · TR ${s}–${s + S.L - 1} · ${(s * TR).toFixed(1)}–${((s + S.L) * TR).toFixed(1)} s · ${S.L} TRs (${(S.L * TR).toFixed(0)} s)`;
     $("winIdx").textContent = `${S.w + 1} / ${S.starts.length}`; }
-  else { fit($("winFC")); $("winMeta").textContent = `no window of ${S.L} TRs fits inside a run (runs: ${runs})`; $("winIdx").textContent = "0 / 0"; }
+  else { Kit.fit($("winFC")); $("winMeta").textContent = `no window of ${S.L} TRs fits inside a run (runs: ${runs})`; $("winIdx").textContent = "0 / 0"; }
   for (const id of ["meanTS", "tsA", "tsB"]) drawTS(id);
   $("tsAtitle").textContent = `Region A · ${D.labels[S.A]} (${D.network[S.A]})`;
   $("tsBtitle").textContent = `Region B · ${D.labels[S.B]} (${D.network[S.B]})`;
@@ -450,16 +315,14 @@ function drawAll() {
   $("tsBmeta").textContent = `timescale full ${fmt(r.tau[S.B])} s · window ${fmt(WIN_TAU?.[S.B])} s · r(A, B) full ${fmt(r._fc[S.A * P + S.B], 3)}, window ${WIN_FC ? fmt(WIN_FC[S.A * P + S.B], 3) : "–"}`;
   drawTau(); drawMSE(); drawStats();
 }
-function updateWindow() { drawAll(); }
 
 // ---------- controls ----------
-function fillSelect(el, items) { el.innerHTML = items.map(([v, t]) => `<option value="${v}">${t}</option>`).join(""); }
 function fillRegions() {
   const items = ORDERS[S.order].map(p => [p, `${D.network[p]} · ${D.labels[p]}`]);
-  fillSelect($("regA"), items); fillSelect($("regB"), items); $("regA").value = S.A; $("regB").value = S.B;
+  Kit.fillSelect($("regA"), items, S.A); Kit.fillSelect($("regB"), items, S.B);
 }
-fillSelect($("subject"), D.subjects.map(s => [s, "sub-" + s]));
-fillSelect($("condition"), D.conditions.map(c => [c, c]));
+Kit.fillSelect($("subject"), D.subjects.map(s => [s, "sub-" + s]));
+Kit.fillSelect($("condition"), D.conditions.map(c => [c, c]));
 $("wlen").value = S.L; $("wstep").value = S.step;
 fillRegions();
 $("subtitle").textContent = `${D.parcellation} (${P} regions) · ${D.subjects.length} subjects × ${D.conditions.length} conditions · TR ${TR} s · window FC and window metrics computed in the page`;
@@ -473,29 +336,29 @@ $("clim").onchange = e => { S.clim = +e.target.value; drawColorbar(); drawAll();
 $("order").onchange = e => { S.order = e.target.value; fillRegions(); drawAll(); };
 $("zoom").onchange = e => { S.zoom = e.target.checked; for (const id of ["meanTS", "tsA", "tsB"]) drawTS(id); };
 let pending = null;
-$("slider").oninput = e => { S.w = +e.target.value; if (!pending) pending = requestAnimationFrame(() => { pending = null; updateWindow(); }); };
+$("slider").oninput = e => { S.w = +e.target.value; if (!pending) pending = requestAnimationFrame(() => { pending = null; drawAll(); }); };
 tsChart("meanTS", r => r._mean, () => css("--text-secondary"));
 tsChart("tsA", r => column(r, S.A, 0, r.n_tr), () => css("--series-1"));
 tsChart("tsB", r => column(r, S.B, 0, r.n_tr), () => css("--series-2"));
 addEventListener("resize", () => drawAll());
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { LUT = divergingLUT(); drawColorbar(); drawAll(); });
+Kit.onTheme(() => { LUT = Kit.divergingLUT(); drawColorbar(); drawAll(); });
 
 // ---------- self-check against Python (data/timeseries_metrics.py) ----------
 function selfCheck() {
   const k = D.check; if (!k) return;
-  const r = series(D.data[k.subject][k.condition]), C = corrMatrix(r._x, k.start, k.length);
+  const r = series(D.sets[`${k.subject}/${k.condition}`]), C = corrMatrix(r._x, k.start, k.length);
   let dFC = 0, dTau = 0, dMSE = 0;
   for (const [i, j, v] of k.fc_pairs) dFC = Math.max(dFC, Math.abs(C[i * P + j] - v));
   for (let p = 0; p < P; p++) { const a = timescale(column(r, p, k.start, k.start + k.length)), b = k.tau[p];
     dTau = Math.max(dTau, (isNaN(a) && b == null) ? 0 : Math.abs(a - b)); }
   k.mse_regions.forEach((p, i) => { const m = mse(column(r, p, k.start, k.start + k.length));
     m.forEach((o, j) => { const b = k.mse[i][j]; dMSE = Math.max(dMSE, (isNaN(o.e) && b == null) ? 0 : Math.abs(o.e - b)); }); });
-  const ok = dFC < 1e-9 && dTau < 1e-9 && dMSE < 1e-9 && fin(dFC + dTau + dMSE);
-  $("selfcheck").innerHTML = `<span style="color:var(${ok ? "--good" : "--critical"})">${ok ? "✓" : "✗"}</span> Self-check vs Python (sub-${k.subject} ${k.condition}, TR ${k.start}–${k.start + k.length - 1}): ` +
-    `${ok ? "pass" : "FAIL"} · max |Δ| window FC ${dFC.toExponential(1)}, timescale ${dTau.toExponential(1)}, entropy ${dMSE.toExponential(1)}`;
+  Kit.check(`Self-check vs Python (sub-${k.subject} ${k.condition}, TR ${k.start}–${k.start + k.length - 1})`,
+    dFC < 1e-9 && dTau < 1e-9 && dMSE < 1e-9 && fin(dFC + dTau + dMSE),
+    `max |Δ| window FC ${dFC.toExponential(1)}, timescale ${dTau.toExponential(1)}, entropy ${dMSE.toExponential(1)}`);
 }
 
-LUT = divergingLUT(); drawColorbar(); updateStarts(); drawAll(); selfCheck();
+LUT = Kit.divergingLUT(); drawColorbar(); updateStarts(); drawAll(); selfCheck();
 </script>
 </body>
 </html>

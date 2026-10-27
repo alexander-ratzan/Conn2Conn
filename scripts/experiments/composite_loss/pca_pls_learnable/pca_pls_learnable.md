@@ -84,7 +84,7 @@ Test MSE changes by at most +0.0003 in every Demeaned-corr-eye and Neighbor-dist
 
 | File | Shows |
 |---|---|
-| `tradeoff_scatter.png`, `tradeoff_interactive.html` | test demeaned r vs avg_rank per combination (HTML: hover or click for weights, top-1 and per-seed values) |
+| `tradeoff_scatter.png` | test demeaned r vs avg_rank per combination (interactive, all instances: `../viewers/cross_model/cross_model.html`) |
 | `dose_response.png` | paired Δ vs MSE-only along each term's weight ladder (symlog x) |
 | `term_trajectories.png` | validation value of every term over epochs, factorial cells (all minimized) |
 | `loss_composition.png` | each active term's share of the weighted training loss |

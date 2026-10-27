@@ -10,7 +10,7 @@ Outputs: tables/summary.{csv,md}  per cell x direction: test metrics mean +- SD 
          tables/noise.md           retrain variability: init-seed SD (fixed split) vs split-seed SD, kraken_default
          per direction (grid set), E1 instance schema: {sc2fc,fc2sc}/tables/{seed_records.csv, combo_summary.csv,
          epoch_history.csv.gz} and {sc2fc,fc2sc}/figures/ from ../report.py: tradeoff_scatter.png,
-         tradeoff_interactive.html, term_trajectories.png, val_trajectories.png, dose_response.png
+         term_trajectories.png, val_trajectories.png, dose_response.png
 Missing cells or seeds are skipped (the report also runs on the pilot set).
 """
 
@@ -218,9 +218,7 @@ def e1_export(set_name: str = "grid") -> None:
             _, summary = rep.build_tables({"grid": {"combos": combos}}, rec_in, None)
             summary.insert(0, "direction", d)
             summary.to_csv(tables / "combo_summary.csv", index=False, float_format="%.6g")
-            title = f"Krakencoder {d}: composite-loss trade-off (grid v1 + paper default + level 2)"
             rep.fig_tradeoff(summary, figures / "tradeoff_scatter.png")
-            rep.fig_interactive(summary, rec, figures / "tradeoff_interactive.html", title)
             rep.fig_term_trajectories(ep, combos, figures / "term_trajectories.png")
             rep.fig_val_trajectories(ep, combos, figures / "val_trajectories.png")
             rep.fig_dose_response(summary, figures / "dose_response.png")

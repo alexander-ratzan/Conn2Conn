@@ -8,18 +8,14 @@ in the browser and with the same definitions: window FC (windows never span a ru
 regions and window multiscale entropy for the two selected regions. A self-check block holds Python values for one
 window; the page recomputes them and shows the largest difference.
 
-Data: Conn2Conn_data/timeseries/ (data/timeseries.py) and Conn2Conn_data/fc/. Template: timeseries_viewer.template (not
-a viewer itself; __META__ and __BLOCKS__ are replaced). As for the E1 latent viewer (cca_latent_bench/viewer), the data
-go in one <script type="application/json"> block per subject x condition, with base64 strings split into lines of at
-most CHUNK characters: editor previews (Cursor) fail on very long lines. Output (generated, not tracked):
-results/data_viewers/timeseries_viewer_{P}.html.
+Data: Conn2Conn_data/timeseries/ (data/timeseries.py) and Conn2Conn_data/fc/. Page: timeseries_viewer.template on the
+shared viewer_kit (one data block per subject x condition). Output, next to this file (generated, not tracked):
+timeseries_viewer_{P}.html and its data cache timeseries_viewer_{P}_data.json (--from-cache rebuilds the page only).
 
     python scripts/data_viewers/timeseries_viewer/build_timeseries_viewer.py [--subjects 100206 ...] [--n-subjects 4]
-        [--parcellation Glasser] [--out PATH]
+        [--parcellation Glasser] [--from-cache] [--smoke]
 """
 import argparse
-import base64
-import json
 import sys
 import time
 from pathlib import Path
@@ -33,38 +29,11 @@ sys.path.insert(0, str(REPO_ROOT))
 from data.timeseries import CONDITIONS, TimeseriesCache, corr, window_starts  # noqa: E402
 from data.timeseries_metrics import (M, R_FRAC, SCALES, mse_auc, multiscale_entropy,  # noqa: E402
                                      multiscale_entropy_runs, timescale, timescale_runs)
+from scripts.data_viewers.viewer_kit import Viewer, int16_columns, int16_unit, packed, round_list  # noqa: E402
 
 FC_ROOT = Path("/scratch/asr655/neuroinformatics/Conn2Conn_data/fc")
-TEMPLATE = HERE / "timeseries_viewer.template"
-CHUNK = 200_000
 WINDOW, STEP = 144, 24
 NETWORK_COLUMN = {"Glasser": "community_yeo", "4S456Parcels": "network_label"}
-
-
-def b64(a):
-    return base64.b64encode(np.ascontiguousarray(a).tobytes()).decode("ascii")
-
-
-def chunks(s):
-    return [s[i:i + CHUNK] for i in range(0, len(s), CHUNK)]
-
-
-def block(rec):
-    """One <script type="application/json"> block; each base64 chunk on its own line (no line > ~CHUNK chars)."""
-    head = {k: v for k, v in rec.items() if k not in ("q", "fc")}
-    body = json.dumps(head, separators=(",", ":"))[:-1]
-    for k in ("q", "fc"):
-        body += f',\n"{k}":[\n' + ",\n".join(json.dumps(c) for c in chunks(rec[k])) + "\n]"
-    return (f'<script class="rec" type="application/json" data-key="{rec["subject"]}/{rec["condition"]}">\n'
-            f"{body}}}\n</script>")
-
-
-def quantize(x):
-    """int16 codes and float64 per-column scales with x ~= q * scale."""
-    scale = np.abs(x).max(0).astype(np.float64) / 32767.0
-    scale[scale == 0] = 1.0
-    q = np.round(x / scale).astype("<i2")
-    return q, scale
 
 
 def fc_upper(condition, parcellation, sid):
@@ -77,20 +46,17 @@ def fc_upper(condition, parcellation, sid):
     return np.load(d / "upper_triangles.npy", mmap_mode="r")[i]
 
 
-def round_list(a, nd=None):
-    """Flat list for JSON: NaN -> None, optionally rounded."""
-    return [None if not np.isfinite(v) else (float(v) if nd is None else round(float(v), nd))
-            for v in np.asarray(a, dtype=float).ravel()]
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--subjects", type=int, nargs="*")
     ap.add_argument("--n-subjects", type=int, default=4)
     ap.add_argument("--parcellation", default="Glasser", choices=sorted(NETWORK_COLUMN))
-    ap.add_argument("--out", default=None)
+    Viewer.add_args(ap)
     a = ap.parse_args()
-    out = Path(a.out) if a.out else REPO_ROOT / "results" / "data_viewers" / f"timeseries_viewer_{a.parcellation}.html"
+    viewer = Viewer(__file__)
+    if a.from_cache:
+        viewer.write(*viewer.load_cache(a.parcellation), variant=a.parcellation, cache=False, smoke=a.smoke)
+        return
 
     caches = {c: TimeseriesCache(c, a.parcellation) for c in CONDITIONS}
     common = sorted(set.intersection(*(set(map(int, t.subject_ids)) for t in caches.values())))
@@ -103,22 +69,21 @@ def main():
         raise ValueError("atlas_info labels differ from the cache node labels")
     network = atlas[NETWORK_COLUMN[a.parcellation]].fillna("other").astype(str).tolist()
 
-    data = {}
+    sets = {}
     check = None
     for sid in subjects:
-        data[str(sid)] = {}
         for c in CONDITIONS:
             t0 = time.time()
             x = caches[c].subject(sid)
             bounds = caches[c].run_bounds(sid)
-            q, scale = quantize(x)
+            q, scale = int16_columns(x)
             mse = multiscale_entropy_runs(x, bounds, SCALES, M, R_FRAC)
-            data[str(sid)][c] = {
+            sets[f"{sid}/{c}"] = {
                 "subject": str(sid), "condition": c,
                 "n_tr": int(len(x)),
                 "runs": [[r, int(s), int(n)] for r, s, n in caches[c].run_table(sid).itertuples(index=False)],
-                "q": b64(q), "scale": scale.tolist(),
-                "fc": b64(np.round(np.clip(fc_upper(c, a.parcellation, sid), -1, 1) * 32767).astype("<i2")),
+                "q": packed(q), "scale": scale.tolist(),
+                "fc": packed(int16_unit(fc_upper(c, a.parcellation, sid))),
                 "tau": round_list(timescale_runs(x, bounds, caches[c].tr), 4),
                 "mse": [round_list(row, 4) for row in mse],
                 "mse_auc": round_list(mse_auc(mse), 4),
@@ -139,14 +104,7 @@ def main():
     meta = {"parcellation": a.parcellation, "tr": caches["rest"].tr, "labels": labels, "network": network,
             "conditions": list(CONDITIONS), "subjects": [str(s) for s in subjects],
             "scales": list(SCALES), "m": M, "r_frac": R_FRAC, "window": WINDOW, "step": STEP, "check": check}
-    blocks = "\n".join(block(rec) for recs in data.values() for rec in recs.values())
-    html = TEMPLATE.read_text().replace("__META__", json.dumps(meta, separators=(",", ":"))).replace("__BLOCKS__", blocks)
-    longest = max(len(line) for line in html.splitlines())
-    if longest > 2 * CHUNK:
-        raise ValueError(f"a line of {longest} characters; keep lines short for editor previews")
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(html)
-    print(f"wrote {out} ({out.stat().st_size / 1e6:.1f} MB, longest line {longest} characters)")
+    viewer.write(meta, sets, variant=a.parcellation, smoke=a.smoke)
 
 
 if __name__ == "__main__":

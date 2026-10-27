@@ -35,3 +35,9 @@ context_packages/**
 # ...but re-allow traversal and track markdown files at any depth
 !context_packages/**/
 !context_packages/**/*.md
+
+# built viewer pages and their data caches (rebuilt by each viewer's build_<name>.py; see scripts/data_viewers/viewer_kit)
+scripts/data_viewers/**/*.html
+scripts/data_viewers/**/*_data.json
+scripts/experiments/**/viewers/**/*.html
+scripts/experiments/**/viewers/**/*_data.json

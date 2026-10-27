@@ -1,7 +1,8 @@
 # Experiments Index
 
 One row per experiment under `scripts/experiments/`. Each folder holds that experiment's code, config, launchers,
-and its tables and PNG figures (all tracked). Truly bulky outputs
+and its tables and PNG figures (all tracked), plus any interactive viewers in `viewers/<name>/` (code tracked, built
+pages not). Truly bulky outputs
 (checkpoints, large arrays) go to `results/cache/experiments/<slug>/`. An experiment is documented by a write-up
 named after its folder (`<slug>/<slug>.md`), or by its own notebook when that already describes it.
 
@@ -26,6 +27,19 @@ named after its folder (`<slug>/<slug>.md`), or by its own notebook when that al
 2. Notebooks start with the standard `REPO_ROOT` bootstrap; results/benchmark experiments copy
    `sc_type_benchmark/` (model × source grid) or `covariate_projector/cov_projector_benchmark/` (labelled condition rows):
    `config.yml` + `run.py` + tracked `records.json`.
-3. Write `<slug>/<slug>.md` unless the notebook already documents the question, setup, how to run, W&B ids, results,
+3. Use the standard layout, all at one depth (reference: `cca_latent_bench/`):
+   ```
+   <slug>/
+   ├── <slug>.md          write-up (question, setup, how to run, results, caveats)
+   ├── config.yml         + entry scripts (run.py, run_seed.py, submit.py, ...)
+   ├── launch/            sbatch launchers
+   ├── checks/            verification scripts and audits
+   ├── results/           raw per-seed / per-run records
+   ├── tables/            summary tables (tracked)
+   ├── figures/           PNG figures (tracked)
+   └── viewers/<name>/    build_<name>.py + <name>.template (+ built <name>.html, not tracked); see scripts/data_viewers/viewer_kit
+   ```
+   Data viewers that are not one experiment's results go in `scripts/data_viewers/<name>/` instead.
+4. Write `<slug>/<slug>.md` unless the notebook already documents the question, setup, how to run, W&B ids, results,
    and caveats.
-4. Add a row to this index.
+5. Add a row to this index.

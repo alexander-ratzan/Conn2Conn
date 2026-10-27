@@ -18,7 +18,7 @@ sys.path.insert(0, str(REPO_ROOT / "scripts" / "experiments" / "model_benchmark"
 import run as mb  # noqa: E402  (FIG_RC: shared figure style)
 
 CFG = yaml.safe_load((HERE / "config.yml").read_text())
-OUT = HERE / "results" / "Glasser"
+OUT = HERE                                   # tables/ and figures/ (Glasser only)
 REC = REPO_ROOT / CFG["records_dir"]
 FC, TASKS = CFG["fc_views"], CFG["tasks"]
 MET = ["demeaned_pearson", "avg_rank", "top1_acc"]

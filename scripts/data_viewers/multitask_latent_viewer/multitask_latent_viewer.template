@@ -1,33 +1,34 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FC encodings: CCA vs PCA</title><style>
-:root{--bg:#fff;--fg:#1f2328;--muted:#57606a;--card:#f6f8fa;--grid:#d0d7de;--ring:#1f2328}
-@media (prefers-color-scheme: dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--card:#161b22;--grid:#30363d;--ring:#e6edf3}}
-body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:14px/1.45 "DejaVu Sans",Helvetica,Arial,sans-serif}
-h1{font-size:18px;margin:0 0 4px} h2{font-size:15px;margin:0 0 2px} .sub{color:var(--muted);margin:0 0 12px;max-width:1100px}
+<title>Multitask Latent Viewer</title>
+<!--KIT:HEAD-->
+<style>
+body{margin:0;padding:16px;background:var(--surface-0);color:var(--text-primary);font:14px/1.45 "DejaVu Sans",Helvetica,Arial,sans-serif}
+h1{font-size:18px;margin:0 0 4px} h2{font-size:15px;margin:0 0 2px} .sub{color:var(--text-secondary);margin:0 0 12px;max-width:1100px}
 #controls{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;margin:0 0 10px}
 #controls label{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
-select,button,input[type=number]{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--grid);border-radius:6px;padding:2px 6px}
+select,button,input[type=number]{font:inherit;color:var(--text-primary);background:var(--surface-1);border:1px solid var(--grid);border-radius:6px;padding:2px 6px}
 button{cursor:pointer}
 .panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 @media (max-width:900px){.panels{grid-template-columns:1fr}}
-.panel{background:var(--card);border-radius:8px;padding:10px}
-.stat{color:var(--muted);font-size:12.5px;margin:0 0 4px}
-svg{width:100%;height:auto;display:block} svg text{fill:var(--muted);font-size:11px}
-.ax{stroke:var(--muted);stroke-width:1.2} .gl{stroke:var(--grid);stroke-dasharray:3 3}
-.spoke{stroke-width:0.9;opacity:.55} .cpt{stroke:none;opacity:.85} .cen{stroke:var(--ring);stroke-width:1.6}
-.rest{stroke:var(--ring);stroke-width:1.1} .hl{opacity:1!important} .dim{opacity:.12!important}
+.panel{background:var(--surface-1);border-radius:8px;padding:10px}
+.stat{color:var(--text-secondary);font-size:12.5px;margin:0 0 4px}
+svg{width:100%;height:auto;display:block} svg text{fill:var(--text-secondary);font-size:11px}
+.ax{stroke:var(--text-secondary);stroke-width:1.2} .gl{stroke:var(--grid);stroke-dasharray:3 3}
+.spoke{stroke-width:0.9;opacity:.55} .cpt{stroke:none;opacity:.85} .cen{stroke:var(--text-primary);stroke-width:1.6}
+.rest{stroke:var(--text-primary);stroke-width:1.1} .hl{opacity:1!important} .dim{opacity:.12!important}
 #legend{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:center;margin:12px 0;max-width:1100px}
 #legend svg{width:34px;height:22px}
 table{border-collapse:collapse;width:100%;font-size:12.5px} td,th{padding:3px 6px;text-align:right;border-bottom:1px solid var(--grid)}
-th{color:var(--muted);font-weight:600} td:first-child,th:first-child{text-align:left}
-tr.row{cursor:pointer} tr.row:hover td{background:var(--bg)}
+th{color:var(--text-secondary);font-weight:600} td:first-child,th:first-child{text-align:left}
+tr.row{cursor:pointer} tr.row:hover td{background:var(--surface-0)}
 .sw{width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:-1px}
-#tip{position:fixed;pointer-events:none;background:var(--card);border:1px solid var(--grid);border-radius:6px;padding:6px 8px;font-size:12.5px;display:none;max-width:320px}
-details{background:var(--card);border-radius:8px;padding:8px 12px;margin:14px 0;max-width:1100px}
+details{background:var(--surface-1);border-radius:8px;padding:8px 12px;margin:14px 0;max-width:1100px}
 summary{cursor:pointer;font-weight:600} code{font-size:12.5px} .eq{font-family:"DejaVu Serif",Georgia,serif;margin:6px 0 6px 14px}
 #picker{max-height:180px;overflow:auto;columns:4 140px;font-size:12.5px;margin:6px 0}
-small{color:var(--muted)}
+small{color:var(--text-secondary)}
 </style></head><body>
+<!--KIT:TOP-->
+<div class="kit-template-note" style="padding:16px;color:#d03b3b;font:600 15px sans-serif">This is the viewer TEMPLATE, not the viewer. Open multitask_latent_viewer.html in this folder (build: python scripts/data_viewers/multitask_latent_viewer/build_multitask_latent_viewer.py).</div>
 <h1>Subject-wise FC encodings: multitask CCA latent vs pooled block-PCA codes</h1>
 <p class="sub">Each held-out subject is encoded separately from each of their 8 FC conditions (rest + 7 HCP tasks) in two
 spaces of the same dimension <i>d</i>. A subject whose 8 encodings form a tight, well-separated cluster is identifiable
@@ -77,24 +78,10 @@ subjects of the split; the scatter shows a 2-D view of up to 15 of them.</p>
 <p><b>Display units.</b> In both panels each dimension is divided by its standard deviation over the train encodings of all conditions, so the spaces are in comparable units. The "2-D PCA" view projects the split's points onto their two leading principal components in each space separately.</p>
 <p>Derivations and the full analysis: <code id="nbpath"></code> (sections 2 and 5); benchmark write-up: <code id="wupath"></code>.</p>
 </details>
-<div id="tip"></div>
-<noscript><p style="color:#B64342"><b>This viewer needs JavaScript.</b> Open it in a browser or in a preview that runs scripts (Cursor: "Live Preview: Show Preview").</p></noscript>
-<p id="err" style="display:none;color:#B64342;font-weight:600"></p>
-<script>
-window.addEventListener('error',e=>{const el=document.getElementById('err');el.style.display='block';el.textContent='Viewer error: '+(e.message||e)+' (line '+(e.lineno||'?')+')'});
-</script>
-<script type="application/json" id="viewer-data">
-__DATA__
-</script>
+<!--KIT:DATA-->
 <script>
 (()=>{
-let DATA;
-const raw=document.getElementById('viewer-data').textContent.trim();
-if(raw==='__'+'DATA__'){const el=document.getElementById('err');el.style.display='block';
- el.textContent='This is the template, not the viewer. Open scripts/experiments/cca_latent_bench/results/Glasser/figures/latent_viewer.html (built by viewer/build_latent_viewer.py).';return}
-try{DATA=JSON.parse(raw)}
-catch(e){const el=document.getElementById('err');el.style.display='block';
- el.textContent='Viewer error: could not read the embedded data block ('+e.message+'). Rebuild with viewer/build_latent_viewer.py.';return}
+const DATA=Kit.load();
 const COND=DATA.conditions, CI_REST=COND.indexOf('rest');
 const PAL=['#1f77b4','#aec7e8','#ff7f0e','#ffbb78','#2ca02c','#98df8a','#d62728','#ff9896','#9467bd','#c5b0d5','#8c564b','#c49c94','#e377c2','#f7b6d2','#17becf'];
 const W=520,H=470,L=44,B=34,T=10,R=12, SP=['cca','pca'];
@@ -180,13 +167,13 @@ function bindHover(){
   el.onmouseenter=e=>{const i=+el.dataset.s,m=+el.dataset.m,c=S.spaces.cca,p=S.spaces.pca;hover=i;
    SP.forEach(q=>$('svg-'+q).querySelectorAll('g.subj').forEach(g=>{g.classList.toggle('hl',+g.dataset.s===i);g.classList.toggle('dim',+g.dataset.s!==i)}));
    const what=m<0?'consensus (mean of the 8 encodings)':(m===CI_REST?'rest encoding':`${COND[m]} encoding`);
-   $('tip').innerHTML=`<b>Subject ${S.subjects[i]}</b> · ${what}<br>${sp==='cca'?'CCA latent':'pooled PCA codes'}<br>silhouette CCA ${f(c.silhouette[i])} · PCA ${f(p.silhouette[i])}<br>rest → task rank CCA ${f(c.rest_rank[i])} · PCA ${f(p.rest_rank[i])}`;
-   $('tip').style.display='block'; move(e)};
+   $('kit-tip').innerHTML=`<b>Subject ${S.subjects[i]}</b> · ${what}<br>${sp==='cca'?'CCA latent':'pooled PCA codes'}<br>silhouette CCA ${f(c.silhouette[i])} · PCA ${f(p.silhouette[i])}<br>rest → task rank CCA ${f(c.rest_rank[i])} · PCA ${f(p.rest_rank[i])}`;
+   $('kit-tip').style.display='block'; move(e)};
   el.onmousemove=move;
-  el.onmouseleave=()=>{hover=null;$('tip').style.display='none';SP.forEach(q=>$('svg-'+q).querySelectorAll('g.subj').forEach(g=>{g.classList.remove('hl');g.classList.remove('dim')}))};
+  el.onmouseleave=()=>{hover=null;$('kit-tip').style.display='none';SP.forEach(q=>$('svg-'+q).querySelectorAll('g.subj').forEach(g=>{g.classList.remove('hl');g.classList.remove('dim')}))};
  }));
 }
-function move(e){const t=$('tip');t.style.left=(e.clientX+14)+'px';t.style.top=(e.clientY+12)+'px'}
+function move(e){const t=$('kit-tip');t.style.left=(e.clientX+14)+'px';t.style.top=(e.clientY+12)+'px'}
 ['seed','split'].forEach(k=>$(k).onchange=()=>render(true));
 ['proj','dx','dy','spokes','shared'].forEach(k=>$(k).onchange=()=>render(false));
 $('nsub').onchange=()=>render(true); $('pick').onchange=()=>{if($('pick').value==='manual')$('pickbox').open=true;render(true)};

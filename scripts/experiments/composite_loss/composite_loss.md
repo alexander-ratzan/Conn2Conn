@@ -337,8 +337,9 @@ r (0.143 / 0.089; `checks/direction_baselines.json`), rounded down. Phase D comp
 
 ## Cross-model comparison
 
-**Interactive:** [`figures/cross_model_interactive.html`](figures/cross_model_interactive.html) (`compare.py`; rebuilt by
-every instance report). SC → FC / FC → SC switch, fixed axes across models within a direction, per-model toggles, paired Δ and top-1 per point, the test-retest
+**Interactive:** `viewers/cross_model/cross_model.html` (built by `viewers/cross_model/build_cross_model.py` from `compare.py`'s data; rebuilt by
+every instance report; not tracked). It replaces the per-instance `tradeoff_interactive.html` pages (same points, plus
+block and loss signature in the panel). SC → FC / FC → SC switch, fixed axes across models within a direction, per-model toggles, paired Δ and top-1 per point, the test-retest
 ceiling (`ceiling/test_retest.py`: test demeaned r 0.49, avg_rank 0.987, top-1 0.93), and a zoom-to-models toggle.
 Summary table: `tables/cross_model_summary.csv`.
 
@@ -411,7 +412,7 @@ Neighbor dist's does not.
 ## FC → SC (spec v2 E3 Phase D, 2026-10-02)
 
 Test, mean over seeds 0–4; Δ = paired difference from the model's MSE-only fit. Details per model in the write-ups;
-interactive: the direction switch on [`figures/cross_model_interactive.html`](figures/cross_model_interactive.html)
+interactive: the direction switch on `viewers/cross_model/cross_model.html`
 (no FC → SC ceiling line: user decision, no SC test-retest in the data).
 
 | Model | MSE-only demeaned r / avg_rank / top-1 | Demeaned corr-eye 1 (Δ dr / Δ rank) | best avg_rank cell |

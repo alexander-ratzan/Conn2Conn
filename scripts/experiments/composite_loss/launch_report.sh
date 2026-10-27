@@ -37,7 +37,8 @@ singularity exec \
     cd ${CONN2CONN_DIR}
     INSTANCE=${INSTANCE} SLURM_ARRAY_TASK_ID=${SLURM_ARRAY_TASK_ID:-0} SLURM_ARRAY_TASK_COUNT=${SLURM_ARRAY_TASK_COUNT}
     python scripts/experiments/composite_loss/protocol.py report --instance ${INSTANCE}
-    python scripts/experiments/composite_loss/compare.py || echo 'compare.py failed (cross-model page not refreshed); instance report is complete'   # E1.10
+    python scripts/experiments/composite_loss/compare.py || echo 'compare.py failed (cross-model table not refreshed); instance report is complete'   # E1.10
+    python scripts/experiments/composite_loss/viewers/cross_model/build_cross_model.py || echo 'cross-model viewer not rebuilt; instance report is complete'
   "
 
 echo "Job Over at $(date)"

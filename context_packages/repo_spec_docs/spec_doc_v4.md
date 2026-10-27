@@ -108,7 +108,7 @@ Average rank and top-1 are reported for every comparison; FC → SC rank metrics
 | E1.2 | Seeds 0–4 | CPU array | — |
 | E1.3 | Analysis: H1–H5, tables, figures, write-up | CPU | — |
 
-**Deliverables** (`scripts/experiments/cca_latent_bench/results/Glasser/`): `records/seed<S>.csv`;
+**Deliverables** (`scripts/experiments/cca_latent_bench/`, Glasser; layout of 2026-10-27): `results/seed<S>.csv`;
 `tables/summary.md` (one row per hypothesis: Δ ± SE, seeds positive, supported), `fc2sc.csv`, `sc2fc.csv`,
 `latent_selection.csv`; figures `fig_fc2sc_inputs.png` (inputs × readouts, bench line), `fig_sc2fc_conditions.png`
 (per condition: bench, direct ridge, via latent, latent ceiling), `fig_latent_r2.png` (SC → latent R² per dimension),

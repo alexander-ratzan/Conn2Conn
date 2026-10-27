@@ -27,5 +27,5 @@ gates:
 
 bench: scripts/experiments/task_bidirectional_bench/results/Glasser    # v3:E0 seed_records (fc2sc, sc2fc)
 e1_linear: scripts/experiments/joint_flow_matching/results/Glasser/records/linear
-records_dir: scripts/experiments/cca_latent_bench/results/Glasser/records
+records_dir: scripts/experiments/cca_latent_bench/results                 # per-seed records (Glasser)
 budget: {cpu_node_h_cap: 15, max_retries: 1, max_error_frac: 0.2}

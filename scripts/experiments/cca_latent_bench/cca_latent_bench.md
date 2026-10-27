@@ -5,10 +5,10 @@
 `launch/run_seeds.sh`, `launch/analyze.sh`; `run.py` (hypothesis tests, tables, figures). Shared library:
 `models/architectures/multiview_cca.py` (MAXVAR, ridge GCV; v4 I2). Data: E2's per-seed cache
 (`scripts/experiments/joint_flow_matching/common.py`).
-**Outputs:** `results/Glasser/records/seed<S>*.csv`; `results/Glasser/tables/{summary.md, hypotheses.csv, fc2sc.csv,
-sc2fc.csv, latent_selection.csv, latent_r2.csv}`; `results/Glasser/figures/fig_*.png`.
-**Interactive viewer:** `results/Glasser/figures/latent_viewer.html` (open in a browser; built by
-`viewer/build_latent_viewer.py`, cached data `results/Glasser/tables/latent_viewer_data.json`): up to 15 held-out
+**Outputs** (Glasser only): `results/seed<S>*.csv` (per-seed records); `tables/{summary.md, hypotheses.csv, fc2sc.csv,
+sc2fc.csv, latent_selection.csv, latent_r2.csv}`; `figures/fig_*.png`.
+**Interactive viewer:** `scripts/data_viewers/multitask_latent_viewer/` (built page
+`multitask_latent_viewer.html` next to its builder `build_multitask_latent_viewer.py`; not tracked): up to 15 held-out
 subjects at a time, each encoded from all 8 FC conditions, in the CCA latent and in the same number of pooled-PCA codes,
 with per-subject silhouette, dispersion / separation and rest → task identification computed over the whole split.
 **Runs:** G0 (library move, E2 checks + exact L4 reproduction) local; pilot `20484872` (G1 ALL_OK), seeds 1–4
@@ -59,7 +59,7 @@ SC → FC with the latent as the target.
 | relational | 0.083 | 0.046 | +0.037 ± 0.012 | 5 / 5 |
 | emotion | 0.082 | 0.057 | +0.025 ± 0.004 | 5 / 5 |
 
-![FC to SC inputs](results/Glasser/figures/fig_fc2sc_inputs.png)
+![FC to SC inputs](figures/fig_fc2sc_inputs.png)
 
 ### SC → FC
 
@@ -82,7 +82,7 @@ columns is the latent route.
 Predicted vs true consensus latent (test): mean per-dimension R² −0.06 to 0.05 across seeds, yet identification
 top-1 0.05–0.15 (chance 0.005), average rank 0.86–0.90.
 
-![SC to FC per condition](results/Glasser/figures/fig_sc2fc_conditions.png)
+![SC to FC per condition](figures/fig_sc2fc_conditions.png)
 
 ### Reference: full shared CCA with SC as a ninth view (E2 linear arm L4)
 
