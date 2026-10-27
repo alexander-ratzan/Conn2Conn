@@ -44,7 +44,7 @@ eval:
   parcellation: Glasser
   loss_batch_size: 64
 
-tag_prefix: cl_kraken_v1    # results/krakencoder/<tag_prefix>_<cell>/seed<S>/
+tag_prefix: cl_kraken_v1    # results/cache/krakencoder/<tag_prefix>_<cell>/seed<S>/
 
 sets:
   pilot:                    # D2: compute + epoch pilot, packed

@@ -1,7 +1,7 @@
 """Raw and weighted Krakencoder loss terms in its own training space at a checkpoint (batches of 64): basis of the
 var anchor in config.yml.
 
-    python scripts/experiments/composite_loss/krakencoder/checks/term_magnitudes.py results/krakencoder/<tag>/seed0 64
+    python scripts/experiments/composite_loss/krakencoder/checks/term_magnitudes.py results/cache/krakencoder/<tag>/seed0 64
 """
 import glob, sys, numpy as np, torch
 from pathlib import Path

@@ -6,9 +6,9 @@ Retrain Krakencoder for one seed with the vendored upstream code and write predi
 
 Stages (all by default; each is skipped when its output exists, so a requeued job resumes):
   inputs  connectome .mat files per flavor, built from HCP_Base (identical to the March 2026 inputs to float32
-          precision) -> results/krakencoder/_inputs/ (shared by every tag; data do not depend on the recipe)
-  split   the seed's HCP_Base train/val/test partition -> results/krakencoder/_inputs/subject_splits_seed<S>.mat
-  train   upstream run_training.py (via _vendor_entry.py) -> results/krakencoder/<tag>/seed<S>/kraken_*.pt
+          precision) -> results/cache/krakencoder/_inputs/ (shared by every tag; data do not depend on the recipe)
+  split   the seed's HCP_Base train/val/test partition -> results/cache/krakencoder/_inputs/subject_splits_seed<S>.mat
+  train   upstream run_training.py (via _vendor_entry.py) -> results/cache/krakencoder/<tag>/seed<S>/kraken_*.pt
   infer   upstream run_model.py once per source flavor -> .../seed<S>/predictions_source_<parc>.<SC|FC>.mat
           (each holds every input -> output type, so SC -> FC and FC -> SC both come from one fit)
 

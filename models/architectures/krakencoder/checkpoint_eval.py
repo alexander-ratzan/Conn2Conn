@@ -1,7 +1,7 @@
 """
 Score every saved checkpoint of a retrained Krakencoder run with Conn2Conn's metrics and loss terms.
 
-    python -m models.architectures.krakencoder.checkpoint_eval --run-dir results/krakencoder/<tag>/seed<S>
+    python -m models.architectures.krakencoder.checkpoint_eval --run-dir results/cache/krakencoder/<tag>/seed<S>
     python -m models.architectures.krakencoder.checkpoint_eval --run-dir ... --parcellation Glasser --batch-size 64
 
 Writes <run-dir>/epoch_history.csv: one row per (checkpoint epoch, direction) with
@@ -79,7 +79,7 @@ def term_losses(pred: torch.Tensor, true: torch.Tensor, batch_size: int) -> dict
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--run-dir", type=Path, required=True, help="results/krakencoder/<tag>/seed<S>")
+    ap.add_argument("--run-dir", type=Path, required=True, help="results/cache/krakencoder/<tag>/seed<S>")
     ap.add_argument("--parcellation", default="Glasser", help="evaluation parcellation (must be among the trained flavors)")
     ap.add_argument("--batch-size", type=int, help="batch size for the loss terms (default: recipe batch_size)")
     ap.add_argument("--epochs", help="comma-separated checkpoint epochs to score (default: all)")

@@ -63,7 +63,7 @@ def main():
     decision["checks"]["all_pilot_fits_complete"] = all(complete.values())
 
     # Gate 2: kraken_default (batch 64) final val demeaned r within 0.01 of the batch-41 parity fit.
-    parity = read(REPO_ROOT / "results" / "krakencoder" / args.parity_tag / "seed0" / "epoch_history.csv")
+    parity = read(REPO_ROOT / "results" / "cache" / "krakencoder" / args.parity_tag / "seed0" / "epoch_history.csv")
     par_last = {r["direction"]: float(r["val_demeaned_pearson"]) for r in parity if int(r["epoch"]) == max(int(x["epoch"]) for x in parity)}
     kd_last = {r["direction"]: float(r["val_demeaned_pearson"]) for r in rows
                if r["combo_id"] == "kraken_default" and int(r["epoch"]) == want}

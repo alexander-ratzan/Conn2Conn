@@ -7,7 +7,7 @@ Krakencoder instance of the composite-loss grid: expand cells into retrain fits,
     # quick check: --epochs 20 --checkpoint-every 10 --tag-suffix _smoke (run and collect)
 
 Each fit = `python -m models.architectures.krakencoder.retrain --config <base_config> --seed S --tag T --set ...`
-(results/krakencoder/<T>/seed<S>/), then `python -m models.architectures.krakencoder.checkpoint_eval` on it.
+(results/cache/krakencoder/<T>/seed<S>/), then `python -m models.architectures.krakencoder.checkpoint_eval` on it.
 Fits whose outputs exist are skipped, so a requeued job resumes.
 """
 
@@ -23,7 +23,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = next(p for p in HERE.parents if (p / "main.py").exists())
-RESULTS_ROOT = REPO_ROOT / "results" / "krakencoder"
+RESULTS_ROOT = REPO_ROOT / "results" / "cache" / "krakencoder"
 
 import yaml  # noqa: E402
 

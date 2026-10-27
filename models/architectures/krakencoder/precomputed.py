@@ -22,14 +22,14 @@ _REPO_ROOT = next(p for p in Path(__file__).resolve().parents if (p / "main.py")
 LEGACY_PREDICTIONS_DIR = _REPO_ROOT / "krakencoder_experimental" / "example_data"
 LEGACY_FILE_PATTERN = "mydata_kraken_seed{seed}_source_{parc}.{conn}.mat"
 # Retrained runs (models/architectures/krakencoder/retrain.py): <root>/<tag>/seed{seed}/<pattern>.
-RETRAINED_PREDICTIONS_ROOT = _REPO_ROOT / "results" / "krakencoder"
+RETRAINED_PREDICTIONS_ROOT = _REPO_ROOT / "results" / "cache" / "krakencoder"
 RETRAINED_FILE_PATTERN = "predictions_source_{parc}.{conn}.mat"
 
 
 def krakencoder_prediction_path(seed, parc, conn, tag=None, predictions_root=None, kraken_predictions_dir=None):
     """Path of the inference file for one seed / parcellation / source modality.
 
-    `tag` selects a retrained run under `predictions_root` (default `results/krakencoder`); otherwise the legacy
+    `tag` selects a retrained run under `predictions_root` (default `results/cache/krakencoder`); otherwise the legacy
     cache directory `kraken_predictions_dir` (default `krakencoder_experimental/example_data`) is used.
     """
     if tag:
@@ -52,7 +52,7 @@ class KrakencoderPrecomputed(nn.Module):
       - registry name `Krakencoder_precomputed` (no `tag`): the cached March 2026 predictions in
         `krakencoder_experimental/example_data/` (`mydata_kraken_seed{seed}_source_{parc}.{SC|FC}.mat`);
       - registry name `Krakencoder` (`tag` set): a retrained run written by `retrain.py` (this package)
-        to `results/krakencoder/<tag>/seed{seed}/predictions_source_{parc}.{SC|FC}.mat`.
+        to `results/cache/krakencoder/<tag>/seed{seed}/predictions_source_{parc}.{SC|FC}.mat`.
 
     The model is wired as closed-form (`learned: false`), so it follows the CrossModalPCA prod-run path; the YAML
     `search_space` is empty, so `Sim.run_tune()` raises immediately (variants are separate retrain tags).
@@ -61,7 +61,7 @@ class KrakencoderPrecomputed(nn.Module):
         base: `HCP_Base` instance; `shuffle_seed`, `parcellation`, `source` and `target` pick the file and key.
         kraken_predictions_dir: legacy cache directory (only used without `tag`).
         tag: retrained-run tag under `predictions_root`.
-        predictions_root: root of retrained runs (default `<repo>/results/krakencoder`).
+        predictions_root: root of retrained runs (default `<repo>/results/cache/krakencoder`).
     """
 
     is_precomputed = True

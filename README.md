@@ -280,10 +280,10 @@ python main.py --mode prod --model Krakencoder --config models/configs/deep/Krak
 ```
 - recipe: the `retrain:` block of `models/configs/deep/Krakencoder.yml` (flavors, loss string, epochs, latent size, dropout);
   defaults reproduce the March 2026 runs; `default.model.tag` names the output folder
-- outputs: `results/krakencoder/<tag>/seed{seed}/` (checkpoint, transforms, logs, `manifest.json`,
-  `predictions_source_{parc}.{SC|FC}.mat`); shared inputs in `results/krakencoder/_inputs/`
+- outputs: `results/cache/krakencoder/<tag>/seed{seed}/` (checkpoint, transforms, logs, `manifest.json`,
+  `predictions_source_{parc}.{SC|FC}.mat`); shared inputs in `results/cache/krakencoder/_inputs/`
 - about 50 min per seed on one GPU for the default recipe (2000 epochs, 4 flavors)
-- per-checkpoint curves: `python -m models.architectures.krakencoder.checkpoint_eval --run-dir results/krakencoder/<tag>/seed<S>`
+- per-checkpoint curves: `python -m models.architectures.krakencoder.checkpoint_eval --run-dir results/cache/krakencoder/<tag>/seed<S>`
   (our metrics and loss terms at every saved checkpoint, both directions) → `epoch_history.csv`
 - loss-weight grid (composite-loss experiment instance): `scripts/experiments/composite_loss/krakencoder/`
 
@@ -415,7 +415,7 @@ Conn2Conn/
 │   ├── ray_tmp/                     # Per-job Ray session scratch + Ray system logs
 │   ├── conn2conn/                   # Lightning checkpoints per W&B run id (prod / best-trial runs)
 │   ├── wandb/                       # Local W&B run staging (the cloud is the source of truth)
-│   ├── krakencoder/                 # Retrained Krakencoder runs by tag + shared inputs
+│   ├── cache/krakencoder/           # Retrained Krakencoder runs by tag + shared inputs (moved from results/krakencoder 2026-10-27)
 │   ├── local_results/, figures/, tables/
 │   └── logs/                        # SLURM stdout/stderr
 ├── checkpoints/                     # Legacy cwd-relative Lightning checkpoints (gitignored)

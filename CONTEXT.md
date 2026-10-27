@@ -151,7 +151,7 @@ Behavior:
 Prediction files (`krakencoder_prediction_path`):
 - `Krakencoder_precomputed` (no `tag`): `krakencoder_experimental/example_data/mydata_kraken_seed{seed}_source_{parc}.{SC|FC}.mat`
   (gitignored local Krakencoder copy = upstream + demeaned-MSE loss; kept as reference)
-- `Krakencoder` (`tag` in `models/configs/deep/Krakencoder.yml`): `results/krakencoder/<tag>/seed{seed}/predictions_source_{parc}.{SC|FC}.mat`,
+- `Krakencoder` (`tag` in `models/configs/deep/Krakencoder.yml`): `results/cache/krakencoder/<tag>/seed{seed}/predictions_source_{parc}.{SC|FC}.mat`,
   written by `python -m models.architectures.krakencoder.retrain` (vendored upstream `vendor/`, commit `b57e39c`,
   unmodified; `_vendor_entry.py` pins the import and accepts our non-upstream flavor names). Inputs are built from
   `HCP_Base` (canonical subject order = `metadata_df["subject"]`; `sc_/fc_subject_ids` keep raw load order) with the
@@ -403,7 +403,7 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
   - `results/ray_results/` (best-trial reports + checkpoints, ~118 GB)
   - `results/ray_checkpoints/` (Ray Tune storage: every trial's params/progress/W&B local copy)
   - `results/ray_tmp/` (per-job Ray session scratch + Ray system logs; a 45-tune campaign left 246 GB here, spec v3 backlog)
-  - `results/conn2conn/` (Lightning checkpoints per W&B run id), `results/krakencoder/` (retrain runs, ~13 GB per grid cell)
+  - `results/conn2conn/` (Lightning checkpoints per W&B run id), `results/cache/krakencoder/` (retrain runs, ~13 GB per grid cell)
   - `results/logs/` (SLURM stdout/stderr; forwarded Ray worker output lands here)
   - `wandb/` (local W&B run copies; the W&B cloud is the source of truth)
   - large notebooks
