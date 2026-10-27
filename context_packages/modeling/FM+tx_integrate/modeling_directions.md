@@ -1007,7 +1007,7 @@ The only place this document refers to the repository. Experiment plans live in
 | Multiblock PCA–PLS over FC conditions (MV-1), predictive-residual variant | tested (no gain) | `scripts/experiments/joint_taskfc2sc/` |
 | FC conditions as model inputs, per-condition caches | implemented | `data/hcp_dataset.py` |
 | Condition comparison in both directions and parcellations | done | `scripts/experiments/task_bidirectional_bench/` |
-| Geometry-only per-edge model ($g_\psi$) and edge-wise evaluation | implemented | `data/data_viz.py`, `scripts/experiments/covariate_ablation/node_size.py` |
+| Geometry-only per-edge model ($g_\psi$) and edge-wise evaluation | implemented | `data/data_viz.py`, `scripts/experiments/covariate_projector/covariate_ablation/node_size.py` |
 | Composite losses (between-subject spread, contrastive terms) | implemented | `scripts/experiments/composite_loss/` |
 | Graph and nodal models (GCN, nodal GNN / MLP) | implemented, at the null | `models/architectures/` |
 | SMT | implemented in GeneEx2Conn (group level) | `GeneEx2Conn/models/smt*.py` |
