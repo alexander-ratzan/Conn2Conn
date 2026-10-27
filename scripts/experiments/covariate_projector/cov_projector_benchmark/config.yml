@@ -2,9 +2,9 @@
 #   1. which covariate feature sets help the PCA-PLS residual projector over the PCA_PLS_learnable baseline?
 #   2. how do the linear family, Krakencoder, and published deep models compare on SC input?
 #
-# Run:  python scripts/experiments/cov_projector_benchmark/run.py            # from records.json
-#       python scripts/experiments/cov_projector_benchmark/run.py --rescrape # refresh from W&B
-# Write-up: scripts/experiments/cov_projector_benchmark/cov_projector_benchmark.md
+# Run:  python scripts/experiments/covariate_projector/cov_projector_benchmark/run.py            # from records.json
+#       python scripts/experiments/covariate_projector/cov_projector_benchmark/run.py --rescrape # refresh from W&B
+# Write-up: scripts/experiments/covariate_projector/cov_projector_benchmark/cov_projector_benchmark.md
 
 seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 

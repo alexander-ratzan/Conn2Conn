@@ -7,7 +7,7 @@ C. The E2.2 covariate set (fs_all + demographics) builds the same parameters and
    CovProjector at git HEAD (the code before E1), from the same torch seed.
 D. Conditions: 10 grid conditions + e2_ref; full = demo + 3 FS families; FS projector dims follow column counts.
 
-  python scripts/experiments/covariate_ablation/checks/check_e1.py
+  python scripts/experiments/covariate_projector/covariate_ablation/checks/check_e1.py
 """
 import importlib.util
 import os
@@ -17,7 +17,7 @@ import tempfile
 
 CHECK_DIR = os.path.dirname(os.path.abspath(__file__))
 EXP_DIR = os.path.dirname(CHECK_DIR)
-REPO_ROOT = os.path.abspath(os.path.join(EXP_DIR, "..", "..", ".."))
+REPO_ROOT = os.path.abspath(os.path.join(EXP_DIR, "..", "..", "..", ".."))
 sys.path.insert(0, REPO_ROOT)
 sys.path.insert(0, EXP_DIR)
 

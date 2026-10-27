@@ -14,7 +14,7 @@ Outputs (results/node_size/):
   heldout_summary.md  mean ± std over seeds, with E1 PCA-PLS + covariates `none` / `full` for reference
   fig_node_size.png   held-out demeaned r and top-1 per outcome
 
-  python scripts/experiments/covariate_ablation/node_size.py [--seeds 0 1 2 3 4]
+  python scripts/experiments/covariate_projector/covariate_ablation/node_size.py [--seeds 0 1 2 3 4]
 """
 import argparse
 import gc

@@ -2,8 +2,8 @@
 Covariate-projector + deep-model benchmark: scrape (or load) best-trial W&B results for a set of
 labelled conditions (config `rows`), then write summary tables and figures per row group.
 
-    python scripts/experiments/cov_projector_benchmark/run.py              # from the tracked records.json
-    python scripts/experiments/cov_projector_benchmark/run.py --rescrape   # refresh records.json from W&B
+    python scripts/experiments/covariate_projector/cov_projector_benchmark/run.py              # from the tracked records.json
+    python scripts/experiments/covariate_projector/cov_projector_benchmark/run.py --rescrape   # refresh records.json from W&B
 
 Everything configurable lives in config.yml next to this file. records.json is the tracked
 snapshot of the most recent scrape; tables/, figures/ and manifest.json are written next to it.

@@ -4,7 +4,7 @@ Loads the data once (all covariate sources), then for each condition trains the 
 condition's cov_sources and writes runs/<sc_metric>/<direction>/<condition>/seed<S>.json. Existing outputs are
 skipped, so a requeued task resumes. Mirrors Sim._run_learned_single without W&B.
 
-  python scripts/experiments/covariate_ablation/run_cell.py --direction fc2sc --sc_metric invnodevol --seed 0 \
+  python scripts/experiments/covariate_projector/covariate_ablation/run_cell.py --direction fc2sc --sc_metric invnodevol --seed 0 \
       --conditions none full e2_ref
 """
 import argparse
@@ -15,7 +15,7 @@ import sys
 import time
 
 EXP_DIR = os.path.dirname(os.path.abspath(__file__))
-REPO_ROOT = os.path.abspath(os.path.join(EXP_DIR, "..", "..", ".."))
+REPO_ROOT = os.path.abspath(os.path.join(EXP_DIR, "..", "..", "..", ".."))
 sys.path.insert(0, REPO_ROOT)
 sys.path.insert(0, EXP_DIR)
 
@@ -35,7 +35,7 @@ def _git_commit():
     try:
         out = subprocess.run(["git", "-C", REPO_ROOT, "rev-parse", "HEAD"], capture_output=True, text=True, check=True)
         dirty = subprocess.run(["git", "-C", REPO_ROOT, "diff", "--quiet", "HEAD", "--", "data", "models",
-                                "scripts/experiments/covariate_ablation"]).returncode != 0
+                                "scripts/experiments/covariate_projector/covariate_ablation"]).returncode != 0
         return out.stdout.strip() + ("+dirty" if dirty else "")
     except Exception:
         return None

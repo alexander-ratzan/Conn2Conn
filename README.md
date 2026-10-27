@@ -70,7 +70,7 @@ Mount the overlay `:ro` for runs and import checks (running jobs share it); inst
   `data: {parcellation: ...}`. Node order: `data/atlas_info/<parcellation>_dseg_reformatted.csv`.
 - Source can be one modality or a `+`-join (`SC+SC_r2t`, `FC`, ...); the target is one modality (`FC` or `SC`).
 - Unnormalised SC (`sc_metric_type: sift_radius2_count_connectivity`, Glasser, log1p) has a precomputed cache since
-  spec v3 E1 (`scripts/experiments/covariate_ablation/build_sc_cache.py`). Subject-specific SC, normalised or not, is
+  spec v3 E1 (`scripts/experiments/covariate_projector/covariate_ablation/build_sc_cache.py`). Subject-specific SC, normalised or not, is
   dominated by parcel size, which FC cannot see (spec v3 C!2): read FC → SC identifiability with that in mind.
 
 ### FC conditions (rest, sessions, tasks)
@@ -227,7 +227,7 @@ weights, fixed reference scales and the normalization rules: `CONTEXT.md` → Co
 - **Experiment campaigns** have their own launchers in their folder. Examples:
   - `scripts/experiments/model_benchmark/{launch_model.sh,submit.py,autopilot.py}`: E2.2 MSE campaign
     (`config.yml`) or, with `MB_CAMPAIGN_CONFIG=config_composite_loss.yml`, the composite-loss campaign (spec v3 E3)
-  - `scripts/experiments/covariate_ablation/{launch.sh,prep.sh}` (spec v3 E1)
+  - `scripts/experiments/covariate_projector/covariate_ablation/{launch.sh,prep.sh}` (spec v3 E1)
   - `scripts/experiments/task_bidirectional_bench/{launch.sh,submit.py}`
   - `scripts/experiments/composite_loss/launch_*.sh`
 - **Per-model tune arrays** live in `scripts/sbatch/<ModelName>/`. They are legacy launchers: spec v3 I2 replaces them
@@ -319,7 +319,7 @@ Config-driven results benchmarks (replace the former `scrape_SCtype_results` / `
 # inside kraken_env via `source /ext3/env.sh`
 python scripts/experiments/sc_type_benchmark/run.py              # tables + figures from the tracked records.json
 python scripts/experiments/sc_type_benchmark/run.py --rescrape   # refresh records.json from W&B first
-python scripts/experiments/cov_projector_benchmark/run.py        # covariate projector vs baselines and deep models
+python scripts/experiments/covariate_projector/cov_projector_benchmark/run.py        # covariate projector vs baselines and deep models
 python scripts/experiments/nodal_models_benchmark/run.py         # nodal models (NodalMLP decoders, GNNs) vs null / linear
 ```
 
@@ -367,7 +367,7 @@ table = build_metric_table(records, metric="demeaned_pearson")
 
 - Notebooks live under `scripts/notebooks/<purpose>/`. Each one starts with a small bootstrap that finds the repo root by walking up to `main.py`, so notebooks work from any folder in the repo; write repo paths as `REPO_ROOT / "results/..."`.
 - Side experiments live under `scripts/experiments/<name>/` (code, launchers, and their tables/figures). Truly bulky outputs (checkpoints, large arrays) go to `results/experiments/<name>/`.
-- W&B-scraped results experiments follow `scripts/experiments/sc_type_benchmark/` (model × source grid) or `scripts/experiments/cov_projector_benchmark/` (labelled condition rows): a `config.yml`, a `run.py`, and a small tracked `records.json` snapshot of the latest W&B scrape. Campaign experiments (`model_benchmark`, `task_bidirectional_bench`) add a `submit.py` / launcher and read their task logs.
+- W&B-scraped results experiments follow `scripts/experiments/sc_type_benchmark/` (model × source grid) or `scripts/experiments/covariate_projector/cov_projector_benchmark/` (labelled condition rows): a `config.yml`, a `run.py`, and a small tracked `records.json` snapshot of the latest W&B scrape. Campaign experiments (`model_benchmark`, `task_bidirectional_bench`) add a `submit.py` / launcher and read their task logs.
 - Each experiment is documented in its own folder by a write-up named after it (`<name>/<name>.md`: the question, setup, how to run it, W&B ids, results, and caveats), or by its notebook when that already describes it. `scripts/experiments/experiments_index.md` lists all experiments.
 
 ---

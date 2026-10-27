@@ -1,7 +1,7 @@
 """Spec v3 E1: covariate family ablation — pilot gate, tables, figures.
 
-  python scripts/experiments/covariate_ablation/run.py gate      # E1.2 pilot gate (seed 0: none, full, e2_ref)
-  python scripts/experiments/covariate_ablation/run.py           # tables + figures (needs every run; --allow_partial)
+  python scripts/experiments/covariate_projector/covariate_ablation/run.py gate      # E1.2 pilot gate (seed 0: none, full, e2_ref)
+  python scripts/experiments/covariate_projector/covariate_ablation/run.py           # tables + figures (needs every run; --allow_partial)
 
 Reads runs/<sc_metric>/<direction>/<condition>/seed<S>.json (run_cell.py). Writes results/tables/*.{csv,md} and
 results/figures/*.png. Deltas are paired by seed (same split, same frozen config apart from cov_sources).

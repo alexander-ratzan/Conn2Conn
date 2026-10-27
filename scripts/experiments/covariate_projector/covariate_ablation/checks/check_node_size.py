@@ -4,12 +4,12 @@
 3. predict_edgewise_multifeature_regression on the fit partition reproduces the fitted R2;
 4. node_size block summary + held-out rows run for normalised SC.
 
-  python scripts/experiments/covariate_ablation/checks/check_node_size.py
+  python scripts/experiments/covariate_projector/covariate_ablation/checks/check_node_size.py
 """
 import importlib.util, subprocess, sys, tempfile, time
 import numpy as np
-REPO = str(__import__("pathlib").Path(__file__).resolve().parents[4])
-sys.path.insert(0, REPO); sys.path.insert(0, REPO + "/scripts/experiments/covariate_ablation")
+REPO = str(__import__("pathlib").Path(__file__).resolve().parents[5])
+sys.path.insert(0, REPO); sys.path.insert(0, REPO + "/scripts/experiments/covariate_projector/covariate_ablation")
 import node_size as ns
 from conditions import load_config
 from data import data_viz as new

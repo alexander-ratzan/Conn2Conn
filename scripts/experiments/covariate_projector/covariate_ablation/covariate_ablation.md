@@ -1,6 +1,6 @@
 # Covariate Family Ablation (spec v3 E1)
 
-**Code:** `scripts/experiments/covariate_ablation/` — `config.yml`, `conditions.py` (conditions, frozen configs),
+**Code:** `scripts/experiments/covariate_projector/covariate_ablation/` — `config.yml`, `conditions.py` (conditions, frozen configs),
 `run_cell.py` (train + evaluate one direction × SC metric × seed), `launch.sh` (GPU array), `prep.sh` (CPU: checks +
 SC cache), `build_sc_cache.py` (E1.1), `run.py` (pilot gate, tables, figures), `checks/check_e1.py` (E1.0)
 **Outputs:** `runs/<sc_metric>/<direction>/<condition>/seed<S>.json`, `results/{tables,figures}/`
@@ -28,13 +28,13 @@ SC cache), `build_sc_cache.py` (E1.1), `run.py` (pilot gate, tables, figures), `
 ## 3. How to run
 
 ```bash
-sbatch scripts/experiments/covariate_ablation/prep.sh                       # E1.0 checks + E1.1 SC cache (CPU)
+sbatch scripts/experiments/covariate_projector/covariate_ablation/prep.sh                       # E1.0 checks + E1.1 SC cache (CPU)
 sbatch --job-name=e1_cov_fc2sc_invnodevol --array=0 --time=1:00:00 \
-  scripts/experiments/covariate_ablation/launch.sh fc2sc invnodevol "none full e2_ref"   # pilot (and sc2fc)
-python scripts/experiments/covariate_ablation/run.py gate                   # pilot gate
+  scripts/experiments/covariate_projector/covariate_ablation/launch.sh fc2sc invnodevol "none full e2_ref"   # pilot (and sc2fc)
+python scripts/experiments/covariate_projector/covariate_ablation/run.py gate                   # pilot gate
 sbatch --job-name=e1_cov_<dir>_<metric> --array=0-4 --time=<t> \
-  scripts/experiments/covariate_ablation/launch.sh <dir> <metric> all|"none full"
-python scripts/experiments/covariate_ablation/run.py                        # tables + figures
+  scripts/experiments/covariate_projector/covariate_ablation/launch.sh <dir> <metric> all|"none full"
+python scripts/experiments/covariate_projector/covariate_ablation/run.py                        # tables + figures
 ```
 
 ## 4. Results

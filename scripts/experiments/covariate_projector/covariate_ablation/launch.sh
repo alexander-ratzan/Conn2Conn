@@ -23,6 +23,6 @@ echo "Campaign=e1_cov Direction=${DIRECTION} SC_metric=${SC_METRIC} Seed=${SEED}
 singularity exec --nv --overlay "/scratch/$USER/envs/kraken_env/overlay-15GB-500K.ext3:ro" \
   /share/apps/images/cuda12.8.1-cudnn9.8.0-ubuntu24.04.2.sif /bin/bash -lc "
     source /ext3/env.sh; export PYTHONUNBUFFERED=1; cd ${REPO}
-    python scripts/experiments/covariate_ablation/run_cell.py --direction ${DIRECTION} --sc_metric ${SC_METRIC} \
+    python scripts/experiments/covariate_projector/covariate_ablation/run_cell.py --direction ${DIRECTION} --sc_metric ${SC_METRIC} \
       --seed ${SEED} --conditions ${CONDITIONS}"
 echo "Job Over at $(date)"

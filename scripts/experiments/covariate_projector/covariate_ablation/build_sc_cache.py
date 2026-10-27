@@ -6,7 +6,7 @@ renamed at the end; refuses to overwrite), copying the NFSv4 ACLs from the sibli
 VAST mount new entries otherwise come out owner-locked). Then checks the gate against the invnodevol cache and
 writes the result to runs/cache_gate.json.
 
-  python scripts/experiments/covariate_ablation/build_sc_cache.py [--workers 8]
+  python scripts/experiments/covariate_projector/covariate_ablation/build_sc_cache.py [--workers 8]
 """
 import argparse
 import json
@@ -15,7 +15,7 @@ import shutil
 import sys
 
 EXP_DIR = os.path.dirname(os.path.abspath(__file__))
-REPO_ROOT = os.path.abspath(os.path.join(EXP_DIR, "..", "..", ".."))
+REPO_ROOT = os.path.abspath(os.path.join(EXP_DIR, "..", "..", "..", ".."))
 sys.path.insert(0, REPO_ROOT)
 
 import numpy as np  # noqa: E402

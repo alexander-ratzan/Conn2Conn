@@ -151,10 +151,10 @@ mixtures; fixed reference scales).
   - SC cache `Conn2Conn_data/sc/parc-Glasser_hemi-both_metric-sift_radius2_count_connectivity_log1p-1/` via the
     existing `load_sc(write_cache=True)` path in a CPU sbatch job; copy the `system.nfs4_acl` from the sibling
     invnodevol cache onto new files.
-  - `scripts/experiments/covariate_ablation/`: `config.yml` (families, conditions, directions, seeds, SC metrics,
+  - `scripts/experiments/covariate_projector/covariate_ablation/`: `config.yml` (families, conditions, directions, seeds, SC metrics,
     frozen-config source), `launch.sh` (sbatch array over condition × direction × seed × SC metric, packed per GPU),
     `run.py` (tables + figures), `checks/`, write-up `covariate_ablation.md`.
-  - E1.5: `scripts/experiments/covariate_ablation/node_size.py` (+ `checks/check_node_size.py`);
+  - E1.5: `scripts/experiments/covariate_projector/covariate_ablation/node_size.py` (+ `checks/check_node_size.py`);
     `data/data_viz.py`: shared per-edge feature builder, `log_product_volume_log_volume_mismatch` and `distance`
     models, `predict_edgewise_multifeature_regression`, `evaluate_edgewise_predictions` (E1 metric code), and a
     Glasser-safe atlas reader (Yeo community as `network_label`); refactor checked identical to the previous tables.
@@ -178,7 +178,7 @@ mixtures; fixed reference scales).
 - **Progress:** E1.0 done (9e7e75e). E1.1 cache built (1063 subjects), gate passed on Spearman. E1.2 pilot passed
   (seed 0 test demeaned r, `none` / `full` / E2.2 inputs: FC → SC 0.144 / 0.223 / 0.227, top-1 0.14 / 0.37 / 0.43;
   SC → FC 0.090 / 0.094 / 0.096). E1.3 / E1.4 done 2026-10-14: 112 / 112 runs, 2.2 GPU-h.
-- **Result:** [`covariate_ablation.md`](../../scripts/experiments/covariate_ablation/covariate_ablation.md).
+- **Result:** [`covariate_ablation.md`](../../scripts/experiments/covariate_projector/covariate_ablation/covariate_ablation.md).
   Plain names: `none` = FC only (SC only for SC → FC), `full` = FC + all covariates; *gain alone* = `only − none`,
   *unique gain* = `full − drop`, *total gain* = `full − none`.
   - FC → SC: covariates add +0.077 demeaned r and +0.31 top-1 (5/5 seeds). Cortical area (+0.052 alone) and FS
@@ -188,7 +188,7 @@ mixtures; fixed reference scales).
   - SC → FC: no family helps (all deltas within ±0.015, mixed signs; full − none −0.003).
   - Unnormalised SC: the gain shrinks to +0.045 demeaned r and +0.11 top-1 (−40% / −60%) but stays positive in every
     seed: part of the E2.2 lead is undoing `invnodevol`, the rest is anatomy predicting raw streamline counts.
-- **Result (E1.5):** [`covariate_ablation.md`](../../scripts/experiments/covariate_ablation/covariate_ablation.md) §7,
+- **Result (E1.5):** [`covariate_ablation.md`](../../scripts/experiments/covariate_projector/covariate_ablation/covariate_ablation.md) §7,
   `results/node_size/`. Per edge, fit on train: y ~ distance, ~ parcel size (log(4 v_i v_j), log1p|v_i − v_j|, each
   subject's own Glasser parcel volumes), ~ both; applied to test subjects, scored with the E1 metrics; seeds 0–4.
 

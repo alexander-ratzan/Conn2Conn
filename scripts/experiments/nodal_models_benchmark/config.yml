@@ -42,8 +42,8 @@ variants:
 # --- references, from the tracked benchmark snapshots (no scrape) ------------------------------
 references:
   - {name: null_pca, snapshot: scripts/experiments/sc_type_benchmark/records.json, model: CrossModalPCA, source: SC}
-  - {name: chen_gcn, snapshot: scripts/experiments/cov_projector_benchmark/records.json, model: Chen2024GCN, source: SC}
-  - {name: nodal_gnn_default, snapshot: scripts/experiments/cov_projector_benchmark/records.json, model: NodalGNN, source: SC}
+  - {name: chen_gcn, snapshot: scripts/experiments/covariate_projector/cov_projector_benchmark/records.json, model: Chen2024GCN, source: SC}
+  - {name: nodal_gnn_default, snapshot: scripts/experiments/covariate_projector/cov_projector_benchmark/records.json, model: NodalGNN, source: SC}
 
 # --- table / figure rows -------------------------------------------------------------------------
 # One entry per condition. Variant rows are matched by `variant`; reference rows by model (cov_type none).

@@ -62,12 +62,12 @@ If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after 
 - `README.md`
   - user-level commands + workflow
 - `scripts/experiments/` (index: `experiments_index.md`); two patterns:
-  - W&B-scraped results experiments (`sc_type_benchmark/`, `cov_projector_benchmark/`, `nodal_models_benchmark/`):
+  - W&B-scraped results experiments (`sc_type_benchmark/`, `covariate_projector/cov_projector_benchmark/`, `nodal_models_benchmark/`):
     `config.yml` + `run.py` + tracked `records.json`
   - SLURM campaigns scraped from task logs: `model_benchmark/` (MSE benchmark, both directions; `build_configs.py`,
     `submit.py`, `autopilot.py`, `run.py`; composite-loss campaign with `MB_CAMPAIGN_CONFIG=config_composite_loss.yml`:
     `composite_scales.py`, `build_composite_configs.py`, `composite_vs_mse.py`, outputs `composite_loss/`),
-    `covariate_ablation/` (spec v3 E1: covariate families, `run_cell.py`, `node_size.py`), `composite_loss/` (`protocol.py`, `report.py`, `compare.py`; instances
+    `covariate_projector/covariate_ablation/` (spec v3 E1: covariate families, `run_cell.py`, `node_size.py`), `composite_loss/` (`protocol.py`, `report.py`, `compare.py`; instances
     `<model>/{sc2fc,fc2sc}/`), `task_bidirectional_bench/` (FC condition × seed × direction × parcellation; `make_configs.py`, `submit.py`, `run.py`)
 - `scripts/notebooks/model_overviews/*.ipynb`
   - conceptual onboarding notebooks for PCA/PLS, conditional Gaussian, latent-attention, masked pretraining, and nodal baselines
@@ -378,7 +378,7 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
   dates, question, documentation link). Avoid folder names ending in `_context` (a global `.gitignore` rule
   ignores `*_context/`).
 - **Results experiments (config-driven).** Two templates: `scripts/experiments/sc_type_benchmark/` (a model × source
-  grid; record-level figure types `source_bars`, `metric_scatter`) and `scripts/experiments/cov_projector_benchmark/`
+  grid; record-level figure types `source_bars`, `metric_scatter`) and `scripts/experiments/covariate_projector/cov_projector_benchmark/`
   (labelled condition `rows` + ordered `row_groups` with label overrides; seed-DataFrame figure types
   `cov_dl_bars`, `cov_dl_panels`). `config.yml` declares the scrape grid (or rows), tables, and a `figures:` list
   (each entry = a `FIGURE_TYPES` key plus that plotting function's kwargs); `run.py` (thin, on top of
@@ -494,7 +494,7 @@ Add a notebook or experiment:
 2. start the first code cell with the standard bootstrap (see "Repo Layout Conventions"); anchor paths on `REPO_ROOT`
 3. for experiments, write `<slug>/<slug>.md` (unless the notebook documents itself) and add a row to `scripts/experiments/experiments_index.md`
 4. for a results/benchmark experiment, copy `scripts/experiments/sc_type_benchmark/` (model × source grid) or
-   `scripts/experiments/cov_projector_benchmark/` (labelled condition rows) and edit its `config.yml`
+   `scripts/experiments/covariate_projector/cov_projector_benchmark/` (labelled condition rows) and edit its `config.yml`
 
 Debug missing results cell:
 1. confirm best-trial run exists in W&B with expected tags
@@ -504,7 +504,7 @@ Debug missing results cell:
 ## Recent Changes
 
 2026-10-12 → 2026-10-21 — spec v3 E1, E1.5, E3, E4 (v3 closed 2026-10-21; details in `spec_doc_v3.md`):
-- E1 covariate ablation (`scripts/experiments/covariate_ablation/`): `fs_vol` / `fs_area` / `fs_thick` cov sources
+- E1 covariate ablation (`scripts/experiments/covariate_projector/covariate_ablation/`): `fs_vol` / `fs_area` / `fs_thick` cov sources
   (`data/hcp_dataset.py`), CovProjector `cov_sources: []`, unnormalised Glasser SC cache. FC → SC covariate gain =
   regional size, ~40% of it the `invnodevol` normalisation (C!1). E1.5 `node_size.py`: parcel volumes alone identify
   subjects from SC, normalised or raw (C!2, standing caveat; D4: SC stays a target).
@@ -588,7 +588,7 @@ Debug missing results cell:
   `records.json` snapshot; reproduces the notebook's table exactly); write-up `sc_type_benchmark/sc_type_benchmark.md`.
 - Scraper fixes: `query_runs` (wandb 0.25 lazy runs had empty configs), model attribution by fetch target,
   hash-based fallback plot colors for models without an explicit color.
-- `scrape_covtype_results.ipynb` replaced by the config-driven `scripts/experiments/cov_projector_benchmark/`
+- `scrape_covtype_results.ipynb` replaced by the config-driven `scripts/experiments/covariate_projector/cov_projector_benchmark/`
   (both notebook tables reproduced exactly); shared runner plumbing extracted to `scripts/results_utils/runner.py`;
   `cov_dl_bars` / `cov_dl_panels` added to `FIGURE_TYPES`.
 

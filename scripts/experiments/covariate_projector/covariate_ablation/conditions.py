@@ -6,7 +6,7 @@ from copy import deepcopy
 import yaml
 
 EXP_DIR = os.path.dirname(os.path.abspath(__file__))
-REPO_ROOT = os.path.abspath(os.path.join(EXP_DIR, "..", "..", ".."))
+REPO_ROOT = os.path.abspath(os.path.join(EXP_DIR, "..", "..", "..", ".."))
 DEMO_SOURCES = ("age", "sex", "race_eth")
 E2_REF_SOURCES = ["fs_all", "age", "sex", "race_eth"]
 

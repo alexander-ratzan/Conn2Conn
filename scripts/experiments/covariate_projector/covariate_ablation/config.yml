@@ -1,7 +1,7 @@
 # Spec v3 E1 — covariate family ablation for CrossModal_PCA_PLS_CovProjector, both directions, plus an
 # unnormalised-SC (no invnodevol) FC -> SC control. Frozen per-seed E2.2 best-trial configs; no tuning.
-#   sbatch scripts/experiments/covariate_ablation/launch.sh <direction> <sc_metric> "<conditions>"   # array = seeds
-#   python scripts/experiments/covariate_ablation/run.py                                             # tables + figures
+#   sbatch scripts/experiments/covariate_projector/covariate_ablation/launch.sh <direction> <sc_metric> "<conditions>"   # array = seeds
+#   python scripts/experiments/covariate_projector/covariate_ablation/run.py                                             # tables + figures
 campaign: e1_cov
 model: CrossModal_PCA_PLS_CovProjector
 parcellation: Glasser

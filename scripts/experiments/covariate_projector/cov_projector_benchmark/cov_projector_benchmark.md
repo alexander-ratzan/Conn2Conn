@@ -1,7 +1,7 @@
 # Covariate-Projector Benchmark
 
-**Code:** `scripts/experiments/cov_projector_benchmark/` — `config.yml` (conditions, row groups, tables, figures), `run.py` (runner)
-**Results snapshot (tracked):** `scripts/experiments/cov_projector_benchmark/records.json` — scraped 2026-09-23 15:47 from W&B `alexander-ratzan-new-york-university/conn2conn`
+**Code:** `scripts/experiments/covariate_projector/cov_projector_benchmark/` — `config.yml` (conditions, row groups, tables, figures), `run.py` (runner)
+**Results snapshot (tracked):** `scripts/experiments/covariate_projector/cov_projector_benchmark/records.json` — scraped 2026-09-23 15:47 from W&B `alexander-ratzan-new-york-university/conn2conn`
 **Outputs (regenerable, in this folder):** `tables/`, `figures/` (PNG, 300 dpi), `manifest.json` — all tracked
 **Status:** active · replaces `scripts/notebooks/results_scrape/scrape_covtype_results.ipynb` (reproduced exactly, then retired)
 **W&B / Ray:** best-trial `prod` runs (`best_trial_report` tag); `NodalGNN` from direct `prod` runs; 70 distinct `ray_tune_id`s; per-cell run ids in `records.json`
@@ -31,8 +31,8 @@
 
 ```bash
 # inside kraken_env via `source /ext3/env.sh` (the launchers' job environment)
-python scripts/experiments/cov_projector_benchmark/run.py              # tables + figures from records.json
-python scripts/experiments/cov_projector_benchmark/run.py --rescrape   # refresh records.json from W&B first
+python scripts/experiments/covariate_projector/cov_projector_benchmark/run.py              # tables + figures from records.json
+python scripts/experiments/covariate_projector/cov_projector_benchmark/run.py --rescrape   # refresh records.json from W&B first
 ```
 
 Add a condition under `rows:` and reference it from a `row_groups:` list, then run with `--rescrape` (the runner
