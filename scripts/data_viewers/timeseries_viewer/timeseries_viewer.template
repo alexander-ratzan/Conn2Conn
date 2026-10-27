@@ -29,6 +29,7 @@
   <label>Region B <select id="regB"></select></label>
   <label>FC color limit <select id="clim"><option>0.4</option><option>0.6</option><option selected>0.8</option><option>1.0</option></select></label>
   <label>Region order <select id="order"><option value="network">by network</option><option value="atlas">atlas</option></select></label>
+  <label>ACF max lag <select id="acfLag"><option value="15">15 s</option><option value="30" selected>30 s</option><option value="60">60 s</option></select></label>
   <label class="check"><input type="checkbox" id="zoom"> Zoom timeseries to window</label>
 </div>
 <main>
@@ -61,12 +62,10 @@
     <canvas id="tsB" style="height:130px"></canvas>
   </section>
   <section class="card wide">
-    <h2>Intrinsic timescale by region</h2>
-    <div class="legend"><span><i class="sw dot" style="background:var(--neutral)"></i>full scan (mean over runs)</span>
-      <span><i class="sw dot" style="background:var(--series-3)"></i>current window</span>
-      <span><i class="sw" style="background:var(--series-1)"></i>region A</span><span><i class="sw" style="background:var(--series-2)"></i>region B</span></div>
-    <canvas id="tauChart" style="height:190px"></canvas>
-    <div class="note">Timescale = TR × area under the autocorrelation function before its first value ≤ 0 (Parkes et al.). Regions on the x axis follow the region order setting.</div>
+    <h2>Autocorrelation function</h2>
+    <div class="legend" id="acfLegend"></div>
+    <canvas id="acfChart" style="height:240px"></canvas>
+    <div class="note" id="acfNote"></div>
   </section>
   <section class="card">
     <h2>Multiscale sample entropy</h2>
@@ -166,7 +165,7 @@ function mse(v) {                           // one contiguous segment; r fixed a
 
 // ---------- state ----------
 const S = { subject: D.subjects[0], condition: D.conditions[0], L: D.window, step: D.step, w: 0, A: 0, B: 1,
-            clim: 0.8, order: "network", zoom: false, starts: [] };
+            clim: 0.8, order: "network", zoom: false, starts: [], acfHover: null };
 
 // ---------- heatmaps ----------
 let LUT = null;
@@ -231,23 +230,65 @@ for (const [id, get] of [["fullFC", () => series(rec())._fc], ["winFC", () => WI
 
 // ---------- metric charts ----------
 let WIN_TAU = null, MSE_W = null;
-function drawTau() {
-  const r = rec(), c = $("tauChart"), { ctx } = Kit.fit(c), b = { l: 44, t: 8, w: c.clientWidth - 56, h: c.clientHeight - 30 }, order = ORDERS[S.order];
-  const full = order.map(p => r.tau[p]), win = WIN_TAU ? order.map(p => WIN_TAU[p]) : [];
-  const yr = Kit.range(full.concat(win)), X = k => b.l + (k + 0.5) / P * b.w, Y = v => b.t + b.h - (v - yr[0]) / (yr[1] - yr[0]) * b.h;
-  if (S.order === "network") { ctx.fillStyle = css("--surface-2"); let prev = 0, alt = false;
-    for (const k of boundaries(order).concat([P])) { if (alt) ctx.fillRect(X(prev - 0.5), b.t, X(k - 0.5) - X(prev - 0.5), b.h); alt = !alt; prev = k; } }
-  Kit.axes(ctx, b, [0, P], yr, { xticks: false, ny: 4, yfmt: v => v + " s" });
-  ctx.fillStyle = css("--text-muted"); ctx.font = "11px system-ui, sans-serif"; ctx.textAlign = "right"; ctx.textBaseline = "top";
-  ctx.fillText(S.order === "network" ? "regions, grouped by network (alternate shading)" : "regions, atlas order", b.l + b.w, b.t + b.h + 6);
-  for (const [p, col] of [[S.A, css("--series-1")], [S.B, css("--series-2")]]) { const x = X(order.indexOf(p)); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, b.t); ctx.lineTo(x, b.t + b.h); ctx.stroke(); }
-  for (const [vals, col] of [[full, css("--neutral")], [win, css("--series-3")]]) { ctx.fillStyle = col;
-    vals.forEach((v, k) => { if (fin(v)) { ctx.beginPath(); ctx.arc(X(k), Y(v), 2, 0, 7); ctx.fill(); } }); }
-  c.onmousemove = e => { const k = Math.floor((e.offsetX - b.l) / b.w * P); if (k < 0 || k >= P) return tip.hide(); const p = order[k];
-    tip.show(e, `${regionName(p)}<br>full ${fmt(r.tau[p])} s · window ${WIN_TAU ? fmt(WIN_TAU[p]) : "–"} s`); };
-  c.onmouseleave = tip.hide;
-  c.onclick = e => { const k = Math.floor((e.offsetX - b.l) / b.w * P); if (k >= 0 && k < P) { S.A = order[k]; $("regA").value = S.A; drawAll(); } };
+function acf(v, K) {                       // biased ACF of one segment, lags 0..min(K, n - 1) (mirrors timeseries_metrics.acf)
+  const n = v.length, L = Math.min(K, n - 1); let m = 0; for (let t = 0; t < n; t++) m += v[t]; m /= n;
+  const c = new Float64Array(n); let c0 = 0; for (let t = 0; t < n; t++) { c[t] = v[t] - m; c0 += c[t] * c[t]; }
+  const out = new Float64Array(L + 1).fill(NaN); if (!(c0 > 0)) return out;
+  for (let k = 0; k <= L; k++) { let s = 0; for (let t = 0; t + k < n; t++) s += c[t] * c[t + k]; out[k] = s / c0; }
+  return out;
 }
+function runsACF(r, v, K) {                // mean over runs of the per-run ACF (each lag over the runs long enough for it)
+  const sum = new Float64Array(K + 1), cnt = new Float64Array(K + 1);
+  for (const [, a, n] of r.runs) { const q = acf(v.subarray(a, a + n), K); q.forEach((x, k) => { if (fin(x)) { sum[k] += x; cnt[k]++; } }); }
+  return sum.map((x, k) => cnt[k] ? x / cnt[k] : NaN);
+}
+function firstNonPos(q) { for (let k = 0; k < q.length; k++) if (q[k] <= 0) return k; return -1; }
+function bandNullACF(K) {                  // white noise through an ideal 0.01-0.08 Hz band-pass (xcp-d's band, approximately)
+  const [f1, f2] = D.band || [0.01, 0.08];
+  return Float64Array.from({ length: K + 1 }, (_, k) => { const t = k * TR; return k === 0 ? 1 : (Math.sin(2 * Math.PI * f2 * t) - Math.sin(2 * Math.PI * f1 * t)) / (2 * Math.PI * (f2 - f1) * t); });
+}
+function drawACF() {
+  const r = series(rec()), c = $("acfChart"), { ctx } = Kit.fit(c), b = { l: 44, t: 10, w: c.clientWidth - 60, h: c.clientHeight - 40 };
+  const K = Math.round(+$("acfLag").value / TR), s = S.starts.length ? S.starts[S.w] : null;
+  const src = [["mean", "mean timeseries", r._mean, css("--text-secondary"), null, null],
+               ["A", "A · " + D.labels[S.A], column(r, S.A, 0, r.n_tr), css("--series-1"), r.tau[S.A], WIN_TAU?.[S.A]],
+               ["B", "B · " + D.labels[S.B], column(r, S.B, 0, r.n_tr), css("--series-2"), r.tau[S.B], WIN_TAU?.[S.B]]];
+  const lines = [];
+  for (const [id, name, v, col, tauFull, tauWin] of src) {
+    const full = runsACF(r, v, K);
+    lines.push({ id, name, col, dash: [], q: full, tau: id === "mean" ? timescaleRuns(r, v) : tauFull, kind: "full scan" });
+    if (s != null) lines.push({ id, name, col, dash: [5, 4], q: acf(v.subarray(s, s + S.L), K), tau: id === "mean" ? timescale(v.subarray(s, s + S.L)) : tauWin, kind: "window" });
+  }
+  const nul = bandNullACF(K);
+  const yr = [Math.min(-0.3, ...lines.flatMap(l => [...l.q].filter(fin))), 1.02];
+  const X = k => b.l + k / K * b.w, Y = v => b.t + b.h - (v - yr[0]) / (yr[1] - yr[0]) * b.h;
+  Kit.axes(ctx, b, [0, K * TR], yr, { xfmt: v => v + " s", ny: 4, xlabel: "lag (s)", yfmt: v => v.toFixed(1) });
+  ctx.strokeStyle = css("--axis"); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(b.l, Y(0)); ctx.lineTo(b.l + b.w, Y(0)); ctx.stroke();
+  const path = (q, dash, col, w) => { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.setLineDash(dash); ctx.beginPath(); let on = false;
+    q.forEach((v, k) => { if (!fin(v)) { on = false; return; } on ? ctx.lineTo(X(k), Y(v)) : ctx.moveTo(X(k), Y(v)); on = true; }); ctx.stroke(); ctx.setLineDash([]); };
+  path(nul, [1, 3], css("--neutral"), 1.5);
+  for (const l of lines) {
+    path(l.q, l.dash, l.col, l.id === "mean" ? 1.5 : 2);
+    const k0 = firstNonPos(l.q);
+    if (k0 > 0) { ctx.fillStyle = css("--surface-1"); ctx.strokeStyle = l.col; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X(k0), Y(l.q[k0]), 3.5, 0, 7); ctx.fill(); ctx.stroke(); }
+  }
+  const hz = S.acfHover;
+  if (hz != null && hz >= 0 && hz <= K) { ctx.strokeStyle = css("--text-muted"); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X(hz), b.t); ctx.lineTo(X(hz), b.t + b.h); ctx.stroke(); }
+  $("acfLegend").innerHTML = src.map(([id, name, , col]) => { const f = lines.find(l => l.id === id && l.kind === "full scan"), w = lines.find(l => l.id === id && l.kind === "window");
+    return `<span><i class="sw" style="background:${col}"></i>${name}: τ full ${fmt(f.tau)} s · window ${w ? fmt(w.tau) : "–"} s</span>`; }).join("") +
+    `<span><i class="sw" style="background:var(--text-secondary)"></i>full scan</span><span><i class="sw dash" style="border-color:var(--text-secondary)"></i>window</span>` +
+    `<span><i class="sw dash" style="border-color:var(--neutral);border-top-style:dotted"></i>band-pass null</span>`;
+  c.onmousemove = e => { const k = Math.round((e.offsetX - b.l) / b.w * K); if (k < 0 || k > K) { S.acfHover = null; drawACF(); return tip.hide(); }
+    S.acfHover = k; drawACF();
+    tip.show(e, `lag ${k} TR (${(k * TR).toFixed(1)} s)<br>` + src.map(([id, name]) => { const f = lines.find(l => l.id === id && l.kind === "full scan"), w = lines.find(l => l.id === id && l.kind === "window");
+      return `${name}: full ${fmt(f.q[k], 3)} · window ${w ? fmt(w.q[k], 3) : "–"}`; }).join("<br>") + `<br>band-pass null ${fmt(nul[k], 3)}`); };
+  c.onmouseleave = () => { S.acfHover = null; drawACF(); tip.hide(); };
+  $("acfNote").textContent = `Biased sample ACF (mean removed). Full scan: ACF of each run, averaged over runs; window: the shaded segment only (${S.L} TRs, so lags near its length rest on few pairs). ` +
+    `Open circles: first lag with ACF ≤ 0. τ = TR × area under the ACF before that lag (Parkes et al.); full-scan τ is the mean of the per-run τ. ` +
+    `Dotted: white noise through an ideal 0.01–0.08 Hz band-pass (τ ${fmt(timescaleOfACF(nul))} s), i.e. what the filter alone produces.`;
+}
+function timescaleOfACF(q) { let a = 0; for (const v of q) { if (!(v > 0)) break; a += v; } return TR * a; }
+function timescaleRuns(r, v) { let a = 0; for (const [, s0, n] of r.runs) a += timescale(v.subarray(s0, s0 + n)); return a / r.runs.length; }
 function drawMSE() {
   const r = rec(), c = $("mseChart"), { ctx } = Kit.fit(c), b = { l: 44, t: 10, w: c.clientWidth - 60, h: c.clientHeight - 40 };
   const sc = D.scales, lines = [];
@@ -313,7 +354,7 @@ function drawAll() {
   $("tsBtitle").textContent = `Region B · ${D.labels[S.B]} (${D.network[S.B]})`;
   $("tsAmeta").textContent = `timescale full ${fmt(r.tau[S.A])} s · window ${fmt(WIN_TAU?.[S.A])} s`;
   $("tsBmeta").textContent = `timescale full ${fmt(r.tau[S.B])} s · window ${fmt(WIN_TAU?.[S.B])} s · r(A, B) full ${fmt(r._fc[S.A * P + S.B], 3)}, window ${WIN_FC ? fmt(WIN_FC[S.A * P + S.B], 3) : "–"}`;
-  drawTau(); drawMSE(); drawStats();
+  drawACF(); drawMSE(); drawStats();
 }
 
 // ---------- controls ----------
@@ -334,6 +375,7 @@ $("regA").onchange = e => { S.A = +e.target.value; drawAll(); };
 $("regB").onchange = e => { S.B = +e.target.value; drawAll(); };
 $("clim").onchange = e => { S.clim = +e.target.value; drawColorbar(); drawAll(); };
 $("order").onchange = e => { S.order = e.target.value; fillRegions(); drawAll(); };
+$("acfLag").onchange = () => drawACF();
 $("zoom").onchange = e => { S.zoom = e.target.checked; for (const id of ["meanTS", "tsA", "tsB"]) drawTS(id); };
 let pending = null;
 $("slider").oninput = e => { S.w = +e.target.value; if (!pending) pending = requestAnimationFrame(() => { pending = null; drawAll(); }); };
@@ -351,11 +393,14 @@ function selfCheck() {
   for (const [i, j, v] of k.fc_pairs) dFC = Math.max(dFC, Math.abs(C[i * P + j] - v));
   for (let p = 0; p < P; p++) { const a = timescale(column(r, p, k.start, k.start + k.length)), b = k.tau[p];
     dTau = Math.max(dTau, (isNaN(a) && b == null) ? 0 : Math.abs(a - b)); }
+  let dACF = 0;
+  if (k.acf) k.mse_regions.forEach((p, i) => { const q = acf(column(r, p, k.start, k.start + k.length), k.acf[i].length - 1);
+    q.forEach((v, j) => { dACF = Math.max(dACF, Math.abs(v - k.acf[i][j])); }); });
   k.mse_regions.forEach((p, i) => { const m = mse(column(r, p, k.start, k.start + k.length));
     m.forEach((o, j) => { const b = k.mse[i][j]; dMSE = Math.max(dMSE, (isNaN(o.e) && b == null) ? 0 : Math.abs(o.e - b)); }); });
   Kit.check(`Self-check vs Python (sub-${k.subject} ${k.condition}, TR ${k.start}–${k.start + k.length - 1})`,
-    dFC < 1e-9 && dTau < 1e-9 && dMSE < 1e-9 && fin(dFC + dTau + dMSE),
-    `max |Δ| window FC ${dFC.toExponential(1)}, timescale ${dTau.toExponential(1)}, entropy ${dMSE.toExponential(1)}`);
+    dFC < 1e-9 && dTau < 1e-9 && dMSE < 1e-9 && dACF < 1e-9 && fin(dFC + dTau + dMSE + dACF),
+    `max |Δ| window FC ${dFC.toExponential(1)}, ACF ${k.acf ? dACF.toExponential(1) : "n/a"}, timescale ${dTau.toExponential(1)}, entropy ${dMSE.toExponential(1)}`);
 }
 
 LUT = Kit.divergingLUT(); drawColorbar(); updateStarts(); drawAll(); selfCheck();

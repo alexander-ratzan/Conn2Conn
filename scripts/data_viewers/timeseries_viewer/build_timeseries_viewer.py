@@ -5,7 +5,8 @@ full-scan FC (fc/ cache = xcp-d combined-run relmat) and full-scan regional metr
 (intrinsic timescale averaged over runs; multiscale sample entropy with counts pooled over runs, and its area over
 scales; defaults m, r, scales from data/timeseries_metrics.py, after Wijesinghe et al. 2026). The page computes,
 in the browser and with the same definitions: window FC (windows never span a run boundary), window timescales for all
-regions and window multiscale entropy for the two selected regions. A self-check block holds Python values for one
+regions, autocorrelation functions (full scan and window) of the mean timeseries and the two selected regions, and
+window multiscale entropy for the two selected regions. A self-check block holds Python values for one
 window; the page recomputes them and shows the largest difference.
 
 Data: Conn2Conn_data/timeseries/ (data/timeseries.py) and Conn2Conn_data/fc/. Page: timeseries_viewer.template on the
@@ -27,12 +28,14 @@ HERE = Path(__file__).resolve().parent
 REPO_ROOT = next(p for p in HERE.parents if (p / "main.py").exists())
 sys.path.insert(0, str(REPO_ROOT))
 from data.timeseries import CONDITIONS, TimeseriesCache, corr, window_starts  # noqa: E402
-from data.timeseries_metrics import (M, R_FRAC, SCALES, mse_auc, multiscale_entropy,  # noqa: E402
+from data.timeseries_metrics import (M, R_FRAC, SCALES, acf, mse_auc, multiscale_entropy,  # noqa: E402
                                      multiscale_entropy_runs, timescale, timescale_runs)
 from scripts.data_viewers.viewer_kit import Viewer, int16_columns, int16_unit, packed, round_list  # noqa: E402
 
 FC_ROOT = Path("/scratch/asr655/neuroinformatics/Conn2Conn_data/fc")
 WINDOW, STEP = 144, 24
+ACF_CHECK_LAGS = 40
+BAND = (0.01, 0.08)   # xcp-d band-pass (Hz), for the page's filter-only reference ACF
 NETWORK_COLUMN = {"Glasser": "community_yeo", "4S456Parcels": "network_label"}
 
 
@@ -97,13 +100,14 @@ def main():
                 check = {"subject": str(sid), "condition": c, "start": s0, "length": WINDOW,
                          "tau": round_list(timescale(w, caches[c].tr)),
                          "mse_regions": [0, 1],
+                         "acf": [round_list(row) for row in acf(w[:, :2], ACF_CHECK_LAGS).T],
                          "mse": [round_list(row) for row in multiscale_entropy(w[:, :2], SCALES, M, R_FRAC).T],
                          "fc_pairs": [[i, j, float(C[i, j])] for i, j in pairs]}
             print(f"  sub-{sid} {c}: {len(x)} TRs, {time.time() - t0:.1f}s", flush=True)
 
     meta = {"parcellation": a.parcellation, "tr": caches["rest"].tr, "labels": labels, "network": network,
             "conditions": list(CONDITIONS), "subjects": [str(s) for s in subjects],
-            "scales": list(SCALES), "m": M, "r_frac": R_FRAC, "window": WINDOW, "step": STEP, "check": check}
+            "scales": list(SCALES), "m": M, "r_frac": R_FRAC, "window": WINDOW, "step": STEP, "band": list(BAND), "check": check}
     viewer.write(meta, sets, variant=a.parcellation, smoke=a.smoke)
 
 
