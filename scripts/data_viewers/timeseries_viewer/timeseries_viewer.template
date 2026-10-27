@@ -51,6 +51,7 @@
   <section class="card wide">
     <h2>Mean timeseries (average over all regions)</h2>
     <div class="meta">Dashed lines: run boundaries · shaded: current window · click to move the window</div>
+    <div class="meta" id="rMeta"></div>
     <canvas id="meanTS" style="height:150px"></canvas>
   </section>
   <section class="card wide">
@@ -67,25 +68,11 @@
     <canvas id="acfChart" style="height:240px"></canvas>
     <div class="note" id="acfNote"></div>
   </section>
-  <section class="card">
-    <h2>Multiscale sample entropy</h2>
-    <div class="legend"><span><i class="sw" style="background:var(--series-1)"></i>A full scan</span>
-      <span><i class="sw dash" style="border-color:var(--series-1)"></i>A window</span>
-      <span><i class="sw" style="background:var(--series-2)"></i>B full scan</span>
-      <span><i class="sw dash" style="border-color:var(--series-2)"></i>B window</span></div>
-    <canvas id="mseChart" style="height:220px"></canvas>
-    <div class="note" id="mseNote"></div>
-  </section>
-  <section class="card">
-    <h2>Summary</h2>
-    <table id="stats"></table>
-    <div class="note">Full scan: timescale averaged over runs; entropy counts pooled over runs (r per run). MSE area = trapezoid area under SampEn over scales (Wijesinghe et al.); undefined if any scale has no matches, which is common for windows. Window: the shaded segment only.</div>
-  </section>
 </main>
 <footer>
   <div id="kit-checks"></div>
   <div class="note">Data: Conn2Conn_data/timeseries (xcp-d 0.9.1 parcel means; denoised, band-pass filtered ≈0.01–0.08 Hz, not z-scored) and fc/ (xcp-d combined-run relmat).
-    The band-pass filter shapes both the autocorrelation and the coarse-scale entropy, and task designs are not regressed out, so compare regions, subjects and conditions within this dataset rather than against absolute values in the literature.
+    The band-pass filter shapes the autocorrelation (see the band-pass reference in the ACF panel), and task designs are not regressed out, so compare regions, subjects and conditions within this dataset rather than against absolute values in the literature.
     Metric code: data/timeseries_metrics.py (the page mirrors it).</div>
 </footer>
 <!--KIT:DATA-->
@@ -145,22 +132,6 @@ function timescale(v) {                     // TR x sum of the biased ACF before
   let area = 0;
   for (let k = 0; k < n; k++) { let s = 0; for (let t = 0; t + k < n; t++) s += c[t] * c[t + k]; const r = s / c0; if (r <= 0) break; area += r; }
   return TR * area;
-}
-function sd(v) { let m = 0; for (const a of v) m += a; m /= v.length; let s = 0; for (const a of v) s += (a - m) ** 2; return Math.sqrt(s / v.length); }
-function coarse(v, s) { const n = Math.floor(v.length / s), o = new Float64Array(n); for (let i = 0; i < n; i++) { let a = 0; for (let k = 0; k < s; k++) a += v[i * s + k]; o[i] = a / s; } return o; }
-function sampenCounts(x, m, r) {
-  const N = x.length - m; let A = 0, B = 0;
-  for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) {
-    let d = 0; for (let k = 0; k < m; k++) { const e = Math.abs(x[i + k] - x[j + k]); if (e > d) d = e; }
-    if (d < r) { B++; if (Math.abs(x[i + m] - x[j + m]) < r) A++; }
-  }
-  return [A, B];
-}
-function auc(e) { let a = 0; for (let i = 0; i + 1 < e.length; i++) a += 0.5 * (e[i] + e[i + 1]); return a; }   // NaN if any scale is
-function mse(v) {                           // one contiguous segment; r fixed at r_frac x SD of the scale-1 segment
-  const r = D.r_frac * sd(v);
-  return D.scales.map(s => { const c = coarse(v, s); const [A, B] = c.length - D.m >= 2 ? sampenCounts(c, D.m, r) : [0, 0];
-    return { e: A > 0 && B > 0 ? -Math.log(A / B) : NaN, n: c.length }; });
 }
 
 // ---------- state ----------
@@ -229,7 +200,7 @@ for (const [id, get] of [["fullFC", () => series(rec())._fc], ["winFC", () => WI
 }
 
 // ---------- metric charts ----------
-let WIN_TAU = null, MSE_W = null;
+let WIN_TAU = null;
 function acf(v, K) {                       // biased ACF of one segment, lags 0..min(K, n - 1) (mirrors timeseries_metrics.acf)
   const n = v.length, L = Math.min(K, n - 1); let m = 0; for (let t = 0; t < n; t++) m += v[t]; m /= n;
   const c = new Float64Array(n); let c0 = 0; for (let t = 0; t < n; t++) { c[t] = v[t] - m; c0 += c[t] * c[t]; }
@@ -289,51 +260,14 @@ function drawACF() {
 }
 function timescaleOfACF(q) { let a = 0; for (const v of q) { if (!(v > 0)) break; a += v; } return TR * a; }
 function timescaleRuns(r, v) { let a = 0; for (const [, s0, n] of r.runs) a += timescale(v.subarray(s0, s0 + n)); return a / r.runs.length; }
-function drawMSE() {
-  const r = rec(), c = $("mseChart"), { ctx } = Kit.fit(c), b = { l: 44, t: 10, w: c.clientWidth - 60, h: c.clientHeight - 40 };
-  const sc = D.scales, lines = [];
-  for (const [p, col, wi] of [[S.A, css("--series-1"), 0], [S.B, css("--series-2"), 1]]) {
-    lines.push({ col, dash: false, pts: sc.map((s, i) => ({ s, v: r.mse[i][p], ok: true })) });
-    if (MSE_W) lines.push({ col, dash: true, pts: MSE_W[wi].map((o, i) => ({ s: sc[i], v: o.e, ok: o.n >= 100 })) });
-  }
-  const yr = Kit.range(lines.flatMap(l => l.pts.map(q => q.v)));
-  const X = s => b.l + (s - sc[0]) / (sc[sc.length - 1] - sc[0]) * b.w, Y = v => b.t + b.h - (v - yr[0]) / (yr[1] - yr[0]) * b.h;
-  Kit.axes(ctx, b, [sc[0], sc[sc.length - 1]], yr, { xtickVals: sc, ny: 4, xlabel: "scale (coarse-graining factor)", yfmt: v => v.toFixed(1) });
-  for (const l of lines) {
-    ctx.strokeStyle = l.col; ctx.lineWidth = 2; ctx.setLineDash(l.dash ? [5, 4] : []); ctx.beginPath(); let started = false;
-    for (const q of l.pts) { if (!fin(q.v)) { started = false; continue; } started ? ctx.lineTo(X(q.s), Y(q.v)) : ctx.moveTo(X(q.s), Y(q.v)); started = true; }
-    ctx.stroke(); ctx.setLineDash([]);
-    for (const q of l.pts) { if (!fin(q.v)) continue; const x = X(q.s), y = Y(q.v);
-      if (q.ok) { ctx.fillStyle = l.col; ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fill(); ctx.strokeStyle = css("--surface-1"); ctx.lineWidth = 2; ctx.stroke(); }
-      else { ctx.strokeStyle = l.col; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x - 4, y - 4); ctx.lineTo(x + 4, y + 4); ctx.moveTo(x + 4, y - 4); ctx.lineTo(x - 4, y + 4); ctx.stroke(); } }
-  }
-  c.onmousemove = e => { const i = Math.round((e.offsetX - b.l) / b.w * (sc.length - 1)); if (i < 0 || i >= sc.length) return tip.hide();
-    const w = MSE_W || [[], []];
-    tip.show(e, `scale ${sc[i]}<br>A: full ${fmt(r.mse[i][S.A], 3)} · window ${fmt(w[0][i]?.e, 3)}<br>B: full ${fmt(r.mse[i][S.B], 3)} · window ${fmt(w[1][i]?.e, 3)}` +
-      (w[0][i] ? `<br>window samples at this scale: ${w[0][i].n}` : "")); };
-  c.onmouseleave = tip.hide;
-  $("mseNote").textContent = `After Wijesinghe et al. 2026: m = ${D.m}, r = ${D.r_frac} × SD (per run / per window, fixed across scales), Chebyshev distance < r, scales ${D.scales[0]}–${D.scales[D.scales.length - 1]} (scale s spans s × ${TR} s). Window points drawn as × have fewer than 100 coarse-grained samples (unreliable); missing points: no template matches.`;
-}
-function drawStats() {
-  const r = rec(), mean = a => { let s = 0, n = 0; for (const v of a) if (fin(v)) { s += v; n++; } return n ? s / n : NaN; };
-  const wAUC = i => MSE_W ? auc(MSE_W[i].map(o => o.e)) : NaN;
-  const rows = [["A · " + D.labels[S.A], r.tau[S.A], WIN_TAU?.[S.A], r.mse[0][S.A], MSE_W?.[0][0].e, r.mse_auc[S.A], wAUC(0)],
-                ["B · " + D.labels[S.B], r.tau[S.B], WIN_TAU?.[S.B], r.mse[0][S.B], MSE_W?.[1][0].e, r.mse_auc[S.B], wAUC(1)],
-                ["all regions (mean)", mean(r.tau), WIN_TAU ? mean(WIN_TAU) : NaN, mean(r.mse[0]), null, mean(r.mse_auc), null]];
-  const F = series(r)._fc;
-  $("stats").innerHTML = `<tr><th></th><th>timescale full (s)</th><th>timescale window (s)</th><th>SampEn s1 full</th><th>SampEn s1 window</th><th>MSE area full</th><th>MSE area window</th></tr>` +
-    rows.map(q => `<tr><td>${q[0]}</td><td>${fmt(q[1])}</td><td>${fmt(q[2])}</td><td>${fmt(q[3], 3)}</td><td>${fmt(q[4], 3)}</td><td>${fmt(q[5])}</td><td>${fmt(q[6])}</td></tr>`).join("") +
-    `<tr><td>r(A, B)</td><td colspan="3">full ${fmt(F[S.A * P + S.B], 3)}</td><td colspan="3">window ${WIN_FC ? fmt(WIN_FC[S.A * P + S.B], 3) : "–"}</td></tr>`;
-}
 
 // ---------- update cycle ----------
 function computeWindow() {
   const r = series(rec());
-  if (!S.starts.length) { WIN_FC = WIN_TAU = MSE_W = null; return; }
+  if (!S.starts.length) { WIN_FC = WIN_TAU = null; return; }
   const s = S.starts[S.w];
   WIN_FC = corrMatrix(r._x, s, S.L);
   WIN_TAU = new Float64Array(P); for (let p = 0; p < P; p++) WIN_TAU[p] = timescale(column(r, p, s, s + S.L));
-  MSE_W = [S.A, S.B].map(p => mse(column(r, p, s, s + S.L)));
 }
 function updateStarts() {
   const r = rec(); S.starts = windowStarts(r.runs, S.L, S.step);
@@ -353,8 +287,9 @@ function drawAll() {
   $("tsAtitle").textContent = `Region A · ${D.labels[S.A]} (${D.network[S.A]})`;
   $("tsBtitle").textContent = `Region B · ${D.labels[S.B]} (${D.network[S.B]})`;
   $("tsAmeta").textContent = `timescale full ${fmt(r.tau[S.A])} s · window ${fmt(WIN_TAU?.[S.A])} s`;
-  $("tsBmeta").textContent = `timescale full ${fmt(r.tau[S.B])} s · window ${fmt(WIN_TAU?.[S.B])} s · r(A, B) full ${fmt(r._fc[S.A * P + S.B], 3)}, window ${WIN_FC ? fmt(WIN_FC[S.A * P + S.B], 3) : "–"}`;
-  drawACF(); drawMSE(); drawStats();
+  $("tsBmeta").textContent = `timescale full ${fmt(r.tau[S.B])} s · window ${fmt(WIN_TAU?.[S.B])} s`;
+  $("rMeta").innerHTML = `<b>r(A, B)</b> ${D.labels[S.A]} × ${D.labels[S.B]}: full scan <b>${fmt(r._fc[S.A * P + S.B], 3)}</b> · window <b>${WIN_FC ? fmt(WIN_FC[S.A * P + S.B], 3) : "–"}</b>`;
+  drawACF();
 }
 
 // ---------- controls ----------
@@ -389,18 +324,16 @@ Kit.onTheme(() => { LUT = Kit.divergingLUT(); drawColorbar(); drawAll(); });
 function selfCheck() {
   const k = D.check; if (!k) return;
   const r = series(D.sets[`${k.subject}/${k.condition}`]), C = corrMatrix(r._x, k.start, k.length);
-  let dFC = 0, dTau = 0, dMSE = 0;
+  let dFC = 0, dTau = 0;
   for (const [i, j, v] of k.fc_pairs) dFC = Math.max(dFC, Math.abs(C[i * P + j] - v));
   for (let p = 0; p < P; p++) { const a = timescale(column(r, p, k.start, k.start + k.length)), b = k.tau[p];
     dTau = Math.max(dTau, (isNaN(a) && b == null) ? 0 : Math.abs(a - b)); }
   let dACF = 0;
-  if (k.acf) k.mse_regions.forEach((p, i) => { const q = acf(column(r, p, k.start, k.start + k.length), k.acf[i].length - 1);
+  k.regions.forEach((p, i) => { const q = acf(column(r, p, k.start, k.start + k.length), k.acf[i].length - 1);
     q.forEach((v, j) => { dACF = Math.max(dACF, Math.abs(v - k.acf[i][j])); }); });
-  k.mse_regions.forEach((p, i) => { const m = mse(column(r, p, k.start, k.start + k.length));
-    m.forEach((o, j) => { const b = k.mse[i][j]; dMSE = Math.max(dMSE, (isNaN(o.e) && b == null) ? 0 : Math.abs(o.e - b)); }); });
   Kit.check(`Self-check vs Python (sub-${k.subject} ${k.condition}, TR ${k.start}–${k.start + k.length - 1})`,
-    dFC < 1e-9 && dTau < 1e-9 && dMSE < 1e-9 && dACF < 1e-9 && fin(dFC + dTau + dMSE + dACF),
-    `max |Δ| window FC ${dFC.toExponential(1)}, ACF ${k.acf ? dACF.toExponential(1) : "n/a"}, timescale ${dTau.toExponential(1)}, entropy ${dMSE.toExponential(1)}`);
+    dFC < 1e-9 && dTau < 1e-9 && dACF < 1e-9 && fin(dFC + dTau + dACF),
+    `max |Δ| window FC ${dFC.toExponential(1)}, ACF ${dACF.toExponential(1)}, timescale ${dTau.toExponential(1)}`);
 }
 
 LUT = Kit.divergingLUT(); drawColorbar(); updateStarts(); drawAll(); selfCheck();

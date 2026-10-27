@@ -1,13 +1,12 @@
 """Self-contained HTML viewer of regional timeseries and connectivity for a few subjects, all 8 conditions.
 
 Per subject x condition it embeds the parcel-mean timeseries (int16 with a per-region scale), the run bounds, the
-full-scan FC (fc/ cache = xcp-d combined-run relmat) and full-scan regional metrics from data/timeseries_metrics.py
-(intrinsic timescale averaged over runs; multiscale sample entropy with counts pooled over runs, and its area over
-scales; defaults m, r, scales from data/timeseries_metrics.py, after Wijesinghe et al. 2026). The page computes,
-in the browser and with the same definitions: window FC (windows never span a run boundary), window timescales for all
-regions, autocorrelation functions (full scan and window) of the mean timeseries and the two selected regions, and
-window multiscale entropy for the two selected regions. A self-check block holds Python values for one
-window; the page recomputes them and shows the largest difference.
+full-scan FC (fc/ cache = xcp-d combined-run relmat) and the full-scan intrinsic timescale of every region
+(data/timeseries_metrics.py, averaged over runs). The page computes, in the browser and with the same definitions:
+window FC (windows never span a run boundary), window timescales, and autocorrelation functions (full scan and window)
+of the mean timeseries and the two selected regions. A self-check block holds Python values for one window; the page
+recomputes them and shows the largest difference. (Multiscale entropy, data/timeseries_metrics.py, was dropped from the
+page 2026-10-27: on band-passed data it mostly re-expresses the ACF.)
 
 Data: Conn2Conn_data/timeseries/ (data/timeseries.py) and Conn2Conn_data/fc/. Page: timeseries_viewer.template on the
 shared viewer_kit (one data block per subject x condition). Output, next to this file (generated, not tracked):
@@ -28,8 +27,7 @@ HERE = Path(__file__).resolve().parent
 REPO_ROOT = next(p for p in HERE.parents if (p / "main.py").exists())
 sys.path.insert(0, str(REPO_ROOT))
 from data.timeseries import CONDITIONS, TimeseriesCache, corr, window_starts  # noqa: E402
-from data.timeseries_metrics import (M, R_FRAC, SCALES, acf, mse_auc, multiscale_entropy,  # noqa: E402
-                                     multiscale_entropy_runs, timescale, timescale_runs)
+from data.timeseries_metrics import acf, timescale, timescale_runs  # noqa: E402
 from scripts.data_viewers.viewer_kit import Viewer, int16_columns, int16_unit, packed, round_list  # noqa: E402
 
 FC_ROOT = Path("/scratch/asr655/neuroinformatics/Conn2Conn_data/fc")
@@ -80,7 +78,6 @@ def main():
             x = caches[c].subject(sid)
             bounds = caches[c].run_bounds(sid)
             q, scale = int16_columns(x)
-            mse = multiscale_entropy_runs(x, bounds, SCALES, M, R_FRAC)
             sets[f"{sid}/{c}"] = {
                 "subject": str(sid), "condition": c,
                 "n_tr": int(len(x)),
@@ -88,8 +85,6 @@ def main():
                 "q": packed(q), "scale": scale.tolist(),
                 "fc": packed(int16_unit(fc_upper(c, a.parcellation, sid))),
                 "tau": round_list(timescale_runs(x, bounds, caches[c].tr), 4),
-                "mse": [round_list(row, 4) for row in mse],
-                "mse_auc": round_list(mse_auc(mse), 4),
             }
             if check is None:  # Python reference for the page's own computations, on the dequantized values
                 xq = q.astype(np.float64) * scale
@@ -99,15 +94,14 @@ def main():
                 pairs = [(0, 1), (5, 200), (len(labels) - 2, len(labels) - 1)]
                 check = {"subject": str(sid), "condition": c, "start": s0, "length": WINDOW,
                          "tau": round_list(timescale(w, caches[c].tr)),
-                         "mse_regions": [0, 1],
+                         "regions": [0, 1],
                          "acf": [round_list(row) for row in acf(w[:, :2], ACF_CHECK_LAGS).T],
-                         "mse": [round_list(row) for row in multiscale_entropy(w[:, :2], SCALES, M, R_FRAC).T],
                          "fc_pairs": [[i, j, float(C[i, j])] for i, j in pairs]}
             print(f"  sub-{sid} {c}: {len(x)} TRs, {time.time() - t0:.1f}s", flush=True)
 
     meta = {"parcellation": a.parcellation, "tr": caches["rest"].tr, "labels": labels, "network": network,
             "conditions": list(CONDITIONS), "subjects": [str(s) for s in subjects],
-            "scales": list(SCALES), "m": M, "r_frac": R_FRAC, "window": WINDOW, "step": STEP, "band": list(BAND), "check": check}
+            "window": WINDOW, "step": STEP, "band": list(BAND), "check": check}
     viewer.write(meta, sets, variant=a.parcellation, smoke=a.smoke)
 
 

@@ -121,8 +121,9 @@ C = window_fc(x, window_starts(ts.run_bounds(100206), 144, 24), 144)   # windows
 - Values are xcp-d's denoised, band-pass filtered (~0.01–0.08 Hz) parcel means (TR 0.72 s); the FC matrices are exactly
   their Pearson correlation, so anything known about the FC processing applies to the timeseries.
 - No task event timings or motion files are on disk: task designs are not regressed out.
-- Metrics: intrinsic timescale (Parkes et al.) and multiscale sample entropy (Wijesinghe et al. 2026). Windowed FC and
-  metrics are computed on the fly; explore them in `scripts/data_viewers/timeseries_viewer/`.
+- Metrics: intrinsic timescale (Parkes et al.) and multiscale sample entropy (Wijesinghe et al. 2026); both are
+  strongly shaped by the band-pass (compare within this dataset). Windowed FC and metrics are computed on the fly;
+  `scripts/data_viewers/timeseries_viewer/` shows FC (full / window), timeseries and autocorrelation functions.
 
 ### Subjects and cohort
 
