@@ -40,6 +40,7 @@ NULL = 8
 PRED = CACHE / "preds"
 K_SAMPLES = 64
 FLOW_STEPS = 32
+TEMPERATURE = {"cca": 1.0, "pca": 0.25}   # scale of the flows' starting noise per route (user 2026-10-27: block PCA 0.25)
 FLOW_POINT_SAMPLES = 256      # flow point estimate = ridge mean + mean of 256 residual samples (16 was too noisy; G3 2026-10-26)
 TRAIN = dict(batch_subjects=64, max_epochs=1000, max_epochs_flow=3000, min_epochs=50, patience=100, patience_flow=200,
              grad_clip=1.0, prune_from=50)   # flows (user 2026-10-27): cap 3000; no stopping or best-weight pick before epoch 50
@@ -54,6 +55,8 @@ class Data:
 
     def __init__(self, seed, device, shuffle_sc=False, refit_ridge=True, target="cca"):
         self.suffix = "" if target == "cca" else f"_{target}"
+        self.target = target
+        self.temperature = TEMPERATURE[target]
         z = np.load(CACHE / f"seed{seed}{self.suffix}.npz")
         self.seed, self.device = seed, device
         self.L = Latent.__new__(Latent)          # light handle for decoding / scoring (no refit)
@@ -205,13 +208,13 @@ def predict(model, net, data, split, k_sc, steps=16, token=None, n_samples=1, se
             subj_k = subj.repeat(n_samples)
             tok = torch.randint(0, 8, (len(subj_k),), device=data.device, generator=g)
             cc = data.sc[split][subj_k, :k_sc]
-            eps = torch.randn((len(cc), data.d), device=data.device, generator=g)
+            eps = getattr(data, "temperature", 1.0) * torch.randn((len(cc), data.d), device=data.device, generator=g)
             res = net.predict_flow(eps, tok, tok, n_steps=FLOW_STEPS, cond=cc)
             anchor = data.rc[split][tok, subj_k] if model == "flow" else 0
             return (anchor + res).view(n_samples, n, data.d) * data.s_lat
         acc = 0
         for _ in range(n_samples):
-            eps = torch.randn(z0.shape, device=data.device, generator=g)
+            eps = getattr(data, "temperature", 1.0) * torch.randn(z0.shape, device=data.device, generator=g)
             acc = acc + net.predict_flow(eps, m, m, n_steps=FLOW_STEPS, cond=c)
         out = (z0 if model == "flow" else 0) + acc / n_samples
     return out.view(8, n, data.d) * data.s_lat
@@ -501,11 +504,16 @@ def main():
                     help="no search: retrain the configuration selected in this model/seed/target's record (current TRAIN "
                          "settings) and write records / weights with the --tag suffix")
     ap.add_argument("--tag", default="_long")
+    ap.add_argument("--eval-only", action="store_true",
+                    help="no training of the main model: load weights saved with --weights-tag, evaluate with the current "
+                         "sampling settings (temperature), retrain the null, write records with --tag")
+    ap.add_argument("--weights-tag", default="_long")
     args = ap.parse_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     t0 = time.time()
     data = Data(args.seed, device, target=args.target)
     rec = dict(model=args.model, seed=args.seed, n_trials=args.n_trials, target=args.target,
+               temperature=data.temperature,
                gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu")
     tag = ""
     if args.model == "refs":
@@ -514,7 +522,7 @@ def main():
         rec["rows"], rec["hp"], rec["trials"] = run_latent2sc(args.seed, data, args.n_trials, device)
     else:
         trials, best = [], {"value": -np.inf}
-        tag = args.tag if args.retrain_selected else ""
+        tag = args.tag if (args.retrain_selected or args.eval_only) else ""
 
         def objective(trial):
             hp = sample_hp(trial, args.model)
@@ -527,7 +535,17 @@ def main():
                 best.update(value=val, hp=hp, state={k: v.cpu() for k, v in net.state_dict().items()})
             return val
 
-        if args.retrain_selected:
+        if args.eval_only:
+            ck = torch.load(CACHE / "models" / f"{args.model}_seed{args.seed}{data.suffix}{args.weights_tag}.pt",
+                            map_location="cpu")
+            net = make(args.model, ck["hp"], data.d).to(device)
+            net.load_state_dict(ck["state"])
+            val = val_objective(args.model, net, data, ck["hp"])
+            prev = json.loads((OUT / f"{args.model}_seed{args.seed}{data.suffix}{args.weights_tag}.json").read_text())
+            trials.extend(prev.get("trials", []))
+            best.update(value=val, hp=ck["hp"], state=ck["state"])
+            print(f"evaluated saved weights ({args.weights_tag}) at temperature {data.temperature}: val {val:.4f}", flush=True)
+        elif args.retrain_selected:
             hp = json.loads((OUT / f"{args.model}_seed{args.seed}{data.suffix}.json").read_text())["hp"]
             ts = time.time()
             net, info = train(args.model, hp, data, args.seed * 1000)
