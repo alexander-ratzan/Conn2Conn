@@ -416,7 +416,7 @@ Conn2Conn/
 │   ├── conn2conn/                   # Lightning checkpoints per W&B run id (prod / best-trial runs)
 │   ├── wandb/                       # Local W&B run staging (the cloud is the source of truth)
 │   ├── cache/krakencoder/           # Retrained Krakencoder runs by tag + shared inputs (moved from results/krakencoder 2026-10-27)
-│   ├── local_results/, figures/, tables/
+│   ├── local_results/, figures/
 │   └── logs/                        # SLURM stdout/stderr
 ├── checkpoints/                     # Legacy cwd-relative Lightning checkpoints (gitignored)
 ├── context_packages/                # Reference material: modeling/, repo_spec_docs/ (specs; v3 closed 2026-10-21, current v4), schematics/, T1/

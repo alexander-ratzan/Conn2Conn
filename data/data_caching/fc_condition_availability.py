@@ -7,7 +7,7 @@ the seven HCP tasks, from the `Conn2Conn_data/fc/` caches (see data/data_caching
 Writes one row per cohort subject (partition, "has all conditions" flag and missing conditions per parcellation)
 and prints the summary as markdown tables (the table at the top of FC_matrix_analysis.ipynb).
 
-    python data/data_caching/fc_condition_availability.py [--out results/tables/fc_condition_subject_availability.tsv]
+    python data/data_caching/fc_condition_availability.py [--out results/cache/fc_condition_subject_availability.tsv]
 """
 import argparse
 import collections
@@ -47,7 +47,7 @@ def condition_subjects(cache_root, parc):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--out", default=os.path.join(REPO_DIR, "results/tables/fc_condition_subject_availability.tsv"))
+    ap.add_argument("--out", default=os.path.join(REPO_DIR, "results/cache/fc_condition_subject_availability.tsv"))
     ap.add_argument("--cache-root", default=DEFAULT_CONN2CONN_CACHE_ROOT)
     a = ap.parse_args()
 
