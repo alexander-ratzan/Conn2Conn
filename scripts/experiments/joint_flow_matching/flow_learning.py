@@ -3,7 +3,7 @@
 Routes: `cca` (SC PCA -> CCA task latent -> block PCA -> FC edges) and `pca` (SC PCA -> block PCA codes -> FC edges).
 Models: `flow_free` (nonlinear velocity) and `flow_linear` (linear velocity), both from noise with no ridge anchor.
 Hyperparameters come from the E2.1 records (`records/e21/<model>_seed<S>[_pca].json`). Logged per epoch: train loss
-(mean over batches), val loss (raw and smoothed, as used for early stopping); every `--every` epochs: val decoded
+(mean over batches), val loss (raw and smoothed, as used for early stopping; no stopping or weight pick before epoch 50, cap 3000); every `--every` epochs: val decoded
 demeaned r (mean of 16 samples, mean over the 8 conditions) and val energy distance to each subject's 8 encodings.
 Writes `cache/e21/learning/<model>_<target>_seed<S>.npz` (curves) and `.pt` (final weights, best smoothed val loss).
 
@@ -30,14 +30,15 @@ def run(model, target, seed, every, device):
     torch.manual_seed(seed)
     net = R.make(model, hp, data.d).to(device)
     opt = torch.optim.AdamW(net.parameters(), lr=hp["lr"], weight_decay=hp["wd"])
-    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=R.TRAIN["max_epochs"])
+    max_ep, min_ep = R.TRAIN["max_epochs_flow"], R.TRAIN["min_epochs"]
+    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=max_ep)
     n = data.sc["train"].shape[0]
     gen = torch.Generator(device=device).manual_seed(seed)
     log = {k: [] for k in ("epoch", "train_loss", "val_loss", "val_loss_smooth")}
     evals = {k: [] for k in ("epoch", "val_dr", "val_energy")}
-    best, state, bad, ema = np.inf, None, 0, None
+    best, state, bad, ema, best_ep = np.inf, None, 0, None, 0
     t0 = time.time()
-    for ep in range(R.TRAIN["max_epochs"]):
+    for ep in range(max_ep):
         net.train()
         order = torch.randperm(n, device=device, generator=gen)
         losses = []
@@ -64,8 +65,10 @@ def run(model, target, seed, every, device):
             evals["epoch"].append(ep)
             evals["val_dr"].append(float(np.mean([data.val_dr(i, P[i]) for i in range(8)])))
             evals["val_energy"].append(float(np.mean(R.energy_per_subject(X, data.raw["val"]))))
-        if ema < best:
-            best, bad, state = ema, 0, copy.deepcopy(net.state_dict())
+        if ep < min_ep - 1:                 # no best-weight pick or stopping before min_epochs
+            pass
+        elif ema < best:
+            best, bad, best_ep, state = ema, 0, ep, copy.deepcopy(net.state_dict())
         else:
             bad += 1
         if bad >= R.TRAIN["patience_flow"]:
@@ -73,9 +76,9 @@ def run(model, target, seed, every, device):
     out = R.CACHE / "learning"
     out.mkdir(parents=True, exist_ok=True)
     np.savez(out / f"{model}_{target}_seed{seed}.npz", **{f"log_{k}": np.array(v) for k, v in log.items()},
-             **{f"eval_{k}": np.array(v) for k, v in evals.items()}, best_epoch=np.argmin(log["val_loss_smooth"]))
+             **{f"eval_{k}": np.array(v) for k, v in evals.items()}, best_epoch=best_ep)
     torch.save(dict(state=state, hp=hp, model=model, target=target), out / f"{model}_{target}_seed{seed}.pt")
-    print(f"{model} {target}: {ep + 1} epochs, best smoothed val loss at epoch {int(np.argmin(log['val_loss_smooth']))}, "
+    print(f"{model} {target}: {ep + 1} epochs, kept weights from epoch {best_ep}, "
           f"last val dr {evals['val_dr'][-1]:.4f}, {time.time() - t0:.0f} s", flush=True)
 
 

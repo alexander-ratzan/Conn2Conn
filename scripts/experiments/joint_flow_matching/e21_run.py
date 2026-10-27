@@ -41,7 +41,8 @@ PRED = CACHE / "preds"
 K_SAMPLES = 64
 FLOW_STEPS = 32
 FLOW_POINT_SAMPLES = 256      # flow point estimate = ridge mean + mean of 256 residual samples (16 was too noisy; G3 2026-10-26)
-TRAIN = dict(batch_subjects=64, max_epochs=1000, patience=100, patience_flow=200, grad_clip=1.0, prune_from=50)
+TRAIN = dict(batch_subjects=64, max_epochs=1000, max_epochs_flow=3000, min_epochs=50, patience=100, patience_flow=200,
+             grad_clip=1.0, prune_from=50)   # flows (user 2026-10-27): cap 3000; no stopping or best-weight pick before epoch 50
 SPACE = dict(lr=(1e-4, 3e-3), wd=(1e-6, 1e-1), width=[128, 256, 512], depth=[1, 2, 3], dropout=(0.0, 0.3),
              token_dim=[8, 16, 32], k_sc=[64, 128, 256, 512], p0=[0.0, 0.25, 0.5], id_w=[0.1, 0.3, 1.0])
 
@@ -229,12 +230,14 @@ def train(model, hp, data, seed, trial=None):
     torch.manual_seed(seed)
     net = make(model, hp, data.d).to(data.device)
     opt = torch.optim.AdamW(net.parameters(), lr=hp["lr"], weight_decay=hp["wd"])
-    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=TRAIN["max_epochs"])
+    max_ep = TRAIN["max_epochs_flow"] if model in FLOWLIKE else TRAIN["max_epochs"]
+    min_ep = TRAIN["min_epochs"] if model in FLOWLIKE else 0
+    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=max_ep)
     n = data.sc["train"].shape[0]
     gen = torch.Generator(device=data.device).manual_seed(seed)
     vgen_seed = 999
     best, state, best_ep, bad = np.inf, None, 0, 0
-    for ep in range(TRAIN["max_epochs"]):
+    for ep in range(max_ep):
         net.train()
         order = torch.randperm(n, device=data.device, generator=gen)
         for s in range(0, n, TRAIN["batch_subjects"]):
@@ -254,7 +257,9 @@ def train(model, hp, data, seed, trial=None):
         if model in FLOWLIKE:               # a flow's val loss is noise-dominated: early-stop on a smoothed value
             ema = vl if ep == 0 else 0.9 * ema + 0.1 * vl
             vl = ema
-        if vl < best:
+        if ep < min_ep - 1:                 # flows: no best-weight pick or stopping before min_epochs
+            pass
+        elif vl < best:
             best, best_ep, bad, state = vl, ep, 0, copy.deepcopy(net.state_dict())
         else:
             bad += 1
@@ -492,18 +497,24 @@ def main():
     ap.add_argument("--seed", type=int, required=True)
     ap.add_argument("--n-trials", type=int, default=32)
     ap.add_argument("--target", choices=["cca", "pca"], default="cca", help="pca: block FC PCA targets (second addendum)")
+    ap.add_argument("--retrain-selected", action="store_true",
+                    help="no search: retrain the configuration selected in this model/seed/target's record (current TRAIN "
+                         "settings) and write records / weights with the --tag suffix")
+    ap.add_argument("--tag", default="_long")
     args = ap.parse_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     t0 = time.time()
     data = Data(args.seed, device, target=args.target)
     rec = dict(model=args.model, seed=args.seed, n_trials=args.n_trials, target=args.target,
                gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu")
+    tag = ""
     if args.model == "refs":
         rec["rows"], rec["dist"] = reference_rows(data)
     elif args.model == "latent2sc":
         rec["rows"], rec["hp"], rec["trials"] = run_latent2sc(args.seed, data, args.n_trials, device)
     else:
         trials, best = [], {"value": -np.inf}
+        tag = args.tag if args.retrain_selected else ""
 
         def objective(trial):
             hp = sample_hp(trial, args.model)
@@ -516,9 +527,19 @@ def main():
                 best.update(value=val, hp=hp, state={k: v.cpu() for k, v in net.state_dict().items()})
             return val
 
-        study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=args.seed),
-                                    pruner=optuna.pruners.MedianPruner(n_startup_trials=5))
-        study.optimize(objective, n_trials=args.n_trials)
+        if args.retrain_selected:
+            hp = json.loads((OUT / f"{args.model}_seed{args.seed}{data.suffix}.json").read_text())["hp"]
+            ts = time.time()
+            net, info = train(args.model, hp, data, args.seed * 1000)
+            val = val_objective(args.model, net, data, hp)
+            trials.append(dict(number=0, hp=hp, value=val, seconds=time.time() - ts, **info))
+            best.update(value=val, hp=hp, state={k: v.cpu() for k, v in net.state_dict().items()})
+            print(f"retrained selected: val {val:.4f} ({time.time() - ts:.0f} s, epochs {info['epochs_run']}, best epoch "
+                  f"{info['best_epoch']})", flush=True)
+        else:
+            study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=args.seed),
+                                        pruner=optuna.pruners.MedianPruner(n_startup_trials=5))
+            study.optimize(objective, n_trials=args.n_trials)
         net = make(args.model, best["hp"], data.d).to(device)
         net.load_state_dict(best["state"])
         rec.update(hp=best["hp"], val_objective=best["value"], trials=trials)
@@ -528,11 +549,11 @@ def main():
             kw = dict(n_samples=FLOW_POINT_SAMPLES) if args.model in FLOWLIKE else dict(steps=16)
             preds[split] = predict(args.model, net, data, split, best["hp"]["k_sc"], **kw).cpu().numpy()
         PRED.mkdir(parents=True, exist_ok=True)
-        np.savez(PRED / f"{args.model}_seed{args.seed}{data.suffix}.npz", **preds)
+        np.savez(PRED / f"{args.model}_seed{args.seed}{data.suffix}{tag}.npz", **preds)
         if args.model in FLOWLIKE:                       # weights, for the trajectory notebook
             (CACHE / "models").mkdir(parents=True, exist_ok=True)
             torch.save(dict(state=best["state"], hp=best["hp"], model=args.model, target=args.target),
-                       CACHE / "models" / f"{args.model}_seed{args.seed}{data.suffix}.pt")
+                       CACHE / "models" / f"{args.model}_seed{args.seed}{data.suffix}{tag}.pt")
         if args.model in FREE:                         # full null for the un-anchored flows
             sdata = Data(args.seed, device, shuffle_sc=True, target=args.target)
             snet, _ = train(args.model, best["hp"], sdata, args.seed * 1000 + 777)
@@ -555,7 +576,7 @@ def main():
             rec["retest_spread_null"] = retest_metrics(pnet, pdata, best["hp"])
     rec["seconds_total"] = time.time() - t0
     OUT.mkdir(parents=True, exist_ok=True)
-    name = f"{args.model}_seed{args.seed}{data.suffix}.json"
+    name = f"{args.model}_seed{args.seed}{data.suffix}{tag if args.model not in ('refs', 'latent2sc') else ''}.json"
     (OUT / name).write_text(json.dumps(rec, indent=1, default=float))
     print(f"wrote {OUT / name} in {rec['seconds_total'] / 60:.1f} min")
 
