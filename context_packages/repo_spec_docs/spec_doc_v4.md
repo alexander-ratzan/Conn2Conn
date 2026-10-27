@@ -1,13 +1,13 @@
 # Repo Spec v4
 
 **Purpose:** v4 work: modeling directions beyond the linear baselines, drawn from
-[`modeling_directions.md`](../modeling/modeling_directions.md) (the technical reference; model labels such as FM-1 and
+[`modeling_directions.md`](../modeling/FM+tx_integrate/modeling_directions.md) (the technical reference; model labels such as FM-1 and
 MV-5 refer to it). Items: a CCA-latent benchmark that found a shared functional latent across FC conditions (E1);
 linear, nonlinear and flow models that predict each condition's latent encoding from SC, including a conditional
 flow that generates a subject's encodings (E2); a generative follow-up with more samples per subject (E3).
 **Status:** active (since 2026-10-26; v3 closed 2026-10-21) · **Started:** 2026-10-20 ·
 **Predecessor:** [`spec_doc_v3.md`](spec_doc_v3.md) · **Format:** [`spec_conventions.md`](spec_conventions.md) ·
-**Modeling reference:** [`modeling_directions.md`](../modeling/modeling_directions.md)
+**Modeling reference:** [`modeling_directions.md`](../modeling/FM+tx_integrate/modeling_directions.md)
 
 **Contents:** [Status](#status) · [1. Conventions](#1-conventions) · [2. Experiments](#2-experiments) ·
 [3. Infrastructure](#3-infrastructure) · [4. Carried over from v3](#4-carried-over-from-v3) ·

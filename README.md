@@ -103,6 +103,27 @@ default:
   takes a per-block `n_components_pca` dict. Example: `scripts/experiments/joint_taskfc2sc/` (spec v3 E2).
 - Example: `scripts/experiments/task_bidirectional_bench/` (spec v3 E0).
 
+### Regional timeseries and per-run FC
+
+The parcel-mean BOLD timeseries behind every FC matrix are cached in `Conn2Conn_data/timeseries/` (one memory-mapped
+array per condition × parcellation; builder `data/data_caching/build_ts_cache.py`, sbatch `scripts/sbatch/data/build_ts_cache_array.sh`).
+FC for each single run is cached next to the combined matrices (`Conn2Conn_data/fc/..._dir-{LR,RL}_run-{1,2}`).
+They are read directly (not through `HCP_Base`):
+
+```python
+from data.timeseries import TimeseriesCache, window_starts, window_fc
+from data.timeseries_metrics import timescale_runs, multiscale_entropy_runs
+ts = TimeseriesCache("wm", "Glasser")                    # memmap
+x = ts.subject(100206)                                   # (810 TRs, 360 regions)
+C = window_fc(x, window_starts(ts.run_bounds(100206), 144, 24), 144)   # windows never cross runs
+```
+
+- Values are xcp-d's denoised, band-pass filtered (~0.01–0.08 Hz) parcel means (TR 0.72 s); the FC matrices are exactly
+  their Pearson correlation, so anything known about the FC processing applies to the timeseries.
+- No task event timings or motion files are on disk: task designs are not regressed out.
+- Metrics: intrinsic timescale (Parkes et al.) and multiscale sample entropy (Wijesinghe et al. 2026). Windowed FC and
+  metrics are computed on the fly; explore them in `scripts/data_viewers/timeseries_viewer/`.
+
 ### Subjects and cohort
 
 `HCP_Base` keeps only subjects present in every loaded source: metadata, SC, FC, FreeSurfer, parcel node features,
@@ -333,6 +354,10 @@ launcher + `run.py`:
 - **Task FC ↔ SC** (`scripts/experiments/task_bidirectional_bench/`, spec v3 E0): FC condition × seed × direction × parcellation for PCA-PLS learnable.
 - **Joint task FC → SC** (`scripts/experiments/joint_taskfc2sc/`, spec v3 E2): rest + 7 task-FC blocks, closed-form
   grid on CPU (`grid.py`, `launch_grid.sh`); reads its own `runs/` CSVs rather than SLURM logs.
+- **CCA-latent benchmark** (`scripts/experiments/cca_latent_bench/`, spec v4 E1): a multiview CCA latent of FC shared
+  across rest + 7 tasks, as the encoding for FC → SC and the target for SC → FC; closed form, CPU (`run_seed.py`, `run.py`).
+- **SC → functional latent** (`scripts/experiments/joint_flow_matching/`, spec v4 E2): SC → each condition's latent
+  encoding as a point (linear / nonlinear) and as a distribution (conditional flow vs linear-Gaussian).
 
 `scripts/experiments/experiments_index.md` lists every experiment with its status and write-up.
 

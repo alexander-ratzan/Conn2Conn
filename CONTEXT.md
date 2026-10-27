@@ -11,10 +11,11 @@ For user-facing usage/setup, see `README.md`.
 `Conn2Conn` predicts one connectome modality from another on HCP-derived data (default `SC -> FC`) and compares:
 linear, latent, graph / nodal and deep models (full list: Model Inventory below; user-facing table: `README.md`
 §Models) in both directions (`SC → FC`, `FC → SC`), on two parcellations, and with FC from rest or HCP task
-conditions.
+conditions. Spec v4 adds latent / generative models of FC across conditions (multiview CCA latent, conditional flows)
+and regional BOLD timeseries as pre-modeling infrastructure for more samples per subject.
 
 The main evaluation axis is performance across `(model, direction, source / FC condition, shuffle_seed)`.
-Hyperparameters are tuned on val demeaned r, and test is reported. Current plans: `context_packages/repo_spec_docs/spec_doc_v3.md`.
+Hyperparameters are tuned on val demeaned r, and test is reported. Current plans: `context_packages/repo_spec_docs/spec_doc_v4.md` (v3 closed 2026-10-21).
 
 ---
 
@@ -80,7 +81,17 @@ If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after 
 - `scripts/notebooks/{EDA,kraken}/*.ipynb`
   - data exploration; Krakencoder tracking/eval
 - `context_packages/`
-  - agent/human reference material: `modeling/` (model design notes), `repo_spec_docs/` (refactor specs), `schematics/`, `T1/`
+  - agent/human reference material: `modeling/` (model design notes; v4 reference `modeling/FM+tx_integrate/modeling_directions.md`), `repo_spec_docs/` (refactor specs; `markdown_refs/` handoff notes), `schematics/`, `T1/`
+- `data/timeseries.py`, `data/timeseries_metrics.py`
+  - regional BOLD timeseries cache reader (`TimeseriesCache`), run-bounded windows (`window_starts`), windowed FC
+    (`window_fc`, `shrink`); per-region intrinsic timescale and multiscale sample entropy (see Data + Partitioning)
+- `data/data_caching/`
+  - cache builders: `build_fc_cache.py` (FC npy caches, combined and per run; exclusions TSV), `build_ts_cache.py`
+    (timeseries cache, validated against fc/); sbatch arrays in `scripts/sbatch/data/`
+- `models/architectures/multiview_cca.py`, `models/architectures/crossmodal_flow_matching.py`
+  - spec v4 library (not registry models): MAXVAR multiview CCA (`maxvar`, `ridge_gcv`); `CodeSpace` (pooled block-PCA
+    FC basis with equal-variance block scaling + SC basis), `TokenBackbone`, `integrate` (flow ODE); used by
+    `scripts/experiments/{cca_latent_bench,joint_flow_matching}/`
 - `data/data_viz.py`, `data/demeaned_viz.py`
   - reusable visualization helpers used by lightweight notebooks; `data_viz` also has edgewise regressions with held-out
     prediction (`predict_edgewise_multifeature_regression`, `evaluate_edgewise_predictions`) and task-FC signatures
@@ -217,6 +228,18 @@ FC conditions (spec v2 I1.4–I1.5, v3 E0; user-facing summary in `README.md` �
 - Split indices are positions in the post-intersection `metadata_df` (fixed 2026-10-04; positions in the
   pre-intersection list were wrong whenever the intersection dropped subjects).
 - Splits are family-preserving for every seed; seed 0 is the `participants.tsv` split (683 / 79 / 195 of 957).
+
+Timeseries and per-run FC (2026-10-26; not wired into `HCP_Base`, read directly):
+- `Conn2Conn_data/timeseries/parc-{P}_hemi-both[_task-{T}]/` (`data/timeseries.py`, README in the folder): xcp-d 0.9.1
+  parcel means, every subject's runs concatenated (`timeseries.npy` memmap + `offsets.npy` + `runs.tsv`), TR 0.72 s,
+  band-pass filtered (~0.01-0.08 Hz), not z-scored, no censoring. Rest N = 1090 (Glasser). `corr(rows)` reproduces
+  every fc/ combined matrix to float32 rounding (~3e-8), so FC processing = timeseries processing.
+- Per-run FC: `Conn2Conn_data/fc/..._dir-{LR,RL}_run-{1,2}` (rest 4 runs, tasks LR1 / RL1); `build_fc_cache.py --run`.
+- Windowed FC and regional metrics are computed on the fly, never stored; windows never span a run boundary.
+  Metrics (`data/timeseries_metrics.py`): timescale = TR × ACF area before its first value ≤ 0 (Parkes et al.); multiscale
+  sample entropy m = 2, r = 0.3 SD, scales 1-13, MSE area (Wijesinghe et al. 2026 / LOFT). No task EVs or motion files on
+  disk: task designs are not regressed out and windows cannot be motion-screened.
+- Viewer: `scripts/data_viewers/timeseries_viewer/`.
 
 ---
 
@@ -406,8 +429,10 @@ Regularization remains model-owned through `model.get_reg_loss()` and is added s
 - **Specs.** Refactors and experiment plans are tracked in `context_packages/repo_spec_docs/`: `spec_doc_v1.md`
   (complete: the `scripts/` build-out and the composite-loss / regularization modeling track), `spec_doc_v2.md`
   (closed 2026-10-04: E0–E3 experiments, environment consolidation, task-FC caches, repo organisation), `spec_doc_v3.md`
-  (active: E0 task FC ↔ SC in both directions and parcellations, I1 composite-loss search infra, I2 one tune launcher,
-  I3 bidirectional graph / nodal models, I4 environment, E1 covariate ablation). Format and item IDs (`I` infrastructure, `M` modeling, `E` experiment,
+  (closed 2026-10-21: E0 task FC ↔ SC, E1 covariate ablation, E2 joint task FC, E3 composite benchmark, E4 task
+  signatures), `spec_doc_v4.md` (active: E1 multiview CCA-latent benchmark (done), E2 SC → functional latent (E2.1
+  done, E2.2 planned), E3 generative follow-ups (outline: more samples per subject from timeseries windows / runs,
+  activity-flow baseline), I1 joint translation infra, I2 multiview CCA module). Format and item IDs (`I` infrastructure, `M` modeling, `E` experiment,
   `C` carryover, `C!` caveat, `D` decision) follow `spec_conventions.md`; each spec's status table is the place to read
   its current state.
 
@@ -517,6 +542,18 @@ Debug missing results cell:
 3. verify model/source/seed is included in requested grid
 
 ## Recent Changes
+
+2026-10-20 → 2026-10-27 — spec v4 E1, E2.1; timeseries infrastructure; viewers:
+- E1 (`scripts/experiments/cca_latent_bench/`): multiview CCA latent of FC over rest + 7 tasks; tasks through the latent
+  beat every v3:E0 task FC → SC row, SC → latent → FC beats v3:E0 on all conditions; the latent loses rest-specific
+  information. Library: `models/architectures/multiview_cca.py` (I2).
+- E2.1 (`scripts/experiments/joint_flow_matching/`): SC → each condition's latent encoding; linear at this n; SC predicts
+  where a subject sits, not how variable they are; a shared-covariance Gaussian matches the flow. Library:
+  `models/architectures/crossmodal_flow_matching.py` (I1). Bulky outputs in `results/cache/experiments/<slug>/`.
+- Timeseries cache + per-run FC caches + `data/timeseries*.py` (see Data + Partitioning).
+- Viewers: shared `scripts/data_viewers/viewer_kit/`; one folder per viewer, built pages untracked; experiment layout
+  standard (see Repo Layout Conventions); `cca_latent_bench` converted to it. composite_loss instance outputs
+  (runs, tables, figures, state.yml) are now tracked.
 
 2026-10-12 → 2026-10-21 — spec v3 E1, E1.5, E3, E4 (v3 closed 2026-10-21; details in `spec_doc_v3.md`):
 - E1 covariate ablation (`scripts/experiments/covariate_projector/covariate_ablation/`): `fs_vol` / `fs_area` / `fs_thick` cov sources
