@@ -63,6 +63,28 @@ Figures (`figures/k256/`): `fig_baselines_demeaned_pearson.png`, `fig_baselines_
 better), `fig_baselines_distribution.png`, `fig_baselines_settings.png`. Results, tables and figures sit in per-code-size
 subfolders (`k256/`, `k512/`).
 
+### k = 512 (2026-10-28; jobs 21228675, 21231505; `tables/k512/`, `figures/k512/`)
+
+G0 passed (1e-16). Single source, k 256 → 512 (demeaned r / average rank / top-1):
+
+| Model | k = 256 | k = 512 |
+|---|---|---|
+| Copy, codes | 0.095 / 0.780 / 0.13 | 0.101 / 0.808 / 0.17 |
+| B1 ridge | 0.097 / 0.767 / 0.10 | 0.094 / 0.772 / 0.10 |
+| B2 multiview CCA | 0.107 / 0.799 / 0.10 | 0.107 / 0.803 / 0.10 |
+| Own reconstruction (ceiling) | 0.556 | 0.612 |
+
+Other 7: copy in codes 0.177 / 0.964 / 0.56 → 0.191 / 0.979 / 0.69; ridge 0.100 → 0.118 (top-1 0.12 → 0.20); CCA unchanged
+(0.156 / 0.905 / 0.24). CCA still selects d = 32 (4 / 5 seeds). **Components 257–512 carry individual signal** (the
+code-space copy recovers about half of the gap to the edge copy), **but neither ridge nor CCA uses it**: their
+single-source scores do not move. The limit is in the models (shrinkage, the small CCA latent chosen on demeaned r),
+not only in the truncation. Next check (E4.0c): CCA on full-rank codes (no PCA truncation).
+
+Related EDA (2026-10-28): `scripts/notebooks/EDA/fc_deviation_similarity.py` — individual FC deviations are weakly
+reliable within a task (LR vs RL run r 0.045–0.15; full-length reliability 0.09–0.26; rest 0.66), so cross-condition
+agreement is low (0.06–0.19) but, corrected for that unreliability, about half of the individual pattern is shared
+(disattenuated 0.41–0.77, median 0.51).
+
 ## Next
 
 E4.1: review with the user before the flows (E4.2–E4.4).

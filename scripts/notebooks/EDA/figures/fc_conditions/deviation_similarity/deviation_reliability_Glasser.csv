@@ -1,0 +1,9 @@
+condition,half_r_mean,half_r_sd,rel_full,halves
+rest,0.49435,0.11496,0.66162,session 1 vs 2
+emotion,0.044575,0.048285,0.085346,LR run vs RL run
+gambling,0.091371,0.063549,0.16744,LR run vs RL run
+language,0.12588,0.062811,0.22361,LR run vs RL run
+motor,0.078002,0.051819,0.14472,LR run vs RL run
+relational,0.068663,0.056966,0.1285,LR run vs RL run
+social,0.095095,0.062252,0.17367,LR run vs RL run
+wm,0.15212,0.06445,0.26407,LR run vs RL run
