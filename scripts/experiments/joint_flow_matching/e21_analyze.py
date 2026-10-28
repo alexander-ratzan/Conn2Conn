@@ -30,7 +30,10 @@ LABEL = {"v3E0": "SC PCA → task FC (per-task FC PCA) · PCA-PLS learnable [v3:
          "corrector": "SC PCA → task latent → task FC · ridge + MLP corrector",
          "corrector_id": "… · ridge + MLP corrector, identity loss",
          "bridge": "… · ridge-start flow (16 steps)",
-         "flow": "… · residual conditional flow (ridge mean + mean of 256 samples)"}
+         "flow": "… · residual conditional flow (ridge mean + mean of 256 samples)",
+         "flow_linear": "… · linear flow from noise, no ridge anchor (mean of 256 samples) [addendum]",
+         "flow_free": "… · nonlinear flow from noise, no ridge anchor (mean of 256 samples) [addendum]"}
+DIST_NAME = {"refs": "gauss", "flow": "flow", "flow_linear": "flow_linear", "flow_free": "flow_free"}   # record -> distribution row
 
 
 def load():
@@ -40,8 +43,10 @@ def load():
         for row in r.get("rows", []):
             row = dict(row, seed=r["seed"])
             (l2s if "input" in row else point).append(row)
-        for key, name in (("dist", "flow" if r["model"] == "flow" else "gauss"), ("dist_shuffled", "flow_shuffled"),
-                          ("dist_spread_null", "flow_spread_null")):
+        base = DIST_NAME.get(r["model"])
+        for key, name in (("dist", base), ("dist_shuffled", f"{base}_shuffled"), ("dist_spread_null", f"{base}_spread_null")):
+            if base is None:
+                continue
             for split, d in r.get(key, {}).items():
                 dist.append(dict({k: v for k, v in d.items() if not isinstance(v, dict)}, model=name, split=split,
                                  seed=r["seed"]))
@@ -119,22 +124,23 @@ def hypotheses(point, dist, l2s, retest):
 def fig_conditions(point, path):
     import matplotlib; matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    models = ["v3E0", "ridge_cons", "ridge_cond", "corrector", "corrector_id", "bridge", "flow"]
-    colors = [PAL["red"], PAL["neutral"], PAL["teal"], PAL["blue"], PAL["violet"], PAL["gold"], PAL["green"]]
+    models = ["v3E0", "ridge_cons", "ridge_cond", "corrector", "corrector_id", "bridge", "flow", "flow_linear", "flow_free"]
+    colors = [PAL["red"], PAL["neutral"], PAL["teal"], PAL["blue"], PAL["violet"], PAL["gold"], PAL["green"], "#3775BA", "#1B3A5C"]
     q = point[(point.split == "test") & (point.steps == 16)]
     with plt.rc_context({**mb.FIG_RC, "font.size": 14, "axes.linewidth": 2.0}):
-        fig, ax = plt.subplots(figsize=(17, 7), layout="constrained")
-        x, w = np.arange(len(FC)), 0.11
+        fig, ax = plt.subplots(figsize=(19, 7.5), layout="constrained")
+        x, w = np.arange(len(FC)), 0.09
         for j, (m, c) in enumerate(zip(models, colors)):
             g = q[q.model == m].groupby("condition").demeaned_pearson
-            ax.bar(x + (j - 3) * w, [g.mean().get(v, np.nan) for v in FC], w, yerr=[g.sem().get(v, np.nan) for v in FC],
+            ax.bar(x + (j - (len(models) - 1) / 2) * w, [g.mean().get(v, np.nan) for v in FC], w, yerr=[g.sem().get(v, np.nan) for v in FC],
                    color=c, edgecolor="black", lw=0.9, capsize=1.5, label=LABEL[m])
         ceil = q[q.model == "ceiling"].groupby("condition").demeaned_pearson.mean()
-        ax.scatter(x + 3.6 * w, [ceil.get(v) for v in FC], marker="_", s=300, color="black", lw=2.5,
+        ax.scatter(x + ((len(models) - 1) / 2 + 0.7) * w, [ceil.get(v) for v in FC], marker="_", s=300, color="black", lw=2.5,
                    label="ceiling: measured FC consensus latent → task FC (no SC) [E1]")
         ax.set_xticks(x, FC); ax.set_xlabel("target FC condition")
         ax.set_ylabel("Test demeaned r (predicted vs measured FC)")
-        ax.set_title("E2.1 SC → FC per condition through the latent: linear, nonlinear and flow models; mean ± SE, 5 seeds",
+        ax.set_title("E2.1 SC → FC per condition through the CCA latent: linear, nonlinear and flow models "
+                     "(selected search runs); mean ± SE, 5 seeds",
                      fontweight="bold", fontsize=15)
         ax.legend(frameon=False, fontsize=11, loc="upper right")
         fig.savefig(path, dpi=300, facecolor="white"); plt.close(fig)
@@ -144,11 +150,13 @@ def fig_distribution(dist, path):
     import matplotlib; matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     q = dist[dist.split == "test"]
-    names = {"gauss": "linear-\nGaussian", "flow": "residual\nflow", "flow_shuffled": "flow,\nfull null",
-             "flow_spread_null": "flow,\nspread null"}
-    cols = {"gauss": PAL["neutral"], "flow": PAL["green"], "flow_shuffled": PAL["red"], "flow_spread_null": PAL["gold"]}
+    names = {"gauss": "linear-\nGaussian", "flow": "residual\nflow", "flow_linear": "linear\nflow from\nnoise",
+             "flow_free": "nonlinear\nflow from\nnoise", "flow_shuffled": "residual\nflow,\nfull null",
+             "flow_spread_null": "residual\nflow,\nspread null"}
+    cols = {"gauss": PAL["neutral"], "flow": PAL["green"], "flow_linear": "#3775BA", "flow_free": "#1B3A5C",
+            "flow_shuffled": PAL["red"], "flow_spread_null": PAL["gold"]}
     with plt.rc_context({**mb.FIG_RC, "font.size": 14, "axes.linewidth": 2.0}):
-        fig, axes = plt.subplots(1, 3, figsize=(17, 5.5), layout="constrained")
+        fig, axes = plt.subplots(1, 3, figsize=(20, 5.8), layout="constrained")
         for ax, metric, ylab in zip(axes, ("energy", "set_avg_rank", "spread_corr"),
                                     ("energy distance to the subject's 8 encodings\n(lower is better)",
                                      "set-to-set identification\n(average rank; chance 0.5)",
@@ -159,12 +167,12 @@ def fig_distribution(dist, path):
                    color=[cols[m] for m in ms], edgecolor="black", lw=1.2, capsize=3)
             for i, m in enumerate(ms):
                 ax.scatter(np.full(5, i), q[q.model == m][metric], s=14, color="black", zorder=3)
-            ax.set_xticks(range(len(ms)), [names[m] for m in ms], fontsize=12)
+            ax.set_xticks(range(len(ms)), [names[m] for m in ms], fontsize=11)
             ax.set_ylabel(ylab)
         fig.suptitle("E2.1 SC → distribution of a subject's 8 condition encodings (test, 5 seeds)", fontweight="bold")
         fig.supxlabel("linear-Gaussian: ridge mean per condition + one shared residual covariance · residual flow: ridge mean + "
-                      "flow-generated residual, no condition token · full null: SC shuffled for the whole model · spread null: "
-                      "SC shuffled for the residual only", fontsize=10.5, color="#4D4D4D")
+                      "flow-generated residual · flows from noise: no ridge anchor (addendum) · full null: SC shuffled for the "
+                      "whole model · spread null: SC shuffled for the residual only", fontsize=10.5, color="#4D4D4D")
         fig.savefig(path, dpi=300, facecolor="white"); plt.close(fig)
 
 

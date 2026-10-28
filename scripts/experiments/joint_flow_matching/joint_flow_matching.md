@@ -53,6 +53,9 @@ residual flow 0.0473; full null −0.0001.
 
 ![SC to FC per condition](results/Glasser/e21/figures/fig_sc2fc_conditions.png)
 
+The per-condition and distribution figures also show the addendum's linear and nonlinear flows from noise (no ridge
+anchor; their selected search runs, the same protocol as the residual flow; §7–8 for longer training and temperature).
+
 ### Distribution of a subject's 8 condition encodings
 
 | | Energy distance (lower is better) | Set identification (avg rank; chance 0.5) | Set top-1 | Spread tracks the subject (r) | Predicted / observed spread |
