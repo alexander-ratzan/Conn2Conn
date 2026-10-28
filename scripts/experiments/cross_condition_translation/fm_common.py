@@ -1,12 +1,12 @@
 """Spec v4 E4 flows (E4.2-E4.4): conditional flows from noise for every condition -> condition cell, with SC.
 
 State: the target condition's k pooled block FC PCA codes (D2), divided by one train SD. Conditioning (DeepSets form,
-D8): the available sources are embedded as h = phi(z_src) + e(m_src) and mean-pooled (first pass: at most one source,
-so the pool is the source itself; no source -> a learned "no FC" vector); SC codes (zeros + flag when dropped); the
-target-condition embedding. phi is linear in the first pass.
-  FM-nl  velocity = residual MLP([z, tau-embedding, h, SC, SC flag, e_tgt])   (E2.1's TokenBackbone recipe)
-  FM-lin velocity = sum_j b_j(tau) (A_j z + B_j [z_src, SC, flag] + C_j[m_src] + D_j[m_tgt])   (E2.1's LinearFlowVelocity
-         basis; linear in state and conditioning, so it is exactly a linear-Gaussian model)
+D8): each available source is encoded by its condition's own linear encoder into a shared latent and mean-pooled (first
+pass: at most one source; none -> a learned vector); SC codes (projected; zeros + flag when dropped); the target
+condition through target-specific weights (E4.2: shared weights cannot express 56 different condition -> condition maps).
+  FM-nl  velocity = per-target head(FiLM(target)-modulated residual MLP([z, tau-embedding, source latent, SC latent, flag]))
+  FM-lin velocity = sum_j b_j(tau) (A_j z + B_j [z_src, SC, flag] + C_j[m_src] + D_j[m_tgt]) with 8 learned time
+         curves b(tau); linear in state and conditioning at every tau, so it is exactly a linear-Gaussian model
 Training examples (pairwise, D8): every train subject with all 8 targets per epoch; per example the source is none
 with probability 0.2, else a random other condition; SC dropped with probability 0.2 when a source is present. Flow
 matching from N(0, I): z_tau = (1 - tau) eps + tau y, target velocity y - eps. Point prediction = mean of samples at
@@ -65,77 +65,110 @@ class FlowData:
 
 
 # ------------------------------------------------------------------------------------------------ models
-class DeepSetsSource(nn.Module):
-    """h = phi(z_src) + e(m_src); first pass: sets of size <= 1, so mean pooling is the identity; empty set -> learned."""
+def by_index(x, idx, W, b=None):
+    """Row-wise x @ W[idx] (+ b[idx]) without materialising W[idx] per row (loops over the distinct indices)."""
+    out = x.new_zeros(x.shape[0], W.shape[-1])
+    for m in torch.unique(idx).tolist():
+        sel = idx == m
+        out[sel] = x[sel] @ W[m] + (b[m] if b is not None else 0)
+    return out
 
-    def __init__(self, k, dim, phi="linear"):
+
+class SourceEncoder(nn.Module):
+    """DeepSets source side: h = E_{m_src} z_src + e_{m_src}, a linear encoder per source condition into a shared
+    latent, mean-pooled over the available sources (first pass: <= 1); no source -> a learned vector."""
+
+    def __init__(self, k, dim):
         super().__init__()
-        self.phi = nn.Linear(k, dim) if phi == "linear" else nn.Sequential(nn.Linear(k, dim), nn.SiLU(), nn.Linear(dim, dim))
-        self.emb = nn.Embedding(len(FC), dim)
+        self.W = nn.Parameter(torch.randn(len(FC), k, dim) / math.sqrt(k))
+        self.b = nn.Parameter(torch.zeros(len(FC), dim))
         self.none = nn.Parameter(torch.zeros(dim))
 
     def forward(self, z_src, src):
-        h = self.phi(z_src) + self.emb(src.clamp(max=len(FC) - 1))
+        h = by_index(z_src, src.clamp(max=len(FC) - 1), self.W, self.b)
         return torch.where((src == NONE)[:, None], self.none.expand_as(h), h)
 
 
+class FiLMBlock(nn.Module):
+    """Residual block whose hidden units are scaled and shifted per target condition (starts as the plain block)."""
+
+    def __init__(self, width, dropout):
+        super().__init__()
+        self.block = ResidualBlock(width, dropout)
+        self.gamma = nn.Parameter(torch.zeros(len(FC), width))
+        self.beta = nn.Parameter(torch.zeros(len(FC), width))
+
+    def forward(self, h, tgt):
+        h = self.block(h)
+        return h * (1 + self.gamma[tgt]) + self.beta[tgt]
+
+
 class FMnl(nn.Module):
-    def __init__(self, k, k_sc, width=256, depth=1, dropout=0.1, emb_dim=32, time_dim=64):
+    """Velocity = per-target head(FiLM-modulated residual MLP([z, tau-embedding, pooled source latent, SC latent, flag]))."""
+
+    def __init__(self, k, k_sc, width=256, depth=1, dropout=0.1, time_dim=64, **_):
         super().__init__()
         self.k_sc = k_sc
-        self.source = DeepSetsSource(k, k)
-        self.tgt = nn.Embedding(len(FC), emb_dim)
+        self.source = SourceEncoder(k, width)
+        self.sc_proj = nn.Linear(k_sc, width)
         self.time = SinusoidalEmbedding(time_dim)
-        self.inp = nn.Linear(k + time_dim + k + k_sc + 1 + emb_dim, width)
-        self.blocks = nn.Sequential(*[ResidualBlock(width, dropout) for _ in range(depth)])
-        self.out = nn.Sequential(nn.LayerNorm(width), nn.Linear(width, k))
-        nn.init.zeros_(self.out[1].weight)
-        nn.init.zeros_(self.out[1].bias)
+        self.inp = nn.Linear(k + time_dim + 2 * width + 1, width)
+        self.blocks = nn.ModuleList([FiLMBlock(width, dropout) for _ in range(depth)])
+        self.norm = nn.LayerNorm(width)
+        self.head_W = nn.Parameter(torch.zeros(len(FC), width, k))
+        self.head_b = nn.Parameter(torch.zeros(len(FC), k))
 
     def forward(self, z, tau, z_src, src, tgt, sc, sc_on):
         f = sc_on.float()[:, None]
-        x = torch.cat([z, self.time(tau), self.source(z_src, src), sc[:, :self.k_sc] * f, f, self.tgt(tgt)], dim=1)
-        return self.out(self.blocks(self.inp(x)))
+        x = torch.cat([z, self.time(tau), self.source(z_src, src), self.sc_proj(sc[:, :self.k_sc]) * f, f], dim=1)
+        h = self.inp(x)
+        for blk in self.blocks:
+            h = blk(h, tgt)
+        return by_index(self.norm(h), tgt, self.head_W, self.head_b)
 
 
 class FMlin(nn.Module):
-    """Linear in z and the conditioning; coefficients vary over flow time through E2.1's 6-term basis; starts at zero."""
+    """Velocity linear in z and the conditioning for every (source, target) pair and flow time:
+        v = D_tgt (g(tau) * [E_src z_src, S z_sc * flag, flag]) + sum_j b_j(tau) (A_j z + u_j[tgt] * z + c_j[tgt, src])
+    E_src: per-source encoders into a rank-r latent (CCA-like), D_tgt: per-target decoders, g and b: learned curves of
+    tau only. Exactly a linear-Gaussian model per cell (E4.2: a shared map across cells could not express 56 maps)."""
 
-    def __init__(self, k, k_sc, nb=6):
+    def __init__(self, k, k_sc, rank=128, nb=8, time_dim=64, **_):
         super().__init__()
-        self.k_sc = k_sc
-        c = k + k_sc + 1
+        self.k_sc, c = k_sc, 2 * rank + 1
+        self.source = SourceEncoder(k, rank)
+        self.sc_proj = nn.Linear(k_sc, rank, bias=False)
+        self.curves = nn.Sequential(SinusoidalEmbedding(time_dim), nn.Linear(time_dim, 64), nn.SiLU(), nn.Linear(64, nb + c))
+        self.nb = nb
+        self.D = nn.Parameter(torch.zeros(len(FC), c, k))
         self.A = nn.Parameter(torch.zeros(nb, k, k))
-        self.B = nn.Parameter(torch.zeros(nb, c, k))
-        self.Cs = nn.Parameter(torch.zeros(nb, len(FC) + 1, k))      # source condition (incl. none)
-        self.Ct = nn.Parameter(torch.zeros(nb, len(FC), k))          # target condition
-
-    @staticmethod
-    def basis(tau):
-        r = 1.0 / (1.05 - tau)
-        return torch.stack([torch.ones_like(tau), tau, tau ** 2, tau ** 3, 0.05 * r, 0.05 * tau * r], dim=1)
+        self.u = nn.Parameter(torch.zeros(nb, len(FC), k))
+        self.cb = nn.Parameter(torch.zeros(nb, len(FC), len(FC) + 1, k))
 
     def forward(self, z, tau, z_src, src, tgt, sc, sc_on):
         f = sc_on.float()[:, None]
-        c = torch.cat([z_src, sc[:, :self.k_sc] * f, f], dim=1)
-        terms = (torch.einsum("nd,jde->nje", z, self.A) + torch.einsum("nc,jce->nje", c, self.B)
-                 + self.Cs[:, src].transpose(0, 1) + self.Ct[:, tgt].transpose(0, 1))
-        return (self.basis(tau)[:, :, None] * terms).sum(1)
+        hc = torch.cat([self.source(z_src, src), self.sc_proj(sc[:, :self.k_sc]) * f, f], dim=1)
+        cur = self.curves(tau)
+        b, g = cur[:, :self.nb], cur[:, self.nb:]
+        cond = by_index(g * hc, tgt, self.D)
+        state = (b[:, :, None] * (torch.einsum("nd,jde->nje", z, self.A) + self.u[:, tgt].transpose(0, 1) * z[:, None]
+                                  + self.cb[:, tgt, src].transpose(0, 1))).sum(1)
+        return cond + state
 
 
 def make(model, hp, k):
     if model == "fm_lin":
-        return FMlin(k, hp["k_sc"])
-    return FMnl(k, hp["k_sc"], width=hp["width"], depth=hp["depth"], dropout=hp["dropout"], emb_dim=hp["emb_dim"])
+        return FMlin(k, hp["k_sc"], rank=hp.get("rank", 128))
+    return FMnl(k, hp["k_sc"], width=hp["width"], depth=hp["depth"], dropout=hp["dropout"])
+
+
+def n_params(net):
+    return sum(p.numel() for p in net.parameters())
 
 
 def ridge_gcv_np(X, Y):
     """E2.0's ridge (GCV over the config grid) for the synthetic checks."""
     return ridge_gcv(np.asarray(X, dtype=np.float64), np.asarray(Y, dtype=np.float64), [float(a) for a in CFG["ridge_alphas"]])
-
-
-def n_params(net):
-    return sum(p.numel() for p in net.parameters())
 
 
 # ------------------------------------------------------------------------------------------------ training
@@ -166,7 +199,8 @@ def val_batch(data, split="val"):
     return tuple(torch.cat(out[k_]) for k_ in ("z_src", "src", "tgt", "sc", "sc_on", "y"))
 
 
-def train(model, hp, data, seed, trial=None, max_epochs=None, log_every=0, subset=None, regularise=True):
+def train(model, hp, data, seed, trial=None, max_epochs=None, log_every=0, subset=None, regularise=True, early_stop=True,
+          restore_best=True):
     torch.manual_seed(seed)
     net = make(model, hp, data.k).to(data.device)
     opt = torch.optim.AdamW(net.parameters(), lr=hp["lr"], weight_decay=hp["wd"] if regularise else 0.0)
@@ -207,9 +241,9 @@ def train(model, hp, data, seed, trial=None, max_epochs=None, log_every=0, subse
             if trial.should_prune():
                 import optuna
                 raise optuna.TrialPruned()
-        if subset is None and bad >= TRAIN["patience"]:
+        if early_stop and subset is None and bad >= TRAIN["patience"]:
             break
-    if state is not None:
+    if restore_best and state is not None:
         net.load_state_dict(state)
     return net, dict(best_val_loss=best, best_epoch=best_ep, epochs_run=ep + 1, history=hist)
 

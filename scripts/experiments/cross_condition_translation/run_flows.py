@@ -24,8 +24,8 @@ from e4_common import HERE, REPO_ROOT
 
 TEMPS = (0.25, 0.5, 1.0)
 CACHE = REPO_ROOT / "results" / "cache" / "experiments" / "cross_condition_translation"
-SPACE = dict(lr=(1e-4, 3e-3), wd=(1e-6, 1e-1), width=[128, 256, 512], depth=[1, 2, 3], dropout=(0.0, 0.3), emb_dim=[16, 32],
-             k_sc=[64, 128, 256, 512])
+SPACE = dict(lr=(1e-4, 3e-3), wd=(1e-6, 1e-1), width=[128, 256, 512], depth=[1, 2, 3], dropout=(0.0, 0.3),
+             k_sc=[64, 128, 256, 512], rank=[64, 128, 256])
 
 
 def sample_hp(trial, model):
@@ -33,7 +33,9 @@ def sample_hp(trial, model):
               k_sc=trial.suggest_categorical("k_sc", SPACE["k_sc"]))
     if model == "fm_nl":
         hp.update(width=trial.suggest_categorical("width", SPACE["width"]), depth=trial.suggest_categorical("depth", SPACE["depth"]),
-                  dropout=trial.suggest_float("dropout", *SPACE["dropout"]), emb_dim=trial.suggest_categorical("emb_dim", SPACE["emb_dim"]))
+                  dropout=trial.suggest_float("dropout", *SPACE["dropout"]))
+    else:
+        hp["rank"] = trial.suggest_categorical("rank", SPACE["rank"])
     return hp
 
 

@@ -25,7 +25,7 @@ from fm_common import NONE, FlowData, energy_metrics, eval_cells, ridge_gcv_np, 
 from e4_common import CFG  # noqa: E402
 
 HP = {"fm_nl": dict(lr=1e-3, wd=1e-3, width=256, depth=1, dropout=0.1, emb_dim=32, k_sc=64),
-      "fm_lin": dict(lr=1e-3, wd=1e-4, k_sc=64)}
+      "fm_lin": dict(lr=1e-3, wd=1e-4, k_sc=64, rank=128)}
 results, ok_all = {}, True
 
 
