@@ -136,8 +136,8 @@ def main():
             od, os_ = float(o.delta.iloc[0]) * sign, bool(o.supported.iloc[0])
             bd = float(b.delta.iloc[0]) * sign if len(b) else np.nan
             bs = bool(b.supported.iloc[0]) if len(b) else False
-            row[f"{k} vs none"] = od * sign
-            row[f"{k} vs linear"] = bd * sign if np.isfinite(bd) else np.nan
+            row[f"{k} vs none"] = od                     # sign-adjusted: + = better
+            row[f"{k} vs linear"] = bd
             if od > 0 and os_ and (bd > 0 and bs):
                 gains.append(k)
             if od < 0 and os_:

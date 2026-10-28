@@ -4,6 +4,27 @@ Test split, mean over the 8 conditions, mean ± SE over seeds (n = seeds). Energ
 
 | route | model | arm | n | demeaned r | avg rank | top-1 | energy | set avg rank | spread ratio |
 |---|---|---|---|---|---|---|---|---|---|
+| cca | flow | none | 5 | 0.0450 ± 0.0020 | 0.6601 ± 0.0043 | 0.0243 ± 0.0027 | 0.0760 ± 0.0109 | 0.8332 ± 0.0097 | 1.6985 ± 0.2730 |
+| cca | flow | aug_halves | 5 | 0.0427 ± 0.0017 | 0.6519 ± 0.0040 | 0.0220 ± 0.0020 | 0.0918 ± 0.0141 | 0.8076 ± 0.0175 | 1.2944 ± 0.3670 |
+| cca | flow | token_halves | 5 | 0.0425 ± 0.0022 | 0.6503 ± 0.0055 | 0.0233 ± 0.0011 | 0.0885 ± 0.0144 | 0.8108 ± 0.0142 | 1.4754 ± 0.3173 |
+| cca | flow | parts_halves | 5 | 0.0433 ± 0.0023 | 0.6536 ± 0.0059 | 0.0220 ± 0.0021 | 0.0851 ± 0.0136 | 0.8199 ± 0.0142 | 1.6303 ± 0.3099 |
+| cca | flow | aug_quarters | 5 | 0.0393 ± 0.0027 | 0.6368 ± 0.0076 | 0.0220 ± 0.0018 | 0.1012 ± 0.0133 | 0.7735 ± 0.0195 | 1.1948 ± 0.2852 |
+| cca | flow | token_quarters | 5 | 0.0409 ± 0.0024 | 0.6423 ± 0.0068 | 0.0196 ± 0.0023 | 0.0961 ± 0.0146 | 0.7918 ± 0.0212 | 1.3971 ± 0.3870 |
+| cca | flow | parts_quarters | 5 | 0.0394 ± 0.0032 | 0.6360 ± 0.0103 | 0.0188 ± 0.0033 | 0.1000 ± 0.0128 | 0.7676 ± 0.0248 | 1.3043 ± 0.2827 |
+| cca | flow_free | none | 5 | 0.0376 ± 0.0022 | 0.6323 ± 0.0058 | 0.0218 ± 0.0025 | 0.0924 ± 0.0052 | 0.7687 ± 0.0207 | 0.7350 ± 0.2219 |
+| cca | flow_free | aug_halves | 5 | 0.0361 ± 0.0024 | 0.6262 ± 0.0067 | 0.0196 ± 0.0027 | 0.0937 ± 0.0023 | 0.7608 ± 0.0212 | 0.6551 ± 0.1219 |
+| cca | flow_free | token_halves | 5 | 0.0378 ± 0.0037 | 0.6338 ± 0.0094 | 0.0208 ± 0.0027 | 0.0954 ± 0.0023 | 0.7591 ± 0.0220 | 0.6190 ± 0.1339 |
+| cca | flow_free | parts_halves | 5 | 0.0370 ± 0.0026 | 0.6330 ± 0.0070 | 0.0221 ± 0.0029 | 0.0918 ± 0.0022 | 0.7642 ± 0.0239 | 0.6873 ± 0.1456 |
+| cca | flow_free | aug_quarters | 5 | 0.0366 ± 0.0029 | 0.6265 ± 0.0086 | 0.0215 ± 0.0034 | 0.0908 ± 0.0019 | 0.7483 ± 0.0250 | 0.8128 ± 0.0872 |
+| cca | flow_free | token_quarters | 5 | 0.0365 ± 0.0037 | 0.6289 ± 0.0107 | 0.0187 ± 0.0028 | 0.0965 ± 0.0023 | 0.7480 ± 0.0256 | 0.6641 ± 0.1203 |
+| cca | flow_free | parts_quarters | 5 | 0.0375 ± 0.0026 | 0.6285 ± 0.0088 | 0.0204 ± 0.0021 | 0.0921 ± 0.0041 | 0.7336 ± 0.0219 | 0.8262 ± 0.0530 |
+| cca | flow_linear | none | 5 | 0.0442 ± 0.0020 | 0.6600 ± 0.0057 | 0.0202 ± 0.0013 | 0.0616 ± 0.0071 | 0.8220 ± 0.0052 | 1.8951 ± 0.2683 |
+| cca | flow_linear | aug_halves | 5 | 0.0442 ± 0.0019 | 0.6602 ± 0.0051 | 0.0198 ± 0.0008 | 0.0627 ± 0.0067 | 0.8213 ± 0.0042 | 1.9134 ± 0.2489 |
+| cca | flow_linear | token_halves | 5 | 0.0443 ± 0.0020 | 0.6598 ± 0.0050 | 0.0205 ± 0.0015 | 0.0627 ± 0.0067 | 0.8205 ± 0.0037 | 1.9155 ± 0.2493 |
+| cca | flow_linear | parts_halves | 5 | 0.0438 ± 0.0020 | 0.6586 ± 0.0058 | 0.0194 ± 0.0013 | 0.0621 ± 0.0065 | 0.8213 ± 0.0049 | 1.9684 ± 0.2493 |
+| cca | flow_linear | aug_quarters | 5 | 0.0434 ± 0.0019 | 0.6563 ± 0.0053 | 0.0194 ± 0.0015 | 0.0691 ± 0.0079 | 0.8113 ± 0.0080 | 1.6109 ± 0.2982 |
+| cca | flow_linear | token_quarters | 5 | 0.0433 ± 0.0019 | 0.6559 ± 0.0049 | 0.0190 ± 0.0010 | 0.0691 ± 0.0079 | 0.8109 ± 0.0074 | 1.6113 ± 0.2986 |
+| cca | flow_linear | parts_quarters | 5 | 0.0433 ± 0.0020 | 0.6560 ± 0.0063 | 0.0196 ± 0.0010 | 0.0686 ± 0.0077 | 0.8112 ± 0.0094 | 1.6840 ± 0.2957 |
 | cca | gauss_fullcov | none | 5 | 0.0490 ± 0.0023 | 0.6758 ± 0.0048 | 0.0208 ± 0.0039 | 0.0462 ± 0.0005 | 0.8437 ± 0.0134 | 2.4701 ± 0.0323 |
 | cca | gauss_fullcov | aug_halves | 5 | 0.0488 ± 0.0025 | 0.6753 ± 0.0054 | 0.0205 ± 0.0038 | 0.0464 ± 0.0006 | 0.8387 ± 0.0109 | 2.4697 ± 0.0327 |
 | cca | gauss_fullcov | token_halves | 5 | 0.0488 ± 0.0025 | 0.6753 ± 0.0054 | 0.0205 ± 0.0038 | 0.0464 ± 0.0006 | 0.8387 ± 0.0109 | 2.4697 ± 0.0327 |
@@ -23,6 +44,20 @@ Test split, mean over the 8 conditions, mean ± SE over seeds (n = seeds). Energ
 | cca | ridge | aug_quarters | 5 | 0.0488 ± 0.0024 | 0.6756 ± 0.0053 | 0.0213 ± 0.0037 | – | – | – |
 | cca | ridge | token_quarters | 5 | 0.0488 ± 0.0024 | 0.6756 ± 0.0053 | 0.0213 ± 0.0037 | – | – | – |
 | cca | ridge | parts_quarters | 5 | 0.0487 ± 0.0025 | 0.6760 ± 0.0056 | 0.0209 ± 0.0035 | – | – | – |
+| pca | flow_free | none | 5 | 0.0345 ± 0.0027 | 0.6709 ± 0.0088 | 0.0249 ± 0.0036 | 0.0094 ± 0.0001 | 0.7278 ± 0.0125 | 0.0694 ± 0.0023 |
+| pca | flow_free | aug_halves | 5 | 0.0318 ± 0.0024 | 0.6656 ± 0.0078 | 0.0253 ± 0.0027 | 0.0093 ± 0.0001 | 0.7111 ± 0.0134 | 0.0743 ± 0.0021 |
+| pca | flow_free | token_halves | 5 | 0.0323 ± 0.0017 | 0.6656 ± 0.0058 | 0.0216 ± 0.0018 | 0.0094 ± 0.0001 | 0.7152 ± 0.0132 | 0.0713 ± 0.0023 |
+| pca | flow_free | parts_halves | 5 | 0.0321 ± 0.0016 | 0.6705 ± 0.0058 | 0.0228 ± 0.0023 | 0.0092 ± 0.0001 | 0.7204 ± 0.0119 | 0.0775 ± 0.0022 |
+| pca | flow_free | aug_quarters | 5 | 0.0287 ± 0.0028 | 0.6779 ± 0.0037 | 0.0254 ± 0.0019 | 0.0090 ± 0.0002 | 0.7192 ± 0.0094 | 0.0827 ± 0.0028 |
+| pca | flow_free | token_quarters | 5 | 0.0306 ± 0.0028 | 0.6851 ± 0.0068 | 0.0269 ± 0.0017 | 0.0092 ± 0.0001 | 0.7310 ± 0.0105 | 0.0730 ± 0.0021 |
+| pca | flow_free | parts_quarters | 5 | 0.0266 ± 0.0033 | 0.6758 ± 0.0086 | 0.0238 ± 0.0021 | 0.0089 ± 0.0002 | 0.7139 ± 0.0177 | 0.0886 ± 0.0027 |
+| pca | flow_linear | none | 5 | 0.0402 ± 0.0014 | 0.6918 ± 0.0044 | 0.0305 ± 0.0030 | 0.0086 ± 0.0001 | 0.7774 ± 0.0090 | 0.0902 ± 0.0009 |
+| pca | flow_linear | aug_halves | 5 | 0.0403 ± 0.0014 | 0.6920 ± 0.0045 | 0.0309 ± 0.0029 | 0.0084 ± 0.0001 | 0.7766 ± 0.0090 | 0.0964 ± 0.0009 |
+| pca | flow_linear | token_halves | 5 | 0.0403 ± 0.0014 | 0.6921 ± 0.0045 | 0.0308 ± 0.0030 | 0.0084 ± 0.0001 | 0.7765 ± 0.0090 | 0.0964 ± 0.0009 |
+| pca | flow_linear | parts_halves | 5 | 0.0402 ± 0.0014 | 0.6913 ± 0.0044 | 0.0316 ± 0.0037 | 0.0083 ± 0.0001 | 0.7755 ± 0.0090 | 0.0997 ± 0.0009 |
+| pca | flow_linear | aug_quarters | 5 | 0.0403 ± 0.0014 | 0.6915 ± 0.0047 | 0.0323 ± 0.0035 | 0.0081 ± 0.0001 | 0.7758 ± 0.0091 | 0.1105 ± 0.0010 |
+| pca | flow_linear | token_quarters | 5 | 0.0403 ± 0.0014 | 0.6916 ± 0.0047 | 0.0323 ± 0.0035 | 0.0081 ± 0.0001 | 0.7761 ± 0.0091 | 0.1104 ± 0.0010 |
+| pca | flow_linear | parts_quarters | 5 | 0.0402 ± 0.0014 | 0.6913 ± 0.0048 | 0.0308 ± 0.0034 | 0.0079 ± 0.0001 | 0.7741 ± 0.0093 | 0.1158 ± 0.0011 |
 | pca | gauss_fullcov | none | 5 | 0.0441 ± 0.0015 | 0.6621 ± 0.0044 | 0.0176 ± 0.0016 | 0.0028 ± 0.0000 | 0.6386 ± 0.0105 | 1.5085 ± 0.0105 |
 | pca | gauss_fullcov | aug_halves | 5 | 0.0439 ± 0.0015 | 0.6629 ± 0.0046 | 0.0180 ± 0.0013 | 0.0028 ± 0.0000 | 0.6460 ± 0.0147 | 1.5084 ± 0.0104 |
 | pca | gauss_fullcov | token_halves | 5 | 0.0439 ± 0.0015 | 0.6629 ± 0.0046 | 0.0180 ± 0.0013 | 0.0028 ± 0.0000 | 0.6460 ± 0.0147 | 1.5084 ± 0.0104 |
@@ -47,26 +82,56 @@ Test split, mean over the 8 conditions, mean ± SE over seeds (n = seeds). Energ
 
 | model | route | arm | demeaned_pearson vs none | demeaned_pearson vs linear | avg_rank vs none | avg_rank vs linear | energy vs none | energy vs linear | supported gains (vs none and linear) | supported losses vs none | G7 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| gauss_fullcov | cca | aug_halves | -0.0002 | -0.0002 | -0.0005 | -0.0005 | 0.0001 | 0.0001 |  |  | False |
-| gauss_fullcov | cca | aug_quarters | -0.0003 | -0.0003 | -0.0002 | -0.0002 | -0.0000 | -0.0000 |  |  | False |
-| gauss_fullcov | cca | token_halves | -0.0002 | -0.0002 | -0.0005 | -0.0005 | 0.0001 | 0.0001 |  |  | False |
-| gauss_fullcov | cca | token_quarters | -0.0003 | -0.0003 | -0.0002 | -0.0002 | -0.0000 | -0.0000 |  |  | False |
-| gauss_fullcov | pca | aug_halves | -0.0002 | -0.0002 | 0.0008 | 0.0008 | -0.0000 | -0.0000 | avg_rank |  | True |
-| gauss_fullcov | pca | aug_quarters | -0.0007 | -0.0007 | 0.0020 | 0.0020 | -0.0000 | -0.0000 |  |  | False |
-| gauss_fullcov | pca | token_halves | -0.0002 | -0.0002 | 0.0008 | 0.0008 | -0.0000 | -0.0000 | avg_rank |  | True |
-| gauss_fullcov | pca | token_quarters | -0.0007 | -0.0007 | 0.0020 | 0.0020 | -0.0000 | -0.0000 |  |  | False |
-| gauss_own | cca | aug_halves | -0.0002 | -0.0002 | -0.0005 | -0.0005 | 0.0004 | 0.0004 |  | energy | False |
-| gauss_own | cca | aug_quarters | -0.0003 | -0.0003 | -0.0002 | -0.0002 | 0.0014 | 0.0014 |  | energy | False |
-| gauss_own | cca | parts_halves | -0.0003 | -0.0003 | -0.0008 | -0.0008 | 0.0005 | 0.0005 |  | energy | False |
-| gauss_own | cca | parts_quarters | -0.0004 | -0.0004 | 0.0002 | 0.0002 | 0.0018 | 0.0018 |  | energy | False |
-| gauss_own | cca | token_halves | -0.0002 | -0.0002 | -0.0005 | -0.0005 | 0.0004 | 0.0004 |  | energy | False |
-| gauss_own | cca | token_quarters | -0.0003 | -0.0003 | -0.0002 | -0.0002 | 0.0014 | 0.0014 |  | energy | False |
-| gauss_own | pca | aug_halves | -0.0002 | -0.0002 | 0.0008 | 0.0008 | 0.0001 | 0.0001 | avg_rank | energy | False |
-| gauss_own | pca | aug_quarters | -0.0007 | -0.0007 | 0.0020 | 0.0020 | 0.0003 | 0.0003 |  | energy | False |
-| gauss_own | pca | parts_halves | -0.0004 | -0.0004 | 0.0012 | 0.0012 | 0.0001 | 0.0001 | avg_rank | demeaned_pearson, energy | False |
-| gauss_own | pca | parts_quarters | -0.0014 | -0.0014 | 0.0016 | 0.0016 | 0.0004 | 0.0004 |  | energy | False |
-| gauss_own | pca | token_halves | -0.0002 | -0.0002 | 0.0008 | 0.0008 | 0.0001 | 0.0001 | avg_rank | energy | False |
-| gauss_own | pca | token_quarters | -0.0007 | -0.0007 | 0.0020 | 0.0020 | 0.0003 | 0.0003 |  | energy | False |
+| flow | cca | aug_halves | -0.0023 | -0.0064 | -0.0082 | -0.0240 | -0.0157 | -0.0455 |  | demeaned_pearson, avg_rank, energy | False |
+| flow | cca | aug_quarters | -0.0056 | -0.0097 | -0.0233 | -0.0390 | -0.0251 | -0.0549 |  | demeaned_pearson, avg_rank, energy | False |
+| flow | cca | parts_halves | -0.0017 | -0.0058 | -0.0065 | -0.0223 | -0.0091 | -0.0389 |  | demeaned_pearson, avg_rank, energy | False |
+| flow | cca | parts_quarters | -0.0056 | -0.0097 | -0.0241 | -0.0398 | -0.0240 | -0.0538 |  | demeaned_pearson, avg_rank, energy | False |
+| flow | cca | token_halves | -0.0025 | -0.0066 | -0.0098 | -0.0255 | -0.0124 | -0.0422 |  | demeaned_pearson, avg_rank, energy | False |
+| flow | cca | token_quarters | -0.0041 | -0.0082 | -0.0178 | -0.0336 | -0.0201 | -0.0499 |  | demeaned_pearson, avg_rank, energy | False |
+| flow_free | cca | aug_halves | -0.0015 | -0.0130 | -0.0061 | -0.0496 | -0.0012 | -0.0474 |  | demeaned_pearson, avg_rank | False |
+| flow_free | cca | aug_quarters | -0.0010 | -0.0124 | -0.0058 | -0.0493 | 0.0016 | -0.0446 |  |  | False |
+| flow_free | cca | parts_halves | -0.0006 | -0.0121 | 0.0007 | -0.0428 | 0.0006 | -0.0456 |  |  | False |
+| flow_free | cca | parts_quarters | -0.0001 | -0.0116 | -0.0038 | -0.0474 | 0.0003 | -0.0459 |  |  | False |
+| flow_free | cca | token_halves | 0.0002 | -0.0112 | 0.0015 | -0.0420 | -0.0030 | -0.0492 |  |  | False |
+| flow_free | cca | token_quarters | -0.0011 | -0.0126 | -0.0034 | -0.0469 | -0.0041 | -0.0502 |  |  | False |
+| flow_free | pca | aug_halves | -0.0027 | -0.0123 | -0.0053 | 0.0036 | 0.0001 | -0.0065 |  | demeaned_pearson | False |
+| flow_free | pca | aug_quarters | -0.0058 | -0.0154 | 0.0070 | 0.0159 | 0.0004 | -0.0062 |  | demeaned_pearson | False |
+| flow_free | pca | parts_halves | -0.0023 | -0.0119 | -0.0004 | 0.0084 | 0.0002 | -0.0064 |  |  | False |
+| flow_free | pca | parts_quarters | -0.0079 | -0.0175 | 0.0049 | 0.0138 | 0.0005 | -0.0061 |  | demeaned_pearson | False |
+| flow_free | pca | token_halves | -0.0022 | -0.0118 | -0.0053 | 0.0036 | 0.0000 | -0.0066 |  | demeaned_pearson | False |
+| flow_free | pca | token_quarters | -0.0039 | -0.0135 | 0.0142 | 0.0230 | 0.0002 | -0.0064 | avg_rank | demeaned_pearson | False |
+| flow_linear | cca | aug_halves | 0.0000 | -0.0048 | 0.0002 | -0.0156 | -0.0011 | -0.0165 |  |  | False |
+| flow_linear | cca | aug_quarters | -0.0008 | -0.0056 | -0.0037 | -0.0195 | -0.0075 | -0.0228 |  |  | False |
+| flow_linear | cca | parts_halves | -0.0004 | -0.0052 | -0.0014 | -0.0172 | -0.0005 | -0.0158 |  |  | False |
+| flow_linear | cca | parts_quarters | -0.0010 | -0.0058 | -0.0040 | -0.0198 | -0.0071 | -0.0224 |  |  | False |
+| flow_linear | cca | token_halves | 0.0001 | -0.0047 | -0.0002 | -0.0160 | -0.0012 | -0.0165 |  |  | False |
+| flow_linear | cca | token_quarters | -0.0009 | -0.0057 | -0.0041 | -0.0199 | -0.0076 | -0.0229 |  |  | False |
+| flow_linear | pca | aug_halves | 0.0001 | -0.0038 | 0.0002 | 0.0300 | 0.0002 | -0.0056 |  |  | False |
+| flow_linear | pca | aug_quarters | 0.0001 | -0.0038 | -0.0004 | 0.0294 | 0.0006 | -0.0052 |  |  | False |
+| flow_linear | pca | parts_halves | 0.0000 | -0.0038 | -0.0005 | 0.0293 | 0.0003 | -0.0055 |  |  | False |
+| flow_linear | pca | parts_quarters | -0.0000 | -0.0039 | -0.0006 | 0.0292 | 0.0007 | -0.0051 |  |  | False |
+| flow_linear | pca | token_halves | 0.0001 | -0.0038 | 0.0002 | 0.0300 | 0.0002 | -0.0056 |  |  | False |
+| flow_linear | pca | token_quarters | 0.0001 | -0.0038 | -0.0002 | 0.0296 | 0.0006 | -0.0053 |  |  | False |
+| gauss_fullcov | cca | aug_halves | -0.0002 | -0.0002 | -0.0005 | -0.0005 | -0.0001 | -0.0001 |  |  | False |
+| gauss_fullcov | cca | aug_quarters | -0.0003 | -0.0003 | -0.0002 | -0.0002 | 0.0000 | 0.0000 |  |  | False |
+| gauss_fullcov | cca | token_halves | -0.0002 | -0.0002 | -0.0005 | -0.0005 | -0.0001 | -0.0001 |  |  | False |
+| gauss_fullcov | cca | token_quarters | -0.0003 | -0.0003 | -0.0002 | -0.0002 | 0.0000 | 0.0000 |  |  | False |
+| gauss_fullcov | pca | aug_halves | -0.0002 | -0.0002 | 0.0008 | 0.0008 | 0.0000 | 0.0000 | avg_rank |  | True |
+| gauss_fullcov | pca | aug_quarters | -0.0007 | -0.0007 | 0.0020 | 0.0020 | 0.0000 | 0.0000 |  |  | False |
+| gauss_fullcov | pca | token_halves | -0.0002 | -0.0002 | 0.0008 | 0.0008 | 0.0000 | 0.0000 | avg_rank |  | True |
+| gauss_fullcov | pca | token_quarters | -0.0007 | -0.0007 | 0.0020 | 0.0020 | 0.0000 | 0.0000 |  |  | False |
+| gauss_own | cca | aug_halves | -0.0002 | -0.0002 | -0.0005 | -0.0005 | -0.0004 | -0.0004 |  | energy | False |
+| gauss_own | cca | aug_quarters | -0.0003 | -0.0003 | -0.0002 | -0.0002 | -0.0014 | -0.0014 |  | energy | False |
+| gauss_own | cca | parts_halves | -0.0003 | -0.0003 | -0.0008 | -0.0008 | -0.0005 | -0.0005 |  | energy | False |
+| gauss_own | cca | parts_quarters | -0.0004 | -0.0004 | 0.0002 | 0.0002 | -0.0018 | -0.0018 |  | energy | False |
+| gauss_own | cca | token_halves | -0.0002 | -0.0002 | -0.0005 | -0.0005 | -0.0004 | -0.0004 |  | energy | False |
+| gauss_own | cca | token_quarters | -0.0003 | -0.0003 | -0.0002 | -0.0002 | -0.0014 | -0.0014 |  | energy | False |
+| gauss_own | pca | aug_halves | -0.0002 | -0.0002 | 0.0008 | 0.0008 | -0.0001 | -0.0001 | avg_rank | energy | False |
+| gauss_own | pca | aug_quarters | -0.0007 | -0.0007 | 0.0020 | 0.0020 | -0.0003 | -0.0003 |  | energy | False |
+| gauss_own | pca | parts_halves | -0.0004 | -0.0004 | 0.0012 | 0.0012 | -0.0001 | -0.0001 | avg_rank | demeaned_pearson, energy | False |
+| gauss_own | pca | parts_quarters | -0.0014 | -0.0014 | 0.0016 | 0.0016 | -0.0004 | -0.0004 |  | energy | False |
+| gauss_own | pca | token_halves | -0.0002 | -0.0002 | 0.0008 | 0.0008 | -0.0001 | -0.0001 | avg_rank | energy | False |
+| gauss_own | pca | token_quarters | -0.0007 | -0.0007 | 0.0020 | 0.0020 | -0.0003 | -0.0003 |  | energy | False |
 | ridge | cca | aug_halves | -0.0002 | -0.0002 | -0.0005 | -0.0005 | – | – |  |  | False |
 | ridge | cca | aug_quarters | -0.0003 | -0.0003 | -0.0002 | -0.0002 | – | – |  |  | False |
 | ridge | cca | parts_halves | -0.0003 | -0.0003 | -0.0008 | -0.0008 | – | – |  |  | False |
@@ -79,3 +144,13 @@ Test split, mean over the 8 conditions, mean ± SE over seeds (n = seeds). Energ
 | ridge | pca | parts_quarters | -0.0014 | -0.0014 | 0.0016 | 0.0016 | – | – |  |  | False |
 | ridge | pca | token_halves | -0.0002 | -0.0002 | 0.0008 | 0.0008 | – | – | avg_rank |  | True |
 | ridge | pca | token_quarters | -0.0007 | -0.0007 | 0.0020 | 0.0020 | – | – |  |  | False |
+
+## Regression check: `none` arm vs E2.1 records (test, mean over seeds)
+
+| model | route | demeaned r E2.1 | demeaned r G7 | energy E2.1 | energy G7 |
+|---|---|---|---|---|---|
+| flow | cca | 0.0473 | 0.0450 | 0.0469 | 0.0760 |
+| flow_free | cca | 0.0376 | 0.0376 | 0.0924 | 0.0924 |
+| flow_free | pca | 0.0345 | 0.0345 | 0.0094 | 0.0094 |
+| flow_linear | cca | 0.0442 | 0.0442 | 0.0615 | 0.0616 |
+| flow_linear | pca | 0.0402 | 0.0402 | 0.0086 | 0.0086 |

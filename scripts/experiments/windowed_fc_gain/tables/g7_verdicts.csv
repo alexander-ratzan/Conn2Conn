@@ -1,24 +1,54 @@
 model,route,arm,demeaned_pearson vs none,demeaned_pearson vs linear,avg_rank vs none,avg_rank vs linear,energy vs none,energy vs linear,supported gains (vs none and linear),supported losses vs none,G7
-gauss_fullcov,cca,aug_halves,-0.00020093,-0.00020093,-0.00049267,-0.00049267,0.00012313,0.00012313,,,False
-gauss_fullcov,cca,aug_quarters,-0.00028182,-0.00028182,-0.00018801,-0.00018801,-2.9171e-05,-2.9171e-05,,,False
-gauss_fullcov,cca,token_halves,-0.00020093,-0.00020093,-0.00049267,-0.00049267,0.00012313,0.00012313,,,False
-gauss_fullcov,cca,token_quarters,-0.00028182,-0.00028182,-0.00018801,-0.00018801,-2.9171e-05,-2.9171e-05,,,False
-gauss_fullcov,pca,aug_halves,-0.00019102,-0.00019102,0.0008415,0.0008415,-5.8414e-06,-5.8414e-06,avg_rank,,True
-gauss_fullcov,pca,aug_quarters,-0.00066994,-0.00066994,0.0020453,0.0020453,-1.3251e-05,-1.3251e-05,,,False
-gauss_fullcov,pca,token_halves,-0.00019102,-0.00019102,0.0008415,0.0008415,-5.8414e-06,-5.8414e-06,avg_rank,,True
-gauss_fullcov,pca,token_quarters,-0.00066994,-0.00066994,0.0020453,0.0020453,-1.3251e-05,-1.3251e-05,,,False
-gauss_own,cca,aug_halves,-0.00020093,-0.00020093,-0.00049267,-0.00049267,0.00043659,0.00043659,,energy,False
-gauss_own,cca,aug_quarters,-0.00028182,-0.00028182,-0.00018801,-0.00018801,0.0014239,0.0014239,,energy,False
-gauss_own,cca,parts_halves,-0.00033841,-0.00033841,-0.00081149,-0.00081149,0.00051781,0.00051781,,energy,False
-gauss_own,cca,parts_quarters,-0.00035567,-0.00035567,0.00017112,0.00017112,0.0017587,0.0017587,,energy,False
-gauss_own,cca,token_halves,-0.00020093,-0.00020093,-0.00049267,-0.00049267,0.00043659,0.00043659,,energy,False
-gauss_own,cca,token_quarters,-0.00028182,-0.00028182,-0.00018801,-0.00018801,0.0014239,0.0014239,,energy,False
-gauss_own,pca,aug_halves,-0.00019102,-0.00019102,0.0008415,0.0008415,8.9639e-05,8.9639e-05,avg_rank,energy,False
-gauss_own,pca,aug_quarters,-0.00066994,-0.00066994,0.0020453,0.0020453,0.000297,0.000297,,energy,False
-gauss_own,pca,parts_halves,-0.00037763,-0.00037763,0.0012186,0.0012186,0.00013307,0.00013307,avg_rank,"demeaned_pearson, energy",False
-gauss_own,pca,parts_quarters,-0.0013763,-0.0013763,0.0015969,0.0015969,0.00039601,0.00039601,,energy,False
-gauss_own,pca,token_halves,-0.00019102,-0.00019102,0.0008415,0.0008415,8.9639e-05,8.9639e-05,avg_rank,energy,False
-gauss_own,pca,token_quarters,-0.00066994,-0.00066994,0.0020453,0.0020453,0.000297,0.000297,,energy,False
+flow,cca,aug_halves,-0.0023021,-0.0063938,-0.008235,-0.023968,-0.015739,-0.045521,,"demeaned_pearson, avg_rank, energy",False
+flow,cca,aug_quarters,-0.0056378,-0.0097295,-0.023272,-0.039005,-0.025136,-0.054918,,"demeaned_pearson, avg_rank, energy",False
+flow,cca,parts_halves,-0.0016892,-0.005781,-0.0065188,-0.022252,-0.0090858,-0.038868,,"demeaned_pearson, avg_rank, energy",False
+flow,cca,parts_quarters,-0.0055709,-0.0096626,-0.0241,-0.039833,-0.024002,-0.053784,,"demeaned_pearson, avg_rank, energy",False
+flow,cca,token_halves,-0.0025007,-0.0065925,-0.009813,-0.025546,-0.012437,-0.042219,,"demeaned_pearson, avg_rank, energy",False
+flow,cca,token_quarters,-0.0040768,-0.0081686,-0.017825,-0.033558,-0.020105,-0.049887,,"demeaned_pearson, avg_rank, energy",False
+flow_free,cca,aug_halves,-0.0015294,-0.012979,-0.0060801,-0.049603,-0.0012452,-0.04743,,"demeaned_pearson, avg_rank",False
+flow_free,cca,aug_quarters,-0.00098312,-0.012433,-0.0057666,-0.04929,0.0016019,-0.044583,,,False
+flow_free,cca,parts_halves,-0.00064234,-0.012092,0.00072367,-0.0428,0.00061216,-0.045573,,,False
+flow_free,cca,parts_quarters,-0.00010392,-0.011554,-0.0038454,-0.047369,0.00028372,-0.045901,,,False
+flow_free,cca,token_halves,0.00021472,-0.011235,0.0015,-0.042023,-0.0029857,-0.049171,,,False
+flow_free,cca,token_quarters,-0.0011263,-0.012576,-0.003409,-0.046932,-0.0040523,-0.050237,,,False
+flow_free,pca,aug_halves,-0.0027221,-0.012319,-0.0052937,0.0035555,0.00012219,-0.0064806,,demeaned_pearson,False
+flow_free,pca,aug_quarters,-0.0058157,-0.015413,0.0070444,0.015894,0.0004206,-0.0061822,,demeaned_pearson,False
+flow_free,pca,parts_halves,-0.0023395,-0.011937,-0.00041104,0.0084381,0.00021703,-0.0063857,,,False
+flow_free,pca,parts_quarters,-0.0079074,-0.017505,0.0049124,0.013762,0.00047683,-0.0061259,,demeaned_pearson,False
+flow_free,pca,token_halves,-0.0022034,-0.011801,-0.0052856,0.0035636,2.0459e-05,-0.0065823,,demeaned_pearson,False
+flow_free,pca,token_quarters,-0.0039236,-0.013521,0.014158,0.023007,0.00019673,-0.006406,avg_rank,demeaned_pearson,False
+flow_linear,cca,aug_halves,8.3591e-06,-0.0048207,0.00024257,-0.015584,-0.0011404,-0.016458,,,False
+flow_linear,cca,aug_quarters,-0.00077422,-0.0056032,-0.0036919,-0.019518,-0.0075174,-0.022835,,,False
+flow_linear,cca,parts_halves,-0.00039094,-0.00522,-0.0013935,-0.01722,-0.0005164,-0.015834,,,False
+flow_linear,cca,parts_quarters,-0.00096464,-0.0057937,-0.0039696,-0.019796,-0.0070927,-0.02241,,,False
+flow_linear,cca,token_halves,0.00012149,-0.0047075,-0.0001761,-0.016002,-0.0011896,-0.016507,,,False
+flow_linear,cca,token_quarters,-0.00089191,-0.0057209,-0.0040747,-0.019901,-0.007592,-0.02291,,,False
+flow_linear,pca,aug_halves,9.7355e-05,-0.0037546,0.00016816,0.02996,0.00018126,-0.0056277,,,False
+flow_linear,pca,aug_quarters,9.1265e-05,-0.0037607,-0.00038463,0.029407,0.00056012,-0.0052489,,,False
+flow_linear,pca,parts_halves,1.6191e-05,-0.0038358,-0.00050092,0.029291,0.00027235,-0.0055366,,,False
+flow_linear,pca,parts_quarters,-2.51e-05,-0.0038771,-0.0005556,0.029236,0.00068953,-0.0051195,,,False
+flow_linear,pca,token_halves,5.9711e-05,-0.0037923,0.00024927,0.030041,0.00017852,-0.0056305,,,False
+flow_linear,pca,token_quarters,8.0919e-05,-0.0037711,-0.00022493,0.029567,0.00055281,-0.0052562,,,False
+gauss_fullcov,cca,aug_halves,-0.00020093,-0.00020093,-0.00049267,-0.00049267,-0.00012313,-0.00012313,,,False
+gauss_fullcov,cca,aug_quarters,-0.00028182,-0.00028182,-0.00018801,-0.00018801,2.9171e-05,2.9171e-05,,,False
+gauss_fullcov,cca,token_halves,-0.00020093,-0.00020093,-0.00049267,-0.00049267,-0.00012313,-0.00012313,,,False
+gauss_fullcov,cca,token_quarters,-0.00028182,-0.00028182,-0.00018801,-0.00018801,2.9171e-05,2.9171e-05,,,False
+gauss_fullcov,pca,aug_halves,-0.00019102,-0.00019102,0.0008415,0.0008415,5.8414e-06,5.8414e-06,avg_rank,,True
+gauss_fullcov,pca,aug_quarters,-0.00066994,-0.00066994,0.0020453,0.0020453,1.3251e-05,1.3251e-05,,,False
+gauss_fullcov,pca,token_halves,-0.00019102,-0.00019102,0.0008415,0.0008415,5.8414e-06,5.8414e-06,avg_rank,,True
+gauss_fullcov,pca,token_quarters,-0.00066994,-0.00066994,0.0020453,0.0020453,1.3251e-05,1.3251e-05,,,False
+gauss_own,cca,aug_halves,-0.00020093,-0.00020093,-0.00049267,-0.00049267,-0.00043659,-0.00043659,,energy,False
+gauss_own,cca,aug_quarters,-0.00028182,-0.00028182,-0.00018801,-0.00018801,-0.0014239,-0.0014239,,energy,False
+gauss_own,cca,parts_halves,-0.00033841,-0.00033841,-0.00081149,-0.00081149,-0.00051781,-0.00051781,,energy,False
+gauss_own,cca,parts_quarters,-0.00035567,-0.00035567,0.00017112,0.00017112,-0.0017587,-0.0017587,,energy,False
+gauss_own,cca,token_halves,-0.00020093,-0.00020093,-0.00049267,-0.00049267,-0.00043659,-0.00043659,,energy,False
+gauss_own,cca,token_quarters,-0.00028182,-0.00028182,-0.00018801,-0.00018801,-0.0014239,-0.0014239,,energy,False
+gauss_own,pca,aug_halves,-0.00019102,-0.00019102,0.0008415,0.0008415,-8.9639e-05,-8.9639e-05,avg_rank,energy,False
+gauss_own,pca,aug_quarters,-0.00066994,-0.00066994,0.0020453,0.0020453,-0.000297,-0.000297,,energy,False
+gauss_own,pca,parts_halves,-0.00037763,-0.00037763,0.0012186,0.0012186,-0.00013307,-0.00013307,avg_rank,"demeaned_pearson, energy",False
+gauss_own,pca,parts_quarters,-0.0013763,-0.0013763,0.0015969,0.0015969,-0.00039601,-0.00039601,,energy,False
+gauss_own,pca,token_halves,-0.00019102,-0.00019102,0.0008415,0.0008415,-8.9639e-05,-8.9639e-05,avg_rank,energy,False
+gauss_own,pca,token_quarters,-0.00066994,-0.00066994,0.0020453,0.0020453,-0.000297,-0.000297,,energy,False
 ridge,cca,aug_halves,-0.00020093,-0.00020093,-0.00049267,-0.00049267,,,,,False
 ridge,cca,aug_quarters,-0.00028182,-0.00028182,-0.00018801,-0.00018801,,,,,False
 ridge,cca,parts_halves,-0.00033841,-0.00033841,-0.00081149,-0.00081149,,,,,False

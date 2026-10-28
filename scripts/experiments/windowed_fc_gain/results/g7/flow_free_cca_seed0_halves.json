@@ -685,6 +685,227 @@
    "best_val_loss": 1.9626188011696724,
    "best_epoch": 162,
    "epochs_run": 363
+  },
+  "parts_halves": {
+   "n_units": 1312,
+   "batch": 127,
+   "val_objective": -0.10022584866857785,
+   "seconds": 55.47094702720642,
+   "rows": [
+    {
+     "model": "flow_free",
+     "condition": "rest",
+     "split": "val",
+     "note": "mean of 256 samples with condition token",
+     "mse": 0.0147921159760909,
+     "pearson": 0.8258081159309913,
+     "avg_rank": 0.6486486486486487,
+     "top1_acc": 0.04054054054054054,
+     "demeaned_pearson": 0.062226412929579214,
+     "spread_ratio": 0.21459372256260545
+    },
+    {
+     "model": "flow_free",
+     "condition": "emotion",
+     "split": "val",
+     "note": "mean of 256 samples with condition token",
+     "mse": 0.10687504526760555,
+     "pearson": 0.4470587195736632,
+     "avg_rank": 0.6024470416362309,
+     "top1_acc": 0.0,
+     "demeaned_pearson": 0.024164675934349157,
+     "spread_ratio": 0.08761135928424182
+    },
+    {
+     "model": "flow_free",
+     "condition": "gambling",
+     "split": "val",
+     "note": "mean of 256 samples with condition token",
+     "mse": 0.07381238358593362,
+     "pearson": 0.5381070351293139,
+     "avg_rank": 0.5807158509861212,
+     "top1_acc": 0.0,
+     "demeaned_pearson": 0.029410205028755965,
+     "spread_ratio": 0.11972123454797283
+    },
+    {
+     "model": "flow_free",
+     "condition": "language",
+     "split": "val",
+     "note": "mean of 256 samples with condition token",
+     "mse": 0.054892324466039914,
+     "pearson": 0.5835619677368197,
+     "avg_rank": 0.5801680058436816,
+     "top1_acc": 0.04054054054054054,
+     "demeaned_pearson": 0.023496023698781846,
+     "spread_ratio": 0.1285393818338247
+    },
+    {
+     "model": "flow_free",
+     "condition": "motor",
+     "split": "val",
+     "note": "mean of 256 samples with condition token",
+     "mse": 0.06336229981735249,
+     "pearson": 0.5353366182155754,
+     "avg_rank": 0.5427319211102994,
+     "top1_acc": 0.013513513513513514,
+     "demeaned_pearson": 0.009866386308459148,
+     "spread_ratio": 0.10992096786778464
+    },
+    {
+     "model": "flow_free",
+     "condition": "relational",
+     "split": "val",
+     "note": "mean of 256 samples with condition token",
+     "mse": 0.07899183646054467,
+     "pearson": 0.5186388345648065,
+     "avg_rank": 0.622717311906501,
+     "top1_acc": 0.013513513513513514,
+     "demeaned_pearson": 0.023696941025803865,
+     "spread_ratio": 0.10769161049268658
+    },
+    {
+     "model": "flow_free",
+     "condition": "social",
+     "split": "val",
+     "note": "mean of 256 samples with condition token",
+     "mse": 0.06660213601384944,
+     "pearson": 0.5948170218504426,
+     "avg_rank": 0.5969685902118335,
+     "top1_acc": 0.013513513513513514,
+     "demeaned_pearson": 0.027566431104297524,
+     "spread_ratio": 0.1119118544608698
+    },
+    {
+     "model": "flow_free",
+     "condition": "wm",
+     "split": "val",
+     "note": "mean of 256 samples with condition token",
+     "mse": 0.03869022489426379,
+     "pearson": 0.6482751488376772,
+     "avg_rank": 0.6101168736303871,
+     "top1_acc": 0.02702702702702703,
+     "demeaned_pearson": 0.030060217680135382,
+     "spread_ratio": 0.14798704988943037
+    },
+    {
+     "model": "flow_free",
+     "condition": "rest",
+     "split": "test",
+     "note": "mean of 256 samples with condition token",
+     "mse": 0.013586867633828593,
+     "pearson": 0.835330466974833,
+     "avg_rank": 0.6417474007561437,
+     "top1_acc": 0.03260869565217391,
+     "demeaned_pearson": 0.05917886096159717,
+     "spread_ratio": 0.22544433680147546
+    },
+    {
+     "model": "flow_free",
+     "condition": "emotion",
+     "split": "test",
+     "note": "mean of 256 samples with condition token",
+     "mse": 0.10720966106141117,
+     "pearson": 0.4400710438874583,
+     "avg_rank": 0.5923026937618148,
+     "top1_acc": 0.021739130434782608,
+     "demeaned_pearson": 0.013536750692258816,
+     "spread_ratio": 0.08705815930431404
+    },
+    {
+     "model": "flow_free",
+     "condition": "gambling",
+     "split": "test",
+     "note": "mean of 256 samples with condition token",
+     "mse": 0.07177082084805914,
+     "pearson": 0.5359657579468435,
+     "avg_rank": 0.6234936200378072,
+     "top1_acc": 0.005434782608695652,
+     "demeaned_pearson": 0.027903499911730897,
+     "spread_ratio": 0.12127534375826031
+    },
+    {
+     "model": "flow_free",
+     "condition": "language",
+     "split": "test",
+     "note": "mean of 256 samples with condition token",
+     "mse": 0.05428307172829168,
+     "pearson": 0.5851439644672155,
+     "avg_rank": 0.6702504725897921,
+     "top1_acc": 0.016304347826086956,
+     "demeaned_pearson": 0.041516722587211626,
+     "spread_ratio": 0.13150123921920018
+    },
+    {
+     "model": "flow_free",
+     "condition": "motor",
+     "split": "test",
+     "note": "mean of 256 samples with condition token",
+     "mse": 0.06252718535126113,
+     "pearson": 0.5424951811184966,
+     "avg_rank": 0.645734877126654,
+     "top1_acc": 0.03260869565217391,
+     "demeaned_pearson": 0.02868339148599165,
+     "spread_ratio": 0.1114230545412668
+    },
+    {
+     "model": "flow_free",
+     "condition": "relational",
+     "split": "test",
+     "note": "mean of 256 samples with condition token",
+     "mse": 0.07906379515148211,
+     "pearson": 0.5221595727641667,
+     "avg_rank": 0.5907963137996219,
+     "top1_acc": 0.005434782608695652,
+     "demeaned_pearson": 0.01991410060878997,
+     "spread_ratio": 0.10660667342940128
+    },
+    {
+     "model": "flow_free",
+     "condition": "social",
+     "split": "test",
+     "note": "mean of 256 samples with condition token",
+     "mse": 0.06470245038601612,
+     "pearson": 0.5969790874448163,
+     "avg_rank": 0.6154595935727788,
+     "top1_acc": 0.010869565217391304,
+     "demeaned_pearson": 0.026538812946806257,
+     "spread_ratio": 0.1128138392588482
+    },
+    {
+     "model": "flow_free",
+     "condition": "wm",
+     "split": "test",
+     "note": "mean of 256 samples with condition token",
+     "mse": 0.038066093978654035,
+     "pearson": 0.6502073796042918,
+     "avg_rank": 0.6479501417769375,
+     "top1_acc": 0.005434782608695652,
+     "demeaned_pearson": 0.0374638332333069,
+     "spread_ratio": 0.14954094040165467
+    }
+   ],
+   "dist": {
+    "val": {
+     "energy": 0.10037136625377752,
+     "set_top1": 0.08108108108108109,
+     "set_avg_rank": 0.6997808619430241,
+     "spread_corr": 0.07558035297857113,
+     "spread_ratio": 0.532602366363489,
+     "coverage90": 0.0
+    },
+    "test": {
+     "energy": 0.09374307616984166,
+     "set_top1": 0.043478260869565216,
+     "set_avg_rank": 0.7440926275992439,
+     "spread_corr": -0.01542520301509057,
+     "spread_ratio": 0.5368256622285629,
+     "coverage90": 0.001358695652173913
+    }
+   },
+   "best_val_loss": 1.878086415051696,
+   "best_epoch": 245,
+   "epochs_run": 446
   }
  }
 }

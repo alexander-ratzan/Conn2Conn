@@ -79,8 +79,52 @@ SC → FC in v3:E0.
 excluded from part samples by the fixed rule; they keep their full target. Relaxing the rule (the halves shift is small
 for this matched-timing task) needs the user.
 
+## G7 — does training on part samples help a model? (2026-10-27)
+
+**Setup.** E2.1's setup unchanged (matched cohort, 917 Glasser subjects; seeds 0–4; code space and E1 CCA latent fit on
+full train targets): part samples of train subjects only, encoded into the same space; val / test on full targets,
+scored as E2.1. Routes: CCA latent (T 1) and block FC PCA (T 0.25). Arms: `none`, `aug_*` (full + parts), `token_*`
+(flows: sample-type token, sampled as "full"; closed form: Gaussian covariance from full-target residuals),
+`parts_*` (parts only), for halves and quarters. Closed form (G7a, CPU): ridge on each subject's mean over its units,
+linear-Gaussian with covariance from all unit residuals (`own`) or full residuals (`fullcov`). Flows (G7b, 4.5 GPU-h):
+E2.1's residual flow (CCA), linear and nonlinear un-anchored flows (both routes), retrained at E2.1's selected settings,
+equal optimizer steps per epoch. Code: `build_parts.py`, `g7_common.py`, `run_g7a.py`, `run_g7b.py`, `analyze_g7.py`
+(launchers in `launch/`); tables `tables/g7_summary.md`, `g7_arms.csv`, `g7_paired_vs_none.csv`, `g7_verdicts.csv`,
+`g7_regression_check.csv`; figure `figures/fig_g7_deltas.png`; part cache `results/cache/experiments/windowed_fc_gain/`.
+
+**Checks (G7.0).** Rebuilt full targets align with the cached ones (every subject's own best match; median r 0.99999,
+worst 0.991; the max gap is G1's demean-vs-plain-concatenation difference). The `none` ridge reproduces E2.1's cached
+ridge exactly; the un-anchored flows' `none` arms reproduce E2.1's records (e.g. linear flow CCA demeaned r 0.0442 vs
+0.0442, energy 0.0616 vs 0.0615). E2.1's residual-flow record predates the 3000-epoch cap; under current settings its
+`none` arm is worse (energy 0.076 vs 0.047), in line with E2.1 §8 (longer training hurts CCA flows); all its arms use the
+current settings, so the comparison within G7 is fair.
+
+**Result: augmentation does not help.** Test, paired by seed against each model's `none` arm (support rule as E2.1):
+
+| Model | Effect of part samples |
+|---|---|
+| Ridge (both routes) | none in practice: Δ demeaned r −0.0002 to −0.0014, Δ average rank ≤ ±0.002 (block PCA halves +0.0008, formally supported) |
+| Linear-Gaussian, `own` covariance | means as ridge; spread inflates (CCA ratio 2.47 → 2.56 halves, 2.75 quarters, 2.82 parts-only quarters), supported energy losses |
+| Linear-Gaussian, `fullcov` (token analogue) | unchanged (energy identical to `none`) |
+| Residual flow (CCA) | **worse in every arm**, more with quarters: demeaned r −0.002 to −0.006, average rank −0.007 to −0.024, energy +0.009 to +0.025 (all supported); the token does not prevent it |
+| Linear flow (both routes) | unchanged on point metrics; block PCA energy slightly better (−0.0002 to −0.0007, supported) but still ~3x the Gaussian's 0.0028 |
+| Nonlinear flow | CCA: neutral to slightly worse (halves −0.006 average rank); block PCA: demeaned r −0.002 to −0.008 (supported), token-quarters average rank +0.014 (supported) but with a demeaned-r loss |
+
+G7 (gain over both the model's `none` and the linear baseline, no supported loss): formally met only by ridge /
+`fullcov` Gaussian on block PCA halves, by +0.0008 average rank, which is negligible. **No flow arm passes.** The linear
+baselines remain the best models (CCA: ridge demeaned r 0.0490, Gaussian energy 0.0462; best flow arm 0.0450 / 0.0616).
+
+**Reading.** As gates 2–4 predicted, part samples are the target plus within-run noise: for linear models they average
+back to the full target (no gain); for the flows they add noisy targets that mainly widen or blur what is learned, and
+the anchored residual flow, which models the residual distribution directly, is hurt most. The sample-type token keeps
+calibration only where the model is linear. More samples per subject from the same runs do not provide the independent
+subject variability that E3.A was after; that would need genuinely independent acquisitions (other runs / sessions),
+which across runs carry little reproducible subject-specific task FC (gate 2 reference).
+
 ## Next
 
-Gate 7 (does training on part samples help a model; closed-form SC → latent in E2.1's setup) waits for the user.
+E3.A as "more samples per subject from parts of the same scan" is not supported. Options for E3: independent samples
+across runs / sessions (rest sessions as repeats, E3 outline), or other uses of the timeseries (e.g. dynamics as a
+target in its own right).
 
 Last updated: 2026-10-27
