@@ -1,0 +1,9 @@
+condition,n_subjects,included,frac_included,not_full_length,not_in_sessions,nonstandard_pattern,sessions_incomplete_flag,rest2_rl_first
+rest,1090,1003,0.9202,87,72,0,87,36
+emotion,1044,1040,0.9962,1,0,3,1,
+gambling,1082,1071,0.9898,4,0,7,4,
+language,1049,1007,0.96,4,0,40,4,
+motor,1080,1078,0.9981,1,0,1,1,
+relational,1040,880,0.8462,2,0,159,2,
+social,1049,1035,0.9867,2,0,12,2,
+wm,1079,988,0.9157,0,0,91,0,

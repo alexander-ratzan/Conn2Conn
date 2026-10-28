@@ -1,0 +1,13 @@
+timing_group,scheme,g2_avg_rank_dm,g3_avg_rank_dm,g4_max_shift_ratio
+matched,direction,0.8575,1,0.1274
+matched,halves,1,1,0.02764
+matched,quarters,1,1,0.03914
+mostly_matched,direction,0.9029,1,0.1758
+mostly_matched,halves,1,1,0.03902
+mostly_matched,quarters,1,1,0.05752
+rest,direction,0.9994,1,0.1886
+rest,halves,1,1,0.1401
+rest,quarters,1,1,0.2109
+unmatched,direction,0.9544,1,0.2091
+unmatched,halves,1,1,0.06274
+unmatched,quarters,1,1,0.08942

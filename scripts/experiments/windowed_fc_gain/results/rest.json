@@ -1,0 +1,210 @@
+{
+ "condition": "rest",
+ "parcellation": "Glasser",
+ "estimator": "demean_concat",
+ "n_subjects": 1090,
+ "n_included": 1003,
+ "modal_run_tr": {
+  "LR1": 1200,
+  "LR2": 1200,
+  "RL1": 1200,
+  "RL2": 1200
+ },
+ "gate1": {
+  "concat": {
+   "median_r": 0.9999999999999997,
+   "min_r": 0.999999999999998,
+   "median_max_abs": 2.9791169309234533e-08,
+   "median_mean_abs": 3.442189033400019e-09
+  },
+  "demean_concat": {
+   "median_r": 0.9999999785082287,
+   "min_r": 0.9999998368303651,
+   "median_max_abs": 0.0003133990587399771,
+   "median_mean_abs": 3.1733057147974384e-05
+  },
+  "zscore_concat": {
+   "median_r": 0.9971886370974393,
+   "min_r": 0.960464938251286,
+   "median_max_abs": 0.17525139575038845,
+   "median_mean_abs": 0.010989843173467202
+  },
+  "fisher_mean": {
+   "median_r": 0.9972839145129501,
+   "min_r": 0.9612730558412197,
+   "median_max_abs": 0.1683396327417983,
+   "median_mean_abs": 0.011046455520500145
+  }
+ },
+ "gate2": {
+  "halves": {
+   "top1": 0.9995014955134596,
+   "avg_rank": 0.9999885686907374,
+   "own_r": 0.8918268084526062,
+   "other_r": 0.6633257269859314,
+   "top1_dm": 0.9995014955134596,
+   "avg_rank_dm": 0.9999980119462152,
+   "own_r_dm": 0.6819382309913635,
+   "other_r_dm": -0.0004652389761758968
+  },
+  "quarters": {
+   "top1": 0.9942671984047857,
+   "avg_rank": 0.9997792431943121,
+   "own_r": 0.8191017409165701,
+   "other_r": 0.6069907248020172,
+   "top1_dm": 0.9976736457294783,
+   "avg_rank_dm": 0.9999924619627326,
+   "own_r_dm": 0.543153315782547,
+   "other_r_dm": -0.00029801009124715466
+  },
+  "direction": {
+   "top1": 0.959122632103689,
+   "avg_rank": 0.9980800370573225,
+   "own_r": 0.8256955742835999,
+   "other_r": 0.6395900845527649,
+   "top1_dm": 0.9725822532402792,
+   "avg_rank_dm": 0.9993692899367699,
+   "own_r_dm": 0.5156047344207764,
+   "other_r_dm": -0.0002016602229559794
+  },
+  "session": {
+   "top1": 0.9107676969092722,
+   "avg_rank": 0.9883246571352742,
+   "own_r": 0.8207679986953735,
+   "other_r": 0.6393130719661713,
+   "top1_dm": 0.9252243270189432,
+   "avg_rank_dm": 0.9957604753038989,
+   "own_r_dm": 0.49414536356925964,
+   "other_r_dm": -9.83794561761897e-05
+  }
+ },
+ "gate3": {
+  "halves": {
+   "top1": 1.0,
+   "avg_rank": 1.0,
+   "own_r": 0.9728073477745056,
+   "other_r": 0.6818333268165588,
+   "top1_dm": 1.0,
+   "avg_rank_dm": 1.0,
+   "own_r_dm": 0.9174802601337433,
+   "other_r_dm": -0.0006088165828259662,
+   "rel_err": 0.43692663311958313,
+   "mean_of_parts_top1": 1.0,
+   "mean_of_parts_avg_rank": 1.0,
+   "mean_of_parts_own_r": 0.9998554587364197,
+   "mean_of_parts_other_r": 0.7023876905441284,
+   "mean_of_parts_top1_dm": 1.0,
+   "mean_of_parts_avg_rank_dm": 1.0,
+   "mean_of_parts_own_r_dm": 0.9995039701461792,
+   "mean_of_parts_other_r_dm": -0.0008117684628814459,
+   "mean_of_parts_rel_err": 0.03127933666110039
+  },
+  "quarters": {
+   "top1": 1.0,
+   "avg_rank": 1.0,
+   "own_r": 0.9295570850372314,
+   "other_r": 0.6523503810167313,
+   "top1_dm": 1.0,
+   "avg_rank_dm": 1.0,
+   "own_r_dm": 0.8098733872175217,
+   "other_r_dm": -0.0004713906419056002,
+   "rel_err": 0.7232224941253662,
+   "mean_of_parts_top1": 1.0,
+   "mean_of_parts_avg_rank": 1.0,
+   "mean_of_parts_own_r": 0.9996305108070374,
+   "mean_of_parts_other_r": 0.7029443383216858,
+   "mean_of_parts_top1_dm": 1.0,
+   "mean_of_parts_avg_rank_dm": 1.0,
+   "mean_of_parts_own_r_dm": 0.9987301826477051,
+   "mean_of_parts_other_r_dm": -0.0008645121706649661,
+   "mean_of_parts_rel_err": 0.050743285566568375
+  },
+  "direction": {
+   "top1": 1.0,
+   "avg_rank": 1.0,
+   "own_r": 0.9549372494220734,
+   "other_r": 0.6703037321567535,
+   "top1_dm": 1.0,
+   "avg_rank_dm": 1.0,
+   "own_r_dm": 0.8712255656719208,
+   "other_r_dm": -0.0005202538886805996,
+   "rel_err": 0.5756708979606628,
+   "mean_of_parts_top1": 1.0,
+   "mean_of_parts_avg_rank": 1.0,
+   "mean_of_parts_own_r": 0.9987279772758484,
+   "mean_of_parts_other_r": 0.7034427523612976,
+   "mean_of_parts_top1_dm": 1.0,
+   "mean_of_parts_avg_rank_dm": 1.0,
+   "mean_of_parts_own_r_dm": 0.9959364533424377,
+   "mean_of_parts_other_r_dm": -0.0007708073244430125,
+   "mean_of_parts_rel_err": 0.09244123846292496
+  },
+  "session": {
+   "top1": 1.0,
+   "avg_rank": 1.0,
+   "own_r": 0.954802393913269,
+   "other_r": 0.669634073972702,
+   "top1_dm": 0.9995014955134596,
+   "avg_rank_dm": 0.9999960238924304,
+   "own_r_dm": 0.869931697845459,
+   "other_r_dm": -0.00044156337389722466,
+   "rel_err": 0.5764102935791016,
+   "mean_of_parts_top1": 1.0,
+   "mean_of_parts_avg_rank": 1.0,
+   "mean_of_parts_own_r": 0.9991812109947205,
+   "mean_of_parts_other_r": 0.7042607069015503,
+   "mean_of_parts_top1_dm": 1.0,
+   "mean_of_parts_avg_rank_dm": 1.0,
+   "mean_of_parts_own_r_dm": 0.9973287582397461,
+   "mean_of_parts_other_r_dm": -0.0008438791846856475,
+   "mean_of_parts_rel_err": 0.0728769451379776
+  }
+ },
+ "gate4": {
+  "halves": {
+   "max_shift_ratio": 0.14005231857299805,
+   "shift_ratios": {
+    "0-1": 0.14005231857299805
+   },
+   "within_subject_diff_ratio": 0.8752369284629822,
+   "frac_edges_fdr05": 0.64363974001857,
+   "median_abs_dz": 0.10004322596762764
+  },
+  "quarters": {
+   "max_shift_ratio": 0.21089643239974976,
+   "shift_ratios": {
+    "0-1": 0.10569989681243896,
+    "0-2": 0.17099107801914215,
+    "0-3": 0.21089643239974976,
+    "1-2": 0.08063933253288269,
+    "1-3": 0.1232953891158104,
+    "2-3": 0.059132106602191925
+   },
+   "within_subject_diff_ratio": 1.2306721210479736
+  },
+  "direction": {
+   "max_shift_ratio": 0.18857324123382568,
+   "shift_ratios": {
+    "0-1": 0.18857324123382568
+   },
+   "within_subject_diff_ratio": 1.133558750152588,
+   "frac_edges_fdr05": 0.574249458372021,
+   "median_abs_dz": 0.08344614053117383
+  },
+  "session": {
+   "max_shift_ratio": 0.11821760982275009,
+   "shift_ratios": {
+    "0-1": 0.11821760982275009
+   },
+   "within_subject_diff_ratio": 1.1468888521194458,
+   "frac_edges_fdr05": 0.44271123491179204,
+   "median_abs_dz": 0.06327293643178084
+  }
+ },
+ "duration_s": {
+  "halves": 1728.0,
+  "quarters": 864.0,
+  "direction": 1728.0,
+  "session": 1728.0
+ }
+}

@@ -1,0 +1,9 @@
+condition,timing_group,"G1 r(est, target)",G1,G2 halves avg_rank_dm,G2,G3 halves avg_rank_dm,G3,G4 halves shift,G4,G6 included,G6
+rest,rest,1,True,1,True,1,True,0.1401,True,0.9202,True
+emotion,matched,0.9996,True,1,True,1,True,0.02566,True,0.9962,True
+gambling,matched,0.9999,True,1,True,1,True,0.02834,True,0.9898,True
+language,unmatched,1,True,1,True,1,True,0.05965,True,0.96,True
+motor,unmatched,1,True,1,True,1,True,0.03794,True,0.9981,True
+relational,matched,0.9997,True,1,True,1,True,0.02891,True,0.8462,False
+social,mostly_matched,1,True,1,True,1,True,0.03902,True,0.9867,True
+wm,unmatched,1,True,1,True,1,True,0.09064,True,0.9157,True

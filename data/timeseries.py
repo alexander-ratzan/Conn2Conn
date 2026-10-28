@@ -22,6 +22,7 @@ timeseries (Conn2Conn_data/timeseries/README.md).
     x = ts.subject(100206)                        # (810, 360) float32
     starts = window_starts(ts.run_bounds(100206), length=144, step=24)
     C = window_fc(x, starts, 144)                 # (W, 360, 360)
+    A = segment_fc(x, part_bounds(ts.run_bounds(100206), 0, 2))   # first half of every run, taken together
 """
 import json
 import os
@@ -106,6 +107,41 @@ def shrink(C, lam):
     a rank-deficient window matrix (length < P) positive definite for lam > 0."""
     P = C.shape[-1]
     return (1.0 - lam) * C + lam * np.eye(P)
+
+
+def part_bounds(bounds, part, n_parts):
+    """[start, stop) rows of the `part`-th of `n_parts` equal pieces of every run (0-based; a remainder of fewer than
+    n_parts rows at a run's end is dropped). Returns (n_runs, 2) int64."""
+    b = np.asarray(bounds, dtype=np.int64)
+    size = (b[:, 1] - b[:, 0]) // n_parts
+    a = b[:, 0] + part * size
+    return np.stack([a, a + size], axis=1)
+
+
+def segment_fc(x, bounds, method="demean_concat"):
+    """FC of several segments of x (T, P) taken together, e.g. the same part of every run.
+
+    method:
+        "concat"           Pearson of the plain concatenation (how xcp-d's combined matrix is built)
+        "demean_concat"    each segment demeaned per region, then concatenated (segments weighted by length and
+                           variance; differences in segment means do not enter)
+        "zscore_concat"    each segment z-scored per region, then concatenated (length-weighted mean of the
+                           segment correlations)
+        "fisher_mean"      tanh of the mean Fisher z of the segment correlations (segments weighted equally)
+    Returns (P, P) float64.
+    """
+    segs = [np.asarray(x[a:b], dtype=np.float64) for a, b in np.asarray(bounds)]
+    if method == "fisher_mean":
+        with np.errstate(divide="ignore"):
+            z = np.mean([np.arctanh(np.clip(corr(s), -1 + 1e-12, 1 - 1e-12)) for s in segs], axis=0)
+        return np.tanh(z)
+    if method == "demean_concat":
+        segs = [s - s.mean(0) for s in segs]
+    elif method == "zscore_concat":
+        segs = [(s - s.mean(0)) / s.std(0) for s in segs]
+    elif method != "concat":
+        raise ValueError(f"unknown method {method!r}")
+    return corr(np.concatenate(segs))
 
 
 def window_fc(x, starts, length, shrinkage=0.0, upper=False, batch=64, dtype=np.float32):

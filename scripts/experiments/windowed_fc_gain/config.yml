@@ -1,0 +1,31 @@
+# windowed_fc_gain — do FC samples from parts of the scan (halves, quarters) add usable supervision? (spec v4 E3 pre-check)
+#   python scripts/experiments/windowed_fc_gain/run_gates.py --condition wm         # gates 1-6 for one condition (kraken env)
+#   sbatch scripts/experiments/windowed_fc_gain/launch/run_gates.sh                 # all 8 conditions + report
+#   python scripts/experiments/windowed_fc_gain/run_gates.py --report               # tables, figures, summary
+# Data: Conn2Conn_data/timeseries (data/timeseries.py) and the fc/ combined matrices (the training target).
+parcellation: Glasser
+conditions: [rest, emotion, gambling, language, motor, relational, social, wm]
+fc_root: /scratch/asr655/neuroinformatics/Conn2Conn_data/fc
+session_zip: context_packages/HCP_context/sessionSummaryCSV_1200Release.zip   # HCP per-subject scan logs (untracked)
+
+estimator: demean_concat              # samples: each run segment demeaned per region, segments concatenated (data/timeseries.segment_fc)
+gate1_methods: [concat, demean_concat, zscore_concat, fisher_mean]   # compared with the target at full length
+
+# sample schemes: every sample takes the same part of every run, so it keeps both phase-encoding directions (and, for
+# rest, both sessions) like the target. References split by direction (all LR vs all RL runs) and, for rest, by session.
+schemes:
+  halves: {n_parts: 2}
+  quarters: {n_parts: 4}
+references: [direction, session]
+
+# LR vs RL block timing (group-mean timecourse test, 2026-10-27; HCP manual: social differs in block composition by design)
+timing_group: {rest: rest, gambling: matched, relational: matched, emotion: matched, social: mostly_matched,
+               wm: unmatched, motor: unmatched, language: unmatched}
+
+# Gate thresholds, fixed before any result (2026-10-27)
+gates:
+  g1_min_r: 0.98              # G1: median edge r(estimator at full length, target) per condition
+  g2_min_avg_rank_dm: 0.90    # G2: halves A vs B, demeaned identification avg rank (chance 0.5)
+  g3_min_avg_rank_dm: 0.95    # G3: each half vs the subject's full target, demeaned avg rank
+  g4_max_shift_ratio: 0.25    # G4: |mean(A) - mean(B)| / median subject deviation |T_i - mean(T)|
+  g6_min_included: 0.85       # G6: fraction of the condition's subjects usable for doubling
