@@ -1,0 +1,24 @@
+{
+ "rule": "smallest k in {256, 512} within 0.005 of the better (val average rank, 56 single-source cells, best of B1 / B2, mean over seeds); full rank diagnostic (> 0.01 better: flag)",
+ "scores": {
+  "256": 0.8115932523616145,
+  "512": 0.7993329500693825,
+  "full": 0.8030615372670326
+ },
+ "by_model": {
+  "256": {
+   "B1": 0.7800098865752414,
+   "B2": 0.8115932523616145
+  },
+  "512": {
+   "B1": 0.7827701167242127,
+   "B2": 0.7993329500693825
+  },
+  "full": {
+   "B1": 0.7814299365381601,
+   "B2": 0.8030615372670326
+  }
+ },
+ "chosen_k": 256,
+ "full_rank_flag": false
+}

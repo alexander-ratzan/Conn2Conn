@@ -37,9 +37,9 @@ def main():
     rows, hps, checks = load()
     rows["setting"] = rows.source.map(SETTING)
     rows.loc[(rows.source == SC_ONLY), "model"] = rows.loc[(rows.source == SC_ONLY), "model"].str.replace("+SC", "", regex=False) + "+SC"
-    tab, fig = HERE / "tables" / "e40c", HERE / "figures" / "e40c"
+    tab, figdir = HERE / "tables" / "e40c", HERE / "figures" / "e40c"
     tab.mkdir(parents=True, exist_ok=True)
-    fig.mkdir(parents=True, exist_ok=True)
+    figdir.mkdir(parents=True, exist_ok=True)
 
     single = rows[(rows.setting == "single source") & (~rows.with_sc) & rows.model.isin(["B1", "B2"])]
     val = single[single.split == "val"].groupby(["k", "model", "seed"]).avg_rank.mean().groupby(["k", "model"]).mean().unstack()
@@ -114,7 +114,7 @@ def main():
         axes[1].legend(list(uniq.values()), list(uniq.keys()), fontsize=13, frameon=False, loc="center left", bbox_to_anchor=(1.02, 0.5))
         fig.suptitle(f"E4.0c: single-source translation by code size (selection on val average rank); D10 choice k = {chosen}", fontsize=17)
         fig.tight_layout()
-        fig.savefig(fig / "fig_e40c_code_size.png", dpi=300, bbox_inches="tight", facecolor="white")
+        fig.savefig(figdir / "fig_e40c_code_size.png", dpi=300, bbox_inches="tight", facecolor="white")
         plt.close(fig)
 
 
