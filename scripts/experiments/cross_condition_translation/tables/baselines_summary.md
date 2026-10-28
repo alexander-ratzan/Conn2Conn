@@ -1,4 +1,4 @@
-# E4.0 baselines — summary (test, mean ± SE over seeds)
+# E4.0 baselines — summary (k = 256; test, mean ± SE over seeds)
 
 G0 (B1 / B2 without SC reproduce E2.0 L1 / L4 at k = 256): PASS (max |Δ| L1 1.1e-16, L4 1.1e-16; 5 seeds).
 

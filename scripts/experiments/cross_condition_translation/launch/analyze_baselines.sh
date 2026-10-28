@@ -10,9 +10,10 @@
 #SBATCH --output=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/%x_%j.out
 #SBATCH --error=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/%x_%j.err
 set -euo pipefail
+K="${1:-}"                          # optional: block FC codes per condition (default config k), e.g. 512
 CONN2CONN_DIR="${CONN2CONN_DIR:-/scratch/asr655/neuroinformatics/Conn2Conn}"
 module purge
 echo "Starting ${SLURM_JOB_ID} on $(hostname) at $(date) commit $(git -C ${CONN2CONN_DIR} rev-parse --short HEAD)"
 singularity exec --overlay "/scratch/$USER/envs/kraken_env/overlay-15GB-500K.ext3:ro" \
   /share/apps/images/cuda12.8.1-cudnn9.8.0-ubuntu24.04.2.sif \
-  /bin/bash -lc "source /ext3/env.sh; export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8 OPENBLAS_NUM_THREADS=8; cd ${CONN2CONN_DIR}/scripts/experiments/cross_condition_translation; export MPLBACKEND=Agg; python -u analyze_baselines.py"
+  /bin/bash -lc "source /ext3/env.sh; export OMP_NUM_THREADS=8 MKL_NUM_THREADS=8 OPENBLAS_NUM_THREADS=8; cd ${CONN2CONN_DIR}/scripts/experiments/cross_condition_translation; export MPLBACKEND=Agg; python -u run_identity_codes.py ${K:+--k $K} && python -u analyze_baselines.py ${K:+--k $K}"

@@ -27,6 +27,11 @@ E20_LINEAR = REPO_ROOT / E2CFG["records_dir"] / "linear"
 OTHER7, SC_ONLY = "other7", "SC"
 
 
+def suffix(k):
+    """Results / tables / figures suffix for a non-default code size."""
+    return "" if not k or k == CFG["k"] else f"_k{k}"
+
+
 def cells():
     """(source, target, with_sc) for every evaluated cell."""
     out = []

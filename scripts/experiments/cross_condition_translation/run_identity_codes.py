@@ -6,12 +6,16 @@ sources' codes), separating "identity keeps information outside the codes" from 
 
     python scripts/experiments/cross_condition_translation/run_identity_codes.py   # -> results/identity_codes.json
 """
+import argparse
 import json
 
 import numpy as np
 
-from e4_common import CFG, FC, HERE, SC_ONLY, Scorer, SeedData, cells, sources_of
+from e4_common import CFG, FC, HERE, SC_ONLY, Scorer, SeedData, cells, sources_of, suffix
 
+ap = argparse.ArgumentParser()
+ap.add_argument("--k", type=int, default=CFG["k"])
+K = ap.parse_args().k
 rows = []
 for seed in CFG["seeds"]:
     sd = SeedData(seed, "main")
@@ -20,9 +24,9 @@ for seed in CFG["seeds"]:
         for src, tgt, with_sc in cells():
             if with_sc or src == SC_ONLY:
                 continue
-            z = np.mean([sd.code(a, split, CFG["k"]) for a in sources_of(src, tgt)], axis=0)
+            z = np.mean([sd.code(a, split, K) for a in sources_of(src, tgt)], axis=0)
             rows.append(dict(seed=seed, model="B0-codes", source=src, target=tgt, with_sc=False, split=split,
                              **sc(tgt, split, z)))
     print(f"seed {seed} done", flush=True)
-(HERE / "results" / "identity_codes.json").write_text(json.dumps(dict(rows=rows), default=float))
-print(f"wrote results/identity_codes.json ({len(rows)} rows)")
+(HERE / "results" / f"identity_codes{suffix(K)}.json").write_text(json.dumps(dict(rows=rows), default=float))
+print(f"wrote results/identity_codes{suffix(K)}.json ({len(rows)} rows)")

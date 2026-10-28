@@ -13,26 +13,28 @@ import sys
 import numpy as np
 import pandas as pd
 
-from e4_common import FC, HERE, OTHER7, REPO_ROOT, SC_ONLY
+from e4_common import CFG, FC, HERE, OTHER7, REPO_ROOT, SC_ONLY, suffix
 
 RES, TAB, FIG = HERE / "results", HERE / "tables", HERE / "figures"
 ROWS = FC + [OTHER7, SC_ONLY]
 ROW_LABEL = {**{v: v for v in FC}, OTHER7: "other 7", SC_ONLY: "SC only"}
 POINT = {"demeaned_pearson": "test demeaned r", "avg_rank": "test average rank (chance 0.5)", "top1_acc": "test top-1"}
-PANELS = [("B0", "B0 identity (copy source edges)", False), ("B0-codes", "B0 identity in 256 codes", False), ("B1", "B1 ridge", False), ("B2", "B2 multiview CCA", False),
+PANELS = [("B0", "B0 identity (copy source edges)", False), ("B0-codes", "B0 identity in codes", False), ("B1", "B1 ridge", False), ("B2", "B2 multiview CCA", False),
           ("B1+SC", "B1 ridge + SC", True), ("B2+SC", "B2 multiview CCA + SC", True)]
 SETTING = {**{v: "single source" for v in FC}, OTHER7: "other 7", SC_ONLY: "SC only"}
 
 
-def load():
+def load(sfx):
     rows, dist, g0 = [], [], []
-    for f in sorted(RES.glob("baselines_seed*.json")):
+    for f in [RES / f"baselines_seed{s}{sfx}.json" for s in CFG["seeds"]]:
+        if not f.exists():
+            continue
         r = json.loads(f.read_text())
         rows += r["rows"]
         dist += r["dist"]
         g0.append(dict(seed=r["seed"], **r["g0"]))
-    if (RES / "identity_codes.json").exists():           # B0-codes: identity in code space (run_identity_codes.py)
-        rows += json.loads((RES / "identity_codes.json").read_text())["rows"]
+    if (RES / f"identity_codes{sfx}.json").exists():    # B0-codes: identity in code space (run_identity_codes.py)
+        rows += json.loads((RES / f"identity_codes{sfx}.json").read_text())["rows"]
     rows, dist = pd.DataFrame(rows), pd.DataFrame(dist)
     # SC-only cells are shown in the "+SC" panel of their family (B1's are already labelled B1+SC)
     rows.loc[(rows.source == SC_ONLY) & (rows.model == "B2"), "model"] = "B2+SC"
@@ -63,25 +65,30 @@ def heat(ax, M, cmap, vmin, vmax, fmt="{:.2f}", title=""):
 
 
 def main():
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--k", type=int, default=CFG["k"])
+    K = ap.parse_args().k
+    sfx = suffix(K)
     sys.path.insert(0, str(REPO_ROOT / "scripts" / "experiments" / "model_benchmark"))
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import run as mb  # noqa: E402  (FIG_RC)
 
-    rows, dist, g0 = load()
+    rows, dist, g0 = load(sfx)
     TAB.mkdir(exist_ok=True)
     FIG.mkdir(exist_ok=True)
-    g0.to_csv(TAB / "baselines_g0.csv", index=False)
+    g0.to_csv(TAB / f"baselines_g0{sfx}.csv", index=False)
     test = rows[rows.split == "test"]
     seeds = test.seed.nunique()
     per_seed = test.groupby(["model", "source", "target", "seed"])[list(POINT)].mean().reset_index()
     cell = per_seed.groupby(["model", "source", "target"])[list(POINT)].agg(["mean", "sem"])
     cell.columns = [f"{a}_{b}" for a, b in cell.columns]
-    cell.reset_index().to_csv(TAB / "baselines_cells.csv", index=False, float_format="%.5g")
+    cell.reset_index().to_csv(TAB / f"baselines_cells{sfx}.csv", index=False, float_format="%.5g")
     dtest = dist[dist.split == "test"]
     dcell = dtest.groupby(["model", "source", "target"])[["energy_score", "coverage90", "spread_error_r", "pred_spread", "sq_error"]].mean()
-    dcell.reset_index().to_csv(TAB / "baselines_distribution_cells.csv", index=False, float_format="%.5g")
+    dcell.reset_index().to_csv(TAB / f"baselines_distribution_cells{sfx}.csv", index=False, float_format="%.5g")
 
     per_seed["setting"] = per_seed.source.map(SETTING)
     sett = per_seed.groupby(["model", "setting", "seed"])[list(POINT)].mean().groupby(["model", "setting"]).agg(["mean", "sem"])
@@ -89,7 +96,7 @@ def main():
     sett = sett.reset_index()
     ceil = per_seed[per_seed.model == "ceiling"].groupby("seed")[list(POINT)].mean().mean()
     ret = per_seed[per_seed.model == "retest"].groupby("seed")[list(POINT)].mean().mean()
-    sett.to_csv(TAB / "baselines_settings.csv", index=False, float_format="%.5g")
+    sett.to_csv(TAB / f"baselines_settings{sfx}.csv", index=False, float_format="%.5g")
 
     with plt.rc_context(mb.FIG_RC):
         for metric, lab in POINT.items():
@@ -101,9 +108,9 @@ def main():
             fig.colorbar(im, ax=axes, shrink=0.75, pad=0.01).set_label(lab)
             cm = per_seed[per_seed.model == "ceiling"].groupby("target")[metric].mean()
             fig.suptitle(f"E4.0 baselines: {lab} per cell (rows = source, columns = target; mean of {seeds} seeds). "
-                         f"Ceilings: own 256-code reconstruction {ceil[metric]:.2f} (per target "
+                         f"Ceilings: own {K}-code reconstruction {ceil[metric]:.2f} (per target "
                          f"{cm.min():.2f}–{cm.max():.2f}); rest session 1 ↔ 2 copy {ret[metric]:.2f}", fontsize=12)
-            fig.savefig(FIG / f"fig_baselines_{metric}.png", dpi=250, bbox_inches="tight", facecolor="white")
+            fig.savefig(FIG / f"fig_baselines_{metric}{sfx}.png", dpi=250, bbox_inches="tight", facecolor="white")
             plt.close(fig)
 
         diffs = [("B1", "B0-codes", "ridge − identity in codes"), ("B2", "B1", "multiview CCA − ridge"),
@@ -116,7 +123,7 @@ def main():
                 im = heat(ax, M, "RdBu", -lim, lim, fmt="{:+.3f}", title=f"{title}\n({POINT[metric]})")
             fig.colorbar(im, ax=axes[r], shrink=0.75, pad=0.01).set_label(f"Δ {POINT[metric]} (blue = first better)")
         fig.suptitle("E4.0 baselines: differences per cell (test, mean of seeds)", fontsize=13)
-        fig.savefig(FIG / "fig_baselines_differences.png", dpi=250, bbox_inches="tight", facecolor="white")
+        fig.savefig(FIG / f"fig_baselines_differences{sfx}.png", dpi=250, bbox_inches="tight", facecolor="white")
         plt.close(fig)
 
         fig, axes = plt.subplots(2, 2, figsize=(11, 12), sharey=True)
@@ -129,7 +136,7 @@ def main():
                 im = heat(axes[r, c], M, cmap, np.nanmin(allv), np.nanmax(allv),
                           fmt="{:.2f}", title=f"{m} linear-Gaussian · {lab}")
         fig.suptitle("E4.0 B3 (ridge mean + per-cell residual covariance): distributional scores, code space (test)", fontsize=12)
-        fig.savefig(FIG / "fig_baselines_distribution.png", dpi=250, bbox_inches="tight", facecolor="white")
+        fig.savefig(FIG / f"fig_baselines_distribution{sfx}.png", dpi=250, bbox_inches="tight", facecolor="white")
         plt.close(fig)
 
         fig, axes = plt.subplots(1, 2, figsize=(15, 5.2))
@@ -153,15 +160,15 @@ def main():
         axes[1].legend(uniq.values(), uniq.keys(), fontsize=10, loc="center left", bbox_to_anchor=(1.02, 0.5))
         fig.suptitle("E4.0 baselines: mean over each setting's cells (test, mean ± SE over seeds)", fontsize=13)
         fig.tight_layout()
-        fig.savefig(FIG / "fig_baselines_settings.png", dpi=250, bbox_inches="tight", facecolor="white")
+        fig.savefig(FIG / f"fig_baselines_settings{sfx}.png", dpi=250, bbox_inches="tight", facecolor="white")
         plt.close(fig)
 
     # summary
     f = lambda x: f"{x:.4f}"
-    md = ["# E4.0 baselines — summary (test, mean ± SE over seeds)", "",
-          f"G0 (B1 / B2 without SC reproduce E2.0 L1 / L4 at k = 256): {'PASS' if g0['pass'].all() else 'FAIL'} "
+    md = [f"# E4.0 baselines — summary (k = {K}; test, mean ± SE over seeds)", "",
+          f"G0 (B1 / B2 without SC reproduce E2.0 L1 / L4 at k = {K}): {'PASS' if g0['pass'].all() else 'FAIL'} "
           f"(max |Δ| L1 {g0['L1_max_abs_diff'].max():.1e}, L4 {g0['L4_max_abs_diff'].max():.1e}; {len(g0)} seeds).", "",
-          f"Ceilings: own 256-code reconstruction demeaned r {f(ceil['demeaned_pearson'])}, average rank {f(ceil['avg_rank'])}; "
+          f"Ceilings: own {K}-code reconstruction demeaned r {f(ceil['demeaned_pearson'])}, average rank {f(ceil['avg_rank'])}; "
           f"rest session 1 ↔ 2 copy demeaned r {f(ret['demeaned_pearson'])}, average rank {f(ret['avg_rank'])}.", "",
           "| model | setting | demeaned r | average rank | top-1 |", "|---|---|---|---|---|"]
     for r in sett.sort_values(["setting", "model"]).itertuples(index=False):
@@ -181,7 +188,7 @@ def main():
         col = b1[:, j]
         i = int(np.nanargmax(col))
         md.append(f"- {t}: {FC[i]} ({col[i]:.3f})")
-    (TAB / "baselines_summary.md").write_text("\n".join(md) + "\n")
+    (TAB / f"baselines_summary{sfx}.md").write_text("\n".join(md) + "\n")
     print("\n".join(md))
 
 

@@ -10,7 +10,7 @@
 References: each target's own k-code reconstruction (ceiling); rest session 1 <-> 2 copied (retest ceiling).
 G0: B1 and B2 without SC reproduce E2.0's stored L1 / L4 rows at k (single source, and SC -> target for B2).
 
-    python scripts/experiments/cross_condition_translation/run_baselines.py --seed 0   # -> results/baselines_seed0.json
+    python scripts/experiments/cross_condition_translation/run_baselines.py --seed 0 [--k 512]   # -> results/baselines_seed0[_k512].json
 """
 import argparse
 import json
@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 
 from e4_common import (CFG, E20_LINEAR, FC, HERE, OTHER7, SC_ONLY, VIEWS, Scorer, SeedData, cells, energy_metrics, maxvar,
-                    pairs, ridge_gcv, score, sources_of)
+                    pairs, ridge_gcv, score, sources_of, suffix)
 
 SPLITS = ("val", "test")
 
@@ -36,11 +36,11 @@ def crossfit_ridge(X, Y, a_rel, n_folds, seed):
     return out
 
 
-def run(seed):
+def run(seed, k=None):
     t0 = time.time()
     sd = SeedData(seed, "main")
     sc = Scorer(sd)
-    k = CFG["k"]
+    k = k or CFG["k"]
     Z = {s: {v: sd.code(v, s, k).astype(np.float64) for v in VIEWS} for s in ("train",) + SPLITS}
     Zsc = {s: sd.code("SC", s, max(CFG["k_sc"])).astype(np.float64) for s in ("train",) + SPLITS}
     rows, dist, hps = [], [], {}
@@ -130,12 +130,15 @@ def run(seed):
 
     out = dict(seed=seed, k=k, g0=g0, hyperparams=hps, rows=rows, dist=dist, seconds=time.time() - t0)
     (HERE / "results").mkdir(exist_ok=True)
-    (HERE / "results" / f"baselines_seed{seed}.json").write_text(json.dumps(out, default=float))
-    print(f"wrote results/baselines_seed{seed}.json ({len(rows)} rows, {len(dist)} distribution rows) in "
+    name = f"baselines_seed{seed}{suffix(k)}.json"
+    (HERE / "results" / name).write_text(json.dumps(out, default=float))
+    print(f"wrote results/{name} ({len(rows)} rows, {len(dist)} distribution rows) in "
           f"{(time.time() - t0) / 60:.1f} min")
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed", type=int, required=True)
-    run(ap.parse_args().seed)
+    ap.add_argument("--k", type=int, default=None, help="block FC codes per condition (default config k); results get a _k<k> suffix")
+    a = ap.parse_args()
+    run(a.seed, a.k)
