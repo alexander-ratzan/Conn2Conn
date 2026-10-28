@@ -90,7 +90,8 @@ linear-Gaussian with covariance from all unit residuals (`own`) or full residual
 E2.1's residual flow (CCA), linear and nonlinear un-anchored flows (both routes), retrained at E2.1's selected settings,
 equal optimizer steps per epoch. Code: `build_parts.py`, `g7_common.py`, `run_g7a.py`, `run_g7b.py`, `analyze_g7.py`
 (launchers in `launch/`); tables `tables/g7_summary.md`, `g7_arms.csv`, `g7_paired_vs_none.csv`, `g7_verdicts.csv`,
-`g7_regression_check.csv`; figure `figures/fig_g7_deltas.png`; part cache `results/cache/experiments/windowed_fc_gain/`.
+`g7_regression_check.csv`; figures `figures/fig_g7_deltas.png` (change vs full targets only), `fig_g7_absolute.png`
+(absolute test values, seeds as dots, linear baseline line), `fig_g7_conditions.png` (per-condition change in demeaned r); part cache `results/cache/experiments/windowed_fc_gain/`.
 
 **Checks (G7.0).** Rebuilt full targets align with the cached ones (every subject's own best match; median r 0.99999,
 worst 0.991; the max gap is G1's demean-vs-plain-concatenation difference). The `none` ridge reproduces E2.1's cached
@@ -113,6 +114,11 @@ current settings, so the comparison within G7 is fair.
 G7 (gain over both the model's `none` and the linear baseline, no supported loss): formally met only by ridge /
 `fullcov` Gaussian on block PCA halves, by +0.0008 average rank, which is negligible. **No flow arm passes.** The linear
 baselines remain the best models (CCA: ridge demeaned r 0.0490, Gaussian energy 0.0462; best flow arm 0.0450 / 0.0616).
+
+Per condition (`fig_g7_conditions.png`): ridge and the linear flow move by at most ±0.003 in any condition. The flows'
+losses are largest for rest (residual flow, full + 4 quarters −0.012; nonlinear block-PCA flow, 4 quarters only −0.013).
+The nonlinear CCA flow gains in some tasks (gambling, motor, social up to +0.003) while losing rest and emotion; these
+gains are not consistent across arms.
 
 **Reading.** As gates 2–4 predicted, part samples are the target plus within-run noise: for linear models they average
 back to the full target (no gain); for the flows they add noisy targets that mainly widen or blur what is learned, and
