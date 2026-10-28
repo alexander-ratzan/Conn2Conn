@@ -4,7 +4,8 @@
 [`modeling_directions.md`](../modeling/FM+tx_integrate/modeling_directions.md) (the technical reference; model labels such as FM-1 and
 MV-5 refer to it). Items: a CCA-latent benchmark that found a shared functional latent across FC conditions (E1);
 linear, nonlinear and flow models that predict each condition's latent encoding from SC, including a conditional
-flow that generates a subject's encodings (E2); a generative follow-up with more samples per subject (E3).
+flow that generates a subject's encodings (E2); a generative follow-up with more samples per subject (E3, closed:
+no gain); full cross-condition translation with one conditional model and SC as a view (E4, outline).
 **Status:** active (since 2026-10-26; v3 closed 2026-10-21) · **Started:** 2026-10-20 ·
 **Predecessor:** [`spec_doc_v3.md`](spec_doc_v3.md) · **Format:** [`spec_conventions.md`](spec_conventions.md) ·
 **Modeling reference:** [`modeling_directions.md`](../modeling/FM+tx_integrate/modeling_directions.md)
@@ -18,8 +19,9 @@ flow that generates a subject's encodings (E2); a generative follow-up with more
 | ID | Title | Status | Depends on | Owner |
 |---|---|---|---|---|
 | E1 | CCA-latent bidirectional benchmark: multiview CCA latent of FC as the encoding for FC → SC and the target for SC → FC | done 2026-10-20 | I2, D4 | agent:modeling |
-| E2 | SC → functional latent: E2.1 conditional generation of each condition's CCA encoding from SC (linear, nonlinear, linear-Gaussian, flow); E2.2 cross-condition FC translation as a generative model, SC as an added view (planned) | in progress (E2.1 done 2026-10-26; E2.2 planned) | I1, E1, D7 | agent:modeling |
-| E3 | Generative follow-ups to E2.1: path noise, rest sessions as repeats, FC timeseries windows as more samples per subject | outline | E2.1 | — |
+| E2 | SC → functional latent: E2.1 conditional generation of each condition's CCA encoding from SC (linear, nonlinear, linear-Gaussian, flow); E2.2 superseded by E4 | done 2026-10-26 (E2.1; E2.2 superseded by E4 2026-10-28) | I1, E1, D7 | agent:modeling |
+| E3 | Generative follow-ups to E2.1: path noise, rest sessions as repeats, FC timeseries windows as more samples per subject | done 2026-10-27 (windows: no gain, `windowed_fc_gain`; path noise dropped; rest sessions and activity flow moved to E4) | E2.1 | agent:modeling |
+| E4 | Full cross-condition translation: one masked conditional model (SC + source condition → any target condition) against identity, ridge, multiview CCA with SC, linear-Gaussian and activity-flow benchmarks | outline (drafting) | E2.1, E2.0, I1, E3 | — |
 | I1 | Joint translation infrastructure: pooled FC basis, (subject, source, target) data module, token model, integrator, runner | in progress | — | agent:modeling |
 | I2 | Multiview CCA library module (MAXVAR fit / encode / decode), shared by E2 and E1 | done 2026-10-20 | — | agent:modeling |
 | D1 | Views and the true rest target | decided 2026-10-20 | — | user |
@@ -142,7 +144,7 @@ Average rank and top-1 are reported for every comparison; FC → SC rank metrics
 - **Caveats:** v3:C!2 for FC → SC; the latent decoders are linear, so SC → FC via the latent is bounded by the latent
   ceiling; v3:E0 rows used tuned learnable models and per-condition bases, E1 closed-form readouts on pooled codes.
 
-### E2 — SC → functional latent: linear, nonlinear and flow models   (slug: `joint_flow_matching`) · status: in progress · owner: agent:modeling
+### E2 — SC → functional latent: linear, nonlinear and flow models   (slug: `joint_flow_matching`) · status: done 2026-10-26 · owner: agent:modeling
 
 **In one paragraph.** E1 found that a shared functional latent, learned by multiview CCA across rest and the seven
 tasks without SC, is a better target for structure than any single FC scan. Every subject has **eight encodings** in
@@ -281,7 +283,10 @@ subjects' generated clouds next to their 8 observed encodings in the first laten
 - **Budget / autonomy:** D3 (revised by D5 and D7): E2.1 runs autonomously, cap 10 GPU-h (estimate ≤ 3; trials take
   seconds); E2.2 needs the user's go.
 
-#### E2.2 — Cross-condition FC translation as a generative model, with SC as an added view (planned)
+#### E2.2 — Cross-condition FC translation as a generative model, with SC as an added view · status: superseded (by E4, 2026-10-28)
+
+> Superseded by **E4** (user, 2026-10-28): one masked conditional model for all condition → condition maps with SC as a view. The text
+> below is the 2026-10-26 draft E4 builds on; it is reduced to this pointer once E4 is written.
 
 **In one paragraph.** E2.1 asks what structure says about function; its seed-0 pilot suggests the answer is a linear
 mean and little else at 659 subjects. Function says far more about function: a subject's rest encoding finds their
@@ -461,15 +466,23 @@ total-norm basis, seed 0; held-out subjects for scores; Yeo-7 network blocks):
 15. Age correlates at |r| ≤ 0.10. Head motion is not in the loaded metadata, so a nuisance contribution to these axes
     is untested (xcp-d framewise displacement could be added).
 
-### E3 — Generative follow-ups · status: outline · owner: —
+### E3 — Generative follow-ups · status: done 2026-10-27 · owner: agent:modeling
 
 - **Question:** once E2.1 shows whether a conditional flow learns subject-specific distributions from eight condition
   encodings, does it improve with a stochastic path (noise along the bridge) and with more samples per subject?
-- **Sketch:** (1) path noise on the ridge-start bridge (FM-4); (2) the two rest sessions as true repeats (calibration
-  of within-condition spread); (3) FC timeseries windows as many samples per subject (needs timeseries caches,
-  `modeling_directions.md` AR-6); scored as E2.1 (energy distance, set identification, spread calibration) and by
-  held-out likelihood against `CrossModal_ConditionalGaussian` (MV-5).
-- **Depends on:** E2.1's result; designed after it reports.
+- **Sketch (2026-10-26):** (1) path noise on the ridge-start bridge (FM-4); (2) the two rest sessions as true repeats
+  (calibration of within-condition spread); (3) FC timeseries windows as many samples per subject (AR-6).
+- **Result (closed 2026-10-27, user):**
+  - (3) **No gain** (`scripts/experiments/windowed_fc_gain/`, commits `0dad2c0`, `2fc963d`, `a47955f`). FC from halves /
+    quarters of every run (both phase-encoding directions) is the subject's target plus within-run noise, not an
+    independent retest (gates 1–6). Retraining E2.1's ridge, linear-Gaussian and flows (residual, linear and nonlinear
+    from noise; CCA and block PCA) on full + part samples, with a sample-type token, or on parts only: no model gains;
+    the residual flow gets worse in every arm (average rank −0.007 to −0.024); the linear baselines stay best (4.5 GPU-h).
+    Built on the timeseries cache (`Conn2Conn_data/timeseries`, `data/timeseries.py`).
+  - (1) **Dropped:** E2.1's ridge-start bridge did not beat ridge (demeaned r 0.0458 vs 0.0490); a stochastic path is
+    not where the signal is.
+  - (2) **Moved to E4:** the rest session 1 ↔ 2 pair is E4's test–retest ceiling and spread calibration check.
+  - The activity-flow baseline noted for E3 (2026-10-26, E3.C) is E4's mechanistic benchmark.
 
 ## 3. Infrastructure
 
@@ -560,4 +573,6 @@ v3 closed 2026-10-21 (all experiments done). Carried forward:
 | 2026-10-27 | Flows: 3000-epoch cap and no early stopping or best-weight pick before epoch 50 (user); seed-0 notebooks re-baked (targets shown next to predictions, native subject IDs, temperature sweep). Temperature sweep (seed 0): on block PCA the starting noise dominates single samples (demeaned r 0.006 at T 1 vs 0.031 at T 0); the CCA route is insensitive. Sampling temperature per route set to block PCA 0.25, CCA 1.0 (user); block-PCA flows re-evaluated from saved weights at T 0.25 (`_longT025`). |
 | 2026-10-27 | Longer training (3000 cap, min 50) does not help: CCA flows get worse (nonlinear overfits early), block-PCA flows unchanged. Block-PCA linear flow at T 0.25 beats ridge on average rank (+0.030, 5 / 5) and top-1 (+0.012, 5 / 5), trails on demeaned r (−0.004); lower temperature costs energy (calibration). Write-up §8. |
 
-Last updated at: 2026-10-27 EDT
+| 2026-10-28 | Housekeeping (user): E2 done (E2.1); E2.2 superseded by E4 (full cross-condition translation, one masked conditional model with SC as a view; outline, drafting). E3 closed: timeseries windows give no gain (`windowed_fc_gain`, gates 1–7), path noise dropped, rest sessions and the activity-flow baseline moved to E4. |
+
+Last updated at: 2026-10-28 EDT
