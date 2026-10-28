@@ -27,7 +27,7 @@ from models.eval.metrics import compute_corr_matrix, corr_avg_rank
 NONE = len(FC)                       # source index for "no FC input"
 P_NONE, P_SC_DROP = 0.2, 0.2
 FLOW_STEPS = 32
-TRAIN = dict(batch_subjects=64, max_epochs=3000, min_epochs=50, patience=200, grad_clip=1.0)
+TRAIN = dict(batch_subjects=64, max_epochs=3000, min_epochs=300, patience=500, grad_clip=1.0)   # E4.2: 50 / 200 stopped FM-lin too early
 
 
 # ------------------------------------------------------------------------------------------------ data

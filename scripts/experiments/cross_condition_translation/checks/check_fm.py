@@ -6,7 +6,9 @@
   O3  FM-lin on synthetic linear-Gaussian data recovers the closed-form linear-Gaussian: its mean agrees with ridge
       (r > 0.9) and its test energy score is not worse than the ridge + residual-covariance Gaussian beyond 2 SE
   G1  synthetic data with a planted nonlinear condition -> condition map and a linear SC path: FM-nl beats ridge on
-      >= 80 % of the FC -> FC cells (test, per-subject r of codes) and is within 2 SE of ridge on the SC-only cells
+      >= 80 % of the FC -> FC cells (test, per-subject r of codes) and is within 2 SE of ridge on the SC-only cells.
+      Data calibrated so the nonlinearity is learnable at n = 659 (checks/calibrate_g1.py: a supervised MLP beats ridge
+      in 14 / 14 cells, +0.036 r; the first setting gave +0.002 and could not discriminate, 2026-10-28)
 Writes checks/check_fm.json and prints ALL_OK / FAIL lines.
 
     python scripts/experiments/cross_condition_translation/checks/check_fm.py --k 256
@@ -46,18 +48,18 @@ class SynthData(FlowData):
     """Same interface as FlowData on simulated codes: a subject latent u (8-d); condition m's codes f_m(u) + noise
     (nonlinear: two-layer tanh map; linear: a linear map); SC = L u + noise (linear path)."""
 
-    def __init__(self, k, device, nonlinear, seed=0, n=(659, 74, 184), noise=0.5):
+    def __init__(self, k, device, nonlinear, seed=0, n=(659, 74, 184), noise=0.5, strength=2.0, latent=8):
         rng = np.random.default_rng(seed)
         self.k, self.device, self.seed, self.sd = k, device, seed, None
-        W1 = rng.normal(size=(8, 8, 32)) / np.sqrt(8)
+        W1 = rng.normal(size=(8, latent, 32)) / np.sqrt(latent)
         W2 = rng.normal(size=(8, 32, k)) / np.sqrt(32)
-        Wl = rng.normal(size=(8, 8, k)) / np.sqrt(8)
-        L = rng.normal(size=(8, 64)) / np.sqrt(8)
+        Wl = rng.normal(size=(8, latent, k)) / np.sqrt(latent)
+        L = rng.normal(size=(latent, 64)) / np.sqrt(latent)
         fc, sc = {}, {}
         for split, m in zip(("train", "val", "test"), n):
-            u = rng.normal(size=(m, 8))
+            u = rng.normal(size=(m, latent))
             if nonlinear:
-                Y = np.stack([np.tanh(2.0 * u @ W1[c]) @ W2[c] for c in range(8)])
+                Y = np.stack([np.tanh(strength * u @ W1[c]) @ W2[c] for c in range(8)])
             else:
                 Y = np.stack([u @ Wl[c] for c in range(8)])
             fc[split] = Y + noise * rng.normal(size=Y.shape)
@@ -124,7 +126,7 @@ def main():
            mean_r_with_ridge=float(np.mean(agree)), energy_diff=float(d.mean()), energy_diff_se=float(d.std(ddof=1) / np.sqrt(len(d))))
 
     # G1: planted nonlinear FC -> FC map, linear SC path
-    nl = SynthData(64, dev, nonlinear=True, seed=3)
+    nl = SynthData(64, dev, nonlinear=True, seed=3, noise=0.1, strength=5.0, latent=4)   # calibrate_g1.py: MLP beats ridge 14 / 14 (+0.036 r)
     net, _ = train("fm_nl", dict(HP["fm_nl"], width=256, depth=2), nl, 4, max_epochs=E(3000))
     wins, n_ff, sc_d = 0, 0, []
     for src, t, on in eval_cells():

@@ -627,4 +627,6 @@ v3 closed 2026-10-21 (all experiments done). Carried forward:
 
 | 2026-10-28 | E4.0c done: D10 chooses k = 256 (val average rank 0.812 vs 512 0.799, full rank 0.803; no flag). E4.2: flows redesigned after the optimisability diagnostic (shared weights could not express 56 condition maps: per-source encoders + per-target weights). Checks at k = 256 (job 21241843): O1 pass (both), O2 pass FM-nl (0.87) / fail FM-lin (0.76 < 0.8), O3 mean matches ridge (r 0.977) but energy worse (spread 25 % too wide: early stopping at epoch 67), G1 fail; diagnosis: G1's planted nonlinearity is not learnable at n = 659 (an MSE-trained MLP gains only +0.002 r over ridge), so G1 cannot discriminate. **Stopped per D8**; G1 redesign and training-schedule change need the user. |
 
+| 2026-10-28 | User: keep the per-condition encoders; proceed with the G1 redesign and the training schedule. G1 data recalibrated (noise 0.1, nonlinearity strength 5, 4-d latent: a supervised MLP beats ridge 14 / 14 cells, +0.036 r; thresholds unchanged); flows' minimum epochs 50 → 300, patience 200 → 500. Checks rerun. |
+
 Last updated at: 2026-10-28 EDT
