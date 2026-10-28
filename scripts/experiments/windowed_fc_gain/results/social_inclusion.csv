@@ -113,7 +113,7 @@ subject,n_runs,runs_full_length,in_sessions,sessions_complete,standard_pattern,r
 123925,2,True,True,True,True,,True,True
 124220,2,True,True,True,True,,True,True
 124422,2,True,True,True,True,,True,True
-124624,2,True,True,True,False,,False,True
+124624,2,True,True,True,False,,True,True
 124826,2,True,True,True,True,,True,True
 125222,2,True,True,True,True,,True,True
 125424,2,True,True,True,True,,True,True
@@ -141,7 +141,7 @@ subject,n_runs,runs_full_length,in_sessions,sessions_complete,standard_pattern,r
 130316,2,True,True,True,True,,True,True
 130417,2,True,True,True,True,,True,True
 130518,2,True,True,True,True,,True,True
-130619,2,True,True,True,False,,False,True
+130619,2,True,True,True,False,,True,True
 130720,2,True,True,True,True,,True,True
 130821,2,True,True,True,True,,True,True
 130922,2,True,True,True,True,,True,True
@@ -163,7 +163,7 @@ subject,n_runs,runs_full_length,in_sessions,sessions_complete,standard_pattern,r
 134728,2,True,True,True,True,,True,True
 134829,2,True,True,True,True,,True,True
 135124,2,True,True,True,True,,True,True
-135225,2,True,True,True,False,,False,True
+135225,2,True,True,True,False,,True,True
 135528,2,True,True,True,True,,True,True
 135629,2,True,True,True,True,,True,True
 135730,2,True,True,True,True,,True,True
@@ -258,7 +258,7 @@ subject,n_runs,runs_full_length,in_sessions,sessions_complete,standard_pattern,r
 153631,2,True,True,True,True,,True,True
 153732,2,True,True,True,True,,True,True
 153833,2,True,True,True,True,,True,True
-153934,2,True,True,True,False,,False,True
+153934,2,True,True,True,False,,True,True
 154229,2,True,True,True,True,,True,True
 154330,2,True,True,True,True,,True,True
 154431,2,True,True,True,True,,True,True
@@ -397,7 +397,7 @@ subject,n_runs,runs_full_length,in_sessions,sessions_complete,standard_pattern,r
 183337,2,True,True,True,True,,True,True
 183741,2,True,True,True,True,,True,True
 185038,2,True,True,True,True,,True,True
-185139,2,True,True,True,False,,False,True
+185139,2,True,True,True,False,,True,True
 185341,2,True,True,True,True,,True,True
 185442,2,True,True,True,True,,True,True
 185846,2,True,True,True,True,,True,True
@@ -442,7 +442,7 @@ subject,n_runs,runs_full_length,in_sessions,sessions_complete,standard_pattern,r
 194746,2,True,True,True,True,,True,True
 194847,2,True,True,True,True,,True,True
 195041,2,True,True,True,True,,True,True
-195445,2,True,True,True,False,,False,True
+195445,2,True,True,True,False,,True,True
 195647,2,True,True,True,True,,True,True
 195849,2,True,True,True,True,,True,True
 195950,2,True,True,True,True,,True,True
@@ -732,7 +732,7 @@ subject,n_runs,runs_full_length,in_sessions,sessions_complete,standard_pattern,r
 520228,2,True,True,True,True,,True,True
 522434,2,True,True,True,True,,True,True
 523032,2,True,True,True,True,,True,True
-524135,2,True,True,True,False,,False,True
+524135,2,True,True,True,False,,True,True
 525541,2,True,True,True,True,,True,True
 529549,2,True,True,True,True,,True,True
 529953,2,True,True,True,True,,True,True
@@ -769,7 +769,7 @@ subject,n_runs,runs_full_length,in_sessions,sessions_complete,standard_pattern,r
 567759,2,True,True,True,True,,True,True
 567961,2,True,True,True,True,,True,True
 568963,2,True,True,True,True,,True,True
-569965,2,True,True,True,False,,False,True
+569965,2,True,True,True,False,,True,True
 570243,2,True,True,True,True,,True,True
 571144,2,True,True,True,True,,True,True
 571548,2,True,True,True,True,,True,True
@@ -807,7 +807,7 @@ subject,n_runs,runs_full_length,in_sessions,sessions_complete,standard_pattern,r
 611938,2,True,True,True,True,,True,True
 613538,2,True,True,True,True,,True,True
 614439,2,True,True,True,True,,True,True
-615441,2,True,True,True,False,,False,True
+615441,2,True,True,True,False,,True,True
 615744,2,True,True,True,True,,True,True
 616645,2,True,True,True,True,,True,True
 617748,2,True,True,True,True,,True,True
@@ -967,7 +967,7 @@ subject,n_runs,runs_full_length,in_sessions,sessions_complete,standard_pattern,r
 870861,2,True,True,True,True,,True,True
 871762,2,True,True,True,True,,True,True
 871964,2,True,True,True,True,,True,True
-872158,2,True,True,True,False,,False,True
+872158,2,True,True,True,False,,True,True
 872562,2,True,True,True,True,,True,True
 872764,2,True,True,True,True,,True,True
 873968,2,True,True,True,True,,True,True
@@ -1005,7 +1005,7 @@ subject,n_runs,runs_full_length,in_sessions,sessions_complete,standard_pattern,r
 912447,2,True,True,True,True,,True,True
 917255,2,True,True,True,True,,True,True
 917558,2,True,True,True,True,,True,True
-919966,2,True,True,True,False,,False,True
+919966,2,True,True,True,False,,True,True
 922854,2,True,True,True,True,,True,True
 923755,2,True,True,True,True,,True,True
 926862,2,True,True,True,True,,True,True
@@ -1046,5 +1046,5 @@ subject,n_runs,runs_full_length,in_sessions,sessions_complete,standard_pattern,r
 992774,2,True,True,True,True,,True,True
 993675,2,True,True,True,True,,True,True
 994273,2,True,True,True,True,,True,True
-995174,2,True,True,True,False,,False,True
+995174,2,True,True,True,False,,True,True
 996782,2,True,True,True,True,,True,True

@@ -28,7 +28,7 @@ from models.architectures.multiview_cca import maxvar, ridge_gcv  # noqa: E402
 FC = ["rest", "emotion", "gambling", "language", "motor", "relational", "social", "wm"]
 K_SC = [64, 128, 256, 512]
 ALPHAS = [1e-3, 1e-2, 1e-1, 1.0, 10.0, 100.0, 1e3, 1e4]
-E1_DIR = REPO_ROOT / "scripts" / "experiments" / "cca_latent_bench" / "results" / "Glasser"
+E1_DIR = REPO_ROOT / "scripts" / "experiments" / "cca_latent_bench"   # tables/, results/ (per-seed records; Glasser)
 CACHE = Path(E2CFG["cache_dir"]) / "e21"
 
 
@@ -155,7 +155,7 @@ def build_sessions(seed):
 
 def check_g0b(seed, rc_rows):
     """G0b: ridge -> consensus test demeaned r per condition equals E1's 'via consensus latent' ridge rows."""
-    e1 = pd.read_csv(E1_DIR / "records" / f"seed{seed}.csv")
+    e1 = pd.read_csv(E1_DIR / "results" / f"seed{seed}.csv")
     e1 = e1[(e1.direction == "sc2fc") & (e1.input == "via consensus latent") & (e1.readout == "ridge") & (e1.split == "test")]
     mine = pd.DataFrame(rc_rows)
     mine = mine[mine.split == "test"].set_index("condition").demeaned_pearson

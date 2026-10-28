@@ -19,7 +19,7 @@ import run as mb  # noqa: E402  (FIG_RC)
 
 REC = HERE / "results" / "Glasser" / "records" / "e21"
 OUT = HERE / "results" / "Glasser" / "e21"
-E1 = REPO_ROOT / "scripts" / "experiments" / "cca_latent_bench" / "results" / "Glasser" / "records"
+E1 = REPO_ROOT / "scripts" / "experiments" / "cca_latent_bench" / "results"   # per-seed records (Glasser)
 BENCH = REPO_ROOT / "scripts" / "experiments" / "task_bidirectional_bench" / "results" / "Glasser" / "sc2fc" / "tables" / "seed_records.csv"
 FC = ["rest", "emotion", "gambling", "language", "motor", "relational", "social", "wm"]
 PAL = {"red": "#B64342", "neutral": "#CFCECE", "teal": "#42949E", "blue": "#0F4D92", "green": "#8BCF8B",

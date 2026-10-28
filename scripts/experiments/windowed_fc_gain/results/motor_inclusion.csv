@@ -99,7 +99,7 @@ subject,n_runs,runs_full_length,in_sessions,sessions_complete,standard_pattern,r
 119126,2,True,True,True,True,,True,True
 119732,2,True,True,True,True,,True,True
 119833,2,True,True,True,True,,True,True
-120010,2,True,True,True,False,,False,True
+120010,2,True,True,True,False,,True,True
 120111,2,True,True,True,True,,True,True
 120212,2,True,True,True,True,,True,True
 120414,2,True,True,True,True,,True,True

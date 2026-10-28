@@ -91,7 +91,7 @@ def inclusion(ts, condition, sessions):
                      "standard_pattern": standard,
                      "rest2_rl_first": (get("RL2", "scan_order") == "1") if condition == "rest" else None})
     df = pd.DataFrame(rows)
-    df["included"] = df.runs_full_length & df.in_sessions & df.standard_pattern
+    df["included"] = df.runs_full_length & df.in_sessions & (df.standard_pattern | (condition in CFG.get("include_nonstandard", [])))
     return df, modal
 
 

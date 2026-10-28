@@ -22,6 +22,10 @@ references: [direction, session]
 timing_group: {rest: rest, gambling: matched, relational: matched, emotion: matched, social: mostly_matched,
                wm: unmatched, motor: unmatched, language: unmatched}
 
+# Conditions whose subjects with a non-standard acquisition pattern (E-Prime scripts 3 / 4, LR first) still give part
+# samples (user 2026-10-27, after G6: first relational, then every condition for consistency)
+include_nonstandard: [emotion, gambling, language, motor, relational, social, wm]
+
 # Gate thresholds, fixed before any result (2026-10-27)
 gates:
   g1_min_r: 0.98              # G1: median edge r(estimator at full length, target) per condition
