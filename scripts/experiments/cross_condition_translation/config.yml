@@ -1,0 +1,18 @@
+# Spec v4 E4 — full cross-condition translation. E4.0: closed-form baselines (CPU), reviewed before the flows (E4.1).
+#   python scripts/experiments/cross_condition_translation/run_baselines.py --seed 0      # one seed (kraken env)
+#   sbatch scripts/experiments/cross_condition_translation/launch/run_baselines.sh       # seeds 0-4, then analysis
+#   python scripts/experiments/cross_condition_translation/analyze_baselines.py          # tables + figures
+# Data: E2's per-seed cache (scripts/experiments/joint_flow_matching/common.py SeedData: D2 block FC PCA codes, SC codes,
+# rest sessions, splits, val / test edges).
+parcellation: Glasser
+seeds: [0, 1, 2, 3, 4]
+fc_views: [rest, emotion, gambling, language, motor, relational, social, wm]
+k: 256                         # block FC PCA codes per condition (sources and targets); B2 also uses k for SC (as E2.0 L4)
+k_sc: [64, 128, 256, 512]      # SC codes appended in B1+SC / used by B1 SC-only; chosen per cell on val decoded demeaned r
+ridge_alphas: [1.0e-3, 1.0e-2, 1.0e-1, 1, 10, 100, 1000, 1.0e+4]   # x mean eigenvalue; GCV on train (E2.0 L1)
+maxvar_d: [16, 32, 64, 128]                                         # B2 = E2.0 L4: (d, lambda) on mean val demeaned r
+maxvar_lambda: [1.0e-2, 1.0e-1, 1, 10, 100]                         #   over the 72 ordered pairs of the 9 views
+n_samples: 64                  # B3 samples per subject for the distribution metrics
+crossfit_folds: 5              # B3 residual covariance from cross-fitted train residuals
+gates:
+  g0_tol: 1.0e-6               # B1 / B2 without SC reproduce E2.0's stored L1 / L4 rows (k = 256)
