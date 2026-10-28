@@ -10,8 +10,8 @@ scoring; SC codes 64–512. Cells per seed: 56 single-source, 8 "other 7 → hel
 without SC. Point metrics on decoded edges (demeaned r, average rank, top-1; E2's `score`); distribution metrics in
 code space (energy score, 90 % coverage).
 
-**Code.** `config.yml`; `e4_common.py` (cells, E2 data access, energy metrics); `run_baselines.py` (B0–B3, ceilings,
-G0; one seed); `run_identity_codes.py` (identity in code space); `analyze_baselines.py`; `launch/run_baselines.sh`,
+**Code.** `config.yml`; `e4_common.py` (cells, E2 data access, energy metrics, per-k folders); `run_baselines.py` (B0–B3,
+ceilings, G0; one seed; `--k`); `run_identity_codes.py` (identity in code space); `analyze_baselines.py`; `launch/run_baselines.sh`,
 `launch/analyze_baselines.sh`.
 
 ## E4.0 — baselines (2026-10-28; jobs 21225137, 21227332; CPU, 12–24 min per seed)
@@ -23,8 +23,8 @@ B3 linear-Gaussian (B1 mean + per-cell residual covariance).
 
 **G0 passed** (all 5 seeds): B1 and B2 without SC reproduce E2.0's L1 / L4 rows at k = 256 to 1e-16.
 
-**Results** (test, mean over each setting's cells, mean ± SE over 5 seeds; `tables/baselines_summary.md`,
-`tables/baselines_settings.csv`, per cell `tables/baselines_cells.csv`):
+**Results** (k = 256; test, mean over each setting's cells, mean ± SE over 5 seeds; `tables/k256/baselines_summary.md`,
+`tables/k256/baselines_settings.csv`, per cell `tables/k256/baselines_cells.csv`):
 
 | Model | Single source: demeaned r / avg rank / top-1 | Other 7 → held-out | SC only |
 |---|---|---|---|
@@ -57,8 +57,11 @@ coverage 0.92 throughout (calibrated).
    hurts single-source ridge (more inputs at n = 659).
 6. **The linear-Gaussian is calibrated** (coverage 0.92): the flows' distributional bar is energy score ≈ 0.015.
 
-Figures: `figures/fig_baselines_demeaned_pearson.png`, `fig_baselines_avg_rank.png`, `fig_baselines_top1_acc.png`
-(heatmaps), `fig_baselines_differences.png`, `fig_baselines_distribution.png`, `fig_baselines_settings.png`.
+Figures (`figures/k256/`): `fig_baselines_demeaned_pearson.png`, `fig_baselines_avg_rank.png`, `fig_baselines_top1_acc.png`
+(heatmaps; columns = copy / ridge / multiview CCA, top row without SC, bottom row codes / + SC),
+`fig_baselines_differences.png` (each model − its reference: ridge and CCA vs the copy in codes, + SC vs without; red =
+better), `fig_baselines_distribution.png`, `fig_baselines_settings.png`. Results, tables and figures sit in per-code-size
+subfolders (`k256/`, `k512/`).
 
 ## Next
 

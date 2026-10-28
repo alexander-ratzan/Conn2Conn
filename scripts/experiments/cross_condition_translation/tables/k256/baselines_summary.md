@@ -32,7 +32,9 @@ Distribution (B3, code space; means over cells):
 | B3+SC | other 7 | 0.0174 | 0.923 |
 | B3+SC | single source | 0.0153 | 0.924 |
 
-Single-source cells where ridge beats identity on demeaned r: 13 / 56 (edges); 22 / 56 (identity in codes).
+B2 selected (d, lambda) per seed: (32, 0.1), (64, 0.1), (32, 1), (32, 1), (32, 1).
+
+Single-source cells where ridge beats the copy on demeaned r: 13 / 56 (edges); 22 / 56 (codes).
 
 Best single source per target (B1, demeaned r):
 

@@ -27,9 +27,9 @@ E20_LINEAR = REPO_ROOT / E2CFG["records_dir"] / "linear"
 OTHER7, SC_ONLY = "other7", "SC"
 
 
-def suffix(k):
-    """Results / tables / figures suffix for a non-default code size."""
-    return "" if not k or k == CFG["k"] else f"_k{k}"
+def kdir(base, k=None):
+    """Per-code-size subfolder (results/, tables/, figures/): base / k<k>."""
+    return base / f"k{k or CFG['k']}"
 
 
 def cells():

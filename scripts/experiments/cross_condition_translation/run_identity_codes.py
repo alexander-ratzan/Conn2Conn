@@ -4,14 +4,14 @@ B0 copies the source's full edge deviation; the models only see and predict k bl
 source's k codes into the target condition (decoded with the target's mean and scale; multi-source: mean of the
 sources' codes), separating "identity keeps information outside the codes" from "the regressions shrink".
 
-    python scripts/experiments/cross_condition_translation/run_identity_codes.py   # -> results/identity_codes.json
+    python scripts/experiments/cross_condition_translation/run_identity_codes.py [--k 512]   # -> results/k<k>/identity_codes.json
 """
 import argparse
 import json
 
 import numpy as np
 
-from e4_common import CFG, FC, HERE, SC_ONLY, Scorer, SeedData, cells, sources_of, suffix
+from e4_common import CFG, FC, HERE, SC_ONLY, Scorer, SeedData, cells, kdir, sources_of
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--k", type=int, default=CFG["k"])
@@ -28,5 +28,7 @@ for seed in CFG["seeds"]:
             rows.append(dict(seed=seed, model="B0-codes", source=src, target=tgt, with_sc=False, split=split,
                              **sc(tgt, split, z)))
     print(f"seed {seed} done", flush=True)
-(HERE / "results" / f"identity_codes{suffix(K)}.json").write_text(json.dumps(dict(rows=rows), default=float))
-print(f"wrote results/identity_codes{suffix(K)}.json ({len(rows)} rows)")
+res = kdir(HERE / "results", K)
+res.mkdir(parents=True, exist_ok=True)
+(res / "identity_codes.json").write_text(json.dumps(dict(rows=rows), default=float))
+print(f"wrote {res.name}/identity_codes.json ({len(rows)} rows)")
