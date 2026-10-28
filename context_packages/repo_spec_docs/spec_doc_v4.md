@@ -614,4 +614,6 @@ v3 closed 2026-10-21 (all experiments done). Carried forward:
 
 | 2026-10-28 | E4 revised (user): nonlinear and linear flows from noise vs the linear-Gaussian (linearity vs fitting), DeepSets conditioning interface trained pairwise first (multi-source as a retrain), B2 = E2.0's 9-view MAXVAR with averaged encodings for any input subset, baselines (E4.0) reviewed before the flows (E4.1). |
 
+| 2026-10-28 | E4.0 done (CPU; jobs 21225137, 21227332): G0 passed (1e-16). Identity (copy the source pattern) is the bar: ties the best linear model on demeaned r (0.107), beats all on identification (average rank 0.845, top-1 0.25); copying within 256 codes drops top-1 to 0.13, so much of its edge is outside the code space; averaging the other 7 conditions helps (identity 0.208, CCA 0.154; ridge on concatenated sources overfits); SC adds nothing once FC is known; B3 calibrated (coverage 0.92). E4.1 review pending. |
+
 Last updated at: 2026-10-28 EDT
