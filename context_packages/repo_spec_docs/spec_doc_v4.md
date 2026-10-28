@@ -21,7 +21,7 @@ no gain); full cross-condition translation with one conditional model and SC as 
 | E1 | CCA-latent bidirectional benchmark: multiview CCA latent of FC as the encoding for FC → SC and the target for SC → FC | done 2026-10-20 | I2, D4 | agent:modeling |
 | E2 | SC → functional latent: E2.1 conditional generation of each condition's CCA encoding from SC (linear, nonlinear, linear-Gaussian, flow); E2.2 superseded by E4 | done 2026-10-26 (E2.1; E2.2 superseded by E4 2026-10-28) | I1, E1, D7 | agent:modeling |
 | E3 | Generative follow-ups to E2.1: path noise, rest sessions as repeats, FC timeseries windows as more samples per subject | done 2026-10-27 (windows: no gain, `windowed_fc_gain`; path noise dropped; rest sessions and activity flow moved to E4) | E2.1 | agent:modeling |
-| E4 | Full cross-condition translation: one conditional flow from noise (SC + any subset of source conditions → any target condition) against identity, block-PCA ridge (± SC), 9-view multiview CCA with SC and linear-Gaussian benchmarks | planned | E2.1, E2.0, I1, E3, D8 | agent:modeling |
+| E4 | Full cross-condition translation: conditional flows from noise, nonlinear and linear (SC + source condition → any target condition; DeepSets interface, pairwise first), against identity, block-PCA ridge (± SC), 9-view multiview CCA with SC and linear-Gaussian baselines | planned | E2.1, E2.0, I1, E3, D8 | agent:modeling |
 | I1 | Joint translation infrastructure: pooled FC basis, (subject, source, target) data module, token model, integrator, runner | in progress | — | agent:modeling |
 | I2 | Multiview CCA library module (MAXVAR fit / encode / decode), shared by E2 and E1 | done 2026-10-20 | — | agent:modeling |
 | D1 | Views and the true rest target | decided 2026-10-20 | — | user |
@@ -58,7 +58,7 @@ $i$ in view $m$; view embedding $e(m)$; flow time $\tau \in [0, 1]$.
 | D5 | **Decided (user 2026-10-21; target refined by D7):** E2 is reframed as SC ↔ consensus latent (Part 1, the core), with the multi-condition FC → FC model kept as an optional Part 2. The failed synthetic gate is fixed in training (flow time drawn at 0 with probability $p_0$, longer training), not by lowering the threshold. An identity-aware loss (demeaned corr-eye on the latent) is an arm of Part 1. E3 stays an outline until E2 reports. D3 is revised: Part 1 autonomous, cap 10 GPU-h; Part 2 needs the user's go. | E1: the latent is where SC → FC gains and it is a smaller, cleaner problem; the gate should hold. |
 | D6 | **Decided (user 2026-10-21):** v3 is closed (and v4 made active) once v3:E3's queued jobs finish; `scripts/notebooks/EDA/FC_encoded_conditions_analysis.ipynb` is committed as is; commits stay local until the user reviews them. | Avoid editing a spec with running work; keep the record reviewable. |
 | D7 | **Decided (user 2026-10-26):** E2.1 trains on every condition's encoding in E1's latent (8 targets per subject, condition token) instead of the consensus alone, so the problem keeps within-subject multiplicity; the main model is a conditional flow from noise with token dropout (generates with or without a condition); a linear-Gaussian model (ridge mean, one shared residual covariance) is the distributional reference; the ridge-start bridge and the nonlinear corrector stay as deterministic references. Primary evaluation: energy distance to each subject's observed encodings, flow vs linear-Gaussian (H3). The first pass is a baseline signal of whether the models learn, linearly and nonlinearly. | A consensus-only target gives one sample per subject, too close to a single paired regression; the eight encodings are observed samples of each subject's distribution. |
-| D8 | **Design agreed (user 2026-10-28); budget and go pending:** E4's main model is a conditional flow from noise (nonlinear velocity MLP; no linear anchor, no CCA in the model; the weak linear signal is kept in the training target rather than residualised out); multi-source input as fixed per-condition slots with a presence mask; benchmarks B0–B3; activity flow, the joint-training ablation and the residual / linear variants are follow-ups. Proposed: autonomous after the user approves the spec, cap 15 GPU-h, stop rules as D3, commits local. | One model for every cell and input subset; from-noise training keeps the full target as signal (E2.1: the anchored residual flow models residuals that are mostly noise). |
+| D8 | **Design agreed (user 2026-10-28); budget and go pending:** E4's flows are trained from noise (no linear anchor, no CCA in the model; the weak linear signal stays in the training target rather than being residualised out), in two forms, nonlinear and linear, against the closed-form linear-Gaussian to separate nonlinearity from fitting effects; DeepSets conditioning interface ($\phi$ modular, linear first) trained pairwise first, multi-source as a retrain; baselines B0–B3 run and reviewed before the flows (E4.1); activity flow and ablations are follow-ups. Proposed: autonomous within E4.0 and within E4.2–E4.4 once the user approves, cap 15 GPU-h, stop rules as D3, commits local. | Optimisation capacity first: the pairwise-trained DeepSets form equals a pairwise model and extends to multi-source without a new architecture. |
 
 ## 2. Experiments
 
@@ -422,85 +422,101 @@ total-norm basis, seed 0; held-out subjects for scores; Yeo-7 network blocks):
 ≈ 0.05), and E3 (`windowed_fc_gain`) that extra samples from the same scan do not help. Function predicts function
 far better: a subject's rest encoding finds their task encodings at top-1 0.46 (E1), and raw-edge cross-condition
 identification reaches 0.53–0.82 against ≈ 0.09 from SC (E2.0). E4 trains **one conditional generative model** that,
-given a subject's SC and their FC in any available subset of conditions (or none), generates their FC in any target
-condition, and asks whether it beats linear translation as a point predictor and as a distribution, and whether SC adds
-anything once some FC is known. Uses: imputing missing task scans, generating task FC from rest.
+given a subject's SC and their FC in another condition (or none), generates their FC in any target condition, and asks
+whether it beats linear translation as a point predictor and as a distribution, whether that is about nonlinearity or
+about how the model is fit, and whether SC adds anything once some FC is known. Uses: imputing missing task scans,
+generating task FC from rest.
 
 **Data and representation.** Matched cohort (917 Glasser subjects), seeds 0–4, E2.1's splits. Targets and sources:
-each condition's **block FC PCA codes** ($k$ = 256, E2's equal-variance pooled basis, D2), decoded to edges for
-scoring; SC: its own PCA codes (64–512, chosen on val). Full targets only (E3: part samples do not help).
+each condition's **block FC PCA codes** ($k$ = 256, E2's equal-variance pooled basis, D2: one basis for all FC
+conditions, each condition centred on its own train mean), decoded to edges for scoring; SC: its own PCA codes (64–512,
+chosen on val). Full targets only (E3: part samples do not help).
 
-**Translation cells** (per seed; each cell scored on the test subjects):
+**Cells** (per seed; scored on the test subjects):
 
-| Setting | Source → target | Cells |
-|---|---|---|
-| Single source | one FC condition → another | 56 (8 × 7) |
-| Multi-source | the other 7 conditions → the held-out target | 8 |
-| SC only | SC → each condition (no FC input) | 8 |
-| each FC setting, with and without SC | | × 2 |
-| Rest retest ceiling | rest session 1 ↔ session 2 (no model; identity) | 2 |
+| Setting | Source → target | Cells | Models |
+|---|---|---|---|
+| Single source | one FC condition → another | 56 (8 × 7) | all |
+| SC only | SC → each condition (no FC input) | 8 | all |
+| (each FC cell with and without SC) | | × 2 | all |
+| Multi-source | the other 7 conditions → the held-out target | 8 | baselines (first pass); FM after the multi-source retrain |
+| Rest retest ceiling | rest session 1 ↔ session 2 (identity, no model) | 2 | reference |
 
-**Main model: a conditional flow from noise (FM).** E2.1's nonlinear flow from noise (`TokenBackbone`, a residual MLP
-that outputs the velocity field), trained by flow matching from Gaussian noise to the target codes; no linear anchor,
-no CCA, no initialisation from ridge.
-- State: the target condition's codes (256). Conditioning: one slot per FC condition (8 × 256 codes, zeros when empty;
-  the target's own slot is always empty), an 8-bit presence mask, SC codes (zeros + a flag when dropped), and the target
-  condition token.
-- Training examples: for each training subject and target condition, the source set is empty (SC only) with
-  probability 0.2, one random other condition with 0.6, all other 7 with 0.2; SC is dropped with probability 0.2 when a
-  source is present (never both empty). One network per seed covers every cell.
-- Sampling: point estimate = mean of 256 samples; distribution = 64 samples. Starting-noise temperature selected on val
-  from {0.25, 0.5, 1} (E2.1: block-PCA flows needed 0.25).
-- Search: Optuna on seed 0 (32 trials; E2.1's search space, flow cap 3000 epochs, no stopping before epoch 50), selection
-  on val (mean decoded demeaned r over all cells); seeds 1–4 retrained at the selected settings.
+**Flow models (from noise; first pass trained pairwise).** Both generate the target condition's codes from Gaussian
+noise by flow matching (E2.1's recipe); no linear anchor, no CCA, no initialisation from ridge (coefficients and
+weights start from their default / zero init).
+- **Conditioning interface (DeepSets form):** each available source is embedded as $h = \phi(z_{src}) + e(m_{src})$
+  ($\phi$ shared across conditions, possible because all FC conditions share the D2 basis; $e$ a learned condition
+  embedding); the embeddings are mean-pooled (empty set: a learned "no FC" vector); the pooled vector, SC codes (zeros
+  + a flag when dropped) and the target-condition embedding condition the velocity field. $\phi$ is modular: linear
+  (first pass) or a small MLP.
+- **FM-nl:** nonlinear velocity field (E2.1's `TokenBackbone`, a residual MLP).
+- **FM-lin:** velocity linear in the state, the conditioning and the embeddings, with time-varying coefficients (E2.1's
+  `LinearFlowVelocity`, source and target terms separate). With linear $\phi$ and mean pooling it stays exactly a
+  linear-Gaussian model, so FM-lin vs B3 isolates the cost of fitting by flow matching, and FM-nl vs FM-lin isolates
+  nonlinearity.
+- **Pairwise training (first pass):** source set of size 0 (SC only) with probability 0.2, size 1 (one random other
+  condition) with 0.8; SC dropped with probability 0.2 when a source is present. With a set of one, mean pooling is the
+  identity, so the model is a pairwise translator ($\phi$ linear: a re-parameterisation of a pairwise MLP). An epoch
+  draws every training subject once with all 8 targets and a random source per target (E2.1's step count).
+- **Multi-source (follow-up, no architecture change):** retrain (or fine-tune from the pairwise weights) with random set
+  sizes 1–7, which adds the other-7 → 1 cells and arbitrary subsets. A pairwise-trained model is not evaluated on
+  pooled sets it never saw.
+- Sampling: point estimate = mean of 256 samples; distribution = 64 samples; starting-noise temperature selected on val
+  from {0.25, 0.5, 1}. Search: Optuna on seed 0 (32 trials per model; E2.1's space, cap 3000 epochs, no stopping
+  before epoch 50), selected on mean val decoded demeaned r over the cells; seeds 1–4 at the selected settings.
 
-**Benchmarks** (closed form, CPU; per cell, selected on val like E2.1's ridge):
+**Baselines** (closed form, CPU; run and reviewed before the flows):
 
 | ID | Model | Role |
 |---|---|---|
-| B0 | Identity: copy the source's deviation from its train mean into the target (multi-source: mean of the sources' deviations) | the bar every FC → FC model must clear |
-| B1 | Block-PCA ridge per cell: source codes (multi-source: concatenated) → target codes; **B1+SC** appends SC codes | linear point reference with the FM's inputs |
-| B2 | 9-view multiview CCA (MAXVAR over 8 FC + SC, E1 / I2 library): encode the available views, average, decode to the target | linear model for any input subset, including SC only |
-| B3 | Linear-Gaussian: B1 / B1+SC mean + the cell's residual covariance (cross-fitted train residuals) | distributional reference |
+| B0 | Identity: the source's deviation from its train mean copied into the target (edge space, as E2.0); multi-source: mean of the sources' deviations | the bar every FC → FC model must clear |
+| B1 | Block-PCA ridge per cell (E2.0's L1: GCV penalty): source codes → target codes; multi-source: the sources' codes concatenated; **B1+SC**: SC codes appended | linear point reference with the flows' inputs |
+| B2 | 9-view multiview CCA (E2.0's L4: MAXVAR over the 8 FC conditions + SC, $(d, \lambda)$ on mean val demeaned r): encode each available view into the shared latent, **average the encodings**, decode to the target. Because every view is encoded into the same latent, averaging handles one source, several (other 7 → held-out target), SC alone, or SC + FC with no new fit | linear model for any input subset; the closed-form counterpart of the pooled flow |
+| B3 | Linear-Gaussian: B1 / B1+SC mean + the cell's residual covariance (cross-fitted train residuals) | distributional reference; same model class as FM-lin |
 
-**Hypotheses** (test split; support rule as everywhere in v4: seed-mean difference beyond 2 SE, same sign in ≥ 4 / 5
-seeds; per cell and as the mean over each setting's cells):
+**Hypotheses** (test; support rule as everywhere in v4; per cell and as the mean over each setting's cells):
 
 | ID | Question | Metric | Comparison |
 |---|---|---|---|
-| H1 | Does the FM translate better than linear maps? | decoded demeaned r, average rank, top-1 | FM mean − best of B1 / B2 (same inputs) |
-| **H2 (primary)** | Is the FM's predictive distribution better? | **energy score** of the observed target under the generated samples (proper for one observation), code space | B3 − FM |
-| H3 | Does predicted uncertainty track error? | correlation across subjects of predicted spread with realised error; 90 % coverage | FM vs 0 (B3's spread is constant per cell) |
-| H4 | Does SC add once FC is known? | H1 / H2 metrics | (SC + FC) − FC, for the FM and for B1 |
-| H5 | How often does translation beat copying? | share of single-source cells beating B0 on demeaned r and on average rank | each model vs B0 |
+| H1 | Do the flows translate better than linear maps? | decoded demeaned r, average rank, top-1 | FM-nl and FM-lin − best of B1 / B2 (same inputs) |
+| **H2 (primary)** | Is a flow's predictive distribution better? | **energy score** of the observed target under generated samples (proper for one observation), code space | B3 − FM-nl, B3 − FM-lin |
+| H3 | Linearity or optimisation? | H1 / H2 metrics | FM-nl − FM-lin (nonlinearity); FM-lin − B3 (fitting by flow matching vs closed form) |
+| H4 | Does predicted uncertainty track error? | correlation across subjects of predicted spread with realised error; 90 % coverage | FM vs 0 (B3's spread is constant per cell) |
+| H5 | Does SC add once FC is known? | H1 / H2 metrics | (SC + FC) − FC for B1, B2 and the flows |
+| H6 | How often does translation beat copying? | share of single-source cells beating B0 on demeaned r and on average rank | each model vs B0 |
 
-**Gates.**
-- **G0** (CPU): B1 without SC reproduces E2.0's stored L1 rows and B2 without SC its L4 rows at $k$ = 256 (to 1e-6).
-- **G1** (synthetic): data simulated with E2.1's generator plus a planted nonlinear FC → FC map and an SC-only linear
-  path; the FM beats B1 on the nonlinear cells and matches it (within 2 SE) on the SC-only path.
-- **G2** (seed-0 pilot): every metric finite; the selected trial not at the epoch cap; FM SC-only cells not below E2.1's
-  block-PCA nonlinear flow from noise beyond 2 SE (same task, now inside a larger model).
+**Steps and gates.**
+
+| Step | What | Compute | Gate |
+|---|---|---|---|
+| E4.0 | Baselines B0–B3 for all cells (incl. multi-source), seeds 0–4; ceilings; heatmaps | CPU | **G0:** B1 (no SC) reproduces E2.0's L1 and B2 (no SC, single source) its L4 at $k$ = 256 (to 1e-6) |
+| E4.1 | Review of the baselines with the user (capacity per cell, SC's contribution, identity's strength); go for the flows | — | user |
+| E4.2 | Flow code (DeepSets interface, FM-nl, FM-lin) + synthetic check | CPU / GPU | **G1:** on simulated data with a planted nonlinear FC → FC map and a linear SC path, FM-nl beats B1 on the nonlinear cells; FM-lin matches B3 (energy within 2 SE) |
+| E4.3 | Seed-0 search and pilot | GPU | **G2:** metrics finite; selected trials not at the epoch cap; SC-only cells not below E2.1's block-PCA flows from noise beyond 2 SE |
+| E4.4 | Seeds 1–4, analysis, write-up | GPU / CPU | — |
 
 **Deliverables.** Heatmaps per model and metric class (point: demeaned r, average rank, top-1; distribution: energy
-score, coverage, spread–error correlation): rows = source (8 conditions, "other 7", "SC only"), columns = target,
-with and without SC; difference heatmaps (FM − best linear, (SC + FC) − FC, model − identity); a summary panel of
-setting means with the rest retest and own-reconstruction ceilings. Folder `scripts/experiments/cross_condition_translation/`
-(standard layout), write-up, spec result.
+score, coverage, spread–error correlation): rows = source (8 conditions, "other 7" for the baselines, "SC only"),
+columns = target, with and without SC; difference heatmaps (flows − best linear, FM-nl − FM-lin, FM-lin − B3,
+(SC + FC) − FC, model − identity); setting means with the rest retest and own-reconstruction ceilings. Folder
+`scripts/experiments/cross_condition_translation/` (standard layout), write-up, spec result.
 
 **What each outcome means.**
 
 | Outcome | Reading | Next |
 |---|---|---|
-| H1 or H2 supported | the FM earns its keep for translation | it becomes the imputation / generation tool; follow-ups below |
-| H4 supported | SC carries information beyond FC | keep SC as a view in later models |
-| nothing beats B1 / B2 | cross-condition FC is linearly translatable at this n | B2 (any input subset) as the imputation tool |
-| nothing beats B0 | translation is mostly copying the subject's own pattern | report it; the subject fingerprint dominates |
+| H1 or H2 supported for FM-nl, and FM-nl > FM-lin | nonlinear translation structure the linear maps miss | FM-nl as the imputation / generation tool; multi-source retrain |
+| FM-lin ≈ FM-nl ≈ B3 | the flows only recover the linear-Gaussian solution | B2 / B3 as the tools |
+| FM-lin < B3 | fitting by flow matching costs accuracy at this n | optimisation work before any nonlinear claim |
+| H5 supported | SC carries information beyond FC | keep SC as a view |
+| nothing beats B0 | translation is mostly copying the subject's own pattern | report; the subject fingerprint dominates |
 
-**Follow-ups (not scheduled):** activity-flow benchmark B4 (needs per-subject task activations: HCP EVs and GLM betas;
-formulation from the Cole lab papers); joint-training ablation (FM trained per target vs jointly); residual-flow and
-linear-from-noise variants; the CCA-latent route; rest sessions as training views (D1 nesting mask).
+**Follow-ups (not scheduled):** multi-source retrain of the flows (above); nonlinear $\phi$; activity-flow benchmark
+(needs per-subject task activations: HCP EVs and GLM betas; formulation from the Cole lab papers); joint-training
+ablation; residual-flow variant; the CCA-latent route; rest sessions as training views (D1 nesting mask).
 
-- **Depends on:** E2.1 (model and training recipe), E2.0 (L1 / L4 references), I1, E3 (no augmentation).
+- **Depends on:** E2.1 (models and training recipe), E2.0 (L1 / L4), I1, E3 (no augmentation).
 - **Budget / autonomy:** D8.
 
 ## 3. Infrastructure
@@ -595,5 +611,7 @@ v3 closed 2026-10-21 (all experiments done). Carried forward:
 | 2026-10-28 | Housekeeping (user): E2 done (E2.1); E2.2 superseded by E4 (full cross-condition translation, one masked conditional model with SC as a view; outline, drafting). E3 closed: timeseries windows give no gain (`windowed_fc_gain`, gates 1–7), path noise dropped, rest sessions and the activity-flow baseline moved to E4. |
 
 | 2026-10-28 | E4 written (user): one conditional flow from noise for every condition → condition cell (single source, other-7, SC only; with and without SC), benchmarks identity / block-PCA ridge ± SC / 9-view MAXVAR with SC / linear-Gaussian, H1–H5, gates G0–G2; activity flow and ablations as follow-ups; D8 pending (budget, go). E2.2's draft reduced to a pointer. |
+
+| 2026-10-28 | E4 revised (user): nonlinear and linear flows from noise vs the linear-Gaussian (linearity vs fitting), DeepSets conditioning interface trained pairwise first (multi-source as a retrain), B2 = E2.0's 9-view MAXVAR with averaged encodings for any input subset, baselines (E4.0) reviewed before the flows (E4.1). |
 
 Last updated at: 2026-10-28 EDT
