@@ -11,7 +11,7 @@ model is anchored on the arm's own ridge means (run_g7a.py cache).
 - No nulls (E2.1 has them for the `none` setting).
 
     python scripts/experiments/windowed_fc_gain/run_g7b.py --model flow_linear --route pca --seed 0
-        -> results/g7/flow_linear_pca_seed0.json
+        [--arms none aug_halves ...] [--out-tag halves]   -> results/g7/flow_linear_pca_seed0[_<tag>].json
 """
 import argparse
 import json
@@ -89,6 +89,7 @@ def main():
     ap.add_argument("--route", required=True, choices=list(ROUTES))
     ap.add_argument("--seed", type=int, required=True)
     ap.add_argument("--arms", nargs="*", default=ARMS)
+    ap.add_argument("--out-tag", default="", help="results file suffix (one file per arm group)")
     a = ap.parse_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     suffix = ROUTES[a.route]
@@ -97,7 +98,7 @@ def main():
     batch0 = E.TRAIN["batch_subjects"]
     rec = dict(model=a.model, route=a.route, seed=a.seed, hp=hp, train=dict(E.TRAIN),
                gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu", arms={})
-    out = OUT / f"{a.model}_{a.route}_seed{a.seed}.json"
+    out = OUT / f"{a.model}_{a.route}_seed{a.seed}{'_' + a.out_tag if a.out_tag else ''}.json"
     if out.exists():                                   # resume: keep finished arms
         rec["arms"] = json.loads(out.read_text())["arms"]
     for arm in a.arms:

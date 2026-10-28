@@ -1,0 +1,33 @@
+model,route,arm,demeaned_pearson vs none,demeaned_pearson vs linear,avg_rank vs none,avg_rank vs linear,energy vs none,energy vs linear,supported gains (vs none and linear),supported losses vs none,G7
+gauss_fullcov,cca,aug_halves,-0.00020093,-0.00020093,-0.00049267,-0.00049267,0.00012313,0.00012313,,,False
+gauss_fullcov,cca,aug_quarters,-0.00028182,-0.00028182,-0.00018801,-0.00018801,-2.9171e-05,-2.9171e-05,,,False
+gauss_fullcov,cca,token_halves,-0.00020093,-0.00020093,-0.00049267,-0.00049267,0.00012313,0.00012313,,,False
+gauss_fullcov,cca,token_quarters,-0.00028182,-0.00028182,-0.00018801,-0.00018801,-2.9171e-05,-2.9171e-05,,,False
+gauss_fullcov,pca,aug_halves,-0.00019102,-0.00019102,0.0008415,0.0008415,-5.8414e-06,-5.8414e-06,avg_rank,,True
+gauss_fullcov,pca,aug_quarters,-0.00066994,-0.00066994,0.0020453,0.0020453,-1.3251e-05,-1.3251e-05,,,False
+gauss_fullcov,pca,token_halves,-0.00019102,-0.00019102,0.0008415,0.0008415,-5.8414e-06,-5.8414e-06,avg_rank,,True
+gauss_fullcov,pca,token_quarters,-0.00066994,-0.00066994,0.0020453,0.0020453,-1.3251e-05,-1.3251e-05,,,False
+gauss_own,cca,aug_halves,-0.00020093,-0.00020093,-0.00049267,-0.00049267,0.00043659,0.00043659,,energy,False
+gauss_own,cca,aug_quarters,-0.00028182,-0.00028182,-0.00018801,-0.00018801,0.0014239,0.0014239,,energy,False
+gauss_own,cca,parts_halves,-0.00033841,-0.00033841,-0.00081149,-0.00081149,0.00051781,0.00051781,,energy,False
+gauss_own,cca,parts_quarters,-0.00035567,-0.00035567,0.00017112,0.00017112,0.0017587,0.0017587,,energy,False
+gauss_own,cca,token_halves,-0.00020093,-0.00020093,-0.00049267,-0.00049267,0.00043659,0.00043659,,energy,False
+gauss_own,cca,token_quarters,-0.00028182,-0.00028182,-0.00018801,-0.00018801,0.0014239,0.0014239,,energy,False
+gauss_own,pca,aug_halves,-0.00019102,-0.00019102,0.0008415,0.0008415,8.9639e-05,8.9639e-05,avg_rank,energy,False
+gauss_own,pca,aug_quarters,-0.00066994,-0.00066994,0.0020453,0.0020453,0.000297,0.000297,,energy,False
+gauss_own,pca,parts_halves,-0.00037763,-0.00037763,0.0012186,0.0012186,0.00013307,0.00013307,avg_rank,"demeaned_pearson, energy",False
+gauss_own,pca,parts_quarters,-0.0013763,-0.0013763,0.0015969,0.0015969,0.00039601,0.00039601,,energy,False
+gauss_own,pca,token_halves,-0.00019102,-0.00019102,0.0008415,0.0008415,8.9639e-05,8.9639e-05,avg_rank,energy,False
+gauss_own,pca,token_quarters,-0.00066994,-0.00066994,0.0020453,0.0020453,0.000297,0.000297,,energy,False
+ridge,cca,aug_halves,-0.00020093,-0.00020093,-0.00049267,-0.00049267,,,,,False
+ridge,cca,aug_quarters,-0.00028182,-0.00028182,-0.00018801,-0.00018801,,,,,False
+ridge,cca,parts_halves,-0.00033841,-0.00033841,-0.00081149,-0.00081149,,,,,False
+ridge,cca,parts_quarters,-0.00035567,-0.00035567,0.00017112,0.00017112,,,,,False
+ridge,cca,token_halves,-0.00020093,-0.00020093,-0.00049267,-0.00049267,,,,,False
+ridge,cca,token_quarters,-0.00028182,-0.00028182,-0.00018801,-0.00018801,,,,,False
+ridge,pca,aug_halves,-0.00019102,-0.00019102,0.0008415,0.0008415,,,avg_rank,,True
+ridge,pca,aug_quarters,-0.00066994,-0.00066994,0.0020453,0.0020453,,,,,False
+ridge,pca,parts_halves,-0.00037763,-0.00037763,0.0012186,0.0012186,,,avg_rank,demeaned_pearson,False
+ridge,pca,parts_quarters,-0.0013763,-0.0013763,0.0015969,0.0015969,,,,,False
+ridge,pca,token_halves,-0.00019102,-0.00019102,0.0008415,0.0008415,,,avg_rank,,True
+ridge,pca,token_quarters,-0.00066994,-0.00066994,0.0020453,0.0020453,,,,,False
