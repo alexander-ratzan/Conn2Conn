@@ -80,10 +80,11 @@ code-space copy recovers about half of the gap to the edge copy), **but neither 
 single-source scores do not move. The limit is in the models (shrinkage, the small CCA latent chosen on demeaned r),
 not only in the truncation. Next check (E4.0c): CCA on full-rank codes (no PCA truncation).
 
-Related EDA (2026-10-28): `scripts/notebooks/EDA/fc_deviation_similarity.py` — individual FC deviations are weakly
-reliable within a task (LR vs RL run r 0.045–0.15; full-length reliability 0.09–0.26; rest 0.66), so cross-condition
-agreement is low (0.06–0.19) but, corrected for that unreliability, about half of the individual pattern is shared
-(disattenuated 0.41–0.77, median 0.51).
+Related EDA (2026-10-28): `scripts/notebooks/EDA/fc_deviation_similarity.py` (figures in
+`scripts/notebooks/EDA/figures/fc_conditions/deviation_similarity/`): a subject's FC deviations from each condition's
+mean agree only weakly across conditions (within-subject r 0.06–0.19; rest–task 0.13–0.19), yet that agreement is
+individual (between-subject r ≈ 0; average rank 0.88–0.99). Split-half reliability is not estimated: LR / RL task runs
+differ in phase-encoding direction, stimuli and block order, so they are not parallel halves.
 
 ## Next
 
