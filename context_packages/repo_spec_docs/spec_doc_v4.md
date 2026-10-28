@@ -31,7 +31,7 @@ no gain); full cross-condition translation with one conditional model and SC as 
 | D5 | E2 reframed around the consensus latent; training fix for the synthetic gate; identity-loss arm | decided 2026-10-21 | E1 | user |
 | D6 | Spec and repository housekeeping | decided 2026-10-21; v4 active 2026-10-26 | — | user |
 | D7 | E2.1 as conditional generation of each condition's encoding (8 targets per subject) | decided 2026-10-26 | E1 | user |
-| D8 | E4 design (one conditional flow from noise, masked multi-source input; activity flow deferred) and execution | pending (design agreed 2026-10-28; budget and go pending) | — | user |
+| D8 | E4 design (nonlinear and linear flows from noise, DeepSets interface trained pairwise first, baselines reviewed first; activity flow deferred) and execution | pending (design agreed 2026-10-28; budget and go pending) | — | user |
 | C!1 | (from v3:C!2) Subject-specific SC is dominated by parcel size, which FC cannot see | standing caveat | — | — |
 
 ---
