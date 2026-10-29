@@ -157,7 +157,7 @@ improving slowly, though B1-pooled bounds the linear class), and its SC-only cel
 T 0.25 (average rank 0.673 vs 0.692; E4 trains SC-only on 20 % of draws). Results reported regardless (user: run end to
 end).
 
-**Reading.** Translation between conditions is best done with **one map shared by every condition pair**: least
+**Reading** (conceptual and mathematical walkthrough: `pooled_map.md`). Translation between conditions is best done with **one map shared by every condition pair**: least
 squares then regresses each condition's codes onto the mean of the subject's other conditions, i.e. it predicts the
 subject's cross-condition consensus (a denoised fingerprint), and it does so better than copying the source pattern.
 Per-pair models (ridge, CCA's decoders, FM-nl) fit condition-specific noise from 659 subjects. Flow matching recovers
