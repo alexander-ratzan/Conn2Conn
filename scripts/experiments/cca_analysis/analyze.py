@@ -20,8 +20,9 @@ from e5_common import CFG, FC, OUT, VIEWS  # noqa: E402
 REPO_ROOT = next(p for p in HERE.parents if (p / "main.py").exists())
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "experiments" / "model_benchmark"))
 METRICS = {"demeaned_pearson": "demeaned r", "avg_rank": "average rank", "top1_acc": "top-1"}
-REP_LABEL = {"R0": "R0 nodal PCA", "R1": "R1 condition PCA", "R2": "R2 block PCA", "R3": "R3 block PCA (var-adj.)",
-             "CCA": "CCA (full rank)", "CCA-256": "CCA-256 (on R3)", "edges": "copy"}
+REP_LABEL = {"R0": "nodal PCA of the mean connectome", "R1": "condition-specific PCA",
+             "R2": "shared block PCA, unscaled", "R3": "shared block PCA, variance-adjusted",
+             "CCA": "CCA (full rank)", "CCA-256": "CCA on 256 variance-adjusted block-PCA codes", "edges": "copy"}
 MODEL_LABEL = {"ridge": "ridge", "cond_gauss": "cond. Gaussian", "cca_ridge": "CCA + ridge decoder", "copy": "copy",
                "cca_agg": "CCA-agg", "cca_cat": "CCA-cat", "cca_best_single": "best single source (CCA)",
                "ridge_cat": "ridge, concatenated codes"}
@@ -111,11 +112,11 @@ def h1_tables(df, sel):
         for rep in ("R0", "R1", "R2", "R3"):
             other = h1[(h1.model == "ridge") & (h1.rep == rep)]
             row = contrast(f(cca).groupby("seed")["avg_rank"].mean(), f(other).groupby("seed")["avg_rank"].mean(),
-                           f"CCA − {rep} (ridge)")
+                           f"CCA − {REP_LABEL[rep]} (ridge)")
             con.append(dict(block=blk, metric="avg_rank", **row))
         row = contrast(f(cca).groupby("seed")["avg_rank"].mean(),
                        f(h1[(h1.model == "cca_ridge") & (h1.rep == "CCA-256")]).groupby("seed")["avg_rank"].mean(),
-                       "CCA − CCA-256")
+                       "CCA − CCA on 256 block-PCA codes")
         con.append(dict(block=blk, metric="avg_rank", **row))
     con = pd.DataFrame(con)
     pairs = cca.merge(pca, on=["seed", "source", "target", "block"], suffixes=("_cca", "_pca"))
@@ -140,7 +141,8 @@ def pair_matrix(df, metric, sel_rows):
 # ---------------------------------------------------------------- H2
 def h2_tables(df):
     h2 = df[df.hyp == "H2"].copy()
-    h2["label"] = h2.apply(lambda r: f"{MODEL_LABEL[r.model]} ({r.rep})" if r.model == "ridge_cat" else MODEL_LABEL[r.model],
+    h2["label"] = h2.apply(lambda r: f"ridge on concatenated codes: {REP_LABEL[r.rep]}" if r.model == "ridge_cat" else
+                           "copy: mean of the other FC conditions' residuals" if r.model == "copy" else MODEL_LABEL[r.model],
                            axis=1)
     summ = seed_mean(h2, ["setting", "label"])
     per_target = seed_mean(h2, ["setting", "target", "label"])
@@ -196,11 +198,12 @@ def fig_rc():
     return {**mb.FIG_RC, "font.size": 12, "axes.linewidth": 1.5}
 
 
-def heatmaps(mats, titles, suptitle, cmap="viridis", diverging=False, fmt_="{:.2f}", path=None):
+def heatmaps(mats, titles, suptitle, cmap="viridis", diverging=False, fmt_="{:.2f}", path=None, vertical=False):
     import matplotlib.pyplot as plt
     with plt.rc_context(fig_rc()):
-        fig, axes = plt.subplots(1, len(mats), figsize=(5.2 * len(mats), 5.0), layout="constrained")
-        axes = np.atleast_1d(axes)
+        shape, size = ((len(mats), 1), (6.2, 5.2 * len(mats))) if vertical else ((1, len(mats)), (5.2 * len(mats), 5.0))
+        fig, axes = plt.subplots(*shape, figsize=size, layout="constrained")
+        axes = np.ravel(axes)
         divs = diverging if isinstance(diverging, (list, tuple)) else [diverging] * len(mats)
         for ax, M, t, div in zip(axes, mats, titles, divs):
             A = M.values.astype(float)
@@ -268,7 +271,8 @@ def main():
     for m, lab in METRICS.items():
         heatmaps([pair_matrix(df, m, cca), pair_matrix(df, m, pca),
                   pair_matrix(df, m, cca) - pair_matrix(df, m, pca)],
-                 ["CCA (full rank) + ridge decoder", "best PCA representation (ridge)", "CCA − best PCA"],
+                 ["CCA (full rank) + ridge decoder",
+                  f"best PCA representation, ridge\n({', '.join(sorted({REP_LABEL[r] for r in bp.values()}))})", "CCA − best PCA"],
                  f"H1: test {lab}, every source → target pair (mean of 5 seeds)", diverging=[False, False, True],
                  fmt_="{:.3f}", path=FIG / f"h1_pairs_{m}.png")
     print("wrote tables/ and figures/")

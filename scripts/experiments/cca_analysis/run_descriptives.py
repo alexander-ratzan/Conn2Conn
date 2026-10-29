@@ -5,18 +5,21 @@
   deviation-similarity EDA, including SC.  -> tables/descriptives_pairs.csv
   Data view: the raw edges of the first `n_subjects` seed-0 test subjects in every view and every view's train mean
   (also the ground truth of the H3 rest examples).  -> OUT/render/data_view_seed0.npz
+  Copy, every ordered pair including SC: prediction = target train mean + source residual, scored like every model
+  (E2's `score` on the full connectome). FC -> FC equals run_seed.py's H1 copy rows; pairs with SC are a null (SC and
+  FC residuals share nothing edge-wise).  -> tables/copy_pairs.csv
 
     python scripts/experiments/cca_analysis/run_descriptives.py
 """
 import numpy as np
 import pandas as pd
 
-from e5_common import CFG, HERE, OUT, VIEWS, SeedData
+from e5_common import CFG, HERE, OUT, VIEWS, SeedData, score
 from models.eval.metrics import compute_corr_matrix, corr_avg_rank, corr_topn_accuracy
 
 
 def main():
-    rows = []
+    rows, copy = [], []
     for seed in CFG["seeds"]:
         sd = SeedData(seed, "main")
         R = {v: sd.edges[("test", v)].astype(np.float64) - sd.train_mean[v].astype(np.float64) for v in VIEWS}
@@ -25,6 +28,8 @@ def main():
                 if a == b:
                     continue
                 S = compute_corr_matrix(R[b], R[a])                 # rows: true subject in b; columns: subjects in a
+                pred = sd.train_mean[b].astype(np.float64) + R[a]
+                copy.append(dict(seed=seed, source=a, target=b, **score(pred, sd.edges[("test", b)], sd.train_mean[b])))
                 rows.append(dict(seed=seed, source=a, target=b, within_r=float(np.mean(np.diag(S))),
                                  avg_rank=float(corr_avg_rank(cc=S)), top1_acc=float(corr_topn_accuracy(cc=S, topn=1))))
         if seed == CFG["composite"]["examples"]["seed"]:
@@ -37,7 +42,8 @@ def main():
         print(f"seed {seed} done", flush=True)
     (HERE / "tables").mkdir(exist_ok=True)
     pd.DataFrame(rows).to_csv(HERE / "tables" / "descriptives_pairs.csv", index=False)
-    print("wrote tables/descriptives_pairs.csv and render/data_view_seed0.npz")
+    pd.DataFrame(copy).to_csv(HERE / "tables" / "copy_pairs.csv", index=False)
+    print("wrote tables/descriptives_pairs.csv, tables/copy_pairs.csv and render/data_view_seed0.npz")
 
 
 if __name__ == "__main__":
