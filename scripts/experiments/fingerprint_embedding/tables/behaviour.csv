@@ -1,0 +1,21 @@
+target,features,r,r_se
+CogCrystalComp_AgeAdj,fingerprint,0.4931,0.033098
+CogCrystalComp_AgeAdj,fingerprint embedding,0.46428,0.034678
+CogCrystalComp_AgeAdj,rest codes,0.48165,0.025031
+CogCrystalComp_AgeAdj,rest edges,0.50939,0.019544
+CogCrystalComp_AgeAdj,rest embedding,0.40776,0.031785
+CogFluidComp_AgeAdj,fingerprint,0.38875,0.05127
+CogFluidComp_AgeAdj,fingerprint embedding,0.35993,0.034979
+CogFluidComp_AgeAdj,rest codes,0.27732,0.044727
+CogFluidComp_AgeAdj,rest edges,0.29703,0.050101
+CogFluidComp_AgeAdj,rest embedding,0.24854,0.021677
+CogTotalComp_AgeAdj,fingerprint,0.5016,0.04
+CogTotalComp_AgeAdj,fingerprint embedding,0.48832,0.037851
+CogTotalComp_AgeAdj,rest codes,0.42428,0.028003
+CogTotalComp_AgeAdj,rest edges,0.47193,0.024721
+CogTotalComp_AgeAdj,rest embedding,0.37036,0.028912
+PMAT24_A_CR,fingerprint,0.38521,0.028492
+PMAT24_A_CR,fingerprint embedding,0.36461,0.026564
+PMAT24_A_CR,rest codes,0.29419,0.027837
+PMAT24_A_CR,rest edges,0.35262,0.029897
+PMAT24_A_CR,rest embedding,0.27498,0.033434

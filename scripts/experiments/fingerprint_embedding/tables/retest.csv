@@ -1,0 +1,4 @@
+model,avg_rank,top1_acc,demeaned_pearson,avg_rank_se,top1_acc_se,demeaned_pearson_se
+copy (codes),0.96736,0.78945,0.37406,0.0031501,0.0057923,0.0017827
+copy (edges),0.98891,0.94652,0.49429,0.0033618,0.0073795,0.0038562
+embedding,0.99387,0.89147,0.29447,0.00061773,0.010445,0.0016963

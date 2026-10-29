@@ -1,0 +1,6 @@
+route,avg_rank,top1_acc,demeaned_pearson,avg_rank_se,top1_acc_se,demeaned_pearson_se
+"SC → condition, multiview CCA (E4 B2)",0.66094,0.028752,0.04584,0.0044562,0.0020273,0.0016514
+"SC → condition, ridge (E4 B1)",0.66098,0.017969,0.043696,0.0038902,0.0013255,0.0014447
+SC → fingerprint (ridge),0.72161,0.036856,0.048107,0.0060315,0.002536,0.0017147
+SC → fingerprint embedding (ridge),0.74407,0.042671,0.051551,0.0059681,0.005461,0.0020593
+SC → rest FC (ridge),0.66208,0.025257,0.038196,0.0055928,0.0019795,0.0018575

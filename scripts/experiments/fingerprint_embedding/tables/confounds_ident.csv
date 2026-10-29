@@ -1,0 +1,5 @@
+representation,residualised,avg_rank,top1,avg_rank_se,top1_se
+codes,False,0.83221,0.15288,0.0019208,0.002584
+codes,True,0.83029,0.15446,0.0018749,0.0022713
+embedding,False,0.96526,0.53975,0.001086,0.0035101
+embedding,True,0.96201,0.52855,0.00099892,0.0046292

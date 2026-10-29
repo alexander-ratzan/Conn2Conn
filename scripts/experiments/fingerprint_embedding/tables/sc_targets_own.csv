@@ -1,0 +1,4 @@
+route,r2,avg_rank,top1_acc,r2_se,avg_rank_se,top1_acc_se
+SC → fingerprint (ridge),0.021457,0.82494,0.096277,0.0017339,0.011965,0.014018
+SC → fingerprint embedding (ridge),0.072698,0.85179,0.12217,0.0054601,0.0071354,0.016678
+SC → rest FC (ridge),0.010191,0.72017,0.037881,0.0034436,0.013477,0.0062385

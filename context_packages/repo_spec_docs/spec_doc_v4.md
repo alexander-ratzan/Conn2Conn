@@ -618,6 +618,41 @@ write-up `scripts/experiments/cca_analysis/cca_analysis.md`.
 - **Depends on:** E1, E2.0 (code space), E4.0c (G0 references), I2.
 - **Budget / autonomy:** D11.
 
+### E6 — Fingerprint embedding: is E4's pooled map a reliable, non-artefactual subject embedding, and is it a better target for SC?   (slug: `fingerprint_embedding`) · status: done (2026-10-29) · owner: agent:modeling
+
+**In one paragraph.** E4 found that one map shared by every FC condition pair translates best (test average rank 0.916
+vs copy 0.843), because least squares then regresses each condition onto the subject's mean over the other conditions:
+a reliability-weighted fingerprint filter, $B = \tfrac{8}{7}W - \tfrac{1}{7}I$ with $W = (8S_f + S_d)^{-1} 8S_f$
+(`cross_condition_translation/pooled_map.md`). E6 asks (user, 2026-10-29) whether this embedding generalises across
+days, whether its identifiability comes from confounds, whether it carries behaviour, and whether SC predicts the
+fingerprint better than any single FC condition or the CCA route.
+
+**Data.** As E4 (matched cohort, family-aware E2.1 splits, seeds 0–4, $k$ = 256 pooled block-PCA codes); the map is fit
+on the train subjects' 8 conditions (combined rest + 7 tasks). Test split reported, val for selection.
+
+**Checks.**
+
+| ID | Question | Comparison | Metric |
+|---|---|---|---|
+| C1 | Does the embedding raise identification across days? | rest session 1 ↔ 2: embedding vs copy (edges, codes); map never fit on sessions | average rank, top-1, demeaned r |
+| C2 | Is identifiability carried by confounds? | (a) R² of confound proxies for codes vs embedding; (b) 56-pair identification before / after removing the confound-explained part | R², average rank, top-1 |
+| C3 | Does the embedding carry behaviour? | ridge from rest edges / rest codes / rest embedding / fingerprint / fingerprint embedding → HCP cognition (total, fluid, crystallised, PMAT) | test r |
+| C4 | Is the fingerprint a better SC target? | ridge SC → rest FC / fingerprint / fingerprint embedding vs E4's SC → condition ridge and multiview CCA | own-target R² and identification; average rank, demeaned r against measured rest FC and against all 8 conditions |
+
+Confound proxies (no framewise displacement in our data): DVARS and global-signal SD from the rest timeseries, mean
+rest FC, intracranial and total parcel volume (`build_confounds.py`).
+
+**Result (2026-10-29; `scripts/experiments/fingerprint_embedding/fingerprint_embedding.md`).** Closed form verified
+($10^{-15}$); 55–56 of 256 directions have $w > 0.5$. C1: across days the embedding raises top-1 over the codes it uses
+(0.79 → 0.89, 5 / 5; raw edges 0.95). C2: proxies explain less of the embedding than of rest codes (R² 0.05 vs 0.14);
+removing them leaves identification unchanged (0.965 → 0.962). C3: no behavioural gain from the embedding (below codes /
+fingerprint on every score); averaging conditions helps fluid (+0.09, not supported). C4: SC → fingerprint embedding is
+the most individual SC → FC route: own R² 0.073 vs 0.010 for rest; against measured rest FC average rank 0.822 vs 0.726
+(ridge → rest, +0.097, 5 / 5) and 0.719 (CCA); demeaned r unchanged.
+
+- **Depends on:** E4 (pooled map), E2 cache, `Conn2Conn_data/timeseries`, HCP unrestricted table.
+- **Budget / autonomy:** CPU only; run end to end (user).
+
 ## 3. Infrastructure
 
 ### I1 — Joint translation infrastructure · status: in progress · owner: agent:modeling
@@ -726,5 +761,8 @@ v3 closed 2026-10-21 (all experiments done). Carried forward:
 | 2026-10-28 | E5 done (autonomous, D11; GPU cap raised to 13 GPU-h by the user): H1 supported (CCA +0.027 average rank over 72 pairs vs R3; FC → SC +0.058; not SC → FC), H2 supported, H3 supported for Neighbour distance only (demeaned corr-eye trades accuracy for identification beyond the margin). Notebook `cca_analysis_overview.ipynb` is a renderer of the experiment's outputs. |
 
 | 2026-10-29 | E4 done. Checks: O3 failed (flow mean trails the closed form; per-target state term no help); real-data curves show early overfitting, min-epoch floor back to 50. With the user's go, E2.1's linear flow with one map shared by all pairs (`fm_shared`) passed a seed-0 test (val average rank 0.909 vs ridge 0.788, CCA 0.824) and was run end to end (search 21318307, finals 21318308–09, T = 1 distributions 21320724), with a closed-form control (B1-pooled, one ridge for all pairs). Test: B1-pooled 0.916 ≥ `fm_shared` 0.911 ≫ copy 0.843 > CCA 0.815 > FM-nl 0.795 > ridge 0.784 (average rank); the sharing, not flow matching, carries the gain; G2 failed as written. 8.6 GPU-h of D8's 15 used. |
+
+| 2026-10-29 | E6 (fingerprint embedding, slug `fingerprint_embedding`) added and run (user): retest across days, confound proxies, behaviour, SC → fingerprint vs SC → rest / CCA. |
+| 2026-10-29 | E6 done (CPU; jobs 21344818, 21345170): the pooled map is a fingerprint filter that transfers across days and is not explained by motion / head-size proxies; it does not improve behaviour prediction; SC → fingerprint is the most individual SC → FC route (average rank vs measured rest FC 0.82 vs 0.72). |
 
 Last updated at: 2026-10-29 EDT
