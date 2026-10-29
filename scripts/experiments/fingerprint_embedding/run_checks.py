@@ -9,9 +9,15 @@ used for selection; family-aware E2 splits; k = 256 codes.
                the confound-explained part (regression fit on train) from codes and from the embedding.
   3 behaviour  ridge (penalty on val r) from rest edges, rest codes, rest embedding, fingerprint, fingerprint embedding
                to HCP cognition (total, fluid, crystallised composites, PMAT); test Pearson r.
-  4 SC targets ridge from SC codes (size and penalty on val average rank against rest FC) to three training targets:
-               rest FC codes, the fingerprint (mean of 8 conditions), the fingerprint embedding; scored against the own
-               target (codes) and against each condition's measured FC (decoded edges).
+  4 SC routes  four ways from SC to rest FC, all selected on val average rank against measured rest FC:
+               (1) ridge SC codes -> rest's block-PCA codes; (2) multiview CCA (MAXVAR over SC + 8 FC conditions, as
+               E4's B2 but (d, lambda) selected for SC -> rest): SC's latent encoding decoded with rest's decoder;
+               (3) ridge -> the fingerprint (mean of the 8 conditions' codes); (4) ridge -> the fingerprint embedding;
+               (5) E1's consensus CCA latent: MAXVAR over the 8 FC conditions only, consensus = mean of a subject's 8
+               encodings, ridge SC -> consensus, rest's CCA decoder ((d, lambda) selected as the others; also at E1's
+               fixed d 32, lambda 0.1). Ceiling per route: the subject's true target decoded the same way.
+               Stage 1: pairing with the route's own target (codes; CCA: SC's vs rest's latent encoding); stage 2:
+               decoded to edges against each condition's measured FC (rest is the main readout).
 Also: B's closed form and the eigenvalues w of W (per-direction fingerprint share).
 
     python scripts/experiments/fingerprint_embedding/run_checks.py --seed 0   -> results/seed<S>.json
@@ -25,6 +31,7 @@ import pandas as pd
 
 from fe_common import (CONFOUNDS, COG, FC, HERE, K, UNRESTRICTED, SeedData, codes, fingerprint, ident, pooled_map,
                        ridge_fit, score)
+from e4_common import CFG as E4CFG, maxvar  # noqa: E402
 from run_e40c import ridge_path  # noqa: E402  (E4: one SVD, every penalty)
 
 ALPHAS = [1e-3, 1e-2, 1e-1, 1, 10, 100, 1e3, 1e4]
@@ -99,7 +106,7 @@ def behaviour(sd, B, rest_edges, cog, Z):
 
 
 def sc_targets(sd, B, Z):
-    targets = {"rest FC": lambda Zs: Zs["rest"], "fingerprint": fingerprint,
+    targets = {"rest codes": lambda Zs: Zs["rest"], "fingerprint": fingerprint,
                "fingerprint embedding": lambda Zs: fingerprint(Zs) @ B}
     rows = []
     for tname, tf in targets.items():
@@ -113,6 +120,10 @@ def sc_targets(sd, B, Z):
                     best = (v, ksc, a, Bsc, X)
         _, ksc, a, Bsc, X = best
         for split in SPLITS:
+            for m in FC:                       # ceiling: the true target decoded the same way
+                rows.append(dict(check="sc_ceiling", target=tname, against=m, split=split,
+                                 **score(sd.decode(m, tf(Z[split])), sd.edges[(split, m)], sd.train_mean[m])))
+        for split in SPLITS:
             P, own = X[split] @ Bsc, tf(Z[split])
             r2 = 1 - ((own - P) ** 2).sum() / ((own - Ytr.mean(0)) ** 2).sum()
             ar, t1 = ident(P, own)
@@ -121,6 +132,67 @@ def sc_targets(sd, B, Z):
             for m in FC:
                 rows.append(dict(check="sc_target", target=tname, against=m, split=split, k_sc=ksc, alpha_rel=a,
                                  **score(sd.decode(m, P), sd.edges[(split, m)], sd.train_mean[m])))
+    rows += sc_cca(sd, Z)
+    rows += sc_consensus(sd, Z, select=True) + sc_consensus(sd, Z, select=False)
+    return rows
+
+
+def sc_consensus(sd, Z, select):
+    """Route 5 (E1): MAXVAR over the 8 FC conditions (no SC); target = mean of a subject's 8 encodings; ridge SC ->
+    consensus; decoded with each condition's CCA decoder. select=False: E1's latent (d 32, lambda 0.1)."""
+    name = "CCA consensus" if select else "CCA consensus (E1 setting)"
+    grid = [(d, float(l)) for d in [16, 32, 64, 128, 256] for l in E4CFG["maxvar_lambda"]] if select else [(32, 0.1)]
+    X = {k_: {s: sd.code("SC", s, k_).astype(np.float64) for s in ALL} for k_ in K_SC}
+    best = None
+    for d, lam in grid:
+        A, D, _ = maxvar({v: Z["train"][v] for v in FC}, d, lam)
+        cons = {s: sum(Z[s][v] @ A[v] for v in FC) / len(FC) for s in ALL}
+        for k_ in K_SC:
+            for a, Bsc in ridge_path(X[k_]["train"], cons["train"], ALPHAS).items():
+                v = score(sd.decode("rest", X[k_]["val"] @ Bsc @ D["rest"]), sd.edges[("val", "rest")], sd.train_mean["rest"])["avg_rank"]
+                if best is None or v > best[0]:
+                    best = (v, d, lam, k_, a, Bsc, D, cons)
+    _, d, lam, k_, a, Bsc, D, cons = best
+    rows = []
+    for split in SPLITS:
+        P = X[k_][split] @ Bsc
+        r2 = 1 - ((cons[split] - P) ** 2).sum() / ((cons[split] - cons["train"].mean(0)) ** 2).sum()
+        ar, t1 = ident(P, cons[split])
+        hp = dict(d=d, lambda_rel=lam, k_sc=k_, alpha_rel=a)
+        rows.append(dict(check="sc_target", target=name, against="own target (codes)", split=split, r2=float(r2), avg_rank=ar, top1_acc=t1, **hp))
+        for m in FC:
+            rows.append(dict(check="sc_target", target=name, against=m, split=split, **hp,
+                             **score(sd.decode(m, P @ D[m]), sd.edges[(split, m)], sd.train_mean[m])))
+            rows.append(dict(check="sc_ceiling", target=name, against=m, split=split,
+                             **score(sd.decode(m, cons[split] @ D[m]), sd.edges[(split, m)], sd.train_mean[m])))
+    return rows
+
+
+def sc_cca(sd, Z):
+    """Route 2: MAXVAR over SC + the 8 FC conditions (k = 256 codes each); SC encoded into the latent, decoded with each
+    condition's decoder; (d, lambda) on val average rank of SC -> rest against measured rest FC."""
+    V = {s: dict(Z[s], SC=sd.code("SC", s, K).astype(np.float64)) for s in ALL}
+    best = None
+    for d in [16, 32, 64, 128, 256]:
+        for lam in E4CFG["maxvar_lambda"]:
+            A, D, _ = maxvar(V["train"], d, float(lam))
+            v = score(sd.decode("rest", V["val"]["SC"] @ A["SC"] @ D["rest"]), sd.edges[("val", "rest")], sd.train_mean["rest"])["avg_rank"]
+            if best is None or v > best[0]:
+                best = (v, d, float(lam), A, D)
+    _, d, lam, A, D = best
+    rows = []
+    gtr = V["train"]["rest"] @ A["rest"]
+    for split in SPLITS:
+        g_sc, g_rest = V[split]["SC"] @ A["SC"], V[split]["rest"] @ A["rest"]
+        r2 = 1 - ((g_rest - g_sc) ** 2).sum() / ((g_rest - gtr.mean(0)) ** 2).sum()
+        ar, t1 = ident(g_sc, g_rest)
+        rows.append(dict(check="sc_target", target="CCA latent", against="own target (codes)", split=split, d=d, lambda_rel=lam,
+                         r2=float(r2), avg_rank=ar, top1_acc=t1))
+        for m in FC:
+            rows.append(dict(check="sc_target", target="CCA latent", against=m, split=split, d=d, lambda_rel=lam,
+                             **score(sd.decode(m, g_sc @ D[m]), sd.edges[(split, m)], sd.train_mean[m])))
+            rows.append(dict(check="sc_ceiling", target="CCA latent", against=m, split=split,
+                             **score(sd.decode(m, V[split][m] @ A[m] @ D[m]), sd.edges[(split, m)], sd.train_mean[m])))
     return rows
 
 

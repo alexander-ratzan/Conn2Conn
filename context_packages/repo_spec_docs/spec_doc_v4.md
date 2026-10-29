@@ -646,9 +646,11 @@ rest FC, intracranial and total parcel volume (`build_confounds.py`).
 ($10^{-15}$); 55–56 of 256 directions have $w > 0.5$. C1: across days the embedding raises top-1 over the codes it uses
 (0.79 → 0.89, 5 / 5; raw edges 0.95). C2: proxies explain less of the embedding than of rest codes (R² 0.05 vs 0.14);
 removing them leaves identification unchanged (0.965 → 0.962). C3: no behavioural gain from the embedding (below codes /
-fingerprint on every score); averaging conditions helps fluid (+0.09, not supported). C4: SC → fingerprint embedding is
-the most individual SC → FC route: own R² 0.073 vs 0.010 for rest; against measured rest FC average rank 0.822 vs 0.726
-(ridge → rest, +0.097, 5 / 5) and 0.719 (CCA); demeaned r unchanged.
+fingerprint on every score); averaging conditions helps fluid (+0.09, not supported). C4 (five SC → rest FC routes: rest
+codes, CCA with SC as a view, E1's CCA consensus, mean fingerprint, fingerprint embedding): training SC on the
+fingerprint embedding gives the most individual predictions of measured rest FC (average rank 0.822 vs 0.726 trained
+on rest, +0.097, 5 / 5; CCA routes 0.732 / 0.749); demeaned r unchanged (0.09–0.10). Per-direction R²: SC predicts only
+the fingerprint-dominated directions of FC (R² ≈ 0.03 where w > 0.5, ≈ 0 where w < 0.2), even when trained on rest.
 
 - **Depends on:** E4 (pooled map), E2 cache, `Conn2Conn_data/timeseries`, HCP unrestricted table.
 - **Budget / autonomy:** CPU only; run end to end (user).
