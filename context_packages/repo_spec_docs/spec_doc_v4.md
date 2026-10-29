@@ -21,8 +21,9 @@ no gain); full cross-condition translation with one conditional model and SC as 
 | E1 | CCA-latent bidirectional benchmark: multiview CCA latent of FC as the encoding for FC → SC and the target for SC → FC | done 2026-10-20 | I2, D4 | agent:modeling |
 | E2 | SC → functional latent: E2.1 conditional generation of each condition's CCA encoding from SC (linear, nonlinear, linear-Gaussian, flow); E2.2 superseded by E4 | done 2026-10-26 (E2.1; E2.2 superseded by E4 2026-10-28) | I1, E1, D7 | agent:modeling |
 | E3 | Generative follow-ups to E2.1: path noise, rest sessions as repeats, FC timeseries windows as more samples per subject | done 2026-10-27 (windows: no gain, `windowed_fc_gain`; path noise dropped; rest sessions and activity flow moved to E4) | E2.1 | agent:modeling |
-| E4 | Full cross-condition translation: conditional flows from noise, nonlinear and linear (SC + source condition → any target condition; DeepSets interface, pairwise first), against identity, block-PCA ridge (± SC), 9-view multiview CCA with SC and linear-Gaussian baselines | planned | E2.1, E2.0, I1, E3, D8 | agent:modeling |
+| E4 | Full cross-condition translation: conditional flows from noise, nonlinear and linear (SC + source condition → any target condition; DeepSets interface, pairwise first), against identity, block-PCA ridge (± SC), 9-view multiview CCA with SC and linear-Gaussian baselines | done 2026-10-29 | E2.1, E2.0, I1, E3, D8 | agent:modeling |
 | E5 | CCA analysis: multiview CCA co-embedding vs nodal, condition-specific and block PCA representations for all 72 view pairs (H1), other views → held-out (H2), composite loss on the CCA decoders (H3); formal notebook | done 2026-10-28 | E1, E2.0, E4.0c, I2, D11 | agent:modeling |
+| E6 | Fingerprint embedding: E4's pooled map as a subject embedding (across days, confounds, behaviour) and SC → rest FC through five target spaces | done 2026-10-29 | E4, E2 cache | agent:modeling |
 | I1 | Joint translation infrastructure: pooled FC basis, (subject, source, target) data module, token model, integrator, runner | in progress | — | agent:modeling |
 | I2 | Multiview CCA library module (MAXVAR fit / encode / decode), shared by E2 and E1 | done 2026-10-20 | — | agent:modeling |
 | D1 | Views and the true rest target | decided 2026-10-20 | — | user |
@@ -766,5 +767,7 @@ v3 closed 2026-10-21 (all experiments done). Carried forward:
 
 | 2026-10-29 | E6 (fingerprint embedding, slug `fingerprint_embedding`) added and run (user): retest across days, confound proxies, behaviour, SC → fingerprint vs SC → rest / CCA. |
 | 2026-10-29 | E6 done (CPU; jobs 21344818, 21345170): the pooled map is a fingerprint filter that transfers across days and is not explained by motion / head-size proxies; it does not improve behaviour prediction; SC → fingerprint is the most individual SC → FC route (average rank vs measured rest FC 0.82 vs 0.72). |
+
+| 2026-10-29 | Audit (user): status table updated (E4 done, E6 added); pooled map moved to the library (`models/architectures/pooled_map.py`, closed form via a generalized eigendecomposition; E6 uses it, E4's `run_pooled_ridge.py` kept as the recorded fit, identical to 1e-15); E4 dead ends (per-pair FM-lin with its per-target state term, `fm_shared_tgt`) marked in their docstrings; two unreferenced E4 diagnostics removed; experiments index, CONTEXT, README updated. |
 
 Last updated at: 2026-10-29 EDT

@@ -89,7 +89,7 @@ If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after 
 - `data/data_caching/`
   - cache builders: `build_fc_cache.py` (FC npy caches, combined and per run; exclusions TSV), `build_ts_cache.py`
     (timeseries cache, validated against fc/); sbatch arrays in `scripts/sbatch/data/`
-- `models/architectures/multiview_cca.py`, `models/architectures/crossmodal_flow_matching.py`
+- `models/architectures/multiview_cca.py`, `models/architectures/crossmodal_flow_matching.py`, `models/architectures/pooled_map.py` (pooled cross-condition map / fingerprint filter, spec v4 E4 / E6)
   - spec v4 library (not registry models): MAXVAR multiview CCA (`maxvar`, `ridge_gcv`); `CodeSpace` (pooled block-PCA
     FC basis with equal-variance block scaling + SC basis), `TokenBackbone`, `integrate` (flow ODE); used by
     `scripts/experiments/{cca_latent_bench,joint_flow_matching}/`
@@ -543,6 +543,19 @@ Debug missing results cell:
 3. verify model/source/seed is included in requested grid
 
 ## Recent Changes
+
+2026-10-27 → 2026-10-29 — spec v4 E3–E6:
+- E3 (`scripts/experiments/windowed_fc_gain/`): FC from parts of a scan behaves like target + within-run noise; extra
+  pseudo-connectomes help no model.
+- E4 (`scripts/experiments/cross_condition_translation/`): one map shared by all 56 FC condition pairs (pooled ridge) is
+  the first model to beat copying the source; flows from noise (nonlinear, linear) add nothing; SC adds nothing given FC.
+  The pooled map is a reliability-weighted fingerprint filter with a closed form (`pooled_map.md`; library
+  `models/architectures/pooled_map.py`).
+- E5 (`scripts/experiments/cca_analysis/`): full-rank multiview CCA vs PCA representations over 72 view pairs.
+- E6 (`scripts/experiments/fingerprint_embedding/`): the pooled-map embedding transfers across days, is not explained by
+  motion / head-size proxies, does not help behaviour; SC trained on it predicts measured rest FC most identifiably
+  (SC predicts only the fingerprint directions of FC).
+- Data viewer `scripts/data_viewers/deviation_similarity_viewer/`.
 
 2026-10-20 → 2026-10-27 — spec v4 E1, E2.1; timeseries infrastructure; viewers:
 - E1 (`scripts/experiments/cca_latent_bench/`): multiview CCA latent of FC over rest + 7 tasks; tasks through the latent

@@ -14,7 +14,7 @@ Test split reported (mean ± SE over seeds); "paired" = seed-paired difference, 
 - $B$ matches its closed form $B = \tfrac{8}{7}W - \tfrac{1}{7}I$, $W = (8S_f + S_d)^{-1} 8S_f$, to $10^{-15}$ in every
   seed; 55–56 of the 256 code directions have fingerprint share $w > 0.5$ (`figures/fig_w_spectrum.png`).
 
-**Code.** `fe_common.py` (map, closed form, helpers), `build_confounds.py` (proxies), `run_checks.py` (one seed, all four
+**Code.** Library `models/architectures/pooled_map.py` (the map's closed form, no regression); `fe_common.py` (data access, check against E4's stacked least squares, helpers), `build_confounds.py` (proxies), `run_checks.py` (one seed, all four
 checks), `analyze.py`, `r2_by_direction.py`, `launch/run_checks.sh`. Jobs 21344818 (confounds), 21347437 (checks),
 21347847 (R² by direction). Tables `tables/`
 (`summary.md`), figures `figures/`.

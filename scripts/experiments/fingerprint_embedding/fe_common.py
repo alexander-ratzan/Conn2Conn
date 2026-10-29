@@ -2,8 +2,8 @@
 
 The embedding is E4's pooled map (`pooled_map.md` in cross_condition_translation): one least-squares map B fit on the
 train subjects over all 56 ordered FC condition pairs in E2's pooled block-PCA codes (k = 256; the penalty is irrelevant,
-E4). Closed form: B = (8/7) W - I / 7 with W = (8 S_f + S_d)^-1 8 S_f (S_f: scatter of the subjects' mean codes over the
-8 conditions, S_d: scatter of the condition deviations around them); `pooled_map` checks it.
+E4). It is computed by the library's closed form (models/architectures/pooled_map.py: one generalized
+eigendecomposition, no regression); `pooled_map` here also solves the stacked least squares and records the difference.
 """
 import sys
 from pathlib import Path
@@ -15,6 +15,7 @@ REPO_ROOT = next(p for p in HERE.parents if (p / "main.py").exists())
 E4 = REPO_ROOT / "scripts" / "experiments" / "cross_condition_translation"
 sys.path[:0] = [str(REPO_ROOT), str(E4)]
 from e4_common import FC, SeedData, score  # noqa: E402,F401  (E2 cache and scoring, via E4)
+from models.architectures import pooled_map as pm  # noqa: E402
 from models.eval.metrics import compute_corr_matrix, corr_avg_rank  # noqa: E402
 
 K = 256
@@ -30,23 +31,19 @@ def codes(sd, split, k=K):
 
 
 def pooled_map(sd, k=K):
-    """E4's B1-pooled at penalty 0 from the train codes, its closed form, and the eigenvalues of W (sorted, descending)."""
+    """The pooled map from the train codes (library closed form), its fingerprint shares w (descending) and directions V;
+    checked against E4's stacked least squares (B1-pooled at penalty 0)."""
     Z = codes(sd, "train", k)
-    G = 7 * sum(Z[v].T @ Z[v] for v in FC)
+    B, w, V = pm.pooled_map([Z[v] for v in FC])
+    G = (len(FC) - 1) * sum(Z[v].T @ Z[v] for v in FC)
     C = sum(Z[s].T @ sum(Z[t] for t in FC if t != s) for s in FC)
-    B = np.linalg.solve(G, C)
-    f = sum(Z.values()) / len(FC)
-    Sf = f.T @ f
-    Sd = sum((Z[v] - f).T @ (Z[v] - f) for v in FC)
-    W = np.linalg.solve(8 * Sf + Sd, 8 * Sf)
-    B_closed = (8 / 7) * W - np.eye(k) / 7
-    w = np.sort(np.linalg.eigvals(W).real)[::-1]
-    return B, dict(closed_form_max_abs_diff=float(np.abs(B - B_closed).max()), w=w)
+    B_ls = np.linalg.solve(G, C)
+    return B, dict(closed_form_max_abs_diff=float(np.abs(B - B_ls).max()), w=w, V=V)
 
 
 def fingerprint(Z):
     """Subject means over the 8 conditions (codes)."""
-    return sum(Z[v] for v in FC) / len(FC)
+    return pm.fingerprint([Z[v] for v in FC])
 
 
 def ident(X, Y):

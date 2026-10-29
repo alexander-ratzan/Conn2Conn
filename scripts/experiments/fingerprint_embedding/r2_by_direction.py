@@ -15,23 +15,13 @@ import json
 import sys
 
 import numpy as np
-from scipy.linalg import eigh
 
-from fe_common import FC, HERE, K, REPO_ROOT, SEEDS, SeedData, codes, fingerprint, score
+from fe_common import HERE, REPO_ROOT, SEEDS, SeedData, codes, fingerprint, pooled_map, score
 from run_e40c import ridge_path  # noqa: E402
 
 ALPHAS = [1e-3, 1e-2, 1e-1, 1, 10, 100, 1e3, 1e4]
 K_SC = [64, 128, 256]
 ALL = ("train", "val", "test")
-
-
-def directions(Z):
-    f = fingerprint(Z)
-    Sf = f.T @ f
-    Sd = sum((Z[v] - f).T @ (Z[v] - f) for v in FC)
-    w, V = eigh(8 * Sf, 8 * Sf + Sd)
-    order = np.argsort(w)[::-1]
-    return w[order], V[:, order]
 
 
 def fit_route(sd, Z, target):
@@ -56,7 +46,8 @@ def main():
     for s in SEEDS:
         sd = SeedData(s, "main")
         Z = {sp: codes(sd, sp) for sp in ALL}
-        w, V = directions(Z["train"])
+        _, info = pooled_map(sd)                      # library closed form: directions V and fingerprint shares w
+        w, V = info["w"], info["V"]
         rec = dict(w=w.tolist())
         for name, tgt in (("route 1: SC -> rest codes", lambda Zs: Zs["rest"]), ("route 4: SC -> mean fingerprint", fingerprint)):
             P = fit_route(sd, Z, tgt)

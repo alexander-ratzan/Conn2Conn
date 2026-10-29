@@ -359,6 +359,13 @@ launcher + `run.py`:
   across rest + 7 tasks, as the encoding for FC → SC and the target for SC → FC; closed form, CPU (`run_seed.py`, `run.py`).
 - **SC → functional latent** (`scripts/experiments/joint_flow_matching/`, spec v4 E2): SC → each condition's latent
   encoding as a point (linear / nonlinear) and as a distribution (conditional flow vs linear-Gaussian).
+- **Windowed FC gain** (`scripts/experiments/windowed_fc_gain/`, spec v4 E3): do FC samples from parts of a scan add
+  supervision? No.
+- **Cross-condition translation** (`scripts/experiments/cross_condition_translation/`, spec v4 E4): FC in one condition →
+  FC in another; one map shared by all condition pairs beats copying; flows add nothing (`pooled_map.md`).
+- **CCA analysis** (`scripts/experiments/cca_analysis/`, spec v4 E5): multiview CCA vs PCA representations, 72 view pairs.
+- **Fingerprint embedding** (`scripts/experiments/fingerprint_embedding/`, spec v4 E6): the pooled map as a subject
+  embedding, and SC → rest FC through five target spaces.
 
 `scripts/experiments/experiments_index.md` lists every experiment with its status and write-up.
 

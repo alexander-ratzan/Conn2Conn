@@ -6,6 +6,8 @@
   B1-pooled-tgt  one map per target, pooled over its 7 sources; penalty per target on its 7 cells' mean val average rank
 Same code space, scoring and penalty grid as E4.0c's B1 (run_e40c.py); no SC. If B1-pooled matches fm_shared, the flow's
 gain over per-pair ridge comes from sharing the map across pairs, not from flow matching.
+The same map without a regression (closed form, generalized eigendecomposition): models/architectures/pooled_map.py
+(pooled_map.md section 5); this script stays as E4's recorded fit (penalty grid, per-target variant).
 
     python scripts/experiments/cross_condition_translation/run_pooled_ridge.py --seed 0 [--k 256]
         -> results/pooled_ridge/k<k>/seed<S>.json

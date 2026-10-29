@@ -166,10 +166,11 @@ the shared map (FM-lin shared) but not more, and the nonlinear flow does not fin
 Figures (`figures/flows/k256/`): `fig_flows_settings.png`, `fig_flows_cells_{avg_rank, demeaned_pearson, top1_acc}.png`,
 `fig_flows_differences.png`; checks in `figures/checks/`.
 
-## Next (proposed, not run)
+## Next
 
-- Pooled maps as the standard linear reference for FC → FC (and other-7 / SC cells: one map per input type).
-- FM-nl with a shared map (nonlinear correction on top of the pooled map), the only route left for a flow gain.
-- Multi-source retrain (spec follow-up) starting from the shared form.
+- Done in E6 (`../fingerprint_embedding/`): the pooled map as a subject embedding (across days, confounds, behaviour) and
+  as an SC target; its closed form is now a library module (`models/architectures/pooled_map.py`).
+- Open: nonlinear correction on top of the pooled map (the only route left for a flow gain); predicting the
+  condition-specific part (FC minus the fingerprint), which the metrics here do not reward; multi-source retrain.
 
 Last updated: 2026-10-29

@@ -136,7 +136,9 @@ class FMlin(nn.Module):
     E_src: per-source encoders into a rank-r latent (CCA-like), D_tgt: per-target decoders, g and b: learned curves of
     tau only. Exactly a linear-Gaussian model per cell (E4.2: a shared map across cells could not express 56 maps).
     U_tgt, V_tgt (k x state_rank): per-target low-rank state term, so each target's samples can spread in its own
-    directions (E4.2 O3, 2026-10-28: with the shared A_j plus a diagonal only, the sample covariance had the wrong shape)."""
+    directions (E4.2 O3, 2026-10-28: with the shared A_j plus a diagonal only, the sample covariance had the wrong shape).
+    Status (dead end, kept so the E4.2 checks rerun as recorded): the state term changed nothing (O3's gap is in the mean,
+    checks/diagnose_o3.py); this per-pair FM-lin was not benchmarked, superseded by FMshared (write-up E4.2-E4.4)."""
 
     def __init__(self, k, k_sc, rank=128, state_rank=16, nb=8, time_dim=64, **_):
         super().__init__()
@@ -172,7 +174,9 @@ class FMshared(nn.Module):
     phi: fixed basis (1, tau, tau^2, tau^3 and two 1 / (1.05 - tau) terms: the form of the exact linear-Gaussian velocity).
     One input map B for every (source, target) pair (FC conditions share the pooled basis; the copy is the strongest
     baseline), pair identity only through the bias C; per_target=True gives each target its own B (fm_shared_tgt).
-    Linear in z, so a linear-Gaussian per cell. Starts at zero."""
+    Linear in z, so a linear-Gaussian per cell. Starts at zero. Benchmarked as fm_shared (E4.4); fm_shared_tgt was only
+    tested on seed 0 (checks/shared_flow_test.py) and not benchmarked. Its closed-form twin is the pooled map
+    (models/architectures/pooled_map.py)."""
 
     def __init__(self, k, k_sc, per_target=False, nb=6, **_):
         super().__init__()
