@@ -139,6 +139,27 @@ def train_head(X, Y, mu, a_rel, seed, dev):
     return out, ridge, dict(zip(TERMS, c_t.tolist())), curve, state, B0
 
 
+def build_heads(meta):
+    """Every CCA decoder, in a fixed order (the index seeds each decoder's training): (hyp, model, setting, source label,
+    target, source views, ridge penalty)."""
+    heads = [("H1", "cca_ridge", "pair", a, b, [a], meta["pairs"][f"{a}|{b}"]) for a, b in PAIRS]
+    for b in VIEWS:
+        for setting in ("other8", "other7"):
+            if setting == "other7" and b == "SC":
+                continue
+            srcs = [v for v in (VIEWS if setting == "other8" else FC) if v != b]
+            for model in ("cca_agg", "cca_cat"):
+                heads.append(("H2", model, setting, "+".join(srcs), b, srcs, meta["h2"][f"{model}|{setting}|{b}"]))
+    return heads
+
+
+def head_inputs(head, enc):
+    """Decoder input per split: the source encoding, or the sources' encodings averaged (cca_agg) / concatenated (cca_cat)."""
+    model, srcs = head[1], head[5]
+    return {s: (torch.cat([enc[s][a] for a in srcs], 1) if model == "cca_cat" else
+                torch.stack([enc[s][a] for a in srcs]).mean(0)) for s in SPLITS}
+
+
 def run(seed, part=0, nparts=1):
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     z = np.load(OUT / "h3" / f"seed{seed}.npz")
@@ -151,20 +172,11 @@ def run(seed, part=0, nparts=1):
     del data
     log(f"seed {seed}: data on {dev}; CCA d {meta['d']} lambda {meta['lam']}")
 
-    heads = [("H1", "cca_ridge", "pair", a, b, [a], meta["pairs"][f"{a}|{b}"]) for a, b in PAIRS]
-    for b in VIEWS:
-        for setting in ("other8", "other7"):
-            if setting == "other7" and b == "SC":
-                continue
-            srcs = [v for v in (VIEWS if setting == "other8" else FC) if v != b]
-            for model in ("cca_agg", "cca_cat"):
-                heads.append(("H2", model, setting, "+".join(srcs), b, srcs, meta["h2"][f"{model}|{setting}|{b}"]))
-    heads = [h for i, h in enumerate(heads) if i % nparts == part]
+    heads = [h for i, h in enumerate(build_heads(meta)) if i % nparts == part]
     rows, scales, curves, examples = [], {}, {}, {}
     ex = CC["examples"]
     for i, (hyp, model, setting, src, b, srcs, a_rel) in enumerate(heads):
-        X = {s: (torch.cat([enc[s][a] for a in srcs], 1) if model == "cca_cat" else
-                 torch.stack([enc[s][a] for a in srcs]).mean(0)) for s in SPLITS}
+        X = head_inputs(heads[i], enc)
         res, ridge, c_t, curve, state, B0 = train_head(X, Y[b], mu[b], a_rel, seed * 1000 + i, dev)
         key = f"{model}|{setting}|{src}|{b}"
         scales[key], curves[key] = c_t, curve
