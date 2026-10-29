@@ -11,7 +11,7 @@ disattenuation: task runs differ in phase-encoding direction, stimuli and block 
 parallel measurements (2026-10-28). Raw-connectome similarity (with the condition
 means left in) is in FC_matrix_analysis.ipynb (similarity_*_Glasser.png).
 
-    python scripts/notebooks/EDA/fc_deviation_similarity.py      # -> scripts/notebooks/EDA/figures/fc_conditions/deviation_similarity/
+    python scripts/notebooks/EDA/FC_deviation_similarity.py      # -> scripts/notebooks/EDA/figures/fc_conditions/deviation_similarity/
 """
 import sys
 from pathlib import Path

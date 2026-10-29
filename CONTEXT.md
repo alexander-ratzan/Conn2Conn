@@ -73,7 +73,8 @@ If task is data/splits/covariates, read `data/hcp_dataset.py` immediately after 
 - `scripts/data_viewers/` (self-contained HTML viewers; layout and rules under "Viewers" in Repo Layout Conventions)
   - `viewer_kit/` (shared base: `Viewer` page builder, `kit.css`, `kit.js`, `smoke_test.js`), `timeseries_viewer/`
     (regional timeseries, window FC and metrics from `Conn2Conn_data/timeseries`), `multitask_latent_viewer/` (subjects'
-    FC encodings in the E1 multitask CCA latent vs pooled PCA codes)
+    FC encodings in the E1 multitask CCA latent vs pooled PCA codes), `deviation_similarity_viewer/` (per condition pair:
+    own-subject vs other-subject correlation of FC deviations, rank; same quantities as `notebooks/EDA/FC_deviation_similarity.py`)
 - `scripts/notebooks/model_overviews/*.ipynb`
   - conceptual onboarding notebooks for PCA/PLS, conditional Gaussian, latent-attention, masked pretraining, and nodal baselines
 - `scripts/notebooks/model_testing/*.ipynb`

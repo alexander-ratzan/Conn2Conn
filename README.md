@@ -370,6 +370,7 @@ it before opening (Cursor: open the `.html`, then "Live Preview: Show Preview"):
 ```bash
 python scripts/data_viewers/timeseries_viewer/build_timeseries_viewer.py                 # timeseries, window FC, metrics
 python scripts/data_viewers/multitask_latent_viewer/build_multitask_latent_viewer.py     # E1 multitask CCA latent vs PCA
+python scripts/data_viewers/deviation_similarity_viewer/build_deviation_similarity_viewer.py   # FC deviations: own vs other subjects (sbatch, ~2 GB)
 python scripts/experiments/composite_loss/viewers/cross_model/build_cross_model.py      # composite-loss trade-offs
 # --from-cache: rebuild the page from the last build's data; --smoke: run the page's JS under node
 ```

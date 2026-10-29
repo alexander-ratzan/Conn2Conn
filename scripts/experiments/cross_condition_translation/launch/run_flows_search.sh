@@ -15,7 +15,7 @@
 #SBATCH --error=/scratch/asr655/neuroinformatics/Conn2Conn/results/logs/%x_%A_%a.err
 set -euo pipefail
 K="${1:?k}"; TRIALS="${2:-8}"
-MODELS=(fm_nl fm_lin)
+MODELS=(${MODELS:-fm_nl fm_lin})   # e.g. MODELS="fm_shared" sbatch --array=0-3 ...
 MODEL=${MODELS[$((SLURM_ARRAY_TASK_ID / 4))]}; WORKER=$((SLURM_ARRAY_TASK_ID % 4))
 CONN2CONN_DIR="${CONN2CONN_DIR:-/scratch/asr655/neuroinformatics/Conn2Conn}"
 module purge

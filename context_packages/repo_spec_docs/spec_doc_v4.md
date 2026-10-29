@@ -423,7 +423,7 @@ total-norm basis, seed 0; held-out subjects for scores; Yeo-7 network blocks):
   - (2) **Moved to E4:** the rest session 1 ↔ 2 pair is E4's test–retest ceiling and spread calibration check.
   - The activity-flow baseline noted for E3 (2026-10-26, E3.C) is E4's mechanistic benchmark.
 
-### E4 — Full cross-condition translation: one conditional flow for all condition → condition maps, with SC   (slug: `cross_condition_translation`) · status: planned · owner: agent:modeling
+### E4 — Full cross-condition translation: one conditional flow for all condition → condition maps, with SC   (slug: `cross_condition_translation`) · status: done (2026-10-29) · owner: agent:modeling
 
 **In one paragraph.** E2.1 found that SC predicts each FC condition's encoding only linearly and weakly (demeaned r
 ≈ 0.05), and E3 (`windowed_fc_gain`) that extra samples from the same scan do not help. Function predicts function
@@ -523,6 +523,19 @@ columns = target, with and without SC; difference heatmaps (flows − best linea
 **Follow-ups (not scheduled):** multi-source retrain of the flows (above); nonlinear $\phi$; activity-flow benchmark
 (needs per-subject task activations: HCP EVs and GLM betas; formulation from the Cole lab papers); joint-training
 ablation; residual-flow variant; the CCA-latent route; rest sessions as training views (D1 nesting mask).
+
+**Result (2026-10-29; write-up `scripts/experiments/cross_condition_translation/cross_condition_translation.md`).**
+k = 256 (D10). The per-pair flows (DeepSets FM-nl / FM-lin) passed O1, O2 and G1 but FM-lin failed O3 (its mean, not
+its spread, trails the closed form). Added with the user's go: E2.1's linear flow with **one input map shared by all
+condition pairs** (`fm_shared`) and its closed-form control **B1-pooled** (one ridge for all 56 pairs). Test, 5 seeds,
+single source: B1-pooled average rank 0.916 / top-1 0.32 / demeaned r 0.124, `fm_shared` 0.911 / 0.31 / 0.119, edge
+copy 0.843 / 0.25 / 0.107, CCA 0.815 / 0.12 / 0.105, ridge per pair 0.784 / 0.11 / 0.099, FM-nl 0.795 / 0.11 / 0.097.
+H1 supported for `fm_shared` (vs B1 and B2, all point metrics), for FM-nl only vs B1; the control beats `fm_shared` in
+every seed (**the gain is the sharing, not flow matching**); H2: `fm_shared` beats B3's energy by ~1 % (5 / 5), FM-nl
+ties; H4 supported for FM-nl only; H5 not supported (FM-nl +0.010 average rank); H6: the shared maps are the first
+models to beat the edge copy (90–92 % of cells on average rank). G2 failed as written (`fm_shared` at the epoch cap; its
+SC-only cells trail E2.1's block-PCA linear flow, 0.673 vs 0.692). Reading: a shared map regresses each condition onto
+the subject's cross-condition consensus; per-pair models fit condition-specific noise at n = 659.
 
 - **Depends on:** E2.1 (models and training recipe), E2.0 (L1 / L4), I1, E3 (no augmentation).
 - **Budget / autonomy:** D8.
@@ -712,4 +725,6 @@ v3 closed 2026-10-21 (all experiments done). Carried forward:
 | 2026-10-28 | E5 (CCA analysis, slug `cca_analysis`) added with D11 (user): representations R0–R3 vs full-rank multiview CCA over the 72 view pairs (H1), other views → held-out (H2), composite loss on the CCA decoders (H3); notebook `scripts/notebooks/model_overviews/cca_analysis_overview.ipynb`. |
 | 2026-10-28 | E5 done (autonomous, D11; GPU cap raised to 13 GPU-h by the user): H1 supported (CCA +0.027 average rank over 72 pairs vs R3; FC → SC +0.058; not SC → FC), H2 supported, H3 supported for Neighbour distance only (demeaned corr-eye trades accuracy for identification beyond the margin). Notebook `cca_analysis_overview.ipynb` is a renderer of the experiment's outputs. |
 
-Last updated at: 2026-10-28 EDT
+| 2026-10-29 | E4 done. Checks: O3 failed (flow mean trails the closed form; per-target state term no help); real-data curves show early overfitting, min-epoch floor back to 50. With the user's go, E2.1's linear flow with one map shared by all pairs (`fm_shared`) passed a seed-0 test (val average rank 0.909 vs ridge 0.788, CCA 0.824) and was run end to end (search 21318307, finals 21318308–09, T = 1 distributions 21320724), with a closed-form control (B1-pooled, one ridge for all pairs). Test: B1-pooled 0.916 ≥ `fm_shared` 0.911 ≫ copy 0.843 > CCA 0.815 > FM-nl 0.795 > ridge 0.784 (average rank); the sharing, not flow matching, carries the gain; G2 failed as written. 8.6 GPU-h of D8's 15 used. |
+
+Last updated at: 2026-10-29 EDT

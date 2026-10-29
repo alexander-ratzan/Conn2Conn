@@ -1,0 +1,296 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deviation Similarity Viewer</title>
+<!--KIT:HEAD-->
+<style>
+body{margin:0;padding:16px;background:var(--surface-0);color:var(--text-primary);font:14px/1.45 "DejaVu Sans",Helvetica,Arial,sans-serif}
+h1{font-size:18px;margin:0 0 4px} h2{font-size:15px;margin:0 0 2px} .sub{color:var(--text-secondary);margin:0 0 12px;max-width:1150px}
+#controls{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;margin:0 0 10px}
+#controls label{display:inline-flex;align-items:center;gap:6px}
+select,button{font:inherit;color:var(--text-primary);background:var(--surface-1);border:1px solid var(--grid);border-radius:6px;padding:2px 6px}
+button{cursor:pointer}
+.panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:900px){.panels{grid-template-columns:1fr}}
+.panel{background:var(--surface-1);border-radius:8px;padding:10px;min-width:0}
+.stat{color:var(--text-secondary);font-size:12.5px;margin:0 0 6px}
+svg{width:100%;height:auto;display:block} svg text{fill:var(--text-secondary);font-size:11px}
+.ax{stroke:var(--axis);stroke-width:1.2} .gl{stroke:var(--grid);stroke-dasharray:3 3}
+.cell{cursor:pointer} .cell.sel{stroke:var(--text-primary);stroke-width:2.5}
+.pt{stroke:none;opacity:.6} .pt.hl{opacity:1;stroke:var(--text-primary);stroke-width:1.5}
+#mat{width:100%;aspect-ratio:1;image-rendering:pixelated;display:block;cursor:crosshair}
+#cbar,#ccbar{width:100%;height:12px;display:block;margin-top:6px}
+.wide{grid-column:1/-1} .pairc{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:700px){.pairc{grid-template-columns:1fr}}
+.conn{width:100%;aspect-ratio:1;image-rendering:pixelated;display:block;cursor:crosshair}
+.cbl{display:flex;justify-content:space-between;font-size:11px;color:var(--text-secondary)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--text-secondary);margin:4px 0}
+.sw{width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:-1px}
+details{background:var(--surface-1);border-radius:8px;padding:8px 12px;margin:14px 0;max-width:1150px}
+summary{cursor:pointer;font-weight:600} small{color:var(--text-secondary)}
+</style></head><body>
+<!--KIT:TOP-->
+<div class="kit-template-note" style="padding:16px;color:#d03b3b;font:600 15px sans-serif">This is the viewer TEMPLATE, not the viewer. Open deviation_similarity_viewer.html in this folder (build: python scripts/data_viewers/deviation_similarity_viewer/build_deviation_similarity_viewer.py).</div>
+<h1>FC deviation similarity across conditions: own subject vs other subjects</h1>
+<p class="sub" id="intro"></p>
+<div id="controls">
+ <label>Condition a (query) <select id="ca"></select></label>
+ <button id="swap" title="swap a and b">⇄</button>
+ <label>Condition b (gallery) <select id="cb"></select></label>
+ <label>Overview metric <select id="metric">
+  <option value="avg_rank">average rank (chance 0.5)</option><option value="top1">top-1 identification</option>
+  <option value="self_mean">within-subject r (mean)</option><option value="gap">own − other r</option></select></label>
+</div>
+<div class="panels">
+ <div class="panel"><h2>All condition pairs</h2><div class="stat">Row = condition a, column = condition b. Click a cell to select the pair.</div>
+  <svg id="ov" viewBox="0 0 470 430" role="img" aria-label="Overview of condition pairs"></svg></div>
+ <div class="panel"><h2>Own vs other subjects, per subject</h2><div class="stat" id="stat-sc"></div>
+  <div class="legend"><span><i class="sw" style="background:var(--series-1)"></i>identified (own r above every other subject)</span>
+   <span><i class="sw" style="background:var(--series-2)"></i>not identified</span><span>dashed: own = mean other</span></div>
+  <svg id="sc" viewBox="0 0 470 400" role="img" aria-label="Own r vs mean r to other subjects"></svg></div>
+ <div class="panel"><h2>Distribution: own-subject r vs other-subject r</h2><div class="stat" id="stat-h"></div>
+  <div class="legend"><span><i class="sw" style="background:var(--series-1)"></i>own subject, corr(d<sub>i</sub><sup>a</sup>, d<sub>i</sub><sup>b</sup>) (n values)</span>
+   <span><i class="sw" style="background:var(--neutral)"></i>other subjects, corr(d<sub>i</sub><sup>a</sup>, d<sub>j</sub><sup>b</sup>), j ≠ i (n(n−1) values)</span></div>
+  <svg id="hist" viewBox="0 0 470 300" role="img" aria-label="Histogram of own and other r"></svg>
+  <h2 style="margin-top:10px">Rank of the own subject</h2><div class="stat">Fraction of other subjects whose b-deviation is less similar than the subject's own (1 = top).</div>
+  <svg id="rk" viewBox="0 0 470 200" role="img" aria-label="Histogram of ranks"></svg></div>
+ <div class="panel"><h2>Subject × subject matrix (sample)</h2><div class="stat" id="stat-m"></div>
+  <div id="controls2" class="legend"><label>Order <select id="order"><option value="id">subject id</option><option value="rank">own rank (high first)</option><option value="own">own r (high first)</option></select></label>
+   <label>Colour limit ± <select id="lim"><option>0.1</option><option selected>0.2</option><option>0.3</option><option>0.5</option><option>1</option></select></label></div>
+  <canvas id="mat"></canvas><canvas id="cbar" width="400" height="12"></canvas><div class="cbl"><span id="cl0"></span><span>0</span><span id="cl1"></span></div></div>
+ <div class="panel wide"><h2>Deviation connectomes of the selected matrix entry</h2><div class="stat" id="stat-c"></div>
+  <div class="legend"><label>Colour limit <select id="clim"><option value="auto">auto (98th percentile of |d|)</option><option>0.1</option><option>0.2</option><option>0.3</option><option>0.5</option></select></label>
+   <label><input type="checkbox" id="same"> also show the row subject in b and the column subject in a (each one's own pair)</label></div>
+  <div class="pairc" id="pairc">
+   <div><div class="stat" id="t0"></div><canvas class="conn" id="c0"></canvas></div>
+   <div><div class="stat" id="t1"></div><canvas class="conn" id="c1"></canvas></div>
+   <div class="xtra" hidden><div class="stat" id="t2"></div><canvas class="conn" id="c2"></canvas></div>
+   <div class="xtra" hidden><div class="stat" id="t3"></div><canvas class="conn" id="c3"></canvas></div>
+  </div>
+  <canvas id="ccbar" width="400" height="12"></canvas><div class="cbl"><span id="cc0"></span><span>0</span><span id="cc1"></span></div></div>
+</div>
+<details><summary>How to read this</summary>
+<p>For subject <i>i</i> and condition <i>a</i>, the <b>deviation</b> d<sub>i</sub><sup>a</sup> is the subject's FC (Glasser upper triangle) minus the mean FC of
+condition <i>a</i> over the subjects used. Every value here is a Pearson correlation of two deviation vectors over edges.
+<b>Own r</b> compares a subject's deviation in <i>a</i> with their own deviation in <i>b</i>; <b>other r</b> compares it with every other subject's
+deviation in <i>b</i>. If the own r sits above the cloud of other r, the subject's individual pattern carries across the two conditions, even when the own r
+itself is small. The <b>rank</b> is the fraction of other subjects the own subject beats; its mean is the average rank, and top-1 is the fraction of subjects
+whose own r beats every other subject. Rows are subjects in <i>a</i>, columns subjects in <i>b</i>: (a, b) and (b, a) share the matrix (transposed) but rank
+differently. The matrix panel shows a fixed random sample of subjects; every other panel uses all subjects. Same quantities as
+<code>scripts/notebooks/EDA/FC_deviation_similarity.py</code> (figure <code>deviation_similarity_Glasser.png</code>). No split-half reliability:
+LR / RL runs are not parallel measurements.</p></details>
+<div id="kit-checks"></div>
+<!--KIT:DATA-->
+<script>
+const D = Kit.load();
+const { $, fin, fmt, css, tip } = Kit;
+const C = D.conds, L = D.labels, n = D.n, S = D.sub.length, NS = "http://www.w3.org/2000/svg";
+const dec = s => Array.from(Kit.int16(s), q => q / 32767);
+const cache = {};
+function pair(a, b) {
+  const k = `${a}|${b}`;
+  if (!cache[k]) { const s = D.sets[k]; cache[k] = { ...s, own: dec(s.own), om: dec(s.other_mean), osd: dec(s.other_sd), omax: dec(s.other_max), rank: dec(s.rank) }; }
+  return cache[k];
+}
+function matrix(a, b) {                       // S x S, rows = subjects in a
+  const k = `M:${a}|${b}`, kt = `M:${b}|${a}`;
+  if (cache[k]) return cache[k];
+  if (D.sets[k]) return cache[k] = dec(D.sets[k].C);
+  const M = dec(D.sets[kt].C), T = new Array(S * S);
+  for (let i = 0; i < S; i++) for (let j = 0; j < S; j++) T[i * S + j] = M[j * S + i];
+  return cache[k] = T;
+}
+const el = (tag, attrs, parent, text) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); if (text != null) e.textContent = text; if (parent) parent.appendChild(e); return e; };
+$("intro").innerHTML = `${D.parcellation} FC, n = ${n} subjects with all ${C.length} conditions. Pick a pair of conditions: does subject <i>i</i>'s deviation from the
+condition mean in <i>a</i> resemble <b>their own</b> deviation in <i>b</i> more than <b>other subjects'</b> deviations in <i>b</i>?`;
+
+let st = { a: Kit.store.get("dsv.a", "rest"), b: Kit.store.get("dsv.b", "wm"), hl: -1 };
+if (!C.includes(st.a) || !C.includes(st.b) || st.a === st.b) st = { a: "rest", b: "wm", hl: -1 };
+Kit.fillSelect($("ca"), C.map(c => [c, L[c]]), st.a);
+Kit.fillSelect($("cb"), C.map(c => [c, L[c]]), st.b);
+function setPair(a, b) {
+  if (a === b) return;
+  st.a = a; st.b = b; st.hl = -1; $("ca").value = a; $("cb").value = b;
+  Kit.store.set("dsv.a", a); Kit.store.set("dsv.b", b); draw();
+}
+$("ca").onchange = () => { const a = $("ca").value; setPair(a, a === st.b ? st.a : st.b); };
+$("cb").onchange = () => { const b = $("cb").value; setPair(b === st.a ? st.b : st.a, b); };
+$("swap").onclick = () => setPair(st.b, st.a);
+$("metric").onchange = drawOverview; $("order").onchange = drawMatrix; $("lim").onchange = drawMatrix;
+
+function seq(t) {                             // light -> dark of --series-1 (sequential)
+  const c0 = Kit.hexRGB(css("--surface-0")), c1 = Kit.hexRGB(css("--series-1")), f = Math.max(0, Math.min(1, t));
+  return `rgb(${c0.map((v, i) => Math.round(v + f * (c1[i] - v))).join(",")})`;
+}
+function drawOverview() {
+  const svg = $("ov"); svg.innerHTML = "";
+  const m = $("metric").value, x0 = 80, y0 = 10, w = 46;
+  const val = (a, b) => { const o = D.overview[`${a}|${b}`]; return m === "gap" ? o.self_mean - o.other_mean : o[m]; };
+  const vals = []; for (const a of C) for (const b of C) if (a !== b) vals.push(val(a, b));
+  const lo = m === "avg_rank" ? 0.5 : Math.min(0, ...vals), hi = Math.max(...vals);
+  C.forEach((a, i) => {
+    el("text", { x: x0 - 6, y: y0 + i * w + w / 2 + 4, "text-anchor": "end" }, svg, L[a]);
+    el("text", { x: x0 + i * w + w / 2, y: y0 + C.length * w + 14, "text-anchor": "end", transform: `rotate(-40 ${x0 + i * w + w / 2} ${y0 + C.length * w + 14})` }, svg, L[a]);
+    C.forEach((b, j) => {
+      if (a === b) { el("rect", { x: x0 + j * w, y: y0 + i * w, width: w - 2, height: w - 2, fill: css("--surface-0") }, svg); return; }
+      const v = val(a, b), t = (v - lo) / (hi - lo || 1);
+      const r = el("rect", { x: x0 + j * w, y: y0 + i * w, width: w - 2, height: w - 2, fill: seq(0.15 + 0.85 * t), class: "cell" + (a === st.a && b === st.b ? " sel" : "") }, svg);
+      el("text", { x: x0 + j * w + w / 2 - 1, y: y0 + i * w + w / 2 + 3, "text-anchor": "middle", style: `fill:${t > 0.55 ? "#fff" : css("--text-primary")};font-size:10.5px;pointer-events:none` }, svg, v.toFixed(2));
+      r.onclick = () => setPair(a, b);
+      r.onmousemove = e => { const o = D.overview[`${a}|${b}`]; tip.show(e, `<b>${L[a]} → ${L[b]}</b><br>average rank ${fmt(o.avg_rank, 3)}<br>top-1 ${fmt(o.top1, 3)}<br>own r ${fmt(o.self_mean, 3)} ± ${fmt(o.self_sd, 3)}<br>other r ${fmt(o.other_mean, 4)}`); };
+      r.onmouseleave = tip.hide;
+    });
+  });
+}
+
+function drawScatter(p) {
+  const svg = $("sc"); svg.innerHTML = "";
+  const box = { l: 54, t: 10, w: 400, h: 340 };
+  const xs = p.om, ys = p.own;
+  let [lo, hi] = Kit.range([...xs, ...ys, 0]);
+  const X = v => box.l + (v - lo) / (hi - lo) * box.w, Y = v => box.t + box.h - (v - lo) / (hi - lo) * box.h;
+  for (const v of Kit.niceTicks(lo, hi, 6)) {
+    el("line", { x1: box.l, x2: box.l + box.w, y1: Y(v), y2: Y(v), class: "gl" }, svg); el("text", { x: box.l - 6, y: Y(v) + 4, "text-anchor": "end" }, svg, v);
+    el("line", { y1: box.t, y2: box.t + box.h, x1: X(v), x2: X(v), class: "gl" }, svg); el("text", { x: X(v), y: box.t + box.h + 15, "text-anchor": "middle" }, svg, v);
+  }
+  el("line", { x1: X(lo), y1: Y(lo), x2: X(hi), y2: Y(hi), class: "ax", "stroke-dasharray": "5 4" }, svg);
+  el("line", { x1: box.l, x2: box.l + box.w, y1: box.t + box.h, y2: box.t + box.h, class: "ax" }, svg);
+  el("text", { x: box.l + box.w, y: box.t + box.h + 32, "text-anchor": "end" }, svg, `mean r to other subjects in ${L[st.b]}`);
+  el("text", { x: 14, y: box.t + box.h / 2, "text-anchor": "middle", transform: `rotate(-90 14 ${box.t + box.h / 2})` }, svg, `own r (${L[st.a]} vs own ${L[st.b]})`);
+  const subPos = new Map(D.sub.map((s, k) => [s, k]));
+  for (let i = 0; i < n; i++) {
+    const idd = p.own[i] > p.omax[i];
+    const c = el("circle", { cx: X(xs[i]), cy: Y(ys[i]), r: subPos.has(i) ? 3.2 : 2.4, fill: css(idd ? "--series-1" : "--series-2"), class: "pt" + (i === st.hl ? " hl" : "") }, svg);
+    c.onmousemove = e => tip.show(e, `<b>subject ${D.subject_ids[i]}</b>${subPos.has(i) ? " (in matrix sample)" : ""}<br>own r ${fmt(p.own[i], 3)}<br>other r ${fmt(p.om[i], 3)} ± ${fmt(p.osd[i], 3)} (max ${fmt(p.omax[i], 3)})<br>rank ${fmt(p.rank[i], 3)}`);
+    c.onmouseleave = tip.hide;
+    c.onclick = () => { st.hl = i; drawScatter(p); drawMatrix(); };
+  }
+  const nid = p.own.filter((v, i) => v > p.omax[i]).length;
+  $("stat-sc").textContent = `Each point is a subject (all ${n}). Above the dashed line: own r exceeds the mean r to others. ${nid} / ${n} identified (top-1 ${fmt(nid / n, 3)}). Click a point to mark it in the matrix (if sampled).`;
+}
+
+function bars(svg, box, edges, series, xlab) {
+  const all = series.flatMap(s => s.h), hmax = Math.max(...all) * 1.08 || 1, nb = series[0].h.length;
+  const X = v => box.l + (v - edges[0]) / (edges[1] - edges[0]) * box.w, Y = v => box.t + box.h - v / hmax * box.h;
+  for (const v of Kit.niceTicks(0, hmax, 3)) { el("line", { x1: box.l, x2: box.l + box.w, y1: Y(v), y2: Y(v), class: "gl" }, svg); el("text", { x: box.l - 6, y: Y(v) + 4, "text-anchor": "end" }, svg, v); }
+  for (const v of Kit.niceTicks(edges[0], edges[1], 7)) el("text", { x: X(v), y: box.t + box.h + 15, "text-anchor": "middle" }, svg, v);
+  const bw = (edges[1] - edges[0]) / nb;
+  for (const s of series) {
+    let d = `M${X(edges[0])},${Y(0)}`;
+    s.h.forEach((v, k) => { d += `L${X(edges[0] + k * bw)},${Y(v)}L${X(edges[0] + (k + 1) * bw)},${Y(v)}`; });
+    d += `L${X(edges[1])},${Y(0)}Z`;
+    el("path", { d, fill: s.color, "fill-opacity": 0.35, stroke: s.color, "stroke-width": 1.4 }, svg);
+    if (fin(s.mean)) el("line", { x1: X(s.mean), x2: X(s.mean), y1: box.t, y2: box.t + box.h, stroke: s.color, "stroke-width": 2, "stroke-dasharray": "4 3" }, svg);
+  }
+  el("line", { x1: box.l, x2: box.l + box.w, y1: box.t + box.h, y2: box.t + box.h, class: "ax" }, svg);
+  el("text", { x: box.l + box.w, y: box.t + box.h + 32, "text-anchor": "end" }, svg, xlab);
+}
+function drawHist(p) {
+  const o = D.overview[`${st.a}|${st.b}`];
+  let svg = $("hist"); svg.innerHTML = "";
+  bars(svg, { l: 54, t: 8, w: 400, h: 240 }, [p.hist_lo, p.hist_hi],
+       [{ h: p.hist_other, color: css("--neutral"), mean: o.other_mean }, { h: p.hist_own, color: css("--series-1"), mean: o.self_mean }],
+       "r of deviations (fraction of values per bin; dashed = mean)");
+  $("stat-h").textContent = `own r ${fmt(o.self_mean, 3)} ± ${fmt(o.self_sd, 3)} (SD) · other r ${fmt(o.other_mean, 4)} · average rank ${fmt(o.avg_rank, 3)} · top-1 ${fmt(o.top1, 3)}`;
+  svg = $("rk"); svg.innerHTML = "";
+  const nb = 40, h = new Array(nb).fill(0);
+  for (const r of p.rank) h[Math.min(nb - 1, Math.floor(r * nb))] += 1 / n;
+  bars(svg, { l: 54, t: 8, w: 400, h: 150 }, [0, 1], [{ h, color: css("--series-1"), mean: o.avg_rank }], "rank of own subject (fraction of subjects; dashed = average rank)");
+}
+
+let matState = null;
+function drawMatrix() {
+  const M = matrix(st.a, st.b), p = pair(st.a, st.b), lim = +$("lim").value, ord = $("order").value;
+  const order = D.sub.map((_, k) => k);
+  if (ord !== "id") { const key = ord === "rank" ? p.rank : p.own; order.sort((x, y) => key[D.sub[y]] - key[D.sub[x]]); }
+  const lut = Kit.divergingLUT(), img = Kit.matrixImage(M, S, order, lim, lut);
+  const hk = D.sub.indexOf(st.hl), hpos = hk < 0 ? -1 : order.indexOf(hk);
+  if (hpos >= 0) for (let q = 0; q < S; q++) for (const o of [(hpos * S + q) * 4, (q * S + hpos) * 4]) { img.data[o + 3] = 150; }
+  const cv = $("mat"); cv.width = S; cv.height = S; cv.getContext("2d").putImageData(img, 0, 0);
+  Kit.colorbar($("cbar"), lut); $("cl0").textContent = `−${lim}`; $("cl1").textContent = `+${lim}`;
+  matState = { M, order, p };
+  $("stat-m").textContent = `${S} of ${n} subjects (fixed random sample). Rows: subjects in ${L[st.a]}; columns: subjects in ${L[st.b]}; the diagonal is the own subject. Click an entry to see the two deviation connectomes below.`;
+}
+
+// ---------- deviation connectomes (int8 per subject, one scale each) ----------
+const NP = D.n_parcels, NE = NP * (NP - 1) / 2, TRI = new Int32Array(NE * 2);
+{ let e = 0; for (let r = 0; r < NP; r++) for (let c = r + 1; c < NP; c++) { TRI[2 * e] = r; TRI[2 * e + 1] = c; e++; } }
+const qcache = {};
+function dev(cond, k) {                       // Float32Array of NE edges: subject D.sub[k]'s deviation in `cond`
+  const s = D.sets[`X:${cond}`];
+  if (!qcache[cond]) qcache[cond] = new Int8Array(Kit.bytes(s.q).buffer);
+  const q = qcache[cond], out = new Float32Array(NE), sc = s.scale[k];
+  for (let e = 0; e < NE; e++) out[e] = q[k * NE + e] * sc;
+  return out;
+}
+function corr(x, y) {
+  let mx = 0, my = 0; for (let e = 0; e < x.length; e++) { mx += x[e]; my += y[e]; } mx /= x.length; my /= y.length;
+  let sxy = 0, sxx = 0, syy = 0; for (let e = 0; e < x.length; e++) { const a = x[e] - mx, b = y[e] - my; sxy += a * b; sxx += a * a; syy += b * b; }
+  return sxy / Math.sqrt(sxx * syy);
+}
+function connImage(cv, d, lim, lut) {
+  const M = new Float32Array(NP * NP).fill(NaN);
+  for (let e = 0; e < NE; e++) { const r = TRI[2 * e], c = TRI[2 * e + 1]; M[r * NP + c] = M[c * NP + r] = d[e]; }
+  const order = Array.from({ length: NP }, (_, i) => i);
+  cv.width = NP; cv.height = NP; cv.getContext("2d").putImageData(Kit.matrixImage(M, NP, order, lim, lut), 0, 0);
+  cv.onmousemove = e => {
+    const r = cv.getBoundingClientRect(), y = Math.floor((e.clientY - r.top) / r.height * NP), x = Math.floor((e.clientX - r.left) / r.width * NP);
+    if (x < 0 || y < 0 || x >= NP || y >= NP) return tip.hide();
+    tip.show(e, `parcels ${y} – ${x}<br>deviation ${x === y ? "–" : fmt(M[y * NP + x], 3)}`);
+  };
+  cv.onmouseleave = tip.hide;
+}
+st.cell = [0, 0];
+function drawConn() {
+  const [ka, kb] = st.cell, lut = Kit.divergingLUT(), extra = $("same").checked;
+  const views = [[st.a, ka], [st.b, kb]].concat(extra ? [[st.b, ka], [st.a, kb]] : []);
+  const ds = views.map(([c, k]) => dev(c, k));
+  let lim = $("clim").value;
+  if (lim === "auto") { const v = []; for (const d of ds) for (let e = 0; e < NE; e += 7) v.push(Math.abs(d[e])); v.sort((x, y) => x - y); lim = v[Math.floor(0.98 * (v.length - 1))] || 1; }
+  lim = +lim;
+  views.forEach(([c, k], i) => { connImage($(`c${i}`), ds[i], lim, lut);
+    $(`t${i}`).innerHTML = `<b>subject ${D.subject_ids[D.sub[k]]}</b> in <b>${L[c]}</b>: d = FC − mean FC of ${L[c]}`; });
+  for (const x of document.querySelectorAll(".xtra")) x.hidden = !extra;
+  Kit.colorbar($("ccbar"), lut); $("cc0").textContent = `−${lim.toFixed(2)}`; $("cc1").textContent = `+${lim.toFixed(2)}`;
+  const own = ka === kb, r = corr(ds[0], ds[1]), M = matrix(st.a, st.b);
+  let txt = `${own ? "<b>Own subject</b>" : "Different subjects"}: r(left, right) = ${fmt(r, 3)} (matrix entry ${fmt(M[ka * S + kb], 3)}; 8-bit storage)`;
+  if (extra) txt += ` · own r of the row subject (top left vs bottom left) ${fmt(corr(ds[0], ds[2]), 3)}; own r of the column subject (bottom right vs top right) ${fmt(corr(ds[3], ds[1]), 3)}`;
+  $("stat-c").innerHTML = txt + `. Parcels in file order (${D.parcellation}, ${NP}).`;
+}
+$("clim").onchange = drawConn; $("same").onchange = drawConn;
+$("mat").onclick = e => {
+  if (!matState) return;
+  const r = $("mat").getBoundingClientRect(), a = Math.floor((e.clientY - r.top) / r.height * S), b = Math.floor((e.clientX - r.left) / r.width * S);
+  if (a < 0 || b < 0 || a >= S || b >= S) return;
+  st.cell = [matState.order[a], matState.order[b]]; drawConn();
+};
+$("mat").onmousemove = e => {
+  if (!matState) return;
+  const r = $("mat").getBoundingClientRect(), a = Math.floor((e.clientY - r.top) / r.height * S), b = Math.floor((e.clientX - r.left) / r.width * S);
+  if (a < 0 || b < 0 || a >= S || b >= S) return tip.hide();
+  const { M, order, p } = matState, i = D.sub[order[a]], j = D.sub[order[b]];
+  tip.show(e, `row: subject ${D.subject_ids[i]} in ${L[st.a]}<br>column: subject ${D.subject_ids[j]} in ${L[st.b]}${i === j ? " <b>(own)</b>" : ""}<br>r ${fmt(M[order[a] * S + order[b]], 3)}<br>row subject: own r ${fmt(p.own[i], 3)}, rank ${fmt(p.rank[i], 3)}`);
+};
+$("mat").onmouseleave = tip.hide;
+
+function draw() { const p = pair(st.a, st.b); drawOverview(); drawScatter(p); drawHist(p); drawMatrix(); drawConn(); }
+draw();
+Kit.onTheme(draw);
+
+// self-checks: decoded per-subject values reproduce Python's summaries; the sampled matrix diagonal is the own r
+{
+  let worst = 0, wd = 0;
+  for (const a of C) for (const b of C) if (a !== b) {
+    const p = pair(a, b), o = D.overview[`${a}|${b}`];
+    worst = Math.max(worst, Math.abs(p.rank.reduce((s, v) => s + v, 0) / n - o.avg_rank), Math.abs(p.own.reduce((s, v) => s + v, 0) / n - o.self_mean));
+    const M = matrix(a, b);
+    D.sub.forEach((i, k) => { wd = Math.max(wd, Math.abs(M[k * S + k] - p.own[i])); });
+  }
+  Kit.check("average rank and own r from per-subject data match Python (56 pairs)", worst < 1e-3, `max |diff| ${worst.toExponential(1)}`);
+  Kit.check("matrix sample diagonal equals own r", wd < 1e-3, `max |diff| ${wd.toExponential(1)}`);
+  let wc = 0;                                 // connectomes (8-bit) reproduce matrix entries
+  for (const [a, b, i, j] of [[C[0], C[7], 0, 0], [C[1], C[4], 1, 2 % S], [C[3], C[5], S - 1, 0]]) {
+    wc = Math.max(wc, Math.abs(corr(dev(a, i), dev(b, j)) - matrix(a, b)[i * S + j]));
+  }
+  Kit.check("deviation connectomes reproduce matrix entries (8-bit)", wc < 5e-3, `max |diff| ${wc.toExponential(1)}`);
+}
+</script>
+</body></html>

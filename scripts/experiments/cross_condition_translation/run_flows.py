@@ -6,6 +6,8 @@ search  one worker of a shared Optuna study (journal file; several GPU jobs run 
 final   retrain the study's best settings on one seed (train seed = seed x 1000), re-pick T on that seed's val split,
         evaluate val and test (point: mean of 256 samples, decoded edges; distribution: 64 samples, code space), save
         the record (results/flows/k<k>/<model>_seed<S>.json) and the weights (results/cache/experiments/...)
+dist    re-score the distribution of a final run's saved weights at T = 1 (the trained generative model; the selected T
+        is chosen for point accuracy and narrows the samples, E2.1 §8) -> the record's `dist_T1`
 
     python scripts/experiments/cross_condition_translation/run_flows.py search --model fm_nl --k 256 --trials 8 --worker 0
     python scripts/experiments/cross_condition_translation/run_flows.py final --model fm_nl --k 256 --seed 3
@@ -34,7 +36,7 @@ def sample_hp(trial, model):
     if model == "fm_nl":
         hp.update(width=trial.suggest_categorical("width", SPACE["width"]), depth=trial.suggest_categorical("depth", SPACE["depth"]),
                   dropout=trial.suggest_float("dropout", *SPACE["dropout"]))
-    else:
+    elif model == "fm_lin":
         hp["rank"] = trial.suggest_categorical("rank", SPACE["rank"])
     return hp
 
@@ -102,10 +104,24 @@ def final(model, k, seed, device):
           f"{info['best_epoch']}), {n_params(net):,} params, {(time.time() - t0) / 60:.1f} min -> {out.name}/{model}_seed{seed}.json")
 
 
+def dist_t1(model, k, seed, device):
+    from fm_common import make
+    ck = torch.load(CACHE / "weights" / f"k{k}" / f"{model}_seed{seed}.pt", map_location=device)
+    net = make(model, ck["hp"], k).to(device)
+    net.load_state_dict(ck["state"])
+    data = FlowData(seed, k, device)
+    _, dist = evaluate(net, data, 1.0, model, n_point=64, n_dist=64)
+    f = HERE / "results" / "flows" / f"k{k}" / f"{model}_seed{seed}.json"
+    rec = json.loads(f.read_text())
+    rec["dist_T1"] = dist
+    f.write_text(json.dumps(rec, default=float))
+    print(f"{model} k {k} seed {seed}: distribution at T 1 -> {f.name}")
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("mode", choices=["search", "final"])
-    ap.add_argument("--model", required=True, choices=["fm_nl", "fm_lin"])
+    ap.add_argument("mode", choices=["search", "final", "dist"])
+    ap.add_argument("--model", required=True, choices=["fm_nl", "fm_lin", "fm_shared", "fm_shared_tgt"])
     ap.add_argument("--k", type=int, required=True)
     ap.add_argument("--trials", type=int, default=8)
     ap.add_argument("--worker", type=int, default=0)
@@ -114,8 +130,10 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if a.mode == "search":
         search(a.model, a.k, a.trials, a.worker, device)
-    else:
+    elif a.mode == "final":
         final(a.model, a.k, a.seed, device)
+    else:
+        dist_t1(a.model, a.k, a.seed, device)
 
 
 if __name__ == "__main__":

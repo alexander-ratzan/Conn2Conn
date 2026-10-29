@@ -1,0 +1,91 @@
+H,comparison,metric,setting,note,mean,se,n_pos,n,supported
+H1,FM-nl − B1,demeaned_pearson,single source,,-0.0016379,0.00098364,1,5,False
+H1,FM-nl − B1,demeaned_pearson,single source + SC,,0.007211,0.0012241,5,5,True
+H1,FM-nl − B1,demeaned_pearson,SC only,,-0.011976,0.0019403,0,5,False
+H1,FM-nl − B1,avg_rank,single source,,0.011682,0.0015431,5,5,True
+H1,FM-nl − B1,avg_rank,single source + SC,,0.032305,0.0011277,5,5,True
+H1,FM-nl − B1,avg_rank,SC only,,-0.033512,0.0030435,0,5,False
+H1,FM-nl − B1,top1_acc,single source,,0.0067463,0.0019409,5,5,True
+H1,FM-nl − B1,top1_acc,single source + SC,,0.030049,0.0025945,5,5,True
+H1,FM-nl − B1,top1_acc,SC only,,-0.0023123,0.0032524,2,5,False
+H1,FM-nl − B2,demeaned_pearson,single source,,-0.007698,0.0014241,0,5,False
+H1,FM-nl − B2,demeaned_pearson,single source + SC,,-0.0018958,0.0016949,1,5,False
+H1,FM-nl − B2,demeaned_pearson,SC only,,-0.01412,0.0024838,0,5,False
+H1,FM-nl − B2,avg_rank,single source,,-0.019171,0.0019171,0,5,False
+H1,FM-nl − B2,avg_rank,single source + SC,,-0.0094789,0.0024167,0,5,False
+H1,FM-nl − B2,avg_rank,SC only,,-0.033472,0.0028208,0,5,False
+H1,FM-nl − B2,top1_acc,single source,,-0.0044654,0.0011522,0,5,False
+H1,FM-nl − B2,top1_acc,single source + SC,,0.012099,0.0028266,5,5,True
+H1,FM-nl − B2,top1_acc,SC only,,-0.013095,0.0033344,0,5,False
+H2,B3 − FM-nl,energy_score,single source,> 0: flow better,-2.5546e-05,2.0115e-05,1,5,False
+H2,B3 − FM-nl,energy_score,single source + SC,> 0: flow better,-5.6512e-05,3.8742e-05,2,5,False
+H2,B3 − FM-nl,energy_score,SC only,> 0: flow better,-4.3524e-05,1.7949e-05,1,5,False
+H1,FM-lin shared − B1,demeaned_pearson,single source,,0.020771,0.0007411,5,5,True
+H1,FM-lin shared − B1,demeaned_pearson,single source + SC,,0.026778,0.00048327,5,5,True
+H1,FM-lin shared − B1,demeaned_pearson,SC only,,-0.0075526,0.0013537,0,5,False
+H1,FM-lin shared − B1,avg_rank,single source,,0.12675,0.0010891,5,5,True
+H1,FM-lin shared − B1,avg_rank,single source + SC,,0.13678,0.0019261,5,5,True
+H1,FM-lin shared − B1,avg_rank,SC only,,0.01167,0.0053255,4,5,True
+H1,FM-lin shared − B1,top1_acc,single source,,0.19766,0.0017017,5,5,True
+H1,FM-lin shared − B1,top1_acc,single source + SC,,0.20417,0.0041521,5,5,True
+H1,FM-lin shared − B1,top1_acc,SC only,,0.0059433,0.0016451,5,5,True
+H1,FM-lin shared − B2,demeaned_pearson,single source,,0.014711,0.0012935,5,5,True
+H1,FM-lin shared − B2,demeaned_pearson,single source + SC,,0.017671,0.00071125,5,5,True
+H1,FM-lin shared − B2,demeaned_pearson,SC only,,-0.0096967,0.0011648,0,5,False
+H1,FM-lin shared − B2,avg_rank,single source,,0.095899,0.0015793,5,5,True
+H1,FM-lin shared − B2,avg_rank,single source + SC,,0.094993,0.0023143,5,5,True
+H1,FM-lin shared − B2,avg_rank,SC only,,0.01171,0.0050351,4,5,True
+H1,FM-lin shared − B2,top1_acc,single source,,0.18645,0.0041922,5,5,True
+H1,FM-lin shared − B2,top1_acc,single source + SC,,0.18622,0.0036591,5,5,True
+H1,FM-lin shared − B2,top1_acc,SC only,,-0.0048392,0.0015073,0,5,False
+H1c,FM-lin shared − B1-pooled,demeaned_pearson,single source,> 0: flow beats the closed-form fit with the same sharing,-0.0044136,0.00015354,0,5,False
+H1c,FM-lin shared − B1-pooled,avg_rank,single source,> 0: flow beats the closed-form fit with the same sharing,-0.0056176,0.00059476,0,5,False
+H1c,FM-lin shared − B1-pooled,top1_acc,single source,> 0: flow beats the closed-form fit with the same sharing,-0.01902,0.00096753,0,5,False
+H1c,FM-lin shared − B1-pooled-tgt,demeaned_pearson,single source,> 0: flow beats the closed-form fit with the same sharing,0.00068283,0.00047145,3,5,False
+H1c,FM-lin shared − B1-pooled-tgt,avg_rank,single source,> 0: flow beats the closed-form fit with the same sharing,0.06784,0.00073498,5,5,True
+H1c,FM-lin shared − B1-pooled-tgt,top1_acc,single source,> 0: flow beats the closed-form fit with the same sharing,0.12661,0.0028058,5,5,True
+H2,B3 − FM-lin shared,energy_score,single source,> 0: flow better,0.00023681,2.2015e-05,5,5,True
+H2,B3 − FM-lin shared,energy_score,single source + SC,> 0: flow better,0.00024268,3.2868e-05,5,5,True
+H2,B3 − FM-lin shared,energy_score,SC only,> 0: flow better,-3.4575e-05,1.688e-05,1,5,False
+H4,FM-nl spread-error r vs 0,spread_error_r,single source,,0.099335,0.019385,5,5,True
+H4,FM-nl spread-error r vs 0,spread_error_r,single source + SC,,0.099521,0.020381,5,5,True
+H4,FM-nl spread-error r vs 0,spread_error_r,SC only,,0.026459,0.016072,4,5,False
+H4,FM-lin shared spread-error r vs 0,spread_error_r,single source,,0.0042678,0.0085419,4,5,False
+H4,FM-lin shared spread-error r vs 0,spread_error_r,single source + SC,,0.0041615,0.0070661,3,5,False
+H4,FM-lin shared spread-error r vs 0,spread_error_r,SC only,,-0.0015605,0.0098759,2,5,False
+H3,FM-nl − FM-lin shared,demeaned_pearson,single source,nonlinearity,-0.022409,0.0015802,0,5,False
+H3,FM-nl − FM-lin shared,avg_rank,single source,nonlinearity,-0.11507,0.0011059,0,5,False
+H3,FM-nl − FM-lin shared,top1_acc,single source,nonlinearity,-0.19091,0.0035209,0,5,False
+H3,FM-lin shared − FM-nl,energy_score,single source,> 0: FM-nl better,-0.00026236,1.2455e-05,0,5,False
+H3,FM-nl − FM-lin shared,demeaned_pearson,single source + SC,nonlinearity,-0.019567,0.0013601,0,5,False
+H3,FM-nl − FM-lin shared,avg_rank,single source + SC,nonlinearity,-0.10447,0.0021073,0,5,False
+H3,FM-nl − FM-lin shared,top1_acc,single source + SC,nonlinearity,-0.17413,0.0039547,0,5,False
+H3,FM-lin shared − FM-nl,energy_score,single source + SC,> 0: FM-nl better,-0.00029919,9.023e-06,0,5,False
+H3,FM-nl − FM-lin shared,demeaned_pearson,SC only,nonlinearity,-0.0044238,0.0016979,0,5,False
+H3,FM-nl − FM-lin shared,avg_rank,SC only,nonlinearity,-0.045182,0.0056963,0,5,False
+H3,FM-nl − FM-lin shared,top1_acc,SC only,nonlinearity,-0.0082556,0.0028546,0,5,False
+H3,FM-lin shared − FM-nl,energy_score,SC only,> 0: FM-nl better,-8.9494e-06,7.7474e-06,1,5,False
+H3,FM-lin shared − B1,demeaned_pearson,single source,fitting by flow matching vs closed form,0.020771,0.0007411,5,5,True
+H3,FM-lin shared − B1,avg_rank,single source,fitting by flow matching vs closed form,0.12675,0.0010891,5,5,True
+H3,FM-lin shared − B1,top1_acc,single source,fitting by flow matching vs closed form,0.19766,0.0017017,5,5,True
+H3,B3 − FM-lin shared,energy_score,single source,fitting by flow matching vs closed form,0.00023681,2.2015e-05,5,5,True
+H3,FM-lin shared − B1,demeaned_pearson,single source + SC,fitting by flow matching vs closed form,0.026778,0.00048327,5,5,True
+H3,FM-lin shared − B1,avg_rank,single source + SC,fitting by flow matching vs closed form,0.13678,0.0019261,5,5,True
+H3,FM-lin shared − B1,top1_acc,single source + SC,fitting by flow matching vs closed form,0.20417,0.0041521,5,5,True
+H3,B3 − FM-lin shared,energy_score,single source + SC,fitting by flow matching vs closed form,0.00024268,3.2868e-05,5,5,True
+H3,FM-lin shared − B1,demeaned_pearson,SC only,fitting by flow matching vs closed form,-0.0075526,0.0013537,0,5,False
+H3,FM-lin shared − B1,avg_rank,SC only,fitting by flow matching vs closed form,0.01167,0.0053255,4,5,True
+H3,FM-lin shared − B1,top1_acc,SC only,fitting by flow matching vs closed form,0.0059433,0.0016451,5,5,True
+H3,B3 − FM-lin shared,energy_score,SC only,fitting by flow matching vs closed form,-3.4575e-05,1.688e-05,1,5,False
+H5,B1: (+SC) − (no SC),demeaned_pearson,single source,,-0.0071601,0.00098404,0,5,False
+H5,B1: (+SC) − (no SC),avg_rank,single source,,-0.011143,0.0022598,0,5,False
+H5,B1: (+SC) − (no SC),top1_acc,single source,,-0.018926,0.0024131,0,5,False
+H5,B2: (+SC) − (no SC),demeaned_pearson,single source,,-0.0041134,0.0010675,0,5,False
+H5,B2: (+SC) − (no SC),avg_rank,single source,,-0.00021156,0.0022025,2,5,False
+H5,B2: (+SC) − (no SC),top1_acc,single source,,-0.012188,0.0038203,0,5,False
+H5,FM-nl: (+SC) − (no SC),demeaned_pearson,single source,,0.0016888,0.00057962,4,5,True
+H5,FM-nl: (+SC) − (no SC),avg_rank,single source,,0.0094802,0.0010709,5,5,True
+H5,FM-nl: (+SC) − (no SC),top1_acc,single source,,0.0043764,0.0016699,4,5,True
+H5,FM-lin shared: (+SC) − (no SC),demeaned_pearson,single source,,-0.0011538,0.00046041,1,5,False
+H5,FM-lin shared: (+SC) − (no SC),avg_rank,single source,,-0.001118,0.00075621,1,5,False
+H5,FM-lin shared: (+SC) − (no SC),top1_acc,single source,,-0.012412,0.0033785,0,5,False

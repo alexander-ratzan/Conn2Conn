@@ -27,7 +27,9 @@ from models.eval.metrics import compute_corr_matrix, corr_avg_rank
 NONE = len(FC)                       # source index for "no FC input"
 P_NONE, P_SC_DROP = 0.2, 0.2
 FLOW_STEPS = 32
-TRAIN = dict(batch_subjects=64, max_epochs=3000, min_epochs=300, patience=500, grad_clip=1.0)   # E4.2: 50 / 200 stopped FM-lin too early
+TRAIN = dict(batch_subjects=64, max_epochs=3000, min_epochs=50, patience=500, grad_clip=1.0)
+# min_epochs: 300 briefly (2026-10-28, after synthetic O3 stopped early); real-data curves (checks/loss_curves.py) peak at
+# epochs 50-350 and a 300 floor cost FM-lin 0.01 val average rank, so back to 50 (as E2.1's flows)
 
 
 # ------------------------------------------------------------------------------------------------ data
@@ -129,11 +131,14 @@ class FMnl(nn.Module):
 
 class FMlin(nn.Module):
     """Velocity linear in z and the conditioning for every (source, target) pair and flow time:
-        v = D_tgt (g(tau) * [E_src z_src, S z_sc * flag, flag]) + sum_j b_j(tau) (A_j z + u_j[tgt] * z + c_j[tgt, src])
+        v = D_tgt (g(tau) * [E_src z_src, S z_sc * flag, flag])
+            + sum_j b_j(tau) (A_j z + u_j[tgt] * z + U_tgt diag(w_j[tgt]) V_tgt^T z + c_j[tgt, src])
     E_src: per-source encoders into a rank-r latent (CCA-like), D_tgt: per-target decoders, g and b: learned curves of
-    tau only. Exactly a linear-Gaussian model per cell (E4.2: a shared map across cells could not express 56 maps)."""
+    tau only. Exactly a linear-Gaussian model per cell (E4.2: a shared map across cells could not express 56 maps).
+    U_tgt, V_tgt (k x state_rank): per-target low-rank state term, so each target's samples can spread in its own
+    directions (E4.2 O3, 2026-10-28: with the shared A_j plus a diagonal only, the sample covariance had the wrong shape)."""
 
-    def __init__(self, k, k_sc, rank=128, nb=8, time_dim=64, **_):
+    def __init__(self, k, k_sc, rank=128, state_rank=16, nb=8, time_dim=64, **_):
         super().__init__()
         self.k_sc, c = k_sc, 2 * rank + 1
         self.source = SourceEncoder(k, rank)
@@ -144,6 +149,9 @@ class FMlin(nn.Module):
         self.A = nn.Parameter(torch.zeros(nb, k, k))
         self.u = nn.Parameter(torch.zeros(nb, len(FC), k))
         self.cb = nn.Parameter(torch.zeros(nb, len(FC), len(FC) + 1, k))
+        self.U = nn.Parameter(torch.zeros(len(FC), k, state_rank))                       # zero: starts as before
+        self.V = nn.Parameter(torch.randn(len(FC), k, state_rank) / k ** 0.5)
+        self.w = nn.Parameter(torch.ones(nb, len(FC), state_rank) / nb)
 
     def forward(self, z, tau, z_src, src, tgt, sc, sc_on):
         f = sc_on.float()[:, None]
@@ -153,12 +161,48 @@ class FMlin(nn.Module):
         cond = by_index(g * hc, tgt, self.D)
         state = (b[:, :, None] * (torch.einsum("nd,jde->nje", z, self.A) + self.u[:, tgt].transpose(0, 1) * z[:, None]
                                   + self.cb[:, tgt, src].transpose(0, 1))).sum(1)
-        return cond + state
+        wt = (b[:, :, None] * self.w[:, tgt].transpose(0, 1)).sum(1)              # (n, state_rank): sum_j b_j w_j[tgt]
+        low = by_index(wt * by_index(z, tgt, self.V), tgt, self.U.transpose(1, 2))
+        return cond + state + low
+
+
+class FMshared(nn.Module):
+    """E2.1's linear flow (joint_flow_matching/e21_run.py LinearFlowVelocity) with the source codes as input:
+        v = sum_j phi_j(tau) (A_j z + B_j [x_src, SC * flag, flag] + C_j[tgt, src])
+    phi: fixed basis (1, tau, tau^2, tau^3 and two 1 / (1.05 - tau) terms: the form of the exact linear-Gaussian velocity).
+    One input map B for every (source, target) pair (FC conditions share the pooled basis; the copy is the strongest
+    baseline), pair identity only through the bias C; per_target=True gives each target its own B (fm_shared_tgt).
+    Linear in z, so a linear-Gaussian per cell. Starts at zero."""
+
+    def __init__(self, k, k_sc, per_target=False, nb=6, **_):
+        super().__init__()
+        self.k_sc, self.per_target, d_in = k_sc, per_target, k + k_sc + 1
+        self.A = nn.Parameter(torch.zeros(nb, k, k))
+        self.B = nn.Parameter(torch.zeros(nb, *((len(FC),) if per_target else ()), d_in, k))
+        self.C = nn.Parameter(torch.zeros(nb, len(FC), len(FC) + 1, k))
+
+    @staticmethod
+    def basis(tau):
+        r = 1.0 / (1.05 - tau)
+        return torch.stack([torch.ones_like(tau), tau, tau ** 2, tau ** 3, 0.05 * r, 0.05 * tau * r], dim=1)
+
+    def forward(self, z, tau, z_src, src, tgt, sc, sc_on):
+        f = sc_on.float()[:, None]
+        xs = torch.where((src == NONE)[:, None], torch.zeros_like(z_src), z_src)
+        inp = torch.cat([xs, sc[:, :self.k_sc] * f, f], dim=1)
+        if self.per_target:
+            bx = torch.stack([by_index(inp, tgt, self.B[j]) for j in range(len(self.B))], dim=1)
+        else:
+            bx = torch.einsum("nc,jce->nje", inp, self.B)
+        terms = torch.einsum("nd,jde->nje", z, self.A) + bx + self.C[:, tgt, src].transpose(0, 1)
+        return (self.basis(tau)[:, :, None] * terms).sum(1)
 
 
 def make(model, hp, k):
+    if model in ("fm_shared", "fm_shared_tgt"):
+        return FMshared(k, hp["k_sc"], per_target=model == "fm_shared_tgt")
     if model == "fm_lin":
-        return FMlin(k, hp["k_sc"], rank=hp.get("rank", 128))
+        return FMlin(k, hp["k_sc"], rank=hp.get("rank", 128), state_rank=hp.get("state_rank", 16))
     return FMnl(k, hp["k_sc"], width=hp["width"], depth=hp["depth"], dropout=hp["dropout"])
 
 
@@ -200,7 +244,8 @@ def val_batch(data, split="val"):
 
 
 def train(model, hp, data, seed, trial=None, max_epochs=None, log_every=0, subset=None, regularise=True, early_stop=True,
-          restore_best=True):
+          restore_best=True, callback=None, every=50):
+    """callback(ep, net), every `every` epochs (net in eval mode), e.g. to trace a validation metric (checks/loss_curves.py)."""
     torch.manual_seed(seed)
     net = make(model, hp, data.k).to(data.device)
     opt = torch.optim.AdamW(net.parameters(), lr=hp["lr"], weight_decay=hp["wd"] if regularise else 0.0)
@@ -229,6 +274,8 @@ def train(model, hp, data, seed, trial=None, max_epochs=None, log_every=0, subse
             vl = fm_loss(net, vb, torch.Generator(device=data.device).manual_seed(999)).item()
         ema = vl if ep == 0 else 0.9 * ema + 0.1 * vl
         hist.append((ep, float(np.mean(tl)), vl))
+        if callback is not None and (ep % every == 0 or ep == max_ep - 1):
+            callback(ep, net)
         if log_every and ep % log_every == 0:
             print(f"  epoch {ep}: train {np.mean(tl):.4f} val {vl:.4f}", flush=True)
         if ep >= TRAIN["min_epochs"] - 1:

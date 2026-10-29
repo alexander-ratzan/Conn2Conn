@@ -1,0 +1,40 @@
+{
+ "k": 256,
+ "quick": false,
+ "ok": false,
+ "results": {
+  "O1 fm_nl loss falls": {
+   "ok": true,
+   "first": 1.893109466812827,
+   "last": 1.393145949190313
+  },
+  "O2 fm_nl memorises 32 subjects": {
+   "ok": true,
+   "mean_r": 0.9598714113235474
+  },
+  "O1 fm_lin loss falls": {
+   "ok": true,
+   "first": 1.8517166441137138,
+   "last": 1.2248224106701937
+  },
+  "O2 fm_lin memorises 32 subjects": {
+   "ok": true,
+   "mean_r": 0.9833658933639526
+  },
+  "O3 FM-lin = closed-form linear-Gaussian": {
+   "ok": false,
+   "mean_r_with_ridge": 0.9756911243194946,
+   "energy_diff": 0.5540573991665082,
+   "energy_diff_se": 0.06486954475005083
+  },
+  "G1 FM-nl beats ridge on a planted nonlinear map": {
+   "ok": true,
+   "win_frac": 1.0
+  },
+  "G1 FM-nl matches ridge on the linear SC path": {
+   "ok": true,
+   "mean_diff": 0.07169757262640145,
+   "se": 0.0020742915310358466
+  }
+ }
+}

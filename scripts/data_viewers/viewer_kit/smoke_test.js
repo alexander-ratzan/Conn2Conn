@@ -64,6 +64,7 @@ const document = {
   querySelectorAll: sel => (sel === "script.kit-set" ? sets : []),
   querySelector: sel => stub(sel),
   createElement: tag => stub("<" + tag + ">"),
+  createElementNS: (ns, tag) => stub("<" + tag + ">"),
   documentElement: stub("html"),
   body: stub("body"),
   addEventListener() {},

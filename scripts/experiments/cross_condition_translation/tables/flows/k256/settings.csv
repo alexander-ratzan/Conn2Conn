@@ -1,0 +1,94 @@
+model,setting,metric,mean,se,n
+B0,single source,demeaned_pearson,0.1071,0.00073847,5
+B0-codes,single source,demeaned_pearson,0.095188,0.00084889,5
+B1,SC only,demeaned_pearson,0.043696,0.0014447,5
+B1,single source,demeaned_pearson,0.098597,0.0013777,5
+B1,single source + SC,demeaned_pearson,0.091437,0.00086354,5
+B1-pooled,single source,demeaned_pearson,0.12378,0.00082933,5
+B1-pooled-tgt,single source,demeaned_pearson,0.11869,0.0011984,5
+B2,SC only,demeaned_pearson,0.04584,0.0016514,5
+B2,single source,demeaned_pearson,0.10466,0.0020505,5
+B2,single source + SC,demeaned_pearson,0.10054,0.0017719,5
+FM-lin shared,SC only,demeaned_pearson,0.036143,0.0014011,5
+FM-lin shared,single source,demeaned_pearson,0.11937,0.0008018,5
+FM-lin shared,single source + SC,demeaned_pearson,0.11822,0.0011022,5
+FM-nl,SC only,demeaned_pearson,0.03172,0.0017875,5
+FM-nl,single source,demeaned_pearson,0.096959,0.0018845,5
+FM-nl,single source + SC,demeaned_pearson,0.098648,0.0016015,5
+B0,single source,avg_rank,0.84451,0.0026847,5
+B0-codes,single source,avg_rank,0.77951,0.002491,5
+B1,SC only,avg_rank,0.66098,0.0038902,5
+B1,single source,avg_rank,0.78375,0.0017878,5
+B1,single source + SC,avg_rank,0.77261,0.0022293,5
+B1-pooled,single source,avg_rank,0.91612,0.0014087,5
+B1-pooled-tgt,single source,avg_rank,0.84266,0.0016163,5
+B2,SC only,avg_rank,0.66094,0.0044562,5
+B2,single source,avg_rank,0.8146,0.0023838,5
+B2,single source + SC,avg_rank,0.81439,0.0029003,5
+FM-lin shared,SC only,avg_rank,0.67265,0.0051973,5
+FM-lin shared,single source,avg_rank,0.9105,0.00090677,5
+FM-lin shared,single source + SC,avg_rank,0.90938,0.0015071,5
+FM-nl,SC only,avg_rank,0.62747,0.0031792,5
+FM-nl,single source,avg_rank,0.79543,0.0013056,5
+FM-nl,single source + SC,avg_rank,0.80491,0.0018021,5
+B0,single source,top1_acc,0.24932,0.0036678,5
+B0-codes,single source,top1_acc,0.13012,0.0013384,5
+B1,SC only,top1_acc,0.017969,0.0013255,5
+B1,single source,top1_acc,0.10767,0.0027554,5
+B1,single source + SC,top1_acc,0.088743,0.0037959,5
+B1-pooled,single source,top1_acc,0.32435,0.0032325,5
+B1-pooled-tgt,single source,top1_acc,0.17871,0.0028447,5
+B2,SC only,top1_acc,0.028752,0.0020273,5
+B2,single source,top1_acc,0.11888,0.0033192,5
+B2,single source + SC,top1_acc,0.10669,0.0029495,5
+FM-lin shared,SC only,top1_acc,0.023913,0.0020319,5
+FM-lin shared,single source,top1_acc,0.30533,0.0036072,5
+FM-lin shared,single source + SC,top1_acc,0.29292,0.0059391,5
+FM-nl,SC only,top1_acc,0.015657,0.0023859,5
+FM-nl,single source,top1_acc,0.11442,0.0025223,5
+FM-nl,single source + SC,top1_acc,0.11879,0.0030437,5
+B3,SC only,energy_score,0.015494,4.1955e-05,5
+B3,single source,energy_score,0.015433,5.4524e-05,5
+B3,single source + SC,energy_score,0.015499,3.2086e-05,5
+FM-lin shared,SC only,energy_score,0.015529,5.4507e-05,5
+FM-lin shared,single source,energy_score,0.015196,5.6562e-05,5
+FM-lin shared,single source + SC,energy_score,0.015256,5.4023e-05,5
+FM-lin shared @T*,SC only,energy_score,0.018401,7.7168e-05,5
+FM-lin shared @T*,single source,energy_score,0.017932,7.9701e-05,5
+FM-lin shared @T*,single source + SC,energy_score,0.018026,7.7474e-05,5
+FM-nl,SC only,energy_score,0.015538,5.4483e-05,5
+FM-nl,single source,energy_score,0.015458,6.3366e-05,5
+FM-nl,single source + SC,energy_score,0.015556,6.0066e-05,5
+FM-nl @T*,SC only,energy_score,0.018954,8.9989e-05,5
+FM-nl @T*,single source,energy_score,0.018954,0.00010082,5
+FM-nl @T*,single source + SC,energy_score,0.019134,9.2738e-05,5
+B3,SC only,coverage90,0.92416,0.0052574,5
+B3,single source,coverage90,0.93018,0.0026634,5
+B3,single source + SC,coverage90,0.93321,0.0028922,5
+FM-lin shared,SC only,coverage90,0.85276,0.0044983,5
+FM-lin shared,single source,coverage90,0.87912,0.0033479,5
+FM-lin shared,single source + SC,coverage90,0.87779,0.0033117,5
+FM-lin shared @T*,SC only,coverage90,0,0,5
+FM-lin shared @T*,single source,coverage90,0,0,5
+FM-lin shared @T*,single source + SC,coverage90,0,0,5
+FM-nl,SC only,coverage90,0.81849,0.0047923,5
+FM-nl,single source,coverage90,0.78298,0.00535,5
+FM-nl,single source + SC,coverage90,0.73351,0.0057887,5
+FM-nl @T*,SC only,coverage90,0,0,5
+FM-nl @T*,single source,coverage90,0,0,5
+FM-nl @T*,single source + SC,coverage90,0,0,5
+B3,SC only,spread_error_r,-0.011485,0.012463,5
+B3,single source,spread_error_r,-0.0082379,0.01158,5
+B3,single source + SC,spread_error_r,-0.0097814,0.011391,5
+FM-lin shared,SC only,spread_error_r,-0.0015605,0.0098759,5
+FM-lin shared,single source,spread_error_r,0.0042678,0.0085419,5
+FM-lin shared,single source + SC,spread_error_r,0.0041615,0.0070661,5
+FM-lin shared @T*,SC only,spread_error_r,-0.0034804,0.013581,5
+FM-lin shared @T*,single source,spread_error_r,-0.0018241,0.016771,5
+FM-lin shared @T*,single source + SC,spread_error_r,-0.0009427,0.015381,5
+FM-nl,SC only,spread_error_r,0.026459,0.016072,5
+FM-nl,single source,spread_error_r,0.099335,0.019385,5
+FM-nl,single source + SC,spread_error_r,0.099521,0.020381,5
+FM-nl @T*,SC only,spread_error_r,0.010937,0.020274,5
+FM-nl @T*,single source,spread_error_r,0.13628,0.0098251,5
+FM-nl @T*,single source + SC,spread_error_r,0.1238,0.014719,5
