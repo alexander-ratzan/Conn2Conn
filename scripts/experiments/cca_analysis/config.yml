@@ -1,0 +1,40 @@
+# Spec v4 E5 — CCA analysis: multiview CCA co-embedding vs PCA representations for every view pair (D11).
+#   sbatch scripts/experiments/cca_analysis/launch/run_seeds.sh        # E5.1: H1 + H2 + G0, one CPU job per seed
+#   sbatch scripts/experiments/cca_analysis/launch/run_composite.sh    # E5.2: H3 + G1, one GPU job per seed
+#   python scripts/experiments/cca_analysis/analyze.py                 # E5.3: tables + figures
+# Notebook: scripts/notebooks/model_overviews/cca_analysis_overview.ipynb (reads tables / results only).
+parcellation: Glasser
+seeds: [0, 1, 2, 3, 4]
+fc_views: [rest, emotion, gambling, language, motor, relational, social, wm]
+out_dir: /scratch/asr655/neuroinformatics/Conn2Conn/results/cache/experiments/cca_analysis   # per-seed results + H3 inputs
+e40c_dir: scripts/experiments/cross_condition_translation/results/e40c                        # G0 references (E4.0c)
+
+representations:
+  nodal_q: [2, 4, 8, 16]                       # R0: eigenvectors of the mean train connectome per view
+  k: [64, 128, 256, 512]                       # R1 condition-specific, R2 block, R3 block variance-adjusted (D2)
+ridge_alphas: [1.0e-3, 1.0e-2, 1.0e-1, 1, 10, 100, 1000, 1.0e+4]   # x mean eigenvalue of X^T X (E2.0 grid)
+cca:
+  d: [8, 16, 32, 64, 128, 256]
+  lambda: [1.0e-2, 1.0e-1, 1, 10, 100]         # x mean eigenvalue of Z_m^T Z_m (I2)
+  ref_k: 256                                   # CCA-256 reference: on R3 codes at this k
+selection: avg_rank                            # D9: validation average rank (raw correlation, rows = targets)
+
+composite:                                     # H3: grid v3's 2 x 2 x 2 factorial at 0.5 (composite_loss/grid_v3.yml)
+  combos:
+    mse_only:    {varmatch: 0.0, correye_dm: 0.0, neidist: 0.0}
+    vm_0.5:      {varmatch: 0.5, correye_dm: 0.0, neidist: 0.0}
+    cedm_0.5:    {varmatch: 0.0, correye_dm: 0.5, neidist: 0.0}
+    nd_0.5:      {varmatch: 0.0, correye_dm: 0.0, neidist: 0.5}
+    vm_cedm_0.5: {varmatch: 0.5, correye_dm: 0.5, neidist: 0.0}
+    vm_nd_0.5:   {varmatch: 0.5, correye_dm: 0.0, neidist: 0.5}
+    cedm_nd_0.5: {varmatch: 0.0, correye_dm: 0.5, neidist: 0.5}
+    alldm_0.5:   {varmatch: 0.5, correye_dm: 0.5, neidist: 0.5}
+  batch_size: 64                               # protocol batch size (batch-level identity terms)
+  max_epochs: 300
+  eval_every: 5                                # val average rank; the kept weights are the best val (epoch 0 = ridge)
+  lr_rel: 1.0e-3                               # Adam lr = lr_rel x RMS of the ridge weights
+  examples: {seed: 0, n_subjects: 6}           # saved test predictions into rest (notebook figure)
+
+gates:
+  g0_tol: 1.0e-6        # R3 ridge (k = 256) and full-rank CCA (MAXVAR decoders) reproduce E4.0c's B1 / B2 rows
+  g1_tol: 2.0e-3        # MSE-only gradient decoders reproduce the ridge decoders (mean over decoders)

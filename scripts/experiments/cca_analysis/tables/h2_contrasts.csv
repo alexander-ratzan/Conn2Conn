@@ -1,0 +1,25 @@
+setting,metric,contrast,mean,se,n_pos,n
+other8,avg_rank,CCA-agg − best single source,0.03127114999734655,0.0017826027260727942,5,5
+other8,avg_rank,CCA-agg − best PCA concatenated,0.023177613241653638,0.003696771270999947,5,5
+other8,demeaned_pearson,CCA-agg − best single source,0.020459217808340757,0.0017197904735809393,5,5
+other8,demeaned_pearson,CCA-agg − best PCA concatenated,0.0027462839756836055,0.0015453146328324669,4,5
+other8,top1_acc,CCA-agg − best single source,0.06258488518932237,0.011848237335483847,5,5
+other8,top1_acc,CCA-agg − best PCA concatenated,0.009181457208601224,0.009145741601107076,4,5
+other8,avg_rank,CCA-cat − best single source,0.033901580224388515,0.0017133772926025757,5,5
+other8,avg_rank,CCA-cat − best PCA concatenated,0.025808043468695606,0.004035474068986813,5,5
+other8,demeaned_pearson,CCA-cat − best single source,0.019940143418886436,0.002009624103008929,5,5
+other8,demeaned_pearson,CCA-cat − best PCA concatenated,0.002227209586229284,0.0021084247379134415,3,5
+other8,top1_acc,CCA-cat − best single source,0.06655479027791567,0.0122954454626454,5,5
+other8,top1_acc,CCA-cat − best PCA concatenated,0.013151362297194519,0.01038960833990075,4,5
+other7,avg_rank,CCA-agg − best single source,0.03793264879980209,0.002355958982943565,5,5
+other7,avg_rank,CCA-agg − best PCA concatenated,0.018251021154548998,0.0024831082702226224,5,5
+other7,demeaned_pearson,CCA-agg − best single source,0.02569852755040476,0.0022411527371707035,5,5
+other7,demeaned_pearson,CCA-agg − best PCA concatenated,-0.00075539094793165,0.001979606249120027,2,5
+other7,top1_acc,CCA-agg − best single source,0.08851319928229588,0.01365014922072202,5,5
+other7,top1_acc,CCA-agg − best PCA concatenated,0.005899769046004722,0.011561402598349034,3,5
+other7,avg_rank,CCA-cat − best single source,0.03941409557124966,0.0025227769614254015,5,5
+other7,avg_rank,CCA-cat − best PCA concatenated,0.019732467925996568,0.0031272684810572117,5,5
+other7,demeaned_pearson,CCA-cat − best single source,0.025205013806965514,0.0024133812510300895,5,5
+other7,demeaned_pearson,CCA-cat − best PCA concatenated,-0.0012489046913708945,0.0024312540182791537,2,5
+other7,top1_acc,CCA-cat − best single source,0.08738853569479987,0.014124563892637585,5,5
+other7,top1_acc,CCA-cat − best PCA concatenated,0.0047751054585087,0.012609430344674365,3,5

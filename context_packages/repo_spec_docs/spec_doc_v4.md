@@ -22,6 +22,7 @@ no gain); full cross-condition translation with one conditional model and SC as 
 | E2 | SC → functional latent: E2.1 conditional generation of each condition's CCA encoding from SC (linear, nonlinear, linear-Gaussian, flow); E2.2 superseded by E4 | done 2026-10-26 (E2.1; E2.2 superseded by E4 2026-10-28) | I1, E1, D7 | agent:modeling |
 | E3 | Generative follow-ups to E2.1: path noise, rest sessions as repeats, FC timeseries windows as more samples per subject | done 2026-10-27 (windows: no gain, `windowed_fc_gain`; path noise dropped; rest sessions and activity flow moved to E4) | E2.1 | agent:modeling |
 | E4 | Full cross-condition translation: conditional flows from noise, nonlinear and linear (SC + source condition → any target condition; DeepSets interface, pairwise first), against identity, block-PCA ridge (± SC), 9-view multiview CCA with SC and linear-Gaussian baselines | planned | E2.1, E2.0, I1, E3, D8 | agent:modeling |
+| E5 | CCA analysis: multiview CCA co-embedding vs nodal, condition-specific and block PCA representations for all 72 view pairs (H1), other views → held-out (H2), composite loss on the CCA decoders (H3); formal notebook | done 2026-10-28 | E1, E2.0, E4.0c, I2, D11 | agent:modeling |
 | I1 | Joint translation infrastructure: pooled FC basis, (subject, source, target) data module, token model, integrator, runner | in progress | — | agent:modeling |
 | I2 | Multiview CCA library module (MAXVAR fit / encode / decode), shared by E2 and E1 | done 2026-10-20 | — | agent:modeling |
 | D1 | Views and the true rest target | decided 2026-10-20 | — | user |
@@ -34,6 +35,7 @@ no gain); full cross-condition translation with one conditional model and SC as 
 | D8 | E4 design (nonlinear and linear flows from noise, DeepSets interface trained pairwise first, baselines reviewed first; activity flow deferred) and execution | decided 2026-10-28 (autonomous through E4.4, 15 GPU-h) | — | user |
 | D10 | E4 code size fixed by rule after E4.0c; optimisability pre-checks before the flow search | decided 2026-10-28 | E4.0c | user |
 | D9 | Validation selection on average rank for E4.0c onward | decided 2026-10-28 | — | user |
+| D11 | E5 design and execution | decided 2026-10-28 (autonomous; cap 10 → 13 GPU-h) | — | user |
 | C!1 | (from v3:C!2) Subject-specific SC is dominated by parcel size, which FC cannot see | standing caveat | — | — |
 
 ---
@@ -63,6 +65,7 @@ $i$ in view $m$; view embedding $e(m)$; flow time $\tau \in [0, 1]$.
 | D8 | **Decided (user 2026-10-28):** E4's flows are trained from noise (no linear anchor, no CCA in the model; the weak linear signal stays in the training target rather than being residualised out), in two forms, nonlinear and linear, against the closed-form linear-Gaussian to separate nonlinearity from fitting effects; DeepSets conditioning interface ($\phi$ modular, linear first) trained pairwise first, multi-source as a retrain; baselines B0–B3 run and reviewed before the flows (E4.1); activity flow and ablations are follow-ups. Autonomous from E4.0c through E4.4 (user 2026-10-28), cap 15 GPU-h; stop and report on a failed gate (G1, G2, optimisability checks), > 20 % task errors after one retry, the cap, or a code change outside E4's folder (beyond importing E2.1's model classes); commits local. | Optimisation capacity first: the pairwise-trained DeepSets form equals a pairwise model and extends to multi-source without a new architecture. |
 | D9 | **Decided (user 2026-10-28):** from E4.0c onward, model and hyperparameter selection on validation uses **average rank** (identification), not demeaned r: ridge penalty and SC code size, CCA $(d, \lambda)$ (grid extended to $d$ = 128, 256), flow hyperparameters and sampling temperature. Demeaned r stays reported. E4.0 / k = 512 results (selected on demeaned r / GCV) are kept as they are. | Individual FC deviations agree only weakly across conditions (r 0.06–0.19) yet identify subjects (average rank 0.88–0.99); MSE-like selection shrinks predictions toward the mean and discards that individual signal (E4.0: ridge and CCA trail copying on identification, and do not use components 257–512). |
 | D10 | **Decided (user 2026-10-28):** the flows' code size is fixed after E4.0c by this rule, on validation data only. (1) E4.0c refits B1 and B2 with D9 selection at $k$ = 256, 512 and full rank (per-condition bases). (2) Score per $k$: mean val average rank over the 56 single-source cells, best of B1 / B2. (3) Choose the smallest $k$ in {256, 512} within 0.005 of the better of the two. (4) Full rank is diagnostic: if it beats the chosen size by more than 0.01, flag it (signal beyond the shared basis) and proceed. (5) The same $k$ for source and target codes; the SC code size stays in the flow search. Before the search, **optimisability checks** on FM-nl and FM-lin: loss decreases and gradients are finite; each overfits a small training subset; FM-lin on synthetic linear-Gaussian data recovers the closed-form linear-Gaussian (energy within 2 SE); then G1. | Fix the representation before the flows, from evidence the flows do not see; make sure a flow failure is not an optimisation failure. |
+| D11 | **Decided (user 2026-10-28):** E5 (CCA analysis) with representations R0–R3 and full-rank CCA; R0's $q$ chosen on val from {2, 4, 8, 16}; H3 uses grid v3's 2 × 2 × 2 factorial (8 combinations) on every H1 and H2 decoder; recorded as a spec item with its own experiment folder and a notebook in `scripts/notebooks/model_overviews/`. Autonomous through E5.3, cap 10 GPU-h, raised to 13 GPU-h by the user on 2026-10-28 after two H3 tasks timed out on A100s; stop and report on a failed gate (G0, G1), > 20 % task errors after one retry, or the cap; commits local. | One protocol for the representation question the earlier items answered piecemeal; the notebook is the formal record. |
 
 ## 2. Experiments
 
@@ -524,6 +527,84 @@ ablation; residual-flow variant; the CCA-latent route; rest sessions as training
 - **Depends on:** E2.1 (models and training recipe), E2.0 (L1 / L4), I1, E3 (no augmentation).
 - **Budget / autonomy:** D8.
 
+### E5 — CCA analysis: does a multiview CCA co-embedding make cross-condition maps more accurate and more identifiable than PCA representations?   (slug: `cca_analysis`) · status: done 2026-10-28 · owner: agent:modeling
+
+**In one paragraph.** E1, E2.0 and E4.0 used the multiview CCA latent in several places but never tested it as a
+representation against every PCA alternative under one protocol. E5 does that, formally and for every ordered pair
+of the 9 views (SC and 8 FC conditions), and records the analysis in a notebook
+(`scripts/notebooks/model_overviews/cca_analysis_overview.ipynb`). The problem is to learn the subject-specific,
+condition-specific residual (each connectome minus its condition's train mean) of one view from another. Three
+hypotheses: the CCA co-embedding beats the PCA representations as a pairwise translator (H1); pooling the CCA
+encodings of all other views beats any single source (H2); a composite (identity-aware) loss on the CCA decoders
+improves identification without losing accuracy (H3).
+
+**Data.** Matched cohort (917 Glasser subjects), seeds 0–4, E2.1's splits (659 / 74 / 184 at seed 0); views
+$\mathcal{M}$ = {SC, rest, 7 tasks} (D1); 72 ordered pairs. Metrics on decoded edges, rows = test subjects: demeaned r,
+average rank, top-1 (v3 §1). Selection on validation **average rank** (D9); test reported.
+
+**Representations** (each view $m$ encoded separately; $X_m$ train edges, $\bar x_m$ its train mean; SC keeps its own
+basis in every variant):
+
+| ID | Representation | Encoder | Size grid (val) |
+|---|---|---|---|
+| R0 | Nodal PCA of the mean train connectome | $V_m$ = top-$q$ eigenvectors of the $360 \times 360$ mean train matrix of view $m$; features $\mathrm{vec}((X - \bar X_m) V_m)$ ($360q$); decoded by the symmetric projection $\hat X = \bar X_m + F V^\top + V F^\top - V V^\top F V^\top$ | $q$ ∈ {2, 4, 8, 16} |
+| R1 | Condition-specific PCA | own train PCA per view | $k$ ∈ {64, 128, 256, 512} |
+| R2 | Block PCA | one PCA of the stacked, per-condition-centred FC blocks (no scaling) | $k$ as R1 |
+| R3 | Block PCA, variance-adjusted (D2) | R2 with each block divided by its total norm (E2's code space) | $k$ as R1 |
+| CCA | Multiview CCA (MAXVAR, I2) over the 9 views, **full rank** (each view's codes at full rank; equivalent to regularised CCA on the edges, so the PCA basis does not change the fit) | per-view encoders $A_m$ into $d$ shared dimensions | $d$ ∈ {8, 16, 32, 64, 128, 256}, $\lambda$ ∈ {0.01, 0.1, 1, 10, 100} (mean val average rank over the 72 pairs) |
+| CCA-256 | Reference: the same on R3 at $k$ = 256 (E1 / E4's latent) | as CCA | as CCA |
+
+**Methods.** PCA representations: **ridge** (source codes → target codes, penalty × mean eigenvalue from E2.0's grid,
+$k$ / $q$ and penalty on val) and the **conditional Gaussian** (joint Gaussian of source and target codes with
+Ledoit–Wolf shrinkage; its conditional mean is a ridge whose penalty is set analytically, not on val). CCA: encode the
+source, then a **ridge decoder** from the source's train encodings to the target's native edges (penalty per pair on
+val). References: copy (the source's deviation, FC → FC), own-reconstruction ceiling per representation.
+
+**Hypotheses and support rules** (paired by seed; "supported" = the contrast holds in ≥ 4 / 5 seeds and demeaned r is
+not worse by more than 0.005):
+- **H1 (CCA gain, pairwise):** CCA beats the best PCA representation (the variant with the best val average rank) on
+  test average rank, mean over the 72 pairs; also reported by block (FC → FC 56, SC → FC 8, FC → SC 8) and per pair.
+- **H2 (consensus, other views → held-out):** for each held-out view (8 FC targets and SC), the CCA encodings of all
+  other views, averaged (CCA-agg) or concatenated (CCA-cat), then a ridge decoder, beat (a) the best single source
+  through CCA (chosen on val) and (b) ridge on the concatenated R3 codes; FC targets with and without SC as a source.
+- **H3 (composite loss on CCA decoders):** the H1 and H2 decoders retrained by gradient on the ridge objective plus
+  composite terms (grid v3's 2 × 2 × 2 factorial at 0.5 over Var-match, Demeaned corr-eye, Neighbor dist; scales
+  $c_t$ measured on the ridge decoder, as the composite-loss protocol), initialised at the ridge solution. Supported
+  for a combination if it raises test average rank over the ridge decoder (MSE only) in ≥ 4 / 5 seeds without the
+  demeaned r loss above. Shown as demeaned r vs average rank per combination (as the composite-loss cross-model
+  viewer), and as three rest FC predictions against the truth (best demeaned r, best average rank, best balance).
+
+**Steps and gates.** E5.1 (CPU, one job per seed): R0–R3, CCA, H1, H2. **G0:** the loaded edges match E2's cache
+exactly; R3 ridge at $k$ = 256 reproduces E4.0c's B1 rows (max |Δ| < 1e-6); full-rank CCA with E4.0c's selection and
+MAXVAR decoders reproduces E4.0c's B2 full-rank rows. E5.2 (GPU): H3. **G1:** the MSE-only gradient decoder reproduces
+the ridge decoder (|Δ| < 0.002 in demeaned r and average rank, mean over decoders). E5.3: analysis, notebook executed,
+write-up `scripts/experiments/cca_analysis/cca_analysis.md`.
+
+**Result (2026-10-28; jobs 21265790, 21283890 (E5.1), 21283891, 21293071, 21309204 (E5.2), 21309472 / 21309475
+(analysis, notebook); write-up `scripts/experiments/cca_analysis/cca_analysis.md`).**
+- **Gates:** G0 and G1 passed on all 5 seeds. Compute was about 10.4 GPU-h; the cap was raised from 10 to 13 by the
+  user after two A100 timeouts.
+- **H1 supported.** Full-rank CCA + ridge decoder beats the best PCA representation (R3 on every seed) on average rank
+  by +0.027 ± 0.001 (5 / 5), with demeaned r +0.004. By block:
+  - FC → FC: +0.027.
+  - FC → SC: +0.058 average rank, +0.028 demeaned r.
+  - SC → FC: −0.007 (2 / 5), not supported.
+- **Other H1 findings:**
+  - The PCA representations order as R3 > R1 ≈ R2 > R0.
+  - The conditional Gaussian never beats validation-tuned ridge.
+  - CCA-256 identifies better than full rank (+0.018).
+  - Copying the source residual stays best for FC → FC identification (0.845).
+- **H2 supported.** CCA-agg and CCA-cat beat the best single source (+0.031–0.039 average rank) and concatenated R3
+  ridge (+0.018–0.026), 5 / 5, with demeaned r level. Averaging equals concatenating, and SC as an extra source adds
+  nothing.
+- **H3 supported for Neighbour distance** (+0.010 average rank, −0.003 demeaned r).
+  - Demeaned corr-eye gives +0.041 average rank but −0.011 demeaned r, which fails the margin except for SC → FC
+    (0.668 → 0.729).
+  - Var-match is inert.
+
+- **Depends on:** E1, E2.0 (code space), E4.0c (G0 references), I2.
+- **Budget / autonomy:** D11.
+
 ## 3. Infrastructure
 
 ### I1 — Joint translation infrastructure · status: in progress · owner: agent:modeling
@@ -628,5 +709,7 @@ v3 closed 2026-10-21 (all experiments done). Carried forward:
 | 2026-10-28 | E4.0c done: D10 chooses k = 256 (val average rank 0.812 vs 512 0.799, full rank 0.803; no flag). E4.2: flows redesigned after the optimisability diagnostic (shared weights could not express 56 condition maps: per-source encoders + per-target weights). Checks at k = 256 (job 21241843): O1 pass (both), O2 pass FM-nl (0.87) / fail FM-lin (0.76 < 0.8), O3 mean matches ridge (r 0.977) but energy worse (spread 25 % too wide: early stopping at epoch 67), G1 fail; diagnosis: G1's planted nonlinearity is not learnable at n = 659 (an MSE-trained MLP gains only +0.002 r over ridge), so G1 cannot discriminate. **Stopped per D8**; G1 redesign and training-schedule change need the user. |
 
 | 2026-10-28 | User: keep the per-condition encoders; proceed with the G1 redesign and the training schedule. G1 data recalibrated (noise 0.1, nonlinearity strength 5, 4-d latent: a supervised MLP beats ridge 14 / 14 cells, +0.036 r; thresholds unchanged); flows' minimum epochs 50 → 300, patience 200 → 500. Checks rerun. |
+| 2026-10-28 | E5 (CCA analysis, slug `cca_analysis`) added with D11 (user): representations R0–R3 vs full-rank multiview CCA over the 72 view pairs (H1), other views → held-out (H2), composite loss on the CCA decoders (H3); notebook `scripts/notebooks/model_overviews/cca_analysis_overview.ipynb`. |
+| 2026-10-28 | E5 done (autonomous, D11; GPU cap raised to 13 GPU-h by the user): H1 supported (CCA +0.027 average rank over 72 pairs vs R3; FC → SC +0.058; not SC → FC), H2 supported, H3 supported for Neighbour distance only (demeaned corr-eye trades accuracy for identification beyond the margin). Notebook `cca_analysis_overview.ipynb` is a renderer of the experiment's outputs. |
 
 Last updated at: 2026-10-28 EDT
