@@ -119,11 +119,102 @@ So the pooled map is a fingerprint estimator. These directions are those of a Fi
 classes and conditions as repeated measures, which is why identification (average rank, top-1) gains most. The
 prediction is the same for every target condition: the model says nothing about what is specific to the target.
 
-This expression is derived from the least-squares solution and has not yet been checked numerically against the fitted
-map. It agrees with two measured properties of the seed-0 map: its mean diagonal is 0.22 (most directions are shrunk
-strongly), and the penalty does not matter.
+This expression matches the fitted least-squares map to $10^{-15}$ in every seed (checked in E6,
+`../fingerprint_embedding/fe_common.py` `pooled_map`).
 
-## 5. Results (test, 5 seeds, the 56 single-source cells without SC)
+## 5. The same map without regression: a generalized eigendecomposition
+
+**Concept.** Section 4 shows that $B$ depends on the data only through two $k \times k$ scatter matrices: $S_f$
+(how subjects' fingerprints differ from each other) and $S_d$ (how a subject's conditions differ from their own
+fingerprint). So the regression over 36,904 stacked rows is not needed. One can find the directions in code space
+ordered by how much more they vary *between* subjects than *within* a subject across conditions, and weight each
+direction by that ratio. This is a generalized eigendecomposition, the same one as Fisher's linear discriminant
+analysis (LDA) with subjects as the classes and the 8 conditions as repeated observations of each class. The pooled
+map is a soft, reliability-weighted version of an LDA projection: LDA keeps the top few directions with equal weight,
+the pooled map keeps every direction, scaled by how fingerprint-like it is.
+
+**The eigenproblem.** Let $M = 8$ conditions and $C = M S_f + S_d$ (the total scatter of all $nM$ code vectors around
+zero). Solve the symmetric-definite generalized eigenproblem
+
+$$
+M S_f\, v_j \;=\; w_j\, C\, v_j,
+\qquad
+v_j^\top C\, v_j = 1,
+\qquad j = 1, \dots, k .
+$$
+
+Each eigenvalue is the fingerprint share of its direction,
+
+$$
+w_j \;=\; \frac{v_j^\top (M S_f)\, v_j}{v_j^\top (M S_f + S_d)\, v_j} \;\in\; [0, 1],
+$$
+
+the fraction of the variance along $v_j$ that is shared by all of a subject's conditions. Collect the eigenvectors as
+columns of $V$ and the eigenvalues in $\Lambda = \mathrm{diag}(w_1, \dots, w_k)$. The normalisation gives
+$V^{-1} = V^\top C$, and the filter of section 4 is $W = C^{-1} M S_f = V \Lambda V^{-1}$. Hence
+
+$$
+B \;=\; V\, \mathrm{diag}\big(\beta_1, \dots, \beta_k\big)\, V^{-1},
+\qquad
+\beta_j \;=\; \frac{M w_j - 1}{M - 1} \;=\; \frac{8 w_j - 1}{7} .
+$$
+
+**Applying it** to a subject's code vector $z$ (a row vector) takes three steps:
+
+$$
+a_j = z\, v_j \;\; \text{(score along direction } j\text{)},
+\qquad
+a_j \mapsto \beta_j\, a_j \;\; \text{(reweight)},
+\qquad
+\hat z = \sum_j \beta_j\, a_j\, u_j \;\; \text{(map back; } u_j \text{ = row } j \text{ of } V^{-1}\text{)} .
+$$
+
+A direction with $w_j = 1$ is copied unchanged ($\beta_j = 1$); one with $w_j = 1/8$ is removed ($\beta_j = 0$); one with
+$w_j = 0$ is slightly reversed ($\beta_j = -1/7$). In E6, about 56 of the 256 directions have $w_j > 0.5$
+(`../fingerprint_embedding/figures/fig_w_spectrum.png`).
+
+**Link to Fisher's discriminant.** With subjects as classes, the between-class scatter is $S_B = M S_f$ and the
+within-class scatter is $S_W = S_d$. Fisher's criterion along $v$ is $\lambda = v^\top S_B v / v^\top S_W v$, and the
+two eigenproblems share their eigenvectors, with
+
+$$
+w_j = \frac{\lambda_j}{\lambda_j + 1} .
+$$
+
+Equivalently, with $\sigma_b^2$ the between-subject variance of the fingerprints and $\sigma_w^2$ the per-condition
+within-subject variance along a direction, $w = \sigma_b^2 / (\sigma_b^2 + \sigma_w^2)$: an intraclass-correlation-like
+reliability across conditions.
+
+**Why it equals the regression** (for any number of conditions $M$, every subject in every condition, no penalty). In
+the stacked regression each source condition appears in $M - 1$ pairs, and the $M - 1$ targets of a source sum to
+$M\bar Z - Z_s$, where $\bar Z$ holds the subjects' fingerprints. Because the deviations sum to zero over conditions,
+$\sum_s Z_s^\top Z_s = C$ and $\sum_s Z_s^\top \bar Z = M S_f$, so the normal equations give
+
+$$
+X^\top X = (M - 1)\, C,
+\qquad
+X^\top Y = M^2 S_f - C,
+\qquad
+B = (X^\top X)^{-1} X^\top Y = \frac{M}{M - 1}\, C^{-1} M S_f - \frac{1}{M - 1}\, I ,
+$$
+
+which is $\tfrac{M}{M-1} W - \tfrac{1}{M-1} I$, i.e. the eigen form above.
+
+**Recipe (no regression, no penalty):**
+
+1. On the train subjects, compute each subject's fingerprint $f_i$ (mean code over the $M$ conditions), then
+   $S_f = \sum_i f_i^\top f_i$ and $S_d = \sum_i \sum_m (z_i^m - f_i)^\top (z_i^m - f_i)$.
+2. Solve $M S_f v = w\,(M S_f + S_d)\, v$ (one $k \times k$ generalized eigendecomposition, e.g. `scipy.linalg.eigh`).
+3. Form $B = V \,\mathrm{diag}\big((M w - 1)/(M - 1)\big)\, V^\top C$.
+4. Embed any code vector: $z B$. E6's fingerprint embedding is $f_i B$, the mean fingerprint passed through the filter
+   (256-dimensional, effectively spanned by the high-$w$ directions).
+
+**What this buys.** Fitting needs two scatter matrices and one eigendecomposition instead of a 36,904-row regression.
+The spectrum $w_j$ is a direct diagnostic of how much of FC is subject-stable. Applying the map needs only one code
+vector, so a subject with a single scan can be embedded (fitting it needs subjects with every condition). Natural
+variants are a hard LDA truncation (keep the top $q$ directions) or a different weighting of $w_j$, not yet tested.
+
+## 6. Results (test, 5 seeds, the 56 single-source cells without SC)
 
 | Model | Maps | Average rank | Top-1 | Demeaned $r$ |
 |---|---|---|---|---|
@@ -144,7 +235,7 @@ strongly), and the penalty does not matter.
 - **Flow matching adds nothing.** `fm_shared` learns the same map and lands just below the closed form in every seed
   (average rank −0.006, top-1 −0.019).
 
-## 6. Limits
+## 7. Limits
 
 - The pooled map predicts the subject's fingerprint, not anything specific to the target. That is enough for
   identification and for most of the demeaned $r$, but it cannot say how a subject's working-memory FC differs from
@@ -153,4 +244,4 @@ strongly), and the penalty does not matter.
 - The derivation assumes every subject has all 8 conditions (true here: matched cohort) and no penalty (the penalty is
   irrelevant here).
 
-Last updated: 2026-10-29
+Last updated: 2026-10-29 (section 5 added)
